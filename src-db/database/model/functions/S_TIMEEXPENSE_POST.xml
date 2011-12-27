@@ -1,0 +1,147 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION S_TIMEEXPENSE_POST">
+    <function name="S_TIMEEXPENSE_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: S_TimeExpense_Post.sql,v 1.4 2003/02/21 06:38:16 jjanke Exp $
+  ***
+  * Title: Process Time + Expenses
+  * Description:
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  v_DayHours  NUMBER;
+  v_Processed VARCHAR2(60);
+  v_CInvoicelineId varchar2(32);
+  v_COrderlineId varchar2(32);
+  v_ExpenseLines NUMBER;
+    -- Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+    -- Parameter Variables
+BEGIN
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+  v_ResultStr:='PInstanceNotFound';
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+BEGIN --BODY
+  -- Get Parameters
+  v_ResultStr:='ReadingParameters';
+  FOR Cur_Parameter IN
+    (SELECT i.Record_ID,
+      i.AD_User_ID,
+      p.ParameterName,
+      p.P_String,
+      p.P_Number,
+      p.P_Date
+    FROM AD_PInstance i
+    LEFT JOIN AD_PInstance_Para p
+      ON i.AD_PInstance_ID=p.AD_PInstance_ID
+    WHERE i.AD_PInstance_ID=p_PInstance_ID
+    ORDER BY p.SeqNo
+    )
+  LOOP
+    v_Record_ID:=Cur_Parameter.Record_ID;
+    v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+    -- IF (p.ParameterName = 'xx') THEN
+    --  p_xx := p.P_String;
+    --  DBMS_OUTPUT.PUT_LINE('  xx=' || p_xx);
+    -- ELSE
+    --  DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || p.ParameterName);
+    --  END IF;
+  END LOOP; -- Get Parameter
+  DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  DECLARE
+    CUR_te RECORD;
+    v_Hours NUMBER;
+  BEGIN
+
+  /* Check if there are expense lines to process */
+  SELECT COUNT(S_TimeExpenseLine.S_TimeExpenseLine_Id)
+  INTO v_ExpenseLines
+  FROM S_TimeExpenseLine, S_TimeExpense
+  WHERE S_TimeExpense.S_TimeExpense_ID = v_Record_ID
+    AND S_TimeExpenseLine.S_TimeExpense_Id = S_TimeExpense.S_TimeExpense_ID
+    AND S_TimeExpenseLine.IsActive = 'Y';
+  IF (v_ExpenseLines = 0) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@NoExpenseLines@'||'.');
+  END IF;
+
+    -- For ease id having access to all variables
+  SELECT S_TimeExpense.Processed,
+  MAX(S_TimeExpenseLine.C_InvoiceLine_ID), MAX(S_TimeExpenseLine.C_OrderLine_ID)
+  INTO v_Processed, v_CInvoicelineId, v_COrderlineId
+  FROM S_TimeExpense LEFT JOIN S_TimeExpenseLine ON S_TimeExpense.S_TimeExpense_ID = S_TimeExpenseLine.S_TimeExpense_ID
+  WHERE S_TimeExpense.S_TimeExpense_ID = v_Record_ID
+  GROUP BY S_TimeExpense.PROCESSED;
+  IF (v_Processed = 'Y') THEN
+    IF (v_CInvoicelineId IS NULL AND v_COrderlineId IS NULL) THEN
+        UPDATE S_TimeExpense SET Processed = 'N' WHERE S_TimeExpense_ID = v_Record_ID;
+    ELSE
+        v_Message:='@DocumentAssociated@';
+     v_Result:=0;
+    END IF;
+  ELSE
+     FOR CUR_te IN
+       (SELECT te.S_TimeExpense_ID, te.DateReport, te.C_BPartner_ID, te.Description, SUM(CASE tel.ISTIMEREPORT WHEN 'Y' THEN tel.qty ELSE 0 END) AS totalhours
+        FROM S_TimeExpense te, S_TimeExpenseLine tel
+        WHERE te.S_TimeExpense_ID=v_Record_ID
+          AND te.S_TimeExpense_ID=tel.S_TimeExpense_ID
+          AND te.Processed='N'
+        GROUP BY te.S_TimeExpense_ID, te.DateReport, te.C_BPartner_ID, te.Description
+       )
+     LOOP
+       v_ResultStr:='S_TimeExpense_ID=' || CUR_te.S_TimeExpense_ID;
+       DBMS_OUTPUT.PUT_LINE('S_TimeExpense_ID='||CUR_te.S_TimeExpense_ID||', DateReport='||CUR_te.DateReport||', C_BPartner_ID='||CUR_te.C_BPartner_ID||', Description='||CUR_te.Description) ;
+       -- Checks come here
+       -- Complete
+         UPDATE S_TimeExpense
+           SET Processed='Y',
+           Updated=now(),
+           UpdatedBy=v_AD_User_ID
+         WHERE S_TimeExpense_ID=CUR_te.S_TimeExpense_ID;
+     END LOOP;
+  END IF;
+  END;
+  --<<FINISH_PROCESS>>
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+  RETURN;
+END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+   v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END S_TIMEEXPENSE_POST
+]]></body>
+    </function>
+  </database>

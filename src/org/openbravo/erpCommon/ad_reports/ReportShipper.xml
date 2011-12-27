@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html 
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License. 
+* The Original Code is Openbravo ERP. 
+* The Initial Developer of the Original Code is Openbravo SLU 
+* All portions are Copyright (C) 2001-2008 Openbravo SLU 
+* All Rights Reserved. 
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <template file="ReportShipper.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramFrom" name="paramFrom" attribute="value"/>
+  <PARAMETER id="paramFrom" name="dateFromdisplayFormat" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramFrom" name="dateFromsaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramTo" name="paramTo" attribute="value"/>
+  <PARAMETER id="paramTo" name="dateTodisplayFormat" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramTo" name="dateTosaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramShipper" name="paramShipper" default=""/>
+  <PARAMETER id="parameterBooleano" name="constantDetalle" default="Y"/>       
+  <PARAMETER id="paramCheckSale" name="checkSale" default="sale"/>
+  <PARAMETER id="paramCheckPurchase" name="checkPurchase" default="purchase"/>
+  <PARAMETER id="paramSelectAll" name="checkAll" default="all"/>   
+  <PARAMETER id="fieldSale" name="sale" boolean="checked" withId="paramCheckSale"/>
+  <PARAMETER id="fieldPurchase" name="purchase" boolean="checked" withId="paramCheckPurchase"/>
+  <PARAMETER id="fieldAll" name="all" boolean="checked" withId="paramSelectAll"/>  
+  <PARAMETER id="paramDetalle" name="paramDetalle" boolean="checked" withId="parameterBooleano"/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  <structure name="structure">
+    <FIELD id="fieldShipper">shipper</FIELD>
+    <FIELD id="fieldShipment">shipment</FIELD>
+    <FIELD id="fieldCategory">category</FIELD>
+    <FIELD id="fieldOrigin">origin</FIELD>
+    <FIELD id="fieldDestination">destination</FIELD>
+    <FIELD id="fieldQty" format="euroInform">qty</FIELD>
+    <FIELD id="fieldAmount" format="euroInform" default="0">freightamt</FIELD>
+    <SUBREPORT id="reportShipper" name="reportShipper" report="org/openbravo/erpCommon/reference/List">
+      <ARGUMENT name="parameterListSelected" withId="paramShipper"/>
+    </SUBREPORT>
+    <SUBREPORT id="reportLine" name="reportLine" report="org/openbravo/erpCommon/ad_reports/ReportShipperDetailLine"/>
+    <SECTION id="sectionCategory" field="shipper"/>
+    <SECTION id="sectionDetail"/>
+  </structure>
+  <PARAMETER id="paramC_Currency_ID" name="ccurrencyid" attribute="value"/>
+  <SUBREPORT id="reportC_Currency_ID" name="reportC_Currency_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramC_Currency_ID"/>
+  </SUBREPORT>
+  <DISCARD id="discard"/>
+</REPORT>

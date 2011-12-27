@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_REQUISITIONLINE_STATUS">
+    <function name="M_REQUISITIONLINE_STATUS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_requisitionline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32):='0';
+
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+BEGIN
+  IF (p_PInstance_ID IS NOT NULL) THEN
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  END IF;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, i.AD_Client_ID, i.AD_Org_ID,
+          p.ParameterName, p.P_String, p.P_Number, p.P_Date
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo) LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_RequisitionLine_ID;
+      v_User_ID := p_User_ID;
+    END IF;
+    v_ResultStr := 'Updating reqstatus';
+    UPDATE M_RequisitionLine
+    SET ReqStatus = (CASE ReqStatus
+                    WHEN 'P' THEN 'P'
+                    WHEN 'C' THEN 'O'
+                    WHEN 'D' THEN 'O'
+                    ELSE (CASE OrderedQty
+                         WHEN 0 THEN 'D'
+                         ELSE 'C' END) END),
+        Updated = now(),
+        UpdatedBy = v_User_ID
+    WHERE M_RequisitionLine_ID = v_Record_ID;
+
+    UPDATE M_Requisition
+    SET DocStatus = 'CL',
+    Updated = now(),
+    UpdatedBy = v_User_ID
+    WHERE M_Requisition_ID = (SELECT M_Requisition_ID FROM M_RequisitionLine WHERE M_RequisitionLine_ID = v_Record_ID)
+      AND NOT EXISTS (SELECT 1
+                      FROM M_RequisitionLine rl
+                      WHERE rl.REQSTATUS = 'O'
+                        AND rl.M_Requisition_ID = (SELECT M_Requisition_ID FROM M_RequisitionLine WHERE M_RequisitionLine_ID = v_Record_ID));
+
+  END; --BODY
+  IF (p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+  END IF;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('M_RequisitionLine_Status error: ' || v_ResultStr);
+  IF (p_PInstance_ID IS NOT NULL) THEN
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr);
+  ELSE
+    RAISE;
+  END IF;
+END M_REQUISITIONLINE_STATUS
+]]></body>
+    </function>
+  </database>

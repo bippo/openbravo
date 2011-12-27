@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BSTMTLINE_CHK_RESTRICT_TRG">
+    <trigger name="C_BSTMTLINE_CHK_RESTRICT_TRG" table="C_BANKSTATEMENTLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2006 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  v_Processed VARCHAR(60) ;
+  v_Posted    VARCHAR(60) ;
+  v_C_BANKSTATEMENT_ID VARCHAR2(32) ;
+  v_DateNull DATE := TO_DATE('01-01-1900', 'DD-MM-YYYY');
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_BANKSTATEMENT_ID:=:NEW.C_BANKSTATEMENT_ID;
+  ELSE
+    v_C_BANKSTATEMENT_ID:=:OLD.C_BANKSTATEMENT_ID;
+  END IF;
+  SELECT PROCESSED,
+    POSTED
+  INTO v_Processed,
+    v_Posted
+  FROM C_BANKSTATEMENT
+  WHERE C_BANKSTATEMENT_ID=v_C_BANKSTATEMENT_ID;
+  IF UPDATING THEN
+    IF(v_Processed='Y'
+      AND ((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+      OR(COALESCE(:OLD.C_CHARGE_ID, '0') <> COALESCE(:NEW.C_CHARGE_ID, '0'))
+      OR(COALESCE(:OLD.CHARGEAMT, 0) <> COALESCE(:NEW.CHARGEAMT, 0))
+      OR(COALESCE(:OLD.STMTAMT, 0) <> COALESCE(:NEW.STMTAMT, 0))
+      OR(COALESCE(:OLD.TRXAMT, 0) <> COALESCE(:NEW.TRXAMT, 0))
+      OR(COALESCE(:OLD.C_DEBT_PAYMENT_ID, '0') <> COALESCE(:NEW.C_DEBT_PAYMENT_ID, '0'))
+      OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+      OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')) )) THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+    IF(v_Posted='Y' AND ((COALESCE(:OLD.DATEACCT, v_DateNull) <> COALESCE(:NEW.DATEACCT, v_DateNull)))) THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF((DELETING OR INSERTING) AND v_Processed='Y') THEN
+    RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+  END IF;
+END C_BSTMTLINE_CHK_RESTRICT_TRG
+]]></body>
+    </trigger>
+  </database>

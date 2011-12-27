@@ -1,0 +1,729 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_BANKSTATEMENT_POST">
+    <function name="C_BANKSTATEMENT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_BankStatement_Post.sql,v 1.2 2002/05/22 02:48:28 jjanke Exp $
+  ***
+  * Title: Post Bank Statments
+  * Description:
+  * - Update Balance and De-Activate
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Result NUMBER;
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_DPManagementDocType_ID VARCHAR2(32);
+  v_DPMId varchar2(32);
+  v_DPMLineId varchar2(32);
+   --Added by P.SAROBE
+    v_C_Debt_Payment_ID VARCHAR2(32);
+ v_documentno_Settlement VARCHAR2(40);
+ v_documentno_Dp_Management VARCHAR2(50);
+ v_column_identifier VARCHAR2(200);
+ v_dateSettlement DATE;
+ v_Cancel_Processed VARCHAR(60);
+ v_nameBankstatement VARCHAR2 (60);
+ v_dateBankstatement DATE;
+ v_nameCash VARCHAR2 (60);
+ v_dateCash DATE;
+ v_Bankstatementline_ID VARCHAR2(32);
+ v_CashLine_ID VARCHAR2(32);
+ v_Settlement_Cancel_ID VARCHAR2(32);
+ v_ispaid CHAR(1);
+ v_is_included NUMBER:=0;
+ v_available_period NUMBER:=0;
+ v_is_ready AD_Org.IsReady%TYPE;
+ v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+ v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+ v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+ --Finish added by P.Sarobe
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_BankstatementDebtpayment RECORD;
+    Cur_BankstatementLine RECORD;
+    -- Parameter Variables
+    --  Parameter Variables
+    v_Processed CHAR(1) ;
+		v_Posted CHAR(1) ;
+		v_Processing CHAR(1) ;
+    v_count NUMBER;
+    v_SettlementDocType_ID VARCHAR2(32) ;
+    v_settlementID varchar2(32) ;
+    v_DocumentNo VARCHAR2(50);
+    v_line C_CASHLINE.LINE%TYPE;
+    -- BankAccount
+    v_BA_Currency_ID VARCHAR2(32) ;
+    v_BS_Date DATE;
+    v_AD_Org_ID VARCHAR2(32);
+    v_AD_Client_ID VARCHAR2(32) ;
+    v_ValutadatePeriod_ID NUMBER(10) ;
+    v_DateacctPeriod_ID NUMBER(10) ;
+    FINISH_PROCESS BOOLEAN:=false;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    --  Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        i.AD_User_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User:=Cur_Parameter.AD_User_ID;
+    END LOOP; --  Get Parameter
+    SELECT PROCESSED,
+      POSTED,
+			PROCESSING,
+      AD_Client_ID,
+      AD_Org_ID
+    INTO v_Processed,
+      v_Posted,
+			v_Processing,
+      v_AD_Client_ID,
+      v_AD_Org_ID
+    FROM C_BANKSTATEMENT
+    WHERE C_BankStatement_ID=v_Record_ID
+    FOR UPDATE;
+		IF(v_Processing='Y') THEN
+		RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+		END IF;
+		IF(v_Posted='Y') THEN
+		RAISE_APPLICATION_ERROR(-20000, '@BankStatementDocumentPosted@') ;
+		END IF;
+    UPDATE C_BANKSTATEMENT
+    SET PROCESSING='Y',
+    Updated=now(),
+    UpdatedBy=v_User
+    WHERE C_BANKSTATEMENT_ID = v_Record_ID;
+    IF(NOT FINISH_PROCESS) THEN
+      DECLARE
+        Cur_AutomaticSettlementCancel RECORD;
+        CUR_MANAGEMENTLINES RECORD;
+        v_DP_MANAGEMENT NUMBER;
+        v_DATEACCT DATE;
+        v_DATETRX DATE;
+      BEGIN
+        /*
+        *  Reversing process
+        */
+       IF (v_Processed = 'Y') THEN
+          v_ResultStr := 'Reversed';
+
+   --Unpost Settlement
+   FOR Cur_AutomaticSettlementCancel IN (SELECT DISTINCT S.C_SETTLEMENT_ID
+            FROM C_DEBT_PAYMENT DP, C_SETTLEMENT S
+            WHERE DP.C_SETTLEMENT_CANCEL_ID = S.C_SETTLEMENT_ID
+            AND DP.C_BANKSTATEMENTLINE_ID IN
+               (SELECT C_BANKSTATEMENTLINE_ID FROM C_BANKSTATEMENTLINE
+             WHERE C_BANKSTATEMENT_ID = v_Record_ID)
+            AND S.DOCUMENTNO LIKE '*BSP*%') LOOP
+      -- Reset fact acct
+     DELETE FROM FACT_ACCT WHERE AD_TABLE_ID = '800019' AND RECORD_ID = Cur_AutomaticSettlementCancel.C_SETTLEMENT_ID;
+     UPDATE C_SETTLEMENT SET POSTED='N',Updated=now(),
+     UpdatedBy=v_User WHERE C_SETTLEMENT_ID = Cur_AutomaticSettlementCancel.C_SETTLEMENT_ID;
+
+
+     UPDATE C_DEBT_PAYMENT
+     SET C_BANKSTATEMENTLINE_ID = NULL, C_SETTLEMENT_CANCEL_ID = NULL, ISPAID = 'N', CANCEL_PROCESSED = 'N',Updated=now(),
+     UpdatedBy=v_User
+     WHERE C_SETTLEMENT_CANCEL_ID = Cur_AutomaticSettlementCancel.C_SETTLEMENT_ID;
+
+      DECLARE
+      TYPE RECORD IS REF CURSOR;
+        Cur_Debts RECORD;
+      BEGIN
+        FOR Cur_Debts IN
+          (SELECT DISTINCT C_BPartner_ID
+          FROM C_DEBT_PAYMENT, C_BANKSTATEMENTLINE
+          WHERE C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID = C_BANKSTATEMENTLINE.C_DEBT_PAYMENT_ID
+          AND C_BANKSTATEMENTLINE.C_BANKSTATEMENT_ID = v_Record_ID
+          )
+        LOOP
+          C_BP_SOCREDITUSED_REFRESH(Cur_Debts.C_BPartner_ID) ;
+        END LOOP;
+      END;     
+
+     C_SETTLEMENT_POST(null, Cur_AutomaticSettlementCancel.C_SETTLEMENT_ID);
+
+     DELETE FROM C_SETTLEMENT WHERE C_SETTLEMENT_ID = Cur_AutomaticSettlementCancel.C_SETTLEMENT_ID;
+   END LOOP;
+
+   --Unpost DP returned from remittances
+    FOR CUR_MANAGEMENTLINES IN (SELECT  BSL.C_DP_MANAGEMENT_ID, RL.C_REMITTANCELINE_ID, BSL.C_BANKSTATEMENTLINE_ID, BSL.LINE
+                        FROM C_REMITTANCE_TYPE RT, C_REMITTANCE R, C_REMITTANCELINE RL, C_BANKSTATEMENTLINE BSL, C_DEBT_PAYMENT DP,
+                        C_DEBT_PAYMENT DP2
+                        WHERE R.C_REMITTANCE_ID = RL.C_REMITTANCE_ID
+                        AND RT.C_REMITTANCE_TYPE_ID = R.C_REMITTANCE_TYPE_ID
+                        AND RL.C_DEBT_PAYMENT_CANCELLED = BSL.C_DEBT_PAYMENT_ID
+                        AND BSL.C_DEBT_PAYMENT_ID = DP.C_DEBT_PAYMENT_ID
+                        AND RL.C_DEBT_PAYMENT_ID = DP2.C_DEBT_PAYMENT_ID
+                        AND BSL.C_BANKSTATEMENT_ID = v_Record_ID
+                        AND RT.STATUS_RETURNED = DP.STATUS
+                        AND RT.STATUS_RETURNED = DP2.STATUS
+                        AND EXISTS (SELECT 1
+                                      FROM C_DP_MANAGEMENT
+                                     WHERE BSL.C_DP_MANAGEMENT_ID=C_DP_MANAGEMENT.C_DP_MANAGEMENT_ID)) LOOP
+    begin
+      DELETE FROM FACT_ACCT WHERE AD_TABLE_ID = '800176' AND RECORD_ID = CUR_MANAGEMENTLINES.C_DP_MANAGEMENT_ID;
+      UPDATE C_DP_MANAGEMENT SET POSTED='N',Updated=now(),
+      UpdatedBy=v_User WHERE C_DP_MANAGEMENT_ID = CUR_MANAGEMENTLINES.C_DP_MANAGEMENT_ID;
+
+      C_DP_MANAGEMENT_POST(NULL, CUR_MANAGEMENTLINES.C_DP_MANAGEMENT_ID);
+      DELETE FROM C_DP_MANAGEMENTLINE WHERE C_DP_MANAGEMENT_ID = CUR_MANAGEMENTLINES.C_DP_MANAGEMENT_ID;
+      UPDATE C_BANKSTATEMENTLINE SET C_DP_MANAGEMENT_ID =  NULL,Updated=now(),
+      UpdatedBy=v_User WHERE C_BANKSTATEMENTLINE_ID = CUR_MANAGEMENTLINES.C_BANKSTATEMENTLINE_ID;
+      DELETE FROM C_DP_MANAGEMENT WHERE C_DP_MANAGEMENT_ID = CUR_MANAGEMENTLINES.C_DP_MANAGEMENT_ID;
+      UPDATE C_REMITTANCELINE SET RETURNED = 'N',Updated=now(),
+      UpdatedBy=v_User WHERE C_REMITTANCELINE_ID = CUR_MANAGEMENTLINES.C_REMITTANCELINE_ID;
+    exception when others then
+     ROLLBACK;
+     v_ResultStr:='@ErrorUnoprocessingBS@ Line:' ||CUR_MANAGEMENTLINES.LINE|| ': ' || SQLERRM || ' - ' || v_Message;
+     DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+     AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+     RETURN;
+    end;
+   END LOOP;
+
+
+         UPDATE C_DEBT_PAYMENT SET C_BANKSTATEMENTLINE_ID = NULL,Updated=now(),
+          UpdatedBy=v_User
+          WHERE C_BANKSTATEMENTLINE_ID IS NOT NULL
+            AND C_BANKSTATEMENTLINE_ID IN
+                                        (SELECT C_BANKSTATEMENTLINE_ID FROM C_BANKSTATEMENTLINE
+                                          WHERE C_BANKSTATEMENT_ID = v_Record_ID);
+          UPDATE C_BANKSTATEMENT
+             SET PROCESSED = 'N',
+                 StatementDifference=NULL,
+                 EndingBalance=0,
+                 PROCESSING = 'N',Updated=now(),
+    			 UpdatedBy=v_User
+           WHERE C_BANKSTATEMENT_ID = v_Record_ID;
+          FINISH_PROCESS := true;
+       END IF;
+      END;
+    END IF;--FINISH_PROCESS
+
+    IF(NOT FINISH_PROCESS) THEN
+      /*
+      *  Checking Restrictions
+      */
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+      INTO v_is_ready, v_is_tr_allow
+      FROM C_BANKSTATEMENT, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=C_BANKSTATEMENT.AD_Org_ID
+      AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+      AND C_BANKSTATEMENT.C_BANKSTATEMENT_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+
+      SELECT AD_ORG_CHK_DOCUMENTS('C_BANKSTATEMENT', 'C_BANKSTATEMENTLINE', v_Record_ID, 'C_BANKSTATEMENT_ID', 'C_BANKSTATEMENT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      SELECT AD_ORG_CHK_DOC_PAYMENTS('C_BANKSTATEMENT', 'C_BANKSTATEMENTLINE', v_Record_ID, 'C_BANKSTATEMENT_ID', 'C_BANKSTATEMENT_ID', 'C_DEBT_PAYMENT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@PaymentsAndHeaderDifferentLEorBU@');
+      END IF;
+
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      SELECT StatementDate
+      INTO v_BS_Date
+      FROM C_BankStatement
+      WHERE C_BankStatement_ID=v_Record_ID;
+
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('C_BANKSTATEMENT', v_Record_ID, 'C_BANKSTATEMENT_ID', 'LE')
+      INTO v_org_bule_id
+      FROM DUAL;
+
+      SELECT AD_OrgType.IsAcctLegalEntity
+      INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+      AND AD_Org.AD_Org_ID=v_org_bule_id;
+
+      IF (v_isacctle='Y') THEN
+        SELECT C_CHK_OPEN_PERIOD(v_AD_Org_ID, v_BS_Date, 'CMB', NULL)
+        INTO v_available_period
+        FROM DUAL;
+
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;
+
+
+      v_ResultStr:='CheckingRestrictions - C_BANKSTATEMENT ORG IS IN C_BANKACCOUNT ORG TREE';
+      SELECT COUNT(*)
+      INTO v_count
+      FROM C_BANKSTATEMENT c,
+        C_BANKACCOUNT b
+      WHERE c.C_BankStatement_ID=v_Record_ID
+        AND c.C_BANKACCOUNT_ID=b.C_BANKACCOUNT_ID
+        AND Ad_Isorgincluded(c.AD_ORG_ID, b.AD_ORG_ID, b.AD_CLIENT_ID)=-1;
+      IF v_count>0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgBankaccount@') ;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      v_ResultStr:='CheckingRestrictions - C_BANKSTATEMENT ORG IS IN C_DEBT_PAYMENT ORG TREE';
+      /*--Deprecated by PSarobe--SELECT COUNT(*)
+      INTO v_count
+      FROM
+        (SELECT *
+        FROM
+          (SELECT l.AD_ORG_ID AS A,
+            bp.AD_ORG_ID AS B,
+            c.AD_ORG_ID AS C,
+            c.AD_CLIENT_ID AS D
+          FROM C_BANKSTATEMENT c,
+            C_BANKSTATEMENTLINE cl,
+            C_DEBT_PAYMENT l,
+            C_BPARTNER bp
+          WHERE c.C_BankStatement_ID=cl.C_BankStatement_ID
+            AND c.C_BankStatement_ID=v_Record_ID
+            AND cl.C_DEBT_PAYMENT_ID=l.C_DEBT_PAYMENT_ID
+            AND l.C_BPARTNER_ID=bp.C_BPARTNER_ID
+          )
+          S
+        GROUP BY A,
+          B,
+          C,
+          D
+        HAVING Ad_Isorgincluded(A, B, D)=-1
+          OR Ad_Isorgincluded(A, C, D)=-1
+        )
+        SS;*/
+   --Added by PSarobe. Same way as C_CASH_POST
+   SELECT COUNT(*),
+        MAX(cl.Line)
+      INTO v_count,
+        v_line
+      FROM C_BANKSTATEMENT c,
+        C_BANKSTATEMENTLINE cl,
+        C_DEBT_PAYMENT l,
+        C_BPARTNER bp
+      WHERE c.C_BANKSTATEMENT_ID=cl.C_BANKSTATEMENT_ID
+        AND c.C_BANKSTATEMENT_ID=v_Record_ID
+        AND cl.C_DEBT_PAYMENT_ID=l.C_DEBT_PAYMENT_ID
+        AND l.C_BPARTNER_ID=bp.C_BPARTNER_ID
+        AND(Ad_Isorgincluded(l.AD_ORG_ID, bp.AD_ORG_ID, bp.AD_CLIENT_ID)=-1--To be deprecated, to be fixed. This Check restriction should be checked when debt payment is created. Added by PSarobe
+        OR Ad_Isorgincluded(l.AD_ORG_ID, c.AD_ORG_ID, c.AD_CLIENT_ID)=-1) ;
+      IF v_count>0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@NotCorrectOrgDebtpaymentBankstatement@') ;
+      END IF;--Finish added by PSarobe
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*),
+        MAX(bsl.Line)
+      INTO v_count,
+        v_line
+      FROM C_BANKSTATEMENTLINE bsl,
+        C_DEBT_PAYMENT dp
+      WHERE bsl.C_BankStatement_ID=v_Record_ID
+        AND bsl.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+        AND bsl.C_Currency_ID=dp.C_Currency_ID
+        AND CASE dp.IsReceipt WHEN 'Y' THEN -- If IsReceipt = N, amount*-1
+            (dp.Amount-coalesce(dp.WriteOffAmt,0)) ELSE(coalesce(dp.WriteOffAmt,0)-dp.Amount)
+        END <>(bsl.TrxAmt) ;
+      IF v_count>0 THEN
+       RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@DebtAmountsSamemoneyNoMatch@') ;
+      END IF;
+    END IF;--FINISH_PROCESS
+    FOR Cur_BankstatementLine IN 
+      (SELECT valutadate, 
+              dateacct 
+      FROM C_BANKSTATEMENTLINE
+      WHERE C_BANKSTATEMENT_ID = v_Record_ID
+      AND ISACTIVE='Y')
+    LOOP
+      v_ValutadatePeriod_ID := C_CHK_OPEN_PERIOD (v_AD_Org_ID, Cur_BankstatementLine.valutadate, 'CMB',NULL);
+      v_DateacctPeriod_ID := C_CHK_OPEN_PERIOD (v_AD_Org_ID, Cur_BankstatementLine.dateacct, 'CMB',NULL);
+      IF (v_ValutadatePeriod_ID <> 1 OR v_DateacctPeriod_ID <> 1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@') ;
+      END IF;
+    END LOOP;
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*),
+        MAX(bsl.Line)
+      INTO v_count,
+        v_line
+      FROM C_BANKSTATEMENTLINE bsl,
+        C_BANKSTATEMENT bs,
+        C_DEBT_PAYMENT dp
+      WHERE bsl.C_BankStatement_ID=bs.C_BankStatement_ID
+        AND bsl.C_BankStatement_ID=v_Record_ID
+        AND bsl.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+        AND bsl.C_Currency_ID<>dp.C_Currency_ID
+    AND
+        C_Currency_Round(C_Currency_Convert(
+        (CASE dp.IsReceipt WHEN 'Y' THEN -- If IsReceipt = N, amount*-1
+          (dp.Amount-coalesce(dp.WriteOffAmt,0)) ELSE(coalesce(dp.WriteOffAmt,0)-dp.Amount)
+        END), dp.C_Currency_ID, bsl.C_Currency_ID, bs.StatementDate, NULL, bs.AD_Client_ID, bs.AD_Org_ID),bsl.C_Currency_ID, null)
+        <> C_Currency_Round(bsl.TrxAmt, bsl.C_Currency_ID, null);
+      IF v_count>0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@DebtAmountsDifferentMoneyNoMatch@') ;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*), MAX(bsl.C_BANKSTATEMENTLINE_ID)
+      INTO v_count, v_Bankstatementline_ID
+      FROM C_BANKSTATEMENTLINE bsl,
+        C_DEBT_PAYMENT dp
+      WHERE bsl.C_BankStatement_ID=v_Record_ID
+        AND bsl.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+        AND C_Debt_Payment_Status(dp.C_SETTLEMENT_CANCEL_ID, dp.Cancel_Processed, dp.Generate_Processed, dp.IsPaid, dp.IsValid, dp.C_CashLine_ID, dp.C_BankStatementLine_ID) NOT IN('P', 'A') ;
+      IF v_count>0 THEN
+        --Added by P.Sarobe. New messages
+    SELECT line, c_Debt_payment_Id INTO v_line, v_C_Debt_Payment_Id
+    FROM C_Bankstatementline WHERE c_Bankstatementline_Id = v_Bankstatementline_ID;
+
+    SELECT c_Bankstatementline_Id, c_cashline_id, c_settlement_cancel_id, ispaid, cancel_processed
+    INTO v_Bankstatementline_ID, v_CashLine_ID, v_Settlement_Cancel_ID, v_ispaid, v_Cancel_Processed
+    FROM C_DEBT_PAYMENT WHERE C_Debt_Payment_ID = v_C_Debt_Payment_Id;
+
+        IF v_Bankstatementline_ID IS NOT NULL THEN
+        SELECT C_BANKSTATEMENT.NAME, C_BANKSTATEMENT.STATEMENTDATE
+     INTO v_nameBankstatement, v_dateBankstatement
+     FROM C_BANKSTATEMENT, C_BANKSTATEMENTLINE
+     WHERE C_BANKSTATEMENT.C_BANKSTATEMENT_ID = C_BANKSTATEMENTLINE.C_BANKSTATEMENT_ID
+     AND C_BANKSTATEMENTLINE.C_BANKSTATEMENTLINE_ID = v_Bankstatementline_ID;
+             RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@ManagedDebtPaymentBank@'||v_nameBankstatement||' '||'@Bydate@'||v_dateBankstatement) ;
+      END IF;
+      IF v_CashLine_ID IS NOT NULL THEN--This is also checked in the unique index C_CASHLINE_DEBT_PAYMENT
+        SELECT C_CASH.NAME, C_CASH.STATEMENTDATE
+     INTO v_nameCash, v_dateCash
+     FROM C_CASH, C_CASHLINE
+     WHERE C_CASH.C_CASH_ID = C_CASHLINE.C_CASH_ID
+     AND C_CASHLINE.C_CASHLINE_ID = v_CashLine_ID;
+             RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@ManagedDebtPaymentCash@'||v_nameCash||' '||'@Bydate@'||v_dateCash) ;
+      END IF;
+      IF v_Cancel_Processed='Y' AND v_ispaid='N' THEN
+        SELECT documentno, datetrx
+     INTO v_documentno_Settlement, v_dateSettlement
+     FROM C_SETTLEMENT
+     WHERE C_SETTLEMENT_ID = v_Settlement_Cancel_ID;
+     RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@ManagedDebtPaymentCancel@'||v_documentno_Settlement||' '||'@Bydate@'||v_dateSettlement) ;
+      END IF;
+      END IF;
+    END IF;--FINISH_PROCESS
+  IF (NOT FINISH_PROCESS) THEN
+     SELECT COUNT(*), MAX(Line)
+      INTO v_Count, v_Line
+       FROM C_BANKSTATEMENTLINE
+     WHERE C_BankStatement_ID=v_Record_ID
+       AND STMTAMT != TRXAMT-CHARGEAMT-CONVERTCHARGEAMT;
+   IF v_count>0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@ChargeAmtsDontMatch@');
+      END IF;
+  END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+   SELECT COUNT(*), MAX(debtpayment_Id)
+   INTO v_count, v_C_Debt_Payment_Id
+   FROM
+   (SELECT min(dp.C_Debt_Payment_ID) as debtpayment_Id
+        FROM C_BANKSTATEMENTLINE bsl,
+          C_DEBT_PAYMENT dp
+        WHERE bsl.C_BankStatement_ID=v_Record_ID
+          AND bsl.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+        GROUP BY dp.C_Debt_Payment_ID
+        HAVING COUNT(*)>1
+  ) A;
+      IF v_count>0 THEN
+        --Added by PSarobe.
+     FOR Cur_BankstatementDebtpayment IN (SELECT line
+             FROM c_Bankstatementline
+          WHERE c_Bankstatementline.c_Bankstatement_id=v_Record_ID
+          AND c_Bankstatementline.c_debt_payment_id=v_C_Debt_Payment_Id
+          ORDER BY line) LOOP
+   v_Message:=v_Message||Cur_BankstatementDebtpayment.line||', ';
+   END LOOP;
+   RAISE_APPLICATION_ERROR(-20000, '@Inlines@'||v_Message||' '||'@Samedebtpayment@') ;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      /**
+      *  Generate C_Settlement
+      */
+      DECLARE
+        CUR_BSLINES_DATES RECORD;
+        Cur_ManagementLines1 RECORD;
+       /* Map error NUMBER returned by raise_application_error to user-defined exception. */
+  OB_exception Exception;
+  PRAGMA EXCEPTION_INIT(OB_exception, -20000);
+      BEGIN
+        FOR Cur_ManagementLines1 IN
+          (SELECT BSL.C_DEBT_PAYMENT_ID AS DP1, RT.STATUS_RETURNED, RL.C_DEBT_PAYMENT_ID AS DP2,
+            RL.AD_ORG_ID, R.AD_CLIENT_ID, BSL.DATEACCT,
+            BSL.VALUTADATE, BSL.C_CURRENCY_ID, DP.STATUS,
+            DP2.STATUS AS DP2_STATUS, BSL.UPDATEDBY, RL.C_REMITTANCELINE_ID,
+            BSL.C_BANKSTATEMENTLINE_ID
+          FROM C_REMITTANCE_TYPE RT, C_REMITTANCE R, C_REMITTANCELINE RL,
+            C_BANKSTATEMENTLINE BSL, C_DEBT_PAYMENT DP, C_DEBT_PAYMENT DP2
+          WHERE R.C_REMITTANCE_ID=RL.C_REMITTANCE_ID
+            AND RT.C_REMITTANCE_TYPE_ID=R.C_REMITTANCE_TYPE_ID
+            AND RL.C_DEBT_PAYMENT_CANCELLED=BSL.C_DEBT_PAYMENT_ID
+            AND BSL.C_DEBT_PAYMENT_ID=DP.C_DEBT_PAYMENT_ID
+            AND RL.C_DEBT_PAYMENT_ID=DP2.C_DEBT_PAYMENT_ID
+            AND BSL.C_BANKSTATEMENT_ID=v_Record_ID
+            AND RL.RETURNED='N'
+          )
+        LOOP
+          --Create DPManagement
+          v_DPManagementDocType_ID:=Ad_Get_DocType(Cur_ManagementLines1.AD_Client_ID, Cur_ManagementLines1.AD_Org_ID, 'DPM') ;
+          Ad_Sequence_Next('C_DP_Management', Cur_ManagementLines1.AD_Org_ID, v_DPMId) ;
+          Ad_Sequence_Doctype(v_DPManagementDocType_ID, v_Record_ID, 'Y', v_DocumentNo) ;
+          IF(v_DocumentNo IS NULL) THEN
+            Ad_Sequence_Doc('DocumentNo_C_DP_Management', Cur_ManagementLines1.AD_Client_ID, 'Y', v_DocumentNo) ;
+          END IF;
+          INSERT
+          INTO C_DP_Management
+            (
+              C_DP_MANAGEMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+              CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              DOCUMENTNO, DATETRX, C_DOCTYPE_ID, DATEACCT,
+              C_Currency_ID
+            )
+            VALUES
+            (
+              v_DPMId, Cur_ManagementLines1.ad_Client_Id, Cur_ManagementLines1.AD_Org_Id, 'Y',
+              now(), v_User, now(), v_User,
+              v_DocumentNo, Cur_ManagementLines1.VALUTADATE, v_DPManagementDocType_ID, Cur_ManagementLines1.DATEACCT,
+              Cur_ManagementLines1.C_Currency_ID
+            )
+            ;
+          Ad_Sequence_Next('C_DP_ManagementLine', Cur_ManagementLines1.AD_Org_ID, v_DPMLineId) ;
+          INSERT
+          INTO C_DP_ManagementLine
+            (
+              C_DP_MANAGEMENTLINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+              CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              C_DP_MANAGEMENT_ID, STATUS_FROM, STATUS_TO, C_DEBT_PAYMENT_ID
+            )
+            VALUES
+            (
+              v_DPMLineId, Cur_ManagementLines1.ad_Client_Id, Cur_ManagementLines1.AD_Org_Id, 'Y',
+              now(), v_User, now(), v_User,
+              v_DPMId, Cur_ManagementLines1.DP2_STATUS, Cur_ManagementLines1.STATUS_RETURNED, Cur_ManagementLines1.DP2
+            )
+            ;
+          Ad_Sequence_Next('C_DP_ManagementLine', Cur_ManagementLines1.AD_Org_ID, v_DPMLineId) ;
+          INSERT
+          INTO C_DP_ManagementLine
+            (
+              C_DP_MANAGEMENTLINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+              CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              C_DP_MANAGEMENT_ID, STATUS_FROM, STATUS_TO, C_DEBT_PAYMENT_ID
+            )
+            VALUES
+            (
+              v_DPMLineId, Cur_ManagementLines1.ad_Client_Id, Cur_ManagementLines1.AD_Org_Id, 'Y',
+              now(), v_User, now(), v_User,
+              v_DPMId, Cur_ManagementLines1.STATUS, Cur_ManagementLines1.STATUS_RETURNED, Cur_ManagementLines1.DP1
+            )
+            ;
+          UPDATE C_REMITTANCELINE
+            SET RETURNED='Y',Updated=now(),
+    		UpdatedBy=v_User
+          WHERE C_REMITTANCELINE_ID=Cur_ManagementLines1.C_REMITTANCELINE_ID;
+          UPDATE C_BANKSTATEMENTLINE
+            SET C_DP_MANAGEMENT_ID=v_DPMId,Updated=now(),
+            UpdatedBy=v_User
+          WHERE C_BANKSTATEMENTLINE_ID=Cur_ManagementLines1.C_BANKSTATEMENTLINE_ID;
+          C_DP_MANAGEMENT_POST(null, v_DPMId) ;
+        END LOOP;
+        v_ResultStr:='GettingBankAccountInfo';
+        SELECT ba.C_Currency_ID,
+          bs.StatementDate
+        INTO v_BA_Currency_ID,
+          v_BS_Date
+        FROM C_BANKACCOUNT ba,
+          C_BANKSTATEMENT bs
+        WHERE ba.C_BankAccount_ID=bs.C_BankAccount_ID
+          AND bs.C_BankStatement_ID=v_Record_ID;
+        v_SettlementDocType_ID:=Ad_Get_DocType(v_AD_Client_ID, v_AD_Org_ID, 'STT') ;
+        FOR CUR_BSLINES_DATES IN
+          (SELECT DISTINCT bsl.DATEACCT
+          FROM C_BANKSTATEMENTLINE bsl,
+            C_DEBT_PAYMENT dp
+          WHERE bsl.C_BankStatement_ID=v_Record_ID
+            AND bsl.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+            AND C_Debt_Payment_Status(dp.C_SETTLEMENT_CANCEL_ID, dp.Cancel_Processed, dp.Generate_Processed, dp.IsPaid, dp.IsValid, dp.C_CashLine_ID, dp.C_BankStatementLine_ID)='P'
+          )
+        LOOP
+          Ad_Sequence_Next('C_Settlement', v_Record_ID, v_settlementID) ;
+          Ad_Sequence_Doctype(v_SettlementDocType_ID, v_Record_ID, 'Y', v_DocumentNo) ;
+          IF(v_DocumentNo IS NULL) THEN
+            Ad_Sequence_Doc('DocumentNo_C_Settlement', v_AD_Client_ID, 'Y', v_DocumentNo) ;
+          END IF;
+          INSERT
+          INTO C_SETTLEMENT
+            (
+              C_SETTLEMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+              CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              DOCUMENTNO, DATETRX, DATEACCT, SETTLEMENTTYPE,
+             C_DOCTYPE_ID, PROCESSING, PROCESSED, POSTED,
+              C_CURRENCY_ID, C_PROJECT_ID, C_CAMPAIGN_ID, C_ACTIVITY_ID,
+              USER1_ID, USER2_ID, CREATEFROM, ISGENERATED
+            )
+          SELECT v_settlementID,
+            AD_Client_ID, AD_Org_ID, 'Y', now(),
+            v_User, now(), v_User, '*BSP*'||v_DocumentNo, TRUNC(v_BS_Date),
+            CUR_BSLINES_DATES.DATEACCT, 'B', v_SettlementDocType_ID, 'N',
+            'N', 'N', v_BA_Currency_ID, NULL,
+            NULL, NULL, NULL, NULL,
+            'N', 'Y'
+          FROM C_BANKSTATEMENT
+          WHERE C_BankStatement_ID=v_Record_ID;
+          UPDATE C_DEBT_PAYMENT
+            SET C_SETTLEMENT_CANCEL_ID=v_settlementID,
+            IsPaid='Y',Updated=now(),
+    		UpdatedBy=v_User
+          WHERE C_DEBT_PAYMENT.C_Debt_Payment_ID IN
+            (SELECT C_Debt_Payment_ID
+            FROM C_BANKSTATEMENTLINE
+            WHERE C_BankStatement_ID=v_Record_ID
+              AND DateAcct=CUR_BSLINES_DATES.DATEACCT
+            )
+            AND C_Debt_Payment_Status(C_DEBT_PAYMENT.C_SETTLEMENT_CANCEL_ID, C_DEBT_PAYMENT.Cancel_Processed, C_DEBT_PAYMENT.Generate_Processed, C_DEBT_PAYMENT.IsPaid, C_DEBT_PAYMENT.IsValid, C_DEBT_PAYMENT.C_CashLine_ID, C_DEBT_PAYMENT.C_BankStatementLine_ID)='P';
+          C_SETTLEMENT_POST(NULL, v_settlementID) ;
+        END LOOP;
+  --Added by PSarobe
+   EXCEPTION
+     WHEN OB_exception THEN
+    IF (SQLERRM LIKE '%@DPAccountdatelaterSettlementdate@') THEN
+     DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    SELECT MAX(C_DP_Management.DOCUMENTNO), MAX(C_Bankstatementline.line)
+    INTO v_documentno_Dp_Management, v_line
+    FROM C_Bankstatement, C_Bankstatementline, C_DP_Management, C_DP_Managementline
+    WHERE C_Bankstatement.C_Bankstatement_Id = C_Bankstatementline.C_BANKSTATEMENT_ID
+    AND C_Bankstatementline.C_DEBT_PAYMENT_ID = C_DP_Managementline.C_DEBT_PAYMENT_ID
+    AND C_DP_Managementline.C_DP_MANAGEMENT_ID = C_DP_Management.C_DP_MANAGEMENT_ID
+    AND C_DP_Management.DATEACCT > C_Bankstatementline.DATEACCT
+    AND C_Bankstatement.C_Bankstatement_Id = v_Record_ID;
+     RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@debtpayment@'||'@DPDebtPaymentManaged@'||v_documentno_Dp_Management||' '||'@DPAccountdatelaterBankstatementlinedate@') ;
+    ELSE
+     DBMS_OUTPUT.PUT_LINE(v_ResultStr);
+     RAISE_APPLICATION_ERROR(-20000, SUBSTR(SQLERRM,12,2000)) ;
+    END IF;
+    WHEN OTHERS THEN
+       DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+   RAISE;
+      END;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      /**
+      *  Update Balances + De-Activate + Conciliate Debt_Payments
+      */
+      DECLARE
+        v_Total NUMBER:=0;
+        v_Currency_ID VARCHAR2(32):=NULL;
+        -- Lines
+        Cur_Lines RECORD;
+      BEGIN
+        -- Calculate Total
+        FOR Cur_Lines IN
+          (SELECT * FROM C_BANKSTATEMENTLINE WHERE C_BankStatement_ID=v_Record_ID)
+        LOOP
+          v_ResultStr:='GettingTrxCurrency';
+          -- Get Debt_Payment Currency and conciliate Debt/Payments
+          IF(Cur_Lines.C_Debt_Payment_ID IS NOT NULL) THEN
+            UPDATE C_DEBT_PAYMENT
+              SET C_BankStatementLine_ID=Cur_Lines.C_BankStatementLine_ID,Updated=now(),
+    		 UpdatedBy=v_User
+            WHERE C_Debt_Payment_ID=Cur_Lines.C_Debt_Payment_ID;
+            /* Lines are converted to the bankAccount currency, this is not necesary
+      SELECT C_Currency_ID
+            INTO v_Currency_ID
+            FROM C_DEBT_PAYMENT
+            WHERE C_Debt_Payment_ID=Cur_Lines.C_Debt_Payment_ID;
+      */
+          END IF;
+     v_Total:=v_Total + Cur_Lines.StmtAmt;
+     /* Lines are converted to the bankAccount currency, this is not necesary
+          -- Assume BankAccount Currency for Charge
+          IF(v_Currency_ID IS NULL) THEN
+            v_Currency_ID:=v_BA_Currency_ID;
+          END IF;
+          v_ResultStr:='CalculatingSum';
+          IF(v_Currency_ID<>v_BA_Currency_ID) THEN
+            v_Total:=v_Total + C_Currency_Convert(Cur_Lines.StmtAmt, v_Currency_ID, v_BA_Currency_ID, v_BS_Date, NULL, Cur_Lines.AD_Client_ID, Cur_Lines.AD_Org_ID) ;
+          ELSE
+            v_Total:=v_Total + Cur_Lines.StmtAmt;
+          END IF;
+     */
+        END LOOP;
+        --
+        DBMS_OUTPUT.PUT_LINE('BankStatement Complete - Total=' || v_Total) ;
+        v_ResultStr:='UpdatingRecord';
+        UPDATE C_BANKSTATEMENT
+          SET StatementDifference=v_Total,
+          EndingBalance=COALESCE(BeginningBalance, 0) + v_Total,
+          Processed='Y',
+          Updated=now(),
+          Processing='N',
+          UpdatedBy=v_User
+        WHERE C_BankStatement_ID=v_Record_ID;
+      END;
+    END IF;--FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, v_User, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  ROLLBACK;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_BANKSTATEMENT_POST
+]]></body>
+    </function>
+  </database>

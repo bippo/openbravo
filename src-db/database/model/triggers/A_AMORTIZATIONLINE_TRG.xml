@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER A_AMORTIZATIONLINE_TRG">
+    <trigger name="A_AMORTIZATIONLINE_TRG" table="A_AMORTIZATIONLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_Processed varchar2(60) ;
+  v_Posted varchar2(60) ;
+  v_AmortizationID varchar2(32);
+  v_diffAmortizationAmt A_AmortizationLine.AmortizationAmt%TYPE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- ReadOnly Check
+  IF (UPDATING OR INSERTING) THEN
+    v_AmortizationID := :NEW.A_Amortization_ID;
+  ELSE
+    v_AmortizationID := :OLD.A_Amortization_ID;
+  END IF;
+
+    begin
+      SELECT processed,
+             POSTED
+      INTO v_Processed,
+        v_Posted
+      FROM A_Amortization
+      WHERE A_Amortization.A_Amortization_ID=v_AmortizationID;
+    exception
+    when others then
+      v_processed:=null;
+    end;
+
+  if(UPDATING) THEN
+    IF coalesce(v_Processed, 'N')='Y'
+   and(  COALESCE(:old.A_AMORTIZATIONLINE_ID, '0') <> COALESCE(:new.A_AMORTIZATIONLINE_ID, '0')
+       or COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')
+       or COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0')
+       or COALESCE(:old.ISACTIVE, '') <> COALESCE(:new.ISACTIVE, '')
+       or COALESCE(:old.A_AMORTIZATION_ID, '0') <> COALESCE(:new.A_AMORTIZATION_ID, '0')
+       or COALESCE(:old.LINE, 0) <> COALESCE(:new.LINE, 0)
+       or COALESCE(:old.A_ASSET_ID, '0') <> COALESCE(:new.A_ASSET_ID, '0')
+       or COALESCE(:old.AMORTIZATION_PERCENTAGE, 0) <> COALESCE(:new.AMORTIZATION_PERCENTAGE, 0)
+       or COALESCE(:old.AMORTIZATIONAMT, 0) <> COALESCE(:new.AMORTIZATIONAMT, 0)
+       or COALESCE(:old.C_CURRENCY_ID, '0') <> COALESCE(:new.C_CURRENCY_ID, '0'))
+  then
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    end if;
+ 
+    IF (:new.A_Asset_ID IS NOT NULL AND :old.AmortizationAmt<>:new.AmortizationAmt) THEN
+      v_diffAmortizationAmt:=:new.AmortizationAmt - :old.AmortizationAmt;
+      UPDATE A_Asset
+      SET DepreciatedPlan=DepreciatedPlan + v_diffAmortizationAmt
+      WHERE A_Asset_ID = :new.A_Asset_ID;
+    END IF; 
+  end if;
+  if (INSERTING OR DELETING) THEN
+    IF(coalesce(v_Processed, 'N')='Y'
+   or coalesce(v_posted, 'N')='Y')
+  then
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    end if;
+    
+    IF (DELETING) THEN
+      IF (:old.A_Asset_ID IS NOT NULL) THEN
+        UPDATE A_Asset
+        SET DepreciatedPlan=DepreciatedPlan - :old.AmortizationAmt
+        WHERE A_Asset_ID = :old.A_Asset_ID;
+      END IF;
+    END IF;
+  end if;
+END A_AMORTIZATIONLINE_TRG
+]]></body>
+    </trigger>
+  </database>

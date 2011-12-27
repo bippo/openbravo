@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportParetoProductData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      select orgid, searchkey, name, unit, qty, cost, value, percentage,
+      m_get_pareto_abc(?, ad_org_id, ?, percentage) as isabc, '' as padre, '' as id
+      from (
+        select ad_column_identifier('AD_Org',w.ad_org_id, ?) as orgid,
+          p.value as searchkey, p.name as name,
+          ad_column_identifier('C_Uom', p.c_uom_id, ?) as unit,
+          w.ad_org_id, sd.m_product_id, sum(sd.qtyonhand) as qty,
+          c_currency_convert(c.cost, ?, ?, to_date(now()), w.ad_client_id, w.ad_org_id) as cost, 
+          c_currency_convert(sum(sd.qtyonhand*c.cost), ?, ?, to_date(now()), w.ad_client_id, w.ad_org_id) as value, 
+          100*sum(sd.qtyonhand*c.cost)/(
+            select sum(c_aux.cost * sd_aux.qtyonhand)
+            from m_locator l_aux, m_warehouse w_aux, m_storage_detail sd_aux, m_costing c_aux
+            where sd_aux.m_locator_id = l_aux.m_locator_id
+              and l_aux.m_warehouse_id = w_aux.m_warehouse_id
+              and w_aux.ad_org_id = w.ad_org_id
+              and sd_aux.m_product_id = c_aux.m_product_id
+              and sd_aux.qtyonhand > 0
+              and c_aux.datefrom = (select max(c_aux1.datefrom)
+                                    from m_costing c_aux1
+                                    where c_aux1.m_product_id = c_aux.m_product_id
+                                      and c_aux1.ad_client_id = ?
+                                      and datefrom <= now())
+              and c_aux.dateto > now()
+              and c_aux.ad_client_id = ?
+              and w_aux.ad_client_id = c_aux.ad_client_id
+              and 1=1
+              and 2=2
+              ) as percentage
+          from m_locator l, m_warehouse w, m_storage_detail sd, m_costing c, m_product p
+          where sd.m_locator_id = l.m_locator_id
+            and l.m_warehouse_id = w.m_warehouse_id
+            and sd.m_product_id = c.m_product_id
+            and sd.m_product_id = p.m_product_id
+            and sd.qtyonhand > 0
+            and c.datefrom = (select max(c1.datefrom)
+                              from m_costing c1
+                              where c.m_product_id = c1.m_product_id
+                                and c1.ad_client_id = ?
+                                and c1.datefrom <= now())
+            and c.dateto > now()
+            and c.ad_client_id=?
+            and w.ad_client_id=c.ad_client_id
+            and 3=3
+            and 4=4
+          group by w.ad_org_id, sd.m_product_id, c.cost, w.ad_client_id, w.ad_org_id, p.name, p.value, p.c_uom_id) a
+        order by orgid, percentage desc
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="cCurrencyBase"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyBase"/>
+    <Parameter name="cCurrencyConv"/> 
+    <Parameter name="adClientId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="mWarehouseId" optional="true" after="1=1" text=" AND w_aux.M_WAREHOUSE_ID = ? "/>
+    <Parameter name="adOrgId" optional="true" after="2=2" text=" AND w_aux.AD_ORG_ID = ? "/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="mWarehouseId" optional="true" after="3=3" text=" AND W.M_WAREHOUSE_ID = ? "/>    
+    <Parameter name="adOrgId" optional="true" after="4=4" text=" AND W.AD_ORG_ID = ? "/>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectWarehouseDouble" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_WAREHOUSE.AD_ORG_ID AS PADRE, M_WAREHOUSE.M_WAREHOUSE_ID AS ID, TO_CHAR(M_WAREHOUSE.NAME) AS NAME
+        FROM M_WAREHOUSE
+        WHERE 1=1
+         AND M_WAREHOUSE.AD_Client_ID IN('1')
+         UNION 
+        SELECT null AS PADRE, M_WAREHOUSE.M_WAREHOUSE_ID AS ID, TO_CHAR(M_WAREHOUSE.NAME) AS NAME
+        FROM M_WAREHOUSE
+        WHERE 2=2 AND M_WAREHOUSE.AD_Client_ID IN('1')    
+        ORDER BY PADRE, NAME
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="M_WAREHOUSE.AD_Client_ID IN(" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after=" 2=2 AND M_WAREHOUSE.AD_Client_ID IN(" text="'1'"/>    
+  </SqlMethod> 
+    
+  <SqlMethod name="mUpdateParetoProduct0" type="callableStatement" return="object" object="ReportParetoProductData">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        CALL M_UPDATE_PARETO_PRODUCT0(?)
+      ]]></Sql>
+      <Parameter name="adPinstanceId"/>    
+   </SqlMethod>
+</SqlClass>

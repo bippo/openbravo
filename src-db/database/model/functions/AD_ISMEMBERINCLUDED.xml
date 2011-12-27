@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_ISMEMBERINCLUDED">
+    <function name="AD_ISMEMBERINCLUDED" type="NUMERIC">
+      <parameter name="p_nodeid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_parentid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_treeid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Title: Return 'Tree Level' if nodeID is a leaf of the tree
+*    where parentID is the root. Else return -1
+************************************************************************/
+  v_Level NUMBER:=0;
+  v_Parent VARCHAR2(32) ;
+  v_Node   VARCHAR2(32) ;
+BEGIN
+  v_Parent:=p_nodeID;
+  WHILE v_Parent IS NOT NULL
+  LOOP
+    v_Level:=v_Level + 1;
+    SELECT MAX(NODE_ID),
+      MAX(PARENT_ID)
+    INTO v_Node,
+      v_Parent
+    FROM AD_TREENODE
+    WHERE AD_TREE_ID=p_treeID
+      AND NODE_ID=v_Parent;
+    IF v_Node=p_parentID THEN
+      RETURN v_Level;
+    END IF;
+  END LOOP;
+  RETURN(-1) ;
+END AD_ISMEMBERINCLUDED
+]]></body>
+    </function>
+  </database>

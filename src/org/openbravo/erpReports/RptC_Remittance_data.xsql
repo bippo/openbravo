@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptCRemittanceData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      SELECT distinct CS.C_REMITTANCE_ID, CS.DOCUMENTNO, CS.DATETRX, CS.DUEDATE AS dateacct, AD_CLIENT.NAME AS ENTITY, AD_ORGINFO.TAXID AS CIF, C_BANK.NAME AS NAME_BANK, 
+        C_BANK.CODEBANK||' '||C_BANK.CODEBRANCH||' '||C_BANK.DIGITCONTROL||' '||C_BANKACCOUNT.DIGITCONTROL||' '||C_BANKACCOUNT.CODEACCOUNT AS ACCOUNT, CS.NAME
+      FROM C_REMITTANCE CS left join C_REMITTANCELINE RL on CS.C_REMITTANCE_ID = RL.C_REMITTANCE_ID
+                           left join C_DEBT_PAYMENT CDG on RL.C_DEBT_PAYMENT_ID = CDG.C_DEBT_PAYMENT_ID
+                           left join C_BPARTNER on CDG.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+                           left join C_BANKACCOUNT on CS.C_BANKACCOUNT_ID = C_BANKACCOUNT.C_BANKACCOUNT_ID
+                           left join C_BANK on C_BANKACCOUNT.C_BANK_ID = C_BANK.C_BANK_ID,
+           AD_CLIENT, AD_ORGINFO
+      WHERE CS.AD_CLIENT_ID = AD_CLIENT.AD_CLIENT_ID
+        AND CS.AD_ORG_ID = AD_ORGINFO.AD_ORG_ID 
+        and cs.AD_CLIENT_ID IN ('1')
+        AND cs.AD_ORG_ID IN ('1')
+        AND 1=1
+      ORDER BY cs.DOCUMENTNO
+        ]]>
+        </Sql>
+        <Parameter name="adUserClient" type="replace" optional="true" after="and cs.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="AND cs.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="cRemittanceId" optional="true" type="argument" after="AND 1=1">
+        <![CDATA[ AND cs.C_REMITTANCE_ID IN ]]>
+        </Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+</SqlClass>

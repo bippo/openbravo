@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="DocPaymentData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT now() AS SYSDATE1, '' AS account_ID, '' AS C_SETTLEMENT_ID, '' AS AD_CLIENT_ID, '' AS AD_ORG_ID, '' AS ISACTIVE,
+        '' AS CREATED, '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS DOCUMENTNO, '' AS DATETRX, '' AS C_DOCTYPE_ID,
+        '' AS PROCESSING, '' AS PROCESSED, '' AS POSTED, '' AS C_PROJECT_ID, '' AS C_CAMPAIGN_ID, '' AS C_ACTIVITY_ID,
+        '' AS USER1_ID, '' AS USER2_ID, '' AS CREATEFROM, '' AS C_CURRENCY_ID, '' AS CANCELEDNOTCHARGEAMT, '' AS GENERATEDAMT,
+        '' AS CHARGEDAMT, '' AS DESCRIPTION, '' AS CREATEFILE, '' AS DATEACCT, '' AS SETTLEMENTTYPE, '' AS CREDIT_ACCT, '' AS DEBIT_ACCT,
+        '' AS AMOUNTDEBIT, '' AS AMOUNTCREDIT, '' AS AMOUNT, '' AS C_TAX_ID, '' AS C_WITHHOLDING_ID, '' AS ISDIRECTPOSTING, '' AS ISMANUAL
+        FROM DUAL
+     ]]>
+     </Sql>
+   </SqlMethod>
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT S.AD_CLIENT_ID, S.AD_ORG_ID, S.C_PROJECT_ID, S.C_CAMPAIGN_ID, S.C_ACTIVITY_ID,
+        S.USER1_ID, S.USER2_ID, S.DOCUMENTNO, S.DATEACCT, S.C_CURRENCY_ID, S.C_DOCTYPE_ID,
+        S.CHARGEDAMT, S.POSTED, S.DATETRX, S.SETTLEMENTTYPE
+        FROM C_SETTLEMENT S
+        WHERE AD_Client_ID=?
+        AND C_SETTLEMENT_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+  <SqlMethod name="selectBPartnerCustomerAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(
+          (SELECT C_RECEIVABLE_ACCT
+          FROM C_BP_CUSTOMER_ACCT
+          WHERE C_BPARTNER_ID = ?
+          AND C_ACCTSCHEMA_ID = ?
+          AND STATUS = ?),
+          (SELECT C_RECEIVABLE_ACCT
+          FROM C_BP_CUSTOMER_ACCT
+          WHERE C_BPARTNER_ID = ?
+          AND C_ACCTSCHEMA_ID = ?
+          AND STATUS IS NULL)) AS ACCOUNT_ID FROM DUAL
+
+     ]]>
+     </Sql>
+     <Parameter name="C_BPARTNER_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+     <Parameter name="STATUS"/>
+     <Parameter name="C_BPARTNER_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectBPartnerVendorAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(
+          (SELECT V_LIABILITY_ACCT
+          FROM C_BP_VENDOR_ACCT
+          WHERE C_BPARTNER_ID = ?
+          AND C_ACCTSCHEMA_ID = ?
+          AND STATUS = ?),
+          (SELECT V_LIABILITY_ACCT
+          FROM C_BP_VENDOR_ACCT
+          WHERE C_BPARTNER_ID = ?
+          AND C_ACCTSCHEMA_ID = ?
+          AND STATUS IS NULL)) AS ACCOUNT_ID FROM DUAL
+     ]]>
+     </Sql>
+     <Parameter name="C_BPARTNER_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+     <Parameter name="STATUS"/>
+     <Parameter name="C_BPARTNER_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectBankStatementLineAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+		SELECT B_INTRANSIT_ACCT  AS ACCOUNT_ID
+		FROM C_BANKSTATEMENTLINE, C_BANKSTATEMENT, C_BANKACCOUNT, C_BANKACCOUNT_ACCT
+		WHERE C_BANKSTATEMENTLINE.C_BANKSTATEMENT_ID = C_BANKSTATEMENT.C_BANKSTATEMENT_ID
+		AND C_BANKSTATEMENT.C_BANKACCOUNT_ID = C_BANKACCOUNT.C_BANKACCOUNT_ID
+		AND C_BANKACCOUNT.C_BANKACCOUNT_ID = C_BANKACCOUNT_ACCT.C_BANKACCOUNT_ID
+		AND C_BANKSTATEMENTLINE_ID = ?
+		AND C_BANKACCOUNT_ACCT.C_ACCTSCHEMA_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_BANKSTATEMENTLINE_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectCashLineAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+		SELECT CB_RECEIPT_ACCT  AS ACCOUNT_ID
+		FROM C_CASHLINE, C_CASH, C_CASHBOOK, C_CASHBOOK_ACCT
+		WHERE C_CASHLINE.C_CASH_ID = C_CASH.C_CASH_ID
+		AND C_CASH.C_CASHBOOK_ID = C_CASHBOOK.C_CASHBOOK_ID
+		AND C_CASHBOOK.C_CASHBOOK_ID = C_CASHBOOK_ACCT.C_CASHBOOK_ID
+		AND C_CASHLINE_ID = ?
+		AND C_CASHBOOK_ACCT.C_ACCTSCHEMA_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_CASHLINE_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectCancelManual" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT B.AMOUNTCREDIT AS AMOUNTCREDIT, B.AMOUNTDEBIT AS AMOUNTDEBIT, GA.GLITEM_CREDIT_ACCT AS CREDIT_ACCT, GA.GLITEM_DEBIT_ACCT AS DEBIT_ACCT
+        FROM C_DEBT_PAYMENT D, C_DEBT_PAYMENT_BALANCING B, C_GLITEM G, C_GLITEM_ACCT GA
+        WHERE D.C_DEBT_PAYMENT_ID = B.C_DEBT_PAYMENT_ID
+        AND B.C_GLITEM_ID = G.C_GLITEM_ID
+        AND G.C_GLITEM_ID = GA.C_GLITEM_ID
+        AND GA.C_ACCTSCHEMA_ID = ?
+        AND B.C_DEBT_PAYMENT_ID = (SELECT C_DEBT_PAYMENT_ID FROM C_DEBT_PAYMENT WHERE C_SETTLEMENT_CANCEL_ID = ?)
+     ]]>
+     </Sql>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+     <Parameter name="C_SETTLEMENT_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectManual" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT B.AMOUNTCREDIT AS AMOUNTCREDIT, B.AMOUNTDEBIT AS AMOUNTDEBIT, GA.Glitem_Credit_Acct AS CREDIT_ACCT, GA.Glitem_Debit_Acct AS DEBIT_ACCT,
+        G.C_TAX_ID, G.C_WITHHOLDING_ID
+        FROM C_DEBT_PAYMENT D, C_DEBT_PAYMENT_BALANCING B, C_GLITEM G, C_Glitem_Acct GA
+        WHERE D.C_DEBT_PAYMENT_ID = B.C_DEBT_PAYMENT_ID
+        AND B.C_GLITEM_ID = G.C_GLITEM_ID
+        AND G.C_GLITEM_ID = GA.C_GLITEM_ID
+        AND GA.C_ACCTSCHEMA_ID = ?
+        AND D.C_DEBT_PAYMENT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+     <Parameter name="C_DEBT_PAYMENT_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectDirectManual" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_GLITEM_ACCT.GLITEM_CREDIT_ACCT AS CREDIT_ACCT,
+        C_GLITEM_ACCT.GLITEM_DEBIT_ACCT AS DEBIT_ACCT, C_DEBT_PAYMENT.AMOUNT AS AMOUNT,
+        G.C_TAX_ID, G.C_WITHHOLDING_ID
+        FROM C_DEBT_PAYMENT, C_GLITEM G, C_GLITEM_ACCT
+        WHERE G.C_GLITEM_ID = C_GLITEM_ACCT.C_GLITEM_ID
+        AND G.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+        AND C_GLITEM_ACCT.C_ACCTSCHEMA_ID = ?
+        AND C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+     <Parameter name="C_DEBT_PAYMENT_ID"/>
+   </SqlMethod>
+   
+   <SqlMethod name="paymentsInformation" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(DP.ISMANUAL,'N') AS ISMANUAL, COALESCE(DP.ISDIRECTPOSTING,'N') AS ISDIRECTPOSTING
+        FROM C_SETTLEMENT S LEFT JOIN C_DEBT_PAYMENT DP
+          ON DP.C_SETTLEMENT_GENERATE_ID = S.C_SETTLEMENT_ID
+        WHERE S.C_SETTLEMENT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="settlementID"/>
+   </SqlMethod>
+</SqlClass>

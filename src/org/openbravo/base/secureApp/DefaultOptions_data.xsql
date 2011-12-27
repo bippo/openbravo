@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ************************************************************************************
+ * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Licensed under the Apache Software License version 2.0
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to  in writing,  software  distributed
+ * under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+ * CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+ * specific language governing permissions and limitations under the License.
+ ************************************************************************************
+-->
+
+
+
+<SqlClass name="DefaultOptionsData" package="org.openbravo.base.secureApp">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="dummy" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT '' as DEFAULT_AD_CLIENT_ID,
+               '' as DEFAULT_AD_ORG_ID,
+               '' as DEFAULT_AD_LANGUAGE,
+               '' as DEFAULT_AD_ROLE_ID,
+               '' as DEFAULT_M_WAREHOUSE_ID,
+               '' AS ISRTL,
+               '' AS AD_LANGUAGE
+          FROM dual
+           ]]></Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="defaultRole" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT users.DEFAULT_AD_ROLE_ID
+          FROM AD_USER users
+            INNER JOIN AD_ROLE role ON users.DEFAULT_AD_ROLE_ID = role.AD_ROLE_ID
+         WHERE users.AD_USER_ID = ?
+           AND NOT users.DEFAULT_AD_ROLE_ID IS NULL
+           AND role.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getDefaultSystemRole" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT users.DEFAULT_AD_ROLE_ID, 1 as line
+          FROM AD_USER users,
+               AD_ROLE role  
+         WHERE users.AD_USER_ID = ?
+           AND NOT users.DEFAULT_AD_ROLE_ID IS NULL
+           AND role.ISACTIVE = 'Y'
+           AND users.DEFAULT_AD_ROLE_ID = role.AD_ROLE_ID
+           AND role.USERLEVEL = 'S'
+         UNION
+        SELECT TO_CHAR(MIN(userRoles.AD_ROLE_ID)) AS DEFAULT_AD_ROLE_ID, 2 as line
+          FROM AD_USER_ROLES userRoles
+            INNER JOIN AD_ROLE role
+              ON userRoles.AD_ROLE_ID = role.AD_ROLE_ID
+         WHERE userRoles.AD_USER_ID = ?
+           AND role.ISACTIVE = 'Y'
+           AND role.USERLEVEL = 'S'
+         ORDER BY 2
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="defaultClient" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT users.DEFAULT_AD_CLIENT_ID
+          FROM AD_USER users
+            INNER JOIN AD_CLIENT client ON users.DEFAULT_AD_CLIENT_ID = client.AD_CLIENT_ID
+         WHERE users.AD_USER_ID = ?
+           AND NOT users.DEFAULT_AD_CLIENT_ID IS NULL
+           AND client.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="defaultOrg" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT users.DEFAULT_AD_ORG_ID
+          FROM AD_USER users
+            INNER JOIN AD_ORG org ON users.DEFAULT_AD_ORG_ID = org.AD_ORG_ID
+         WHERE users.AD_USER_ID = ?
+           AND NOT users.DEFAULT_AD_ORG_ID IS NULL
+           AND org.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="defaultWarehouse" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT users.DEFAULT_M_WAREHOUSE_ID
+          FROM AD_USER users
+            INNER JOIN M_WAREHOUSE warehouse ON users.DEFAULT_M_WAREHOUSE_ID = warehouse.M_WAREHOUSE_ID
+         WHERE users.AD_USER_ID = ?
+           AND NOT users.DEFAULT_M_WAREHOUSE_ID IS NULL
+           AND warehouse.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="defaultLanguage" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT users.DEFAULT_AD_LANGUAGE, lang.ISRTL AS ISRTL
+          FROM AD_USER users
+            INNER JOIN AD_LANGUAGE lang ON users.DEFAULT_AD_LANGUAGE = lang.AD_LANGUAGE
+         WHERE users.AD_USER_ID = ?
+           AND NOT users.DEFAULT_AD_LANGUAGE IS NULL
+           AND lang.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getDefaultRole" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT TO_CHAR(MIN(userRoles.AD_ROLE_ID)) AS DEFAULT_AD_ROLE_ID
+          FROM AD_USER_ROLES userRoles
+            INNER JOIN AD_ROLE role
+              ON userRoles.AD_ROLE_ID = role.AD_ROLE_ID
+         WHERE userRoles.AD_USER_ID = ?
+           AND role.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="aduserid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getDefaultClient" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT role.AD_CLIENT_ID AS DEFAULT_AD_CLIENT_ID
+          FROM AD_ROLE role
+            INNER JOIN AD_CLIENT client
+              ON role.AD_CLIENT_ID = client.AD_CLIENT_ID
+         WHERE AD_ROLE_ID = ?
+          AND client.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="adroleid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getDefaultWarehouse" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT TO_CHAR(MIN(M_WAREHOUSE_ID)) AS DEFAULT_M_WAREHOUSE_ID
+          FROM M_WAREHOUSE
+         WHERE AD_CLIENT_ID = ?
+          AND ISACTIVE = 'Y'
+          AND AD_Org_ID IN('1') 
+           ]]></Sql>
+      <Parameter name="adclientid"/>
+      <Parameter name="adOrgClient" type="replace" optional="true" after="AD_Org_ID IN(" text="'1'"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getDefaultOrg" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT TO_CHAR(MAX(roleOrg.AD_ORG_ID)) AS AD_ORG_ID
+        FROM AD_ROLE_ORGACCESS roleOrg 
+          INNER JOIN AD_ORG org
+            ON roleOrg.AD_ORG_ID = org.AD_ORG_ID
+        WHERE roleOrg.AD_ROLE_ID = ?
+           AND roleOrg.ISACTIVE = 'Y'
+           AND org.ISACTIVE = 'Y'
+           ]]></Sql>
+      <Parameter name="adroleid"/>
+   </SqlMethod>
+   
+   <SqlMethod name="getDefaultLanguage" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT lang.AD_LANGUAGE AS AD_LANGUAGE, lang.ISRTL AS ISRTL
+          FROM AD_LANGUAGE lang, AD_MODULE mod
+         WHERE lang.ISACTIVE = 'Y'
+           AND lang.AD_LANGUAGE = mod.AD_LANGUAGE
+           AND mod.AD_MODULE_ID = '0'
+           ]]></Sql>      
+   </SqlMethod>
+   
+</SqlClass>
+

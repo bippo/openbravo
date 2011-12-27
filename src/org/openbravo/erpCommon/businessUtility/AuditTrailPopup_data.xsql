@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="AuditTrailPopupData" package="org.openbravo.erpCommon.businessUtility">
+  <SqlClassComment>This is a runtime accessible copy of some methods normally used only inside WAD</SqlClassComment>
+
+<!-- method from src-wad/src/org/openbravo/wad/Tabs_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="selectParentTab" type="preparedStatement" return="string">
+      <Sql><![CDATA[
+        select t.ad_tab_id
+         from ad_tab t, ad_tab t1
+        where t1.ad_window_id = t.ad_window_id
+          and t1.ad_tab_id = ?
+          and t.seqno < t1.seqno
+          and t.tablevel < t1.tablevel
+          and t.seqno = (select max(t2.seqno)
+                           from ad_tab t2, ad_tab t3
+                          where t3.ad_window_id = t2.ad_window_id
+                            and t3.ad_tab_id = t1.ad_tab_id
+                            and t2.seqno < t3.seqno
+                            and t2.tablevel < t3.tablevel) 
+        ]]>
+      </Sql>
+      <Parameter name="adTabId"/>
+      <Field name="name" value="void"/>
+      <Field name="reference" value="void"/>
+      <Field name="referencevalue" value="void"/>
+      <Field name="tablename" value="void"/>
+      <Field name="parentTabName" value="void"/>
+      <Field name="tablemodule" value="void"/>
+      <Field name="columnmodule" value="void"/>
+      <Field name="tabid" value="void"/>
+      <Field name="seqno" value="void"/>
+      <Field name="tablevel" value="void"/>
+      <Field name="tabname" value="void"/>
+      <Field name="tabnamecompact" value="void"/>
+      <Field name="tdClass" value="void"/>
+      <Field name="tabnametrl" value="void"/>
+      <Field name="key" value="void"/>
+      <Field name="href" value="void"/>
+      <Field name="tdHeight" value="void"/>
+      <Field name="parentKey" value="void"/>
+      <Field name="isinfotab" value="void"/>
+      <Field name="istranslationtab" value="void"/>
+      <Field name="nametab" value="void"/>
+      <Field name="editreference" value="void"/>
+      <Field name="tabmodule" value="void"/>
+      <Field name="adFieldId" value="void"/>
+  </SqlMethod>
+
+<!-- method from src-wad/src/org/openbravo/wad/Fields_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="parentsColumnName" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_FIELD.AD_FIELD_ID, ColumnName AS NAME, AD_REFERENCE_id AS reference, ad_reference_value_id AS referencevalue,
+        (SELECT tableNAME FROM AD_TABLE, AD_TAB WHERE AD_TABLE.ad_table_id = AD_TAB.ad_table_id
+        AND AD_TAB.ad_tab_id=?) AS tablename, ? as AD_Tab_ID, (select name from ad_tab where ad_tab_id = ?) as parent_tab_name,
+        (SELECT P.ad_module_id FROM AD_TABLE T, AD_PACKAGE P WHERE T.ad_table_id = AD_COLUMN.ad_table_id AND T.AD_PACKAGE_ID = P.AD_PACKAGE_ID) as tableModule,
+        AD_COLUMN.AD_Module_ID as columnModule
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_tab_id = ? AND isParent='Y' 
+        AND EXISTS(SELECT 1 FROM AD_COLUMN c, AD_FIELD f WHERE c.ad_column_id = f.ad_column_id AND (c.iskey='Y' OR c.issecondarykey='Y')
+        AND ad_tab_id=? AND UPPER(c.columnname) = UPPER(AD_COLUMN.columnname))
+      ]]></Sql>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="tab"/>
+      <Parameter name="parentTab"/>
+  </SqlMethod>
+
+<!-- method from src-wad/src/org/openbravo/wad/Fields_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="parentsColumnReal" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql>
+        SELECT AD_FIELD.AD_FIELD_ID, ColumnName AS NAME, AD_REFERENCE_id AS reference, ad_reference_value_id AS referencevalue,
+        (SELECT tableNAME FROM AD_TABLE, AD_TAB WHERE AD_TABLE.ad_table_id = AD_TAB.ad_table_id
+        AND AD_TAB.ad_tab_id=?) AS tablename,
+        (SELECT P.ad_module_id FROM AD_TABLE T, AD_PACKAGE P WHERE T.ad_table_id = AD_COLUMN.ad_table_id AND T.AD_PACKAGE_ID = P.AD_PACKAGE_ID) as tableModule,
+        AD_COLUMN.AD_Module_ID as columnModule
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_tab_id = ?
+        AND (UPPER(columnname) IN (SELECT UPPER(columnname) 
+                                    FROM AD_FIELD, AD_COLUMN 
+                                   WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+                                     AND AD_COLUMN.iskey='Y' 
+                                     AND AD_FIELD.ad_tab_id=?)
+            OR (UPPER(columnname) LIKE 'EM_%'  
+               AND UPPER(SUBSTR(COLUMNNAME,4)) IN  (SELECT UPPER(columnname) 
+                                    FROM AD_FIELD, AD_COLUMN 
+                                   WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+                                     AND AD_COLUMN.iskey='Y' 
+                                     AND AD_FIELD.ad_tab_id=?)))
+      </Sql>
+      <Parameter name="parentTab"/>
+      <Parameter name="tab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+  </SqlMethod>
+
+<!-- method from src-wad/src/org/openbravo/wad/Tabs_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="selectSubtabs" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Subtabs of the tab of the parameter</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT a2.ad_tab_id AS tabId, a2.seqno AS seqNo, a2.tablevel AS tabLevel, a2.NAME AS tabName, a2.NAME AS tabNameCompact, '' AS TD_Class, a2.NAME AS tabNameTrl, 
+        (SELECT MAX(AD_COLUMN.columnname) 
+        FROM AD_TABLE, AD_COLUMN 
+        WHERE AD_TABLE.ad_table_id = AD_COLUMN.ad_table_id 
+        AND iskey='Y' 
+        AND AD_TABLE.ad_table_id = a2.ad_table_id) AS KEY, '' AS href, '' AS Td_Height, 
+        COALESCE(a1.ad_tab_id,'-1') AS Parent_Key, a2.isInfoTab, a2.isTranslationTab, AD_ShortName(a2.Name) as NameTab, 
+        a2.EDITREFERENCE, a2.AD_MODULE_ID as tabmodule
+        FROM AD_TAB a1, AD_TAB a2
+        WHERE a1.ad_tab_id = ?
+        AND a1.ad_window_id = a2.ad_window_id
+        AND a2.seqno > a1.seqno
+        AND a2.isactive = 'Y'
+        AND a2.seqno < (SELECT COALESCE(MIN(a3.seqno),1000)
+                     FROM AD_TAB a3 
+                     WHERE a3.ad_window_id = a1.ad_window_id 
+                     AND a3.tablevel = a1.tablevel
+                     AND a3.seqno > a1.seqno)
+        AND a2.tablevel = (a1.tablevel + 1)
+        AND a2.ad_table_id IN 
+        (SELECT AD_TABLE.ad_table_id FROM AD_COLUMN, AD_TABLE 
+        WHERE AD_COLUMN.ad_table_id = AD_TABLE.ad_table_id
+        AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        AND (isparent='N' OR NOT EXISTS (
+        SELECT c.ad_column_id FROM AD_TAB at1, AD_FIELD f, AD_COLUMN c
+        WHERE at1.ad_table_id = c.ad_table_id
+        AND at1.ad_window_id = a2.ad_window_id
+        AND f.ad_column_id = c.ad_column_id
+        AND at1.tablevel=a2.tablevel -1
+        AND at1.ad_tab_id=COALESCE(a1.ad_tab_id,'-1')
+        AND c.columnname = AD_COLUMN.columnname 
+        AND (c.isKey = 'Y' OR c.isSecondaryKey='Y')
+        ))
+        )
+        ORDER BY a2.seqno
+       ]]>
+      </Sql>
+      <Parameter name="parentId"/>
+  </SqlMethod>
+
+</SqlClass>

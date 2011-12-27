@@ -1,0 +1,350 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>Done scheduled maintenances</title>
+  <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"/>
+  <script language="JavaScript" type="text/javascript" id="paramDirectory"> var baseDirectory = "../../../../../web/";</script>
+  <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/dojoConfig.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/dojo/dojo.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+  <script language="JavaScript" type="text/javascript" id="paramLanguage">defaultLang = "en_US";</script>
+  <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+
+function loadData(value, enable) {
+  if (enable == null) enable = false;
+  document.frmMain.elements["inpmovementqty" + value].disabled = !enable;
+  document.frmMain.elements["inpquantityorder" + value].disabled = !enable;
+  return true;
+}
+
+function validate(action) {
+  var frm=document.frmMain;
+  if (frm.inpPartDateFrom.value==null) {
+    showJSMessage(1);
+    return false;
+  }
+  return true;
+}
+
+function closeThisPage() {
+	top.close();
+	return true;
+}
+
+function submitThisPage(strCommand) {
+	if (validate(strCommand)) {
+		submitCommandForm(strCommand, false, null, 'UpdateMaintenanceScheduled.html', null);
+		return true;
+	}
+	return true;
+}
+
+</script>
+  <script language="JavaScript" type="text/javascript">
+    function onLoadDo(){
+      this.windowTables = new Array(
+        new windowTableId('client_top', 'buttonSearch'),
+        new windowTableId('client_middle', 'buttonOK'),
+        new windowTableId('client_bottom', 'buttonOK')
+      );
+      setWindowTableParentElement();
+      enableShortcuts('popup');
+      setBrowserAutoComplete(false);
+
+      resizeAreaCreateFrom();
+		
+      setWindowElementFocus('firstElement');
+    }
+
+    function onResizeDo(){
+      resizeAreaCreateFrom();
+    }
+  </script>
+</head>
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form id="form" method="post" action="../ad_actionButton/UpdateMaintenanceScheduled.html" name="frmMain">
+  <input type="hidden" name="Command"/>
+  <input type="hidden" name="IsPopUpCall" value="1"/>
+  <input type="hidden" name="inpLastFieldChanged"/>
+  <input type="hidden" name="inpmaMaintPartId" value="" id="paramKey"/> 
+  <input type="hidden" name="inpWindowId" value="" id="paramWindowId"/> 
+  <input type="hidden" name="inpTabId" value="" id="paramTabId"/>
+
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../../../../../web/images/blank.gif" border="0"/>
+    </div>
+  </div>
+
+  <table id="table_header" cellspacing="0" cellpadding="0" width="100%">
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="abrirNuevoBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span>Update maintenance</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_top">
+        
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+
+            <tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Primary Filters</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Scheduled date from</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td>
+                      <input dojoType="openbravo:DateTextbox" lowerThan="paramPartDateTo" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpPartDateFrom" id="paramPartDateFrom" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"/><script>djConfig.searchIds.push("paramPartDateFrom");</script>
+                    </td>
+                    <td valign="top">
+                      <table class="FieldButton" onclick="showCalendar('frmMain.inpPartDateFrom', document.frmMain.inpPartDateFrom.value, false);return false;" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" id="buttonCalendar" src="../../../../../web/images/blank.gif" border="0"/>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+             </td>
+              <td class="TitleCell"><span class="LabelText">To Date</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td>
+                      <input dojoType="openbravo:DateTextbox" greaterThan="paramPartDateFrom" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpPartDateTo" id="paramPartDateTo" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"/><script>djConfig.searchIds.push("paramPartDateTo");</script>
+                    </td>
+                    <td valign="top">
+                      <table class="FieldButton" onclick="showCalendar('frmMain.inpPartDateTo', document.frmMain.inpPartDateTo.value, false);return false;"  onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" id="buttonCalendar" src="../../../../../web/images/blank.gif" border="0"/>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"><span class="LabelText">Maintenance type</span></td>
+              <td class="Combo_ContentCell"> <select name="inpMaintType" id="paramMaintType" class="Combo Combo_OneCell_width">
+                  <option value=""></option><div id="reportMaintType"></div>
+                </select></td>
+            </tr>
+
+            <tr><td height="20px"></td></tr>
+
+            <tr>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonSearch" 
+                    class="ButtonLink" 
+                    onclick="submitCommandForm('FIND', false, null, null, '_self');return true;" 
+                    onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
+                    onblur="buttonEvent('onblur', this);" 
+                    onkeyup="buttonEvent('onkeyup', this);" 
+                    onkeydown="buttonEvent('onkeydown', this);" 
+                    onkeypress="buttonEvent('onkeypress', this);" 
+                    onmouseup="buttonEvent('onmouseup', this);" 
+                    onmousedown="buttonEvent('onmousedown', this);" 
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Search'; return true;" 
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_search" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Search</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto; display: none;" id="client_middle">
+      <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector_Grid">
+        <tr class="Popup_Client_Selector_DataGrid_HeaderRow"> 
+          <th colspan="2" width="20%" class="datagridCell Popup_Client_Selector_HeaderRow_bg">Scheduled Maintenance</th>
+          <th width="10%" class="datagridCell Popup_Client_Selector_HeaderRow_bg">Date</th>
+          <th width="5%" class="datagridCell Popup_Client_Selector_HeaderRow_bg">OK</th>
+          <th width="6%" class="datagridCell Popup_Client_Selector_HeaderRow_bg">Time</th>
+          <th width="44%" class="datagridCell Popup_Client_Selector_HeaderRow_bg">Observations</th>
+        </tr>
+        <div id="sectionDetail"> 
+          <tr>
+            <td width="5%" class="datagridCell Popup_Client_Selector_HeaderRow_bg"><input type="hidden" name="strMaintScheduled" value="" id="fieldMaintScheduledId"/><input type="checkbox" id="fieldDone" name="strDonexx" value="Y"/></td>
+            <td width="35%" class="datagridCell Popup_Client_Selector_HeaderRow_bg" id="fieldScheduledMaintenance">xxScheduled_Maintenance</td>
+            <td width="10%" class="datagridCell Popup_Client_Selector_HeaderRow_bg" id="fieldScheduledDate">xx19/05/2006</td>
+            <td width="5%" class="datagridCell Popup_Client_Selector_HeaderRow_bg"><input type="checkbox" id="fieldResult" name="strResultxx" value="Y"/></td>
+            <td width="6%" class="datagridCell Popup_Client_Selector_HeaderRow_bg"><input type="text" size="3" maxlength="2" id="fieldUsedTime" name="strUsedTimexx"/></td>
+            <td width="39%" class="datagridCell Popup_Client_Selector_HeaderRow_bg"><textarea cols="50" rows="2.0" id="fieldObservation" name="strObservationxx"></textarea></td>
+          </tr>
+        </div>
+        </table>
+      </div>
+    </td>
+  </tr>
+
+  <tr>
+    <td>
+      <div class="Popup_ContentPane_Client" style="overflow: auto; padding-bottom: 5px;" id="client_bottom">
+        <table cellspacing="0" cellpadding="0" class="Popup_Client_TablePopup">
+          <tr>
+            <td class="TableEdition_OneCell_width"></td>
+            <td class="TableEdition_OneCell_width"></td>
+            <td class="TableEdition_OneCell_width"></td>
+            <td class="TableEdition_OneCell_width"></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td class="Button_RightAlign_ContentCell">
+              <div>
+                <button type="button" 
+                  id="buttonOK" 
+                  class="ButtonLink" 
+                  onclick="submitThisPage('SAVE');return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Accept'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Accept'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Accept" title="Accept" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text Button_width">OK</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+              </div>
+            </td>
+            <td class="Button_LeftAlign_ContentCell">
+              <div>
+                <button type="button" 
+                  id="buttonCancel" 
+                  class="ButtonLink" 
+                  onclick="closeThisPage();return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text Button_width">Cancel</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+              </div>
+            </td>
+            <td></td>
+          </tr>
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
+
+</form>
+</body>
+</html>

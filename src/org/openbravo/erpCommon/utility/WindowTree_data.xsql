@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="WindowTreeData" package="org.openbravo.erpCommon.utility" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.AD_Menu_ID AS ID, m.Name,m.Description,m.IsSummary,
+        m.Action, m.AD_Window_ID, m.AD_Process_ID, m.AD_Form_ID,
+        (case when (select count(*) from ad_module where type='T' and isindevelopment='Y')=0 
+               then Mo.ISINDEVELOPMENT 
+               else 'Y' end) as isInDevelopment, 
+        '' as IsReady, '' as AD_OrgType_ID
+        FROM AD_TreeNode tn,          
+             AD_Menu m,
+             AD_Module Mo
+        WHERE tn.Node_ID = m.AD_Menu_ID 
+        AND tn.AD_Tree_ID = ? 
+        AND Mo.AD_Module_ID = m.AD_Module_ID
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.AD_Menu_ID AS ID, 
+               COALESCE (t.Name, m.Name) as name,t.Description,m.IsSummary,
+        m.Action, m.AD_Window_ID, m.AD_Process_ID, m.AD_Form_ID,
+        (case when (select count(*) from ad_module where type='T' and isindevelopment='Y')=0 
+               then Mo.ISINDEVELOPMENT 
+               else 'Y' end) as isInDevelopment
+        FROM AD_TreeNode tn, 
+             AD_Menu m left join AD_Menu_Trl t on m.AD_Menu_ID = t.AD_Menu_ID 
+                                               AND t.AD_Language = ?
+                                               AND m.AD_Menu_ID = t.AD_Menu_ID,
+             AD_Module Mo
+        WHERE  tn.Node_ID = m.AD_Menu_ID 
+        AND tn.AD_Tree_ID = ? 
+        AND Mo.AD_Module_ID = m.AD_Module_ID
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="adLanguage"/>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectOrg" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.AD_Org_ID AS ID, m.Name,m.Description,m.IsSummary,m.IsReady, m.AD_OrgType_ID
+        FROM AD_TreeNode tn,
+         AD_Org m
+        WHERE tn.Node_ID = m.AD_Org_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectProductCategory" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.M_Product_Category_ID AS ID, m.Name,m.Description, 'N' AS IsSummary 
+        FROM AD_TreeNode tn, 
+          M_Product_Category m
+        WHERE tn.Node_ID = m.M_Product_Category_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectBOM" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.M_Product_BOM_ID AS ID, p.Name,p.Description, p.IsBOM AS IsSummary 
+        FROM AD_TreeNode tn, 
+          M_Product_BOM m, M_Product p
+        WHERE tn.Node_ID = m.M_Product_BOM_ID 
+        AND m.M_ProductBOM_ID = p.M_Product_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectElementValue" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_ElementValue_ID AS ID, 
+                m.value||' - '||coalesce(mt.name, m.name) as Name,m.Description,m.IsSummary 
+        FROM C_ElementValue m left join c_elementvalue_trl mt on mt.c_elementvalue_id = m.c_elementvalue_id
+                                  and mt.ad_language = ?,
+             AD_TreeNode tn
+        WHERE tn.Node_ID = m.C_ElementValue_ID 
+        AND tn.AD_Tree_ID = ? 
+        AND m.C_Element_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+	  	<Parameter name="adLanguage"/>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+        <Parameter name="cElementId"/>
+   </SqlMethod>
+   <SqlMethod name="selectCampaign" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_Campaign_ID AS ID, m.Name,m.Description, m.IsSummary 
+        FROM AD_TreeNode tn, 
+              C_Campaign m
+        WHERE  tn.Node_ID = m.C_Campaign_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectProject" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_Project_ID AS ID, m.Name,m.Description,m.IsSummary 
+        FROM AD_TreeNode tn, C_Project m
+        WHERE tn.Node_ID = m.C_Project_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectActivity" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_Activity_ID AS ID, m.Name,m.Description,m.IsSummary 
+        FROM AD_TreeNode tn, C_Activity m
+        WHERE  tn.Node_ID = m.C_Activity_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectSalesRegion" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_SalesRegion_ID AS ID, m.Name,m.Description,m.IsSummary 
+        FROM AD_TreeNode tn, C_SalesRegion m
+        WHERE tn.Node_ID = m.C_SalesRegion_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND m.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectAccountingReport" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, ar.AD_AccountingRpt_Element_ID AS ID, ar.Name,ar.Description,ar.IsSummary 
+        FROM AD_TreeNode tn, AD_AccountingRpt_Element ar
+        WHERE tn.Node_ID = ar.AD_AccountingRpt_Element_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND ar.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTaxReport" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, tr.C_TAX_REPORT_ID AS ID, tr.NAME,tr.Description,tr.IsSummary 
+        FROM AD_TREENODE tn, C_TAX_REPORT tr
+        WHERE tn.Node_ID = tr.C_TAX_REPORT_ID
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      </Sql>
+        <Parameter name="editable" optional="true" type="none" after="WHERE " text="tn.IsActive='Y' AND tr.isActive='Y' AND "/>
+        <Parameter name="parentId" optional="true" after="WHERE " text="tn.Parent_ID = ? AND "/>
+        <Parameter name="nodeId" optional="true" after="WHERE " text="tn.Node_ID = ? AND "/>
+        <Parameter name="adTreeId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTreeID" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NODE_ID, ID, NAME 
+        FROM (
+         SELECT AD_Client_ID as Node_ID, AD_Tree_ID AS ID, NAME, 1 AS SEQNO
+        FROM AD_Tree t1
+        WHERE t1.AD_Client_ID IN ('1')  
+        AND AD_Client_ID != '0'
+        AND TreeType = ? 
+        AND IsActive = 'Y'
+      UNION
+       SELECT AD_Client_ID as Node_ID, AD_Tree_ID AS ID, NAME, 2 AS SEQNO
+        FROM AD_Tree t2
+        WHERE t2.AD_Client_ID IN ('2') 
+        AND AD_Client_id = '0'
+        AND TreeType = ?
+        AND IsActive = 'Y') f
+        ORDER BY SEQNO
+      </Sql>
+        <Parameter name="adClientId" optional="true" type="replace" after="t1.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="treetype"/>
+        <Parameter name="adClientId" optional="true" type="replace" after="t2.AD_Client_ID IN (" text="'2'"/>
+        <Parameter name="treetype"/>
+   </SqlMethod>
+   <SqlMethod name="TreeName" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NAME, DESCRIPTION 
+        FROM AD_Tree 
+        WHERE AD_Tree_ID = ? 
+        AND AD_Org_ID IN ('1') 
+        AND TreeType = ? 
+        AND IsActive = 'Y'
+      </Sql>
+        <Parameter name="adTreeId"/>
+        <Parameter name="adClientId" optional="true" type="replace" after="AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="treetype"/>
+   </SqlMethod>
+   <SqlMethod name="selectKey" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT C.COLUMNNAME
+        FROM AD_TAB T, AD_COLUMN C 
+        WHERE T.AD_TABLE_ID = C.AD_TABLE_ID
+        AND (C.ISKEY = 'Y'
+        OR C.ISSECONDARYKEY='Y')
+        AND T.AD_TAB_ID = ? 
+        AND C.ISACTIVE='Y'
+        ORDER BY C.SEQNO
+      </Sql>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTableName" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT TB.TABLENAME
+        FROM AD_TAB T, AD_TABLE TB 
+        WHERE T.AD_TABLE_ID = TB.AD_TABLE_ID
+        AND T.AD_TAB_ID = ? 
+      </Sql>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="selectEditable" type="preparedStatement" return="String" default="N">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT ISREADONLY
+        FROM AD_TAB 
+        WHERE AD_TAB_ID = ? 
+      </Sql>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTabName" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT w.Name as Description, t.Name as NAME
+        FROM AD_Window w, AD_TAB t
+        WHERE w.AD_Window_ID = t.AD_Window_ID 
+        AND t.AD_TAB_ID = ? 
+        AND t.isActive = 'Y'
+      </Sql>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="selectParents" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT COLUMNNAME AS Name, ad_window_id AS node_Id
+        FROM AD_COLUMN c, AD_FIELD f, AD_TAB t 
+        WHERE t.ad_tab_id = f.ad_tab_id 
+        AND f.ad_column_id = c.ad_column_id 
+        AND t.ad_tab_id = ?
+        AND c.isparent='Y' 
+        ORDER BY f.SeqNo
+      </Sql>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        UPDATE AD_TREENODE SET UPDATED=now(), UPDATEDBY = ?, PARENT_id = ?, SEQNO=TO_NUMBER(?) 
+        WHERE AD_TREE_ID = ? 
+        AND NODE_ID = ?
+      </Sql>
+        <Parameter name="updatedby"/>
+        <Parameter name="parentId"/>
+        <Parameter name="seqno"/>
+        <Parameter name="adTreeId"/>
+        <Parameter name="nodeId"/>
+   </SqlMethod>
+</SqlClass>

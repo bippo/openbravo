@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_INVENTORYLINE2_TRG">
+    <trigger name="M_INVENTORYLINE2_TRG" table="M_INVENTORYLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+ IF(UPDATING)
+    THEN  IF NOT((COALESCE(:OLD.M_Product_Uom_ID, '0') <> COALESCE(:NEW.M_Product_Uom_ID, '0')
+    OR COALESCE(:OLD.QuantityOrderBook, 0) <> COALESCE(:NEW.QuantityOrderBook, 0)))
+    THEN  RETURN;
+    END IF;
+   END IF;
+ IF(UPDATING OR INSERTING) THEN
+  IF(:NEW.M_Product_Uom_ID IS NOT NULL AND :NEW.QuantityOrderBook IS NULL) THEN
+    :NEW.QuantityOrderBook:=0;
+  ELSIF(:NEW.M_Product_Uom_ID IS NULL AND :NEW.QuantityOrderBook IS NOT NULL) THEN
+    :NEW.QuantityOrderBook:=NULL;
+  END IF;
+ END IF;
+END M_INVENTORYLINE2_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,189 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ROLE_TRG">
+    <trigger name="AD_ROLE_TRG" table="AD_ROLE" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: AD_Role_Trg.sql,v 1.5 2003/07/22 05:41:26 jjanke Exp $
+***
+* Title: Role Setup
+* Description:
+* - Create Role_OrgAccess + User_Roles
+* - Insert Access for Role
+************************************************************************/
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+IF (UPDATING) THEN
+ IF NOT(COALESCE(:OLD.UserLevel,'.')<>COALESCE(:NEW.UserLevel,'.')) THEN
+  RETURN;
+ END IF;
+ END IF;
+
+
+ IF (INSERTING) THEN
+  NULL;
+ ELSIF (:new.IsManual = 'Y') THEN
+  RETURN;
+ ELSE
+  -- Window
+  DELETE FROM AD_Window_Access
+  WHERE AD_Role_ID = :new.AD_Role_ID;
+  -- Process
+  DELETE FROM AD_Process_Access
+  WHERE AD_Role_ID = :new.AD_Role_ID;
+  -- Form
+  DELETE FROM AD_Form_Access
+  WHERE AD_Role_ID = :new.AD_Role_ID;
+ END IF;
+
+ /**
+  * Fill AD_Window_Access + AD_Process_Access
+  * ---------------------------------------------------------------------------
+  * SCO# Levels   S__ 100  4 System info
+  *      SCO 111  7 System shared info
+  *      SC_ 110  6 System/Client info
+  *      _CO 011  3 Client shared info
+  *      __O 001  1 Organization info
+  * Roles:
+  *  S  4,7,6
+  *  _CO  7,6,3,1
+  *  __O  3,1,7
+  */
+ -- System
+ IF (:new.UserLevel='S') AND (:new.IsManual <> 'Y') THEN
+  -- Window
+  INSERT INTO AD_Window_Access
+   (AD_Window_Access_ID, AD_Window_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), w.AD_Window_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM (select distinct w.ad_window_id
+  from AD_Window w, AD_Tab t, AD_Table tt
+  WHERE w.AD_Window_ID=t.AD_Window_ID
+    AND t.AD_Table_ID=tt.AD_Table_ID
+    AND tt.AccessLevel IN ('4','7','6')
+    AND w.IsActive = 'Y'
+    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')) w;
+  -- Process
+  INSERT INTO AD_Process_Access
+   ( AD_Process_Access_ID, AD_Process_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), p.AD_Process_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM AD_Process p
+  WHERE AccessLevel IN ('4','7','6')
+  AND p.IsActive='Y'
+  AND (:new.ISADVANCED = 'Y' OR p.ISADVANCEDFEATURE = 'N');
+  -- Form
+  INSERT INTO AD_Form_Access
+   (AD_Form_Access_ID, AD_Form_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), f.AD_Form_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM AD_Form f
+  WHERE AccessLevel IN ('4','7','6')
+  AND f.IsActive='Y'
+  AND (:new.ISADVANCED = 'Y' OR f.ISADVANCEDFEATURE = 'N');
+
+ -- Client/Org
+ ELSIF (:new.UserLevel=' CO' OR :new.UserLevel=' C') AND (:new.IsManual <> 'Y') THEN
+  -- Window
+  INSERT INTO AD_Window_Access
+  ( AD_Window_Access_ID, AD_Window_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), w.AD_Window_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM (select distinct w.ad_window_id
+  from AD_Window w, AD_Tab t, AD_Table tt
+  WHERE w.AD_Window_ID=t.AD_Window_ID
+    AND t.AD_Table_ID=tt.AD_Table_ID
+    AND tt.AccessLevel IN ('7','6','3','1')
+    AND w.AD_Window_ID NOT IN ('100','102','165','187')
+    AND w.IsActive='Y'
+    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')) w;
+  -- Process
+  INSERT INTO AD_Process_Access
+   (AD_Process_Access_ID, AD_Process_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT DISTINCT get_uuid(), p.AD_Process_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM AD_Process p
+  WHERE AccessLevel IN ('7','6','3','1')
+  AND p.IsActive='Y'
+  AND (:new.ISADVANCED = 'Y' OR p.ISADVANCEDFEATURE = 'N');
+  -- Form
+  INSERT INTO AD_Form_Access
+   (AD_Form_Access_ID, AD_Form_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), f.AD_Form_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM AD_Form f
+  WHERE AccessLevel IN ('7','6','3','1')
+  AND f.IsActive='Y'
+  AND (:new.ISADVANCED = 'Y' OR f.ISADVANCEDFEATURE = 'N');
+  
+ -- Organization
+ ELSIF (:new.UserLevel='  O') AND (:new.IsManual <> 'Y') THEN
+  -- Window
+  INSERT INTO AD_Window_Access
+   (AD_Window_Access_ID, AD_Window_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT  get_uuid(), w.AD_Window_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM (select distinct w.aD_window_id
+  from AD_Window w, AD_Tab t, AD_Table tt
+  WHERE w.AD_Window_ID=t.AD_Window_ID
+    AND t.AD_Table_ID=tt.AD_Table_ID
+    AND tt.AccessLevel IN ('3','1','7')
+    AND w.IsActive='Y'
+    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')) w;
+  -- Process
+  INSERT INTO AD_Process_Access
+   (AD_Process_Access_ID, AD_Process_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT  get_uuid(), p.AD_Process_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM AD_Process p
+  WHERE AccessLevel IN ('3','1','7')
+  AND p.IsActive='Y'
+  AND (:new.ISADVANCED = 'Y' OR p.ISADVANCEDFEATURE = 'N');
+  -- Form
+  INSERT INTO AD_Form_Access
+   (AD_Form_Access_ID, AD_Form_ID, AD_Role_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), f.AD_Form_ID, :new.AD_Role_ID,
+   :new.AD_CLIENT_ID, :new.AD_ORG_ID, 'Y', now(), :new.UpdatedBy, now(), :new.UpdatedBy, 'Y'
+  FROM AD_Form f
+  WHERE AccessLevel IN ('3','1','7')
+  AND f.IsActive='Y'
+  AND (:new.ISADVANCED = 'Y' OR f.ISADVANCEDFEATURE = 'N');
+  
+ END IF;
+
+END AD_ROLE_TRG
+]]></body>
+    </trigger>
+  </database>

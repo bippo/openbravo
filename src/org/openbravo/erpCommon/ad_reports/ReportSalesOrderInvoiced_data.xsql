@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportSalesOrderInvoicedData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COALESCE(CB.NAME, C_BPARTNER.NAME) AS BPARTNERNAME, C_PROJECT.VALUE||' '||C_PROJECT.NAME AS PROJECTNAME,
+      M_PRODUCT.NAME AS PRODUCTNAME, CASE WHEN C_DOCTYPE.DOCBASETYPE='ARC' THEN SUM(C_ORDERLINE.QTYINVOICED)*-1 ELSE SUM(C_ORDERLINE.QTYINVOICED) END AS QTYINVOICED,
+      SUM((CASE WHEN C_DOCTYPE.DOCBASETYPE='ARC' THEN C_ORDERLINE.QTYINVOICED*-1 ELSE C_ORDERLINE.QTYINVOICED END)*C_ORDERLINE.PRICEACTUAL) AS LINENETAMT, 
+      C_CURRENCY_SYMBOL(COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), C_ORDERLINE.PRICEACTUAL, 'Y') AS LINENETAMTSYM,	  
+	  SUM(C_CURRENCY_CONVERT((CASE WHEN C_DOCTYPE.DOCBASETYPE='ARC' THEN C_ORDERLINE.QTYINVOICED*-1 ELSE C_ORDERLINE.QTYINVOICED END)*C_ORDERLINE.PRICEACTUAL, COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), ?, TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())), NULL, C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID)) AS CONVLINENETAMT,
+      C_UOM.NAME AS UOMNAME, 
+      C_ORDERLINE.PRICEACTUAL, 
+      C_CURRENCY_SYMBOL(COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), C_ORDERLINE.PRICEACTUAL, 'Y') AS PRICEACTUALSYM,	  	  
+	  C_CURRENCY_CONVERT(C_ORDERLINE.PRICEACTUAL, COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), ?, TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())), NULL, C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID) AS CONVPRICEACTUAL,
+	  C_CURRENCY_SYMBOL(?, '0', 'Y') AS CONVSYM,	  	  
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM,	  	  
+	  TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())) AS TRANSDATE,	  	  
+	  COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID) AS TRANSCURRENCYID,      	  
+	  C_ORDERLINE.AD_CLIENT_ID AS TRANSCLIENTID, 	  	  
+	  C_ORDERLINE.AD_ORG_ID AS TRANSORGID, '' AS NAME
+      FROM C_ORDER left join C_PROJECT on C_ORDER.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+       left join C_BPARTNER CB on C_PROJECT.C_BPARTNER_ID = CB.C_BPARTNER_ID
+                     left join C_BPARTNER on C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+                     left join C_BPARTNER_LOCATION on C_ORDER.C_BPARTNER_LOCATION_ID = C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID
+                     left join C_LOCATION on  C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+                     left join C_INVOICE on C_INVOICE.C_ORDER_ID = C_ORDER.C_ORDER_ID
+                     left join C_DOCTYPE on C_INVOICE.C_DOCTYPE_ID=C_DOCTYPE.C_DOCTYPE_ID,
+                     C_ORDERLINE, M_PRODUCT, C_UOM
+      WHERE C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+      AND C_ORDERLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND C_ORDERLINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND C_ORDER.AD_CLIENT_ID IN ('1')
+      AND C_ORDER.AD_ORG_ID IN ('1')
+      AND 1=1
+      GROUP BY COALESCE(CB.NAME, C_BPARTNER.NAME), C_PROJECT.VALUE, C_PROJECT.NAME, M_PRODUCT.NAME, C_UOM.NAME, C_ORDERLINE.PRICEACTUAL,
+      COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())),	  
+	  C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID, C_DOCTYPE.DOCBASETYPE	
+      HAVING SUM(C_ORDERLINE.QTYINVOICED) > 0
+      ORDER BY COALESCE(CB.NAME, C_BPARTNER.NAME), C_PROJECT.NAME, M_PRODUCT.NAME
+    ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_ORDER.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="dateFrom" optional="true" after="AND 1=1"><![CDATA[ AND C_ORDER.DATEORDERED >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="AND 1=1"><![CDATA[ AND C_ORDER.DATEORDERED < TO_DATE(?)]]></Parameter>
+    <Parameter name="cBPartnerId" optional="true" after="AND 1=1"><![CDATA[ AND C_BPARTNER.C_BPARTNER_ID = ?]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="AND 1=1"><![CDATA[ AND C_ORDER.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="cProjectId" optional="true" after="AND 1=1"><![CDATA[ AND C_PROJECT.C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="cProductCategoryId" optional="true" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_CATEGORY_ID = ?]]></Parameter>
+    <Parameter name="cProjectKind" optional="true" after="AND 1=1"><![CDATA[ AND C_PROJECT.PROJECTKIND = ?]]></Parameter>
+    <Parameter name="cRegionId" optional="true" after="AND 1=1"><![CDATA[ AND C_LOCATION.C_REGION_ID = ?]]></Parameter>
+    <Parameter name="cProjectPublic" optional="true" after="AND 1=1"><![CDATA[ AND C_PROJECT.PUBLICPRIVATE = ?]]></Parameter>
+    <Parameter name="productId" optional="true" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID = ?]]></Parameter>
+  </SqlMethod>
+  
+  <SqlMethod name="bPartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT NAME FROM C_BPARTNER 
+    WHERE C_BPARTNER_ID = ?
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectWarehouse" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT NAME FROM M_WAREHOUSE 
+    WHERE M_WAREHOUSE_ID = ?
+    </Sql>
+    <Parameter name="mWarehouseId"/>
+  </SqlMethod>
+  <SqlMethod name="selectRegionId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT INITCAP(NAME) AS NAME FROM C_REGION 
+    WHERE C_REGION_ID = ?
+    </Sql>
+    <Parameter name="cRegionId"/>
+  </SqlMethod>
+  <SqlMethod name="selectProjectkind" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT (CASE WHEN arl_t.NAME IS NULL THEN arl.NAME ELSE arl_t.NAME END) AS NAME 
+    FROM AD_REF_LIST arl left join AD_REF_LIST_TRL arl_t  on arl.ad_ref_list_id = arl_t.ad_ref_list_id
+                  AND arl_t.AD_LANGUAGE = ?
+    WHERE arl.ad_reference_id = '800004' 
+    AND arl.isActive = 'Y' 
+    AND arl.VALUE = ?
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="projectkind"/>
+  </SqlMethod>
+  <SqlMethod name="selectCategoryId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT NAME FROM M_PRODUCT_CATEGORY 
+    WHERE M_PRODUCT_CATEGORY_ID = ?
+    </Sql>
+    <Parameter name="cCategoryId"/>
+  </SqlMethod>
+  <SqlMethod name="selectProjectpublic" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT (CASE WHEN arl_t.NAME IS NULL THEN arl.NAME ELSE arl_t.NAME END) AS NAME 
+    FROM AD_REF_LIST arl left join  AD_REF_LIST_TRL arl_t on arl.ad_ref_list_id = arl_t.ad_ref_list_id 
+                      AND arl_t.AD_LANGUAGE = ?
+    WHERE arl.ad_reference_id = '800005' 
+    AND arl.isActive = 'Y' 
+    AND arl.VALUE = ?
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="projectpublic"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectProject" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT VALUE || ' - ' ||NAME FROM C_PROJECT 
+    WHERE C_PROJECT_ID = ?
+    </Sql>
+    <Parameter name="cProjectId"/>
+  </SqlMethod>
+  <SqlMethod name="selectProduct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+        <Sql>
+            SELECT M_PRODUCT.NAME AS NAME 
+            FROM M_PRODUCT
+            WHERE M_PRODUCT.M_PRODUCT_ID = ?
+        </Sql>
+    <Parameter name="productId"/>
+  </SqlMethod>
+</SqlClass>

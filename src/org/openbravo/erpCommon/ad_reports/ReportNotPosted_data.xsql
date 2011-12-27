@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="ReportNotPostedData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment>Clase ReportNotPostedData</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select documentno, dateacct, substr(ad_column_identifier(tablename, id, ?) ||(CASE WHEN description IS NULL THEN '' ELSE ' (' || DESCRIPTION || ')' END),0,90) as description, 
+        GRANDTOTAL as amount, document as doctype, id as id, tab_id, docbasetype, record_id
+        from
+        (select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'C_Bpartner' as tablename, C_bpartner_id as id, GRANDTOTAL,
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=c_invoice.c_doctype_id 
+        and ad_language=? 
+        and ad_client_id=?)), 'Sales Invoices') as document, '263' as tab_id, (select docbasetype from c_doctype where c_doctype_id=c_invoice.c_doctype_id) as docbasetype,
+        c_invoice_id as record_id 
+        from c_invoice
+        where processed = 'Y'
+        and posted <> 'Y'
+        and issotrx = 'Y'
+        and docstatus <> 'VO'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='318' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'M_InOut' as tablename, m_inout_id as id, 0 as GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=m_inout.c_doctype_id 
+        and ad_language=? 
+        and ad_client_id=?)), 'Goods Shipments') as document, '257' as tab_id, (select docbasetype from c_doctype where c_doctype_id=m_inout.c_doctype_id) as docbasetype,
+        m_inout_id as record_id
+        from m_inout
+        where processed = 'Y'
+        and posted <> 'Y'
+        and issotrx = 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='319' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'M_InOut' as tablename, m_inout_id as id, 0 as GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=m_inout.c_doctype_id 
+        and ad_language=? 
+        and ad_client_id=?)), 'Goods Receipts') as document, '296' as tab_id, (select docbasetype from c_doctype where c_doctype_id=m_inout.c_doctype_id) as docbasetype,
+        m_inout_id as record_id
+        from m_inout
+        where processed = 'Y'
+        and posted <> 'Y'
+        and issotrx = 'N'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='319' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'C_Bpartner' as tablename, C_bpartner_id as id, GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=c_invoice.c_doctype_id 
+        and ad_language=?
+        and ad_client_id=?)), 'Purchase Invoices') as document, '290' as tab_id, (select docbasetype from c_doctype where c_doctype_id=c_invoice.c_doctype_id) as docbasetype,
+        c_invoice_id as record_id
+        from c_invoice
+        where processed = 'Y'
+        and posted <> 'Y'
+        and issotrx = 'N'
+        and docstatus <> 'VO'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='318' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(name) AS DOCUMENTNO, dateacct, 'C_Cash' as tablename, C_Cash_id as id, c_cash.STATEMENTDIFFERENCE, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=? 
+            and docbasetype='CMC') 
+        and ad_language=? 
+        and ad_client_id=?)), 'Cash Journal') as document, '338' as tab_id, 'CMC' as docbasetype,
+        c_cash_id as record_id
+        from C_Cash
+        where processed = 'Y'
+        and posted <> 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='407' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(name) AS DOCUMENTNO, statementdate, 'C_Bankstatement' as tablename, C_bankstatement_id as id, STATEMENTDIFFERENCE, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='CMB') 
+        and ad_language=?
+        and ad_client_id=?)), 'Bank Statements') as document, '328' as tab_id, 'CMB' as docbasetype,
+        c_bankstatement_id as record_id
+        from c_bankstatement
+        where processed = 'Y'
+        and posted <> 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='392' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'C_Settlement' as tablename, C_Settlement_id as id, generatedamt, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=s.c_doctype_id 
+        and ad_language=?
+        and ad_client_id=?)), 'Manual Settlements') as document, '800029' as tab_id, 'STM' as docbasetype,
+        c_Settlement_id as record_id
+        from c_Settlement s
+        where processed = 'Y'
+        and posted <> 'Y'
+        and settlementtype = 'I'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800019' and ad_client_id=?)
+        and exists (select 1
+                    from c_debt_payment p
+                    where p.c_settlement_generate_id = s.c_settlement_id
+                    and p.isdirectposting='Y')
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'C_Settlement' as tablename, C_Settlement_id as id, generatedamt, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=c_Settlement.c_doctype_id 
+        and ad_language=?
+        and ad_client_id=?)), 'Settlements') as document, '800025' as tab_id, 'STT' as docbasetype,
+        c_Settlement_id as record_id
+        from c_Settlement
+        where processed = 'Y'
+        and posted <> 'Y'
+        and settlementtype <> 'I'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800019' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'GL_Journal' as tablename, GL_Journal_id as id, totaldr, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=GL_Journal.c_doctype_id 
+        and ad_language=?
+        and ad_client_id=?)), 'GL Journal') as document, '160' as tab_id, (select docbasetype from c_doctype where c_doctype_id=GL_Journal.c_doctype_id) as docbasetype,
+        GL_Journal_id as record_id
+        from GL_Journal
+        where processed = 'Y'
+        and posted <> 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='224' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(name) AS DOCUMENTNO, movementdate , 'M_INVENTORY' as tablename, m_inventory_id as id, 0 as GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='MMI') 
+        and ad_language=? 
+        and ad_client_id=?)), 'Physical Inventory') as document, '225' as tab_id, 'MMI' as docbasetype,
+        m_inventory_id as record_id
+        from m_inventory
+        where processed = 'Y'
+        and posted <> 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='321' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, paymentdate , 'C_Bpartner' as tablename, c_bpartner_id as id, amount as GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=? 
+            and docbasetype='ARR') 
+        and ad_language=? 
+        and ad_client_id=?)), 'Payment In') as document, 'C4B6506838E14A349D6717D6856F1B56' as tab_id, 'ARR' as docbasetype,
+        fin_payment_id as record_id
+        from fin_payment
+        where processed = 'Y'
+        and posted not in ('Y','D')
+        and isreceipt='Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='D1A97202E832470285C9B1EB026D54E2' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, paymentdate , 'C_Bpartner', c_bpartner_id as id, amount as GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='APP') and ad_language=? 
+        and ad_client_id=?)), 'Payment Out') as document, 'F7A52FDAAA0346EFA07D53C125B40404' as tab_id, 'APP' as docbasetype,
+        fin_payment_id as record_id
+        from fin_payment
+        where processed = 'Y'
+        and posted not in ('Y','D')
+        and isreceipt='N'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='D1A97202E832470285C9B1EB026D54E2' and ad_client_id=?)
+        union all
+        select ad_client_id, 'Line: ' || to_char(line) AS DOCUMENTNO, 
+        dateacct, 'FIN_FINANCIAL_ACCOUNT' as tablename, fin_financial_account_id as id, depositamt-paymentamt as GRANDTOTAL, 
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='FAT') 
+        and ad_language=? 
+        and ad_client_id=?)), 'Financial Account Transaction') as document, 'FF8080812F213146012F2135BC25000E' as tab_id, 'FAT' as docbasetype,
+        fin_finacc_transaction_id as record_id
+        from fin_finacc_transaction
+        where processed = 'Y'
+        and posted not in ('Y','D')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='4D8C3B3C31D1410DA046140C9F024D17' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, statementdate, 'FIN_FINANCIAL_ACCOUNT' as talename, fin_financial_account_id as id, endingbalance - startingbalance as GRANDTOTAL, 
+        ''  as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='REC') 
+        and ad_language=?
+        and ad_client_id=?)), 'RECONCILIATION') as document, 'C095D2CC39704DBE8B906B7CD7710968' as tab_id, 'REC' as docbasetype,
+        fin_reconciliation_id as record_id
+        from fin_reconciliation
+        where processed = 'Y'
+        and posted not in ('Y','D')
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='B1B7075C46934F0A9FD4C4D0F1457B42' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(name) AS DOCUMENTNO, movementdate , 'M_MOVEMENT' as tablename, m_movement_id as id, 0 as GRANDTOTAL,
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='MMM') 
+        and ad_language=?
+        and ad_client_id=?)), 'Goods Movement')  as document, '259' as tab_id, 'MMM' as docbasetype,
+        m_movement_id as record_id
+        from m_movement
+        where processed = 'Y'
+        and posted <> 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='323' and ad_client_id=?)
+        union all
+        select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct , 'C_DP_MANAGEMENT' as tablename, c_dp_management_id as id, 0 as GRANDTOTAL,
+        to_char(description) as description,  
+        coalesce(to_char((select printname 
+        from c_doctype_trl 
+        where c_doctype_id=(select min(c_doctype_id) 
+            from c_doctype 
+            where ad_client_id=?
+            and docbasetype='DPM') 
+        and ad_language=?
+        and ad_client_id=?)), 'Debt Payment Management')  as document, '800209' as tab_id, 'DPM' as docbasetype,
+        c_dp_management_id as record_id
+        from c_dp_management
+        where processed = 'Y'
+        and posted <> 'Y'
+        and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800176' and ad_client_id=?)
+        ) AAA
+        where ad_client_id = ?
+        and 1=1
+        order by  document, dateacct, description
+      ]]></Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="client"></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="and 1=1"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="and 1=1"><![CDATA[AND DATEACCT <= TO_DATE(?) ]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment>Create a registry</SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

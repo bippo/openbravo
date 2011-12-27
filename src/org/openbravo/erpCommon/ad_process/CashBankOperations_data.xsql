@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="CashBankOperationsData" package="org.openbravo.erpCommon.ad_process">
+   <SqlMethod name="selectDummy" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		SELECT '' AS PADRE, 
+			   '' AS ID, 
+			   '' AS NAME, 
+			   '' AS C_BPARTNER_ID, 
+			   '' AS iso_code, 
+			   '' AS C_CASH_ID, 
+			   '' AS C_DOCTYPE_ID, 
+			   '' AS c_currency_id
+		FROM DUAL
+      ]]>
+      </Sql>
+   </SqlMethod>
+   <SqlMethod name="selectBankDouble" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		SELECT P.AD_ORG_ID AS PADRE, C.C_BANKACCOUNT_ID AS ID, C.DISPLAYEDACCOUNT AS NAME
+		FROM AD_ORG O, AD_ORG P, C_BANKACCOUNT C
+		WHERE O.AD_ORG_ID = C.AD_ORG_ID
+		  AND AD_ISORGINCLUDED(P.AD_ORG_ID,C.AD_ORG_ID,P.AD_CLIENT_ID) <> -1
+		  AND C.AD_ORG_ID IN ('1')
+		  AND C.AD_CLIENT_ID IN ('2')
+		ORDER BY PADRE, NAME
+      ]]>
+      </Sql>
+      <Parameter name="adOrgId" optional="true" type="replace" after="AND C.AD_ORG_ID IN (" text="'1'"/>
+      <Parameter name="adClientId" optional="true" type="replace" after="AND C.AD_CLIENT_ID IN (" text="'2'"/>
+   </SqlMethod>
+   <SqlMethod name="selectCashDouble" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		SELECT P.AD_ORG_ID AS PADRE, C.C_CASHBOOK_ID AS ID, AD_COLUMN_IDENTIFIER(TO_CHAR('C_CASHBOOK'),TO_CHAR(C.C_CASHBOOK_ID),TO_CHAR(?)) AS NAME
+		FROM AD_ORG O, AD_ORG P, C_CASHBOOK C
+		WHERE O.AD_ORG_ID = C.AD_ORG_ID
+		  AND AD_ISORGINCLUDED(P.AD_ORG_ID,C.AD_ORG_ID,P.AD_CLIENT_ID) <> -1
+		  AND C.AD_ORG_ID IN ('1')
+		  AND C.AD_CLIENT_ID IN ('2')
+		ORDER BY PADRE, NAME
+      ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adOrgId" optional="true" type="replace" after="AND C.AD_ORG_ID IN (" text="'1'"/>
+      <Parameter name="adClientId" optional="true" type="replace" after="AND C.AD_CLIENT_ID IN (" text="'2'"/>
+   </SqlMethod>
+  <SqlMethod name="select" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_BPARTNER_ID FROM AD_ORGINFO
+        WHERE AD_ORG_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="org"/>
+  </SqlMethod>
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select iso_code from c_currency where c_currency_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="currencyId"/>
+  </SqlMethod>
+  <SqlMethod name="selectNextCashLine" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(MAX(line),0) + 10 FROM c_cashline
+        WHERE c_cash_id =?
+      ]]>
+    </Sql>
+    <Parameter name="cashId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOpenCash" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C.C_CASH_ID)
+        FROM C_CASH C
+        WHERE C.C_CASHBOOK_ID=?
+        AND C.DATEACCT = TO_DATE(?)
+        AND C.PROCESSED = 'N'
+      ]]>
+    </Sql>
+    <Parameter name="cashBook"/>
+    <Parameter name="dateacct"/>
+  </SqlMethod>
+  <SqlMethod name="selectSettlementDoctypeId" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_DOCTYPE_ID FROM C_DOCTYPE
+        WHERE docbasetype = 'STT'
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="selectBankCurrency" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT c_currency_id FROM C_BANKACCOUNT
+      WHERE c_bankaccount_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="bankAccount"/>
+  </SqlMethod>
+  <SqlMethod name="selectCashCurrency" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT c_currency_id FROM C_CASHBOOK
+      WHERE c_cashbook_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="cashBook"/>
+  </SqlMethod>
+  <SqlMethod name="insertSettlement" connection="true" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+     INSERT INTO C_SETTLEMENT (C_SETTLEMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+     DOCUMENTNO, DATETRX, DATEACCT, SETTLEMENTTYPE, C_DOCTYPE_ID, PROCESSING, PROCESSED, POSTED, C_CURRENCY_ID, C_PROJECT_ID, C_CAMPAIGN_ID,
+     C_ACTIVITY_ID, USER1_ID, USER2_ID, CREATEFROM, CANCELEDNOTCHARGEAMT,GENERATEDAMT,CHARGEDAMT,ISGENERATED)
+     VALUES (?, ?, ?, 'Y',now(), ?, now(), ?,
+     '*FT*'||?, TO_DATE(?), TO_DATE(?),'B',?, 'N','N','N', ?,NULL, NULL,NULL, NULL, NULL, 'N',0,0,0,'Y')
+      ]]>
+    </Sql>
+    <Parameter name="settlementId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="documentNo"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <Parameter name="doctypeId"/>
+    <Parameter name="currencyId"/>
+  </SqlMethod>
+  <SqlMethod name="insertDebtpayment" connection="true" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      INSERT INTO C_DEBT_PAYMENT
+          (C_DEBT_PAYMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, 
+           CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+           ISRECEIPT, C_SETTLEMENT_CANCEL_ID, C_SETTLEMENT_GENERATE_ID, DESCRIPTION, 
+           C_INVOICE_ID, C_BPARTNER_ID, C_CURRENCY_ID, C_CASHLINE_ID, 
+           C_BANKACCOUNT_ID, C_CASHBOOK_ID, PAYMENTRULE, ISPAID, 
+           AMOUNT, WRITEOFFAMT, DATEPLANNED, ISMANUAL, 
+           ISVALID, C_BANKSTATEMENTLINE_ID, CHANGESETTLEMENTCANCEL, CANCEL_PROCESSED, 
+           GENERATE_PROCESSED,STATUS_INITIAL)
+      VALUES 
+          (?, ?, ?, 'Y', 
+           now(), ?, now(), ?,
+           ?, NULL, ?, ?,
+           NULL, ?, ?, ?,
+           ?, ?, ?,'N',
+           TO_NUMBER(?), 0,TO_DATE(?),'N',
+           'Y', ?,'Y','N',
+           'Y','DE')
+      ]]>
+    </Sql>
+    <Parameter name="debtpaymentId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="isReceipt"/>
+    <Parameter name="settlementId"/>
+    <Parameter name="description"/>
+    <Parameter name="bPartner"/>
+    <Parameter name="currency"/>
+    <Parameter name="cashLine"/>
+    <Parameter name="bankaccount"/>
+    <Parameter name="cashbook"/>
+    <Parameter name="paymentRule"/>
+    <Parameter name="amount"/>
+    <Parameter name="date"/>
+    <Parameter name="bankStatementLine"/>
+  </SqlMethod>
+  <SqlMethod name="insertCash" connection="true" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+          INSERT INTO C_CASH 
+            (C_Cash_ID,AD_Client_ID, AD_Org_ID, IsActive, 
+             Created,CreatedBy, Updated,UpdatedBy,
+             C_CashBook_ID, NAME, StatementDate,DateAcct, BeginningBalance,EndingBalance,StatementDifference,
+          Processing,Processed,Posted)
+          VALUES 
+            (?, ?, ?, 'Y', 
+             now(),?, now(),?, 
+             ?, ?, TO_DATE(?), TO_DATE(?), 
+             0,0,0, 'N','N','N')
+      ]]>
+    </Sql>
+    <Parameter name="cashId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="cashBook"/>
+    <Parameter name="name"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+  </SqlMethod>
+  <SqlMethod name="insertCashLine" connection="true" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       INSERT INTO C_CASHLINE 
+            (C_CashLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+             Created,       CreatedBy,    Updated,  UpdatedBy,
+             C_Cash_ID,     C_Debt_Payment_ID, Line, Description,
+             Amount,        CashType,     C_Currency_ID, DiscountAmt, 
+             WriteOffAmt,   IsGenerated)
+       VALUES
+            (?, ?, ?, 'Y', 
+             now(),        ?, now(), ?, 
+             ?, ?, TO_NUMBER(?), ?, 
+             TO_NUMBER(?), 'P',  ?, 0, 
+             0, 'Y')
+      ]]>
+    </Sql>
+    <Parameter name="cashlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="cashId"/>
+    <Parameter name="cDPId"/>
+    <Parameter name="line"/>
+    <Parameter name="description"/>
+    <Parameter name="amount"/>
+    <Parameter name="currency"/>
+  </SqlMethod>
+
+  <SqlMethod name="updateSettlement" connection="true" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_SETTLEMENT SET PROCESSED = 'Y'
+        WHERE C_SETTLEMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="settlementId"/>
+  </SqlMethod>
+  <SqlMethod name="selectCashBook" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT NAME FROM C_CASHBOOK WHERE C_CASHBOOK_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cashBook"/>
+  </SqlMethod>
+  <SqlMethod name="selectBankAccount" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ad_column_identifier(TO_CHAR('C_BankAccount'),TO_CHAR(?),TO_CHAR(?)) FROM dual
+      ]]>
+    </Sql>
+    <Parameter name="bankAccount"/>
+    <Parameter name="adLanguage"/>
+  </SqlMethod>
+</SqlClass>

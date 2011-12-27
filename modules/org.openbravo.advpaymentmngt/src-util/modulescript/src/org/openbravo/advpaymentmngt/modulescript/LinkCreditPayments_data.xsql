@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ *************************************************************************
+-->
+<SqlClass name="LinkCreditPaymentsData" package="org.openbravo.advpaymentmngt.modulescript">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectPaymentsUsingCredit" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT FIN_PAYMENT_ID, USED_CREDIT, C_CURRENCY_ID, AD_CLIENT_ID, AD_ORG_ID, C_BPARTNER_ID, DOCUMENTNO, '' AS NAME
+        FROM FIN_PAYMENT P
+        WHERE NOT EXISTS (SELECT 1 
+                          FROM FIN_PAYMENT_CREDIT PC
+                          WHERE PC.FIN_PAYMENT_ID = P.FIN_PAYMENT_ID
+                          )       
+        AND P.GENERATED_CREDIT = 0 AND P.USED_CREDIT > 0
+        AND P.ISRECEIPT = ?
+        AND P.C_BPARTNER_ID = ?
+        ORDER BY P.PAYMENTDATE, P.DOCUMENTNO
+      ]]>
+    </Sql>
+    <Parameter name="isReceipt"/>
+    <Parameter name="cbPartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectPaymentsGeneratingCredit" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT FIN_PAYMENT_ID, USED_CREDIT, C_CURRENCY_ID, DOCUMENTNO
+        FROM FIN_PAYMENT P
+        WHERE GENERATED_CREDIT > 0 AND USED_CREDIT > 0
+        AND ISRECEIPT = ?
+        AND C_BPARTNER_ID = ?
+        ORDER BY PAYMENTDATE, DOCUMENTNO
+      ]]>
+    </Sql>
+    <Parameter name="isReceipt"/>
+    <Parameter name="cbPartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="insertUsedCreditSource" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO fin_payment_credit(
+            fin_payment_credit_id, ad_client_id, ad_org_id, created, createdby, 
+            updated, updatedby, isactive, fin_payment_id, fin_payment_id_used, 
+            amount, c_currency_id)
+        VALUES (get_uuid(), ?, ?, now(), '100',
+                now(), '100', 'Y', ?, ?, 
+                TO_NUMBER( ? ), ?)
+        
+      ]]>
+    </Sql>
+    <Parameter name="clientId"/>
+    <Parameter name="orgId"/>
+    <Parameter name="paymentId"/>
+    <Parameter name="creditpaymentId"/>
+    <Parameter name="amount"/>
+    <Parameter name="currencyId"/>
+  </SqlMethod>
+  <SqlMethod name="selectBusinessPartners" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_BPARTNER_ID, NAME
+        FROM C_BPARTNER BP
+        WHERE EXISTS (SELECT 1
+                      FROM FIN_PAYMENT P
+                      WHERE P.C_BPARTNER_ID = BP.C_BPARTNER_ID
+            AND USED_CREDIT > 0
+            AND GENERATED_CREDIT = 0
+            AND PROCESSED = 'Y'
+            AND NOT EXISTS(SELECT 1 FROM FIN_PAYMENT_CREDIT
+                    WHERE FIN_PAYMENT_CREDIT.FIN_PAYMENT_ID = P.FIN_PAYMENT_ID))
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

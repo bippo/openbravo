@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_INVOICELINE_TRG3">
+    <trigger name="C_INVOICELINE_TRG3" table="C_INVOICELINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+--Invoice
+vwithholdingtotal NUMBER;
+vBusPartId varchar2(32);
+vIsSalesInvoice CHAR(1);
+vProcessed  VARCHAR(60);
+--InvoiceLine
+v_invoiceid varchar2(32);
+vexcludeforwh CHAR(1);
+vlinebaseamountnew NUMBER;
+vlinebaseamountold NUMBER;
+-- BP_Withholding
+isbaseamountpercent CHAR(1);
+baseamountpercent NUMBER;
+includetaxinps CHAR(1);
+taxinps_ID VARCHAR2(32);
+-- Tax
+vTaxAmount  NUMBER;
+-- Withholding
+withpercent NUMBER;
+--Calculated Variable
+vwithholdingnew NUMBER;
+vwithholdingold NUMBER;
+taxamountwith  NUMBER;
+vwithholdingtax NUMBER;
+vwithid varchar2(32);
+finish_process BOOLEAN := FALSE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+    v_invoiceid := :NEW.c_invoice_id;
+    vexcludeforwh := :NEW.excludeforwithholding;
+    vlinebaseamountnew := :NEW.linenetamt;
+    vlinebaseamountold := 0;
+
+    ELSIF(UPDATING) THEN
+      v_invoiceid := :NEW.c_invoice_id;
+      vexcludeforwh := :NEW.excludeforwithholding;
+      vlinebaseamountnew := :NEW.linenetamt;
+      vlinebaseamountold := :OLD.linenetamt;
+
+      ELSIF(DELETING) THEN
+        v_invoiceid := :OLD.c_invoice_id;
+        vexcludeforwh := :OLD.excludeforwithholding;
+        vlinebaseamountnew := 0;
+        vlinebaseamountold := :OLD.linenetamt;
+
+      END IF;
+
+      -- If The lines is excluded for calculate the witholding --> exit
+      IF vexcludeforwh = 'Y' THEN
+        finish_process:= true;
+      END IF;
+  IF (NOT finish_process) THEN
+      SELECT COALESCE(withholdingamount,   0), c_bpartner_id, IsSOTrx , coalesce(processed,'N') ,c_withholding_id
+      INTO vwithholdingtotal,vBusPartId, vIsSalesInvoice, vProcessed  ,vwithid
+      FROM c_invoice
+      WHERE c_invoice_id = v_invoiceid;
+  END IF;
+  IF (NOT finish_process) THEN
+      -- Se the invoice isn't purchase exit from trigger
+      if (vIsSalesInvoice <> 'N') then
+        finish_process:= true;
+      end if;
+  END IF;
+  IF (NOT finish_process) THEN
+    BEGIN
+      select bpwh.is_percent_wh, bpwh.wh_percent, bpwh.include_tax, bpwh.c_tax_id,wh.rate
+      into isbaseamountpercent, baseamountpercent,  includetaxinps, taxinps_id,withpercent
+        from c_bp_withholding bpwh, c_withholding wh
+       where bpwh.c_bpartner_id = vBusPartId
+       and bpwh.c_withholding_id = wh.c_withholding_id
+       and bpwh.c_withholding_id = vwithid;
+
+    EXCEPTION
+    When NO_DATA_FOUND THEN
+      finish_process:= true;
+    end;
+  END IF;
+  IF (NOT finish_process) THEN
+   -- ReadOnly Check
+    IF (vProcessed = 'N') THEN
+
+      IF(isbaseamountpercent <> 'Y') THEN
+        baseamountpercent := 100;
+      END IF;
+      -- New WithHolding For LineAmount
+      vlinebaseamountnew := vlinebaseamountnew *baseamountpercent / 100;
+      vwithholdingnew :=(withpercent * vlinebaseamountnew) / 100;
+      -- Old WithHolding For LineAmount
+      vlinebaseamountold := vlinebaseamountold *baseamountpercent / 100;
+      vwithholdingold :=(withpercent *vlinebaseamountold) / 100;
+
+
+      -- WithHolding Tax
+      vTaxAmount := 0;
+      IF (includetaxinps = 'Y') THEN
+       select coalesce(sum(taxamt),0) into vTaxAmount
+        from c_invoicetax invtax , c_tax tax
+       where tax.c_tax_id = invtax.c_tax_id
+        and tax.iswithholdingtax='Y'
+        and invtax.c_invoice_id = v_invoiceid
+        and tax.c_tax_id=taxinps_id;
+      END IF;
+
+      taxamountwith := baseamountpercent * (vTaxAmount)/100;
+      vwithholdingtax :=  withpercent*taxamountwith/100 ;
+
+      -- Update WITHHOLDINGAMOUNT della c_invoice = totale+(new valore wh of line) -(old valore wh of line)
+      vwithholdingtotal := vwithholdingtotal + vwithholdingnew -vwithholdingold+ vwithholdingtax;
+
+      UPDATE c_invoice
+      SET withholdingamount = vwithholdingtotal
+      WHERE c_invoice_id = v_invoiceid;
+    END IF;
+  END IF;
+
+END C_INVOICELINE_TRG3
+]]></body>
+    </trigger>
+  </database>

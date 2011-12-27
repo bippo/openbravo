@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_CONVERSION_RATE_DOCUMENT_TRG">
+    <trigger name="C_CONVERSION_RATE_DOCUMENT_TRG" table="C_CONVERSION_RATE_DOCUMENT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2008 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    /*************************************************************************
+    * Title: Check in deleting, invoice not processed
+    ************************************************************************/
+   v_Posted VARCHAR2(32) ;
+   v_HasReversal CHAR(1);
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    -- If invoice is posted, CRUD is not allowed
+    IF INSERTING
+    THEN
+	IF :NEW.C_INVOICE_ID IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM C_INVOICE
+		WHERE C_INVOICE_ID = :NEW.C_INVOICE_ID;
+	END IF;
+
+	IF :NEW.FIN_PAYMENT_ID IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM FIN_PAYMENT
+		WHERE FIN_PAYMENT_ID = :NEW.FIN_PAYMENT_ID;
+	END IF;
+
+	IF :NEW.aprm_finacc_transaction_v_id IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM aprm_finacc_transaction_v
+		WHERE aprm_finacc_transaction_v_id = :NEW.aprm_finacc_transaction_v_id;
+	END IF;
+
+	IF(v_Posted='Y')
+		THEN  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+	END IF;
+    END IF;
+    IF UPDATING THEN
+	IF :OLD.C_INVOICE_ID IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM C_INVOICE
+		WHERE C_INVOICE_ID = :OLD.C_INVOICE_ID;
+	END IF;
+
+	IF :OLD.FIN_PAYMENT_ID IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM FIN_PAYMENT
+		WHERE FIN_PAYMENT_ID = :OLD.FIN_PAYMENT_ID;
+	END IF;
+
+	IF :OLD.aprm_finacc_transaction_v_id IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM aprm_finacc_transaction_v
+		WHERE aprm_finacc_transaction_v_id = :OLD.aprm_finacc_transaction_v_id;
+	END IF;
+	IF(v_Posted='Y')
+		THEN  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+	END IF;
+    END IF;
+    IF DELETING THEN
+	IF :OLD.C_INVOICE_ID IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM C_INVOICE
+		WHERE C_INVOICE_ID = :OLD.C_INVOICE_ID;
+
+		-- Looking if the invoice has reversal invoices
+		SELECT 'Y' as hasreversal
+		INTO v_HasReversal
+		FROM DUAL 
+		WHERE EXISTS (SELECT 1 FROM C_INVOICE_REVERSE WHERE C_INVOICE_ID = :OLD.C_INVOICE_ID);
+	END IF;
+
+	IF :OLD.FIN_PAYMENT_ID IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM FIN_PAYMENT
+		WHERE FIN_PAYMENT_ID = :OLD.FIN_PAYMENT_ID;
+	END IF;
+
+	IF :OLD.aprm_finacc_transaction_v_id IS NOT NULL THEN
+		SELECT POSTED INTO v_Posted 
+		FROM aprm_finacc_transaction_v
+		WHERE aprm_finacc_transaction_v_id = :OLD.aprm_finacc_transaction_v_id;
+	END IF;
+
+	IF(v_Posted='Y')
+		THEN  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+	END IF;
+	IF (v_HasReversal='Y') THEN
+		  RAISE_APPLICATION_ERROR(-20000, '@InvoiceHasReversal@');
+	END IF;
+
+	
+	
+    END IF;
+    
+    
+END C_CONVERSION_RATE_DOCUMENT_TRG
+]]></body>
+    </trigger>
+  </database>

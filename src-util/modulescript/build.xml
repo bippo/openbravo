@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+
+<project name="openbravo-modulescript" default="compile" basedir=".">
+  <property name="build.module" value="build/classes" />
+  <property name="build.module.sqlc" value="build/javasqlc" />
+  <property name="build.module.src" value="src" />
+  <property name="main.dir" value="${basedir}/../.." />
+
+  <path id="modulescript.class.path">
+    <pathelement path="build/classes" />
+    <dirset dir="${base.modules}">
+      <include name="*/build/classes/" />
+    </dirset>
+    <fileset dir="${base.lib}">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+  <condition property="module.not.provided">
+    <equals arg1="${module}" arg2="%" />
+  </condition>
+  <condition property="checkCore">
+    <equals arg1="${module}" arg2="org.openbravo" />
+  </condition>
+
+  <target name="createModuleFolder" unless="checkCore">
+     <mkdir dir="${base.modules}/${module}/build/" />
+     <mkdir dir="${base.modules}/${module}/build/javasqlc" />
+     <mkdir dir="${base.modules}/${module}/build/classes" />
+  </target>
+  
+  <target name="init" depends="createModuleFolder">
+    <mkdir dir="${build.module}" />
+    <mkdir dir="${build.module.sqlc}" />
+    <mkdir dir="${build.module.sqlc}/src" />
+  </target>
+
+  <target name="clean">
+    <delete dir="${build.module}" failonerror="false" includeemptydirs="true" />
+    <delete dir="${build.module.sqlc}" failonerror="false" includeemptydirs="true" />
+  </target>
+
+  <target name="sqlcCore" depends="init" if="checkCore">
+    <java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql ./src/org '${build.module.sqlc}'" />
+      <classpath refid="modulescript.class.path" />
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+    <javac srcdir="${build.module.sqlc}/src" includes="**/*.java" destdir="${build.module}" fork="true" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="modulescript.class.path" />
+    </javac>
+  </target>
+
+  <target name="sqlcModules" depends="init" unless="checkCore">
+    <java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql '${base.modules}' '${base.modules}'/'${module}'/src-util/modulescript/src '${module}'/src-util/modulescript" />
+      <classpath refid="modulescript.class.path" />
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+    <javac srcdir="${base.modules}/${module}/src-util/modulescript/src" includes="**/*.java" fork="true" destdir="${base.modules}/${module}/build/classes" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="modulescript.class.path" />
+    </javac>
+  </target>
+
+  <target name="javacCore" if="checkCore">
+    <javac srcdir="${main.dir}" includes="src-util/modulescript/src/**/*.java" destdir="${build.module}" fork="true" deprecation="on" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="modulescript.class.path" />
+    </javac>
+  </target>
+
+  <target name="javacModule" unless="checkCore">
+    <javac srcdir="${main.dir}" includes="modules/${module}/src-util/modulescript/**/*.java" fork="true" destdir="${main.dir}/modules/${module}/build/classes" deprecation="on" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="modulescript.class.path" />
+    </javac>
+  </target>
+  
+  <target name="compile" depends="checkmodule, sqlcCore, sqlcModules, javacCore, javacModule">
+  </target>
+
+  <target name="checkmodule"  if="module.not.provided">
+    <fail>You need to specify a module</fail>
+  </target>
+  
+</project>

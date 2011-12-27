@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_GET_PRODUCT_PRICE">
+    <function name="M_GET_PRODUCT_PRICE" type="NUMERIC">
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_m_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_M_PriceList_Version_ID VARCHAR2(32);
+  v_Price                  NUMBER;
+  v_BaseCurrency VARCHAR2(32);
+BEGIN
+  SELECT AD_CLIENT.C_CURRENCY_ID 
+  INTO v_BaseCurrency
+  FROM AD_CLIENT
+  WHERE AD_CLIENT.AD_CLIENT_ID = p_AD_Client_ID;
+  SELECT M_PRICELIST_VERSION_ID
+  INTO v_M_PriceList_Version_ID
+  FROM M_PRICELIST_VERSION
+  WHERE M_PRICELIST_ID IN
+    (SELECT M_PRICELIST_ID
+    FROM M_PRICELIST
+    WHERE ISDEFAULT = 'Y'
+      AND AD_CLIENT_ID = p_AD_Client_ID
+      AND ISACTIVE = 'Y'
+    )
+    AND VALIDFROM =
+    (SELECT max(VALIDFROM)
+    FROM M_PRICELIST_VERSION
+    WHERE M_PRICELIST_ID IN
+      (SELECT M_PRICELIST_ID
+      FROM M_PRICELIST
+      WHERE ISDEFAULT = 'Y'
+        AND AD_CLIENT_ID = p_AD_Client_ID
+        AND ISACTIVE = 'Y'
+      )
+      AND VALIDFROM <= TO_DATE(now())
+    )
+    ;
+  IF(v_M_PriceList_Version_ID IS NULL) THEN
+    RETURN 0;
+  ELSE
+    SELECT C_CURRENCY_CONVERT(COALESCE(M_PRODUCTPRICE.PRICESTD, 0), M_PRICELIST.C_CURRENCY_ID, v_BaseCurrency, TO_DATE(now()), NULL, M_PRODUCTPRICE.AD_CLIENT_ID, M_PRODUCTPRICE.AD_ORG_ID)
+    INTO v_Price
+    FROM M_PRODUCTPRICE, M_PRICELIST_VERSION, M_PRICELIST
+    WHERE M_PRODUCTPRICE.M_PRICELIST_VERSION_ID = v_M_PriceList_Version_ID
+      AND M_PRODUCTPRICE.AD_CLIENT_ID = p_AD_Client_ID
+      AND M_PRODUCTPRICE.M_PRODUCT_ID = p_M_Product_ID
+      AND M_PRICELIST_VERSION.M_PRICELIST_VERSION_ID = M_PRODUCTPRICE.M_PRICELIST_VERSION_ID
+      AND M_PRICELIST.M_PRICELIST_ID = M_PRICELIST_VERSION.M_PRICELIST_ID;
+  END IF;
+  IF v_Price IS NULL THEN
+    v_Price := 0;
+  END IF;
+  RETURN v_Price;
+END M_GET_PRODUCT_PRICE
+]]></body>
+    </function>
+  </database>

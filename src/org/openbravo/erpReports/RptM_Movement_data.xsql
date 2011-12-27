@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptMMovementData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT M_MOVEMENT.M_MOVEMENT_ID, '' AS EJEMPLAR, '' AS PARTNERNAME, '' AS ADDRESS1, '' AS ADDRESS2,  
+        '' AS PLACE, '' AS DOCUMENTNO, 
+        '' AS MOVEMENTDATE, '' AS PRODUCTNAME, '' AS MOVEMENTQTY, 
+        '' AS QUANTITYORDER, '' AS UOMNAME, 
+        '' AS REFATT, '' AS DESCRIPTION
+        FROM M_MOVEMENT
+        WHERE 1=1
+        ]]>
+        </Sql>
+         <Parameter name="mMovementId" optional="true" type="argument" after="WHERE 1=1">
+        <![CDATA[ AND M_MOVEMENT.M_MOVEMENT_ID IN ]]>
+        </Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectMovement" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT C_BPARTNER.NAME AS PARTNERNAME, C_LOCATION.ADDRESS1, C_LOCATION.ADDRESS2,  
+        C_LOCATION.POSTAL||' '||C_LOCATION.CITY||' '||'('||C_REGION.NAME||')' AS PLACE, M_MOVEMENT.DOCUMENTNO, 
+        M_MOVEMENT.MOVEMENTDATE, M_PRODUCT.NAME AS PRODUCTNAME, SUM(M_MOVEMENTLINE.MOVEMENTQTY) AS MOVEMENTQTY, 
+        SUM(M_MOVEMENTLINE.QUANTITYORDER) AS QUANTITYORDER, C_UOM.NAME AS UOMNAME, 
+        (CASE TO_CHAR(SUBSTR(M_ATTRIBUTESETINSTANCE.DESCRIPTION,1,1)) WHEN '#' THEN TO_CHAR(SUBSTR(M_ATTRIBUTESETINSTANCE.DESCRIPTION,2,
+        LENGTH(M_ATTRIBUTESETINSTANCE.DESCRIPTION))) ELSE TO_CHAR(M_ATTRIBUTESETINSTANCE.DESCRIPTION) END) AS REFATT, M_MOVEMENT.DESCRIPTION
+        FROM M_MOVEMENTLINE left join M_PRODUCT_UOM on M_MOVEMENTLINE.M_PRODUCT_UOM_ID = M_PRODUCT_UOM.M_PRODUCT_UOM_ID
+                            left join M_ATTRIBUTESETINSTANCE on M_MOVEMENTLINE.M_ATTRIBUTESETINSTANCE_ID = M_ATTRIBUTESETINSTANCE.M_ATTRIBUTESETINSTANCE_ID
+                            left join C_UOM on M_PRODUCT_UOM.C_UOM_ID = C_UOM.C_UOM_ID,
+        M_MOVEMENT, M_PRODUCT,  C_PROJECT, C_BPARTNER, C_BPARTNER_LOCATION, C_LOCATION, C_REGION
+        WHERE M_MOVEMENT.M_MOVEMENT_ID = M_MOVEMENTLINE.M_MOVEMENT_ID
+        AND M_MOVEMENTLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+        AND M_MOVEMENT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+        AND C_PROJECT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        AND C_PROJECT.C_BPARTNER_LOCATION_ID = C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID
+        AND C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+        AND C_LOCATION.C_REGION_ID = C_REGION.C_REGION_ID
+        AND M_MOVEMENT.M_MOVEMENT_ID = ?
+        GROUP BY M_MOVEMENT.DOCUMENTNO, M_MOVEMENT.MOVEMENTDATE, C_BPARTNER.NAME, C_UOM.NAME, 
+        C_LOCATION.ADDRESS1, C_LOCATION.ADDRESS2,  C_LOCATION.POSTAL||' '||C_LOCATION.CITY||' '||'('||C_REGION.NAME||')', M_PRODUCT.NAME, 
+        (CASE TO_CHAR(SUBSTR(M_ATTRIBUTESETINSTANCE.DESCRIPTION,1,1)) WHEN '#' THEN TO_CHAR(SUBSTR(M_ATTRIBUTESETINSTANCE.DESCRIPTION,2,
+        LENGTH(M_ATTRIBUTESETINSTANCE.DESCRIPTION))) ELSE TO_CHAR(M_ATTRIBUTESETINSTANCE.DESCRIPTION) END), M_MOVEMENT.DESCRIPTION 
+        ORDER BY PRODUCTNAME
+        ]]>
+        </Sql>
+        <Parameter name="mMovementId"/>
+   </SqlMethod>
+</SqlClass>

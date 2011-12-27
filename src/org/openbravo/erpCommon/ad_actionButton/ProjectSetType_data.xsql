@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ProjectSetTypeData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT P.C_PHASE_ID, P.NAME, P.SEQNO, P.DESCRIPTION, P.HELP,
+        P.M_PRODUCT_ID, P.STANDARDQTY, P.STDDURATION, P.AD_CLIENT_ID, P.AD_ORG_ID, '' as C_TASK_ID, '' AS C_PROJECT_ID, '' as STARTDATE, '' as DATECONTRACT
+        FROM C_PHASE P WHERE C_PROJECTTYPE_ID = ?
+        ORDER BY P.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="c_projecttype_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectProject" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+	SELECT C_PROJECT_ID, AD_CLIENT_ID, AD_ORG_ID
+	FROM C_PROJECT
+	WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+  <SqlMethod name="hasProjectType" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*) AS TOTAL
+        FROM C_Project WHERE C_PROJECT_ID = ?
+        AND C_ProjectType_ID IS NOT NULL
+      ]]>
+    </Sql>
+    <Parameter name="c_projecttype_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectDates" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT STARTDATE, DATECONTRACT FROM C_PROJECT WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectTask" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT T.C_TASK_ID, T.SEQNO, T.NAME, T.DESCRIPTION, T.HELP,
+        T.M_PRODUCT_ID, T.STANDARDQTY, T.STDDURATION
+        FROM C_TASK T
+        WHERE T.C_PHASE_ID = ?
+        ORDER BY T.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="C_PHASE_ID"/>
+  </SqlMethod>
+  <SqlMethod name="selectProjectCategory" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT PROJECTCATEGORY FROM C_PROJECTTYPE WHERE C_PROJECTTYPE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_projecttype_id"/>
+  </SqlMethod>
+  <SqlMethod name="update" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_PROJECT SET UPDATEDBY = ?, UPDATED = now(), C_PROJECTTYPE_ID = ? , PROJECTCATEGORY = ?
+        WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="user"/>
+    <Parameter name="c_projecttype_id"/>
+    <Parameter name="projectcategory"/>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+  <SqlMethod name="updateDates" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_PROJECT SET UPDATEDBY = ?, UPDATED = now(), STARTDATE = TO_DATE(?) , DATECONTRACT = TO_DATE(?)
+        WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="user"/>
+    <Parameter name="projectStartDate"/>
+    <Parameter name="projectContractDate"/>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+  <SqlMethod name="insertProjectPhase" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_PROJECTPHASE 
+        (C_PROJECT_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, 
+        UPDATED, UPDATEDBY, DESCRIPTION, M_PRODUCT_ID, C_PHASE_ID, C_PROJECTPHASE_ID, 
+        HELP, NAME, QTY, STARTDATE, DATECONTRACT, SEQNO) 
+        VALUES 
+        (?,?,?,now(),?,
+        now(),?,?,?,?,?,
+        ?,?,TO_NUMBER(?), TO_DATE(?), TO_DATE(?), TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="description"/>
+    <Parameter name="m_product_id"/>
+    <Parameter name="c_phase_id"/>
+    <Parameter name="c_projectphase_id"/>
+    <Parameter name="help"/>
+    <Parameter name="name"/>
+    <Parameter name="qty"/>
+    <Parameter name="startdate"/>
+    <Parameter name="datecontract"/>
+    <Parameter name="seqno"/>
+  </SqlMethod>
+  <SqlMethod name="insertProjectTask" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_PROJECTTASK 
+        (C_PROJECTTASK_ID, C_TASK_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, 
+        UPDATED, UPDATEDBY, SEQNO, NAME, DESCRIPTION, HELP, 
+        M_PRODUCT_ID, C_PROJECTPHASE_ID, QTY, STARTDATE, DATECONTRACT) 
+        VALUES 
+        (?,?,?,?,now(),?,
+        now(),?,TO_NUMBER(?),?,?,?,
+        ?,?,TO_NUMBER(?), TO_DATE(?), TO_DATE(?))
+      ]]>
+    </Sql>
+    <Parameter name="c_projecttask_id"/>
+    <Parameter name="c_task_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="seqno"/>
+    <Parameter name="name"/>
+    <Parameter name="description"/>
+    <Parameter name="help"/>
+    <Parameter name="m_product_id"/>
+    <Parameter name="c_projectphase_id"/>
+    <Parameter name="qty"/>
+    <Parameter name="startdate"/>
+    <Parameter name="datecontract"/>
+  </SqlMethod>
+</SqlClass>

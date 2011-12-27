@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportAnnualCertificationData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+ SELECT '' as Mittente, '' as Erogante,'' as  AddressOrganization,buspar.name as BusinessPartner,org.AD_ORG_ID as OrgID,buspar.taxid,buspar.fiscalcode,Loc.ADDRESS1,Loc.POSTAL,City.NAME as City,City.LOCODE,
+ debpaycancel.DATEPLANNED,bank.Name,bank.Codebank,bank.Codebranch,bank.Digitcontrol as DigitcontrolBank,bankaccount.Digitcontrol as DigitcontrolBankAccount,bankaccount.Codeaccount,
+ coalesce ( sum(invoic.TOTALLINES),0) as SummedLineAmount,
+ coalesce ( sum(invoic.GRANDTOTAL),0) as GrandTotalAmount,
+ coalesce ( sum(invoic.WITHHOLDINGAMOUNT),0) as WithHoldingAmount
+ FROM 
+ (select * from C_INVOICE where ISACTIVE='Y' 
+ and AD_Client_ID IN ('1')
+ AND 3=3
+ ) invoic 
+ join (select * from C_DEBT_PAYMENT_CANCEL where ISACTIVE='Y' 
+ AND 1=1 
+ ) debpaycancel on invoic.C_INVOICE_ID=debpaycancel.C_INVOICE_ID 
+ join (select * from C_SETTLEMENT where ISACTIVE='Y' 
+ and PROCESSED='Y' 
+ ) settlm on settlm.C_SETTLEMENT_ID=debpaycancel.C_SETTLEMENT_ID
+ join (select * from C_DEBT_PAYMENT_GENERATE where ISACTIVE='Y' 
+ ) debpaygenerate on settlm.C_SETTLEMENT_ID=debpaygenerate.C_SETTLEMENT_ID
+ join (select * from C_BPARTNER where ISACTIVE='Y' 
+ AND 2=2 ) buspar on buspar.C_BPARTNER_ID=invoic.C_BPARTNER_ID 
+ left join (select C_BPARTNER_ID,C_LOCATION_ID from C_BPARTNER_LOCATION where ISACTIVE='Y' and ISBILLTO='Y') BprLoc  on buspar.C_BPARTNER_ID=BprLoc.C_BPARTNER_ID
+ left join (select C_LOCATION_ID,C_CITY_ID,ADDRESS1,POSTAL from C_LOCATION where ISACTIVE='Y' ) Loc on  BprLoc.C_LOCATION_ID = Loc.C_LOCATION_ID 
+ left join (select C_CITY_ID,NAME,LOCODE from C_CITY where ISACTIVE='Y' ) City  on Loc.C_CITY_ID=City.C_CITY_ID 
+ left join (select C_BankAccount_ID, C_Bank_ID, Digitcontrol, Codeaccount from C_BankAccount) bankaccount on (debpaygenerate.C_BankAccount_ID = bankaccount.C_BankAccount_ID) 
+ left join (select C_Bank_ID, Name, Codebank, Codebranch, Digitcontrol from C_Bank) bank on (bank.C_Bank_ID = bankaccount.C_Bank_ID) 
+ left join (select AD_ORG_ID from AD_ORG) org on (org.AD_ORG_ID = invoic.AD_ORG_ID)
+ group by buspar.name,buspar.taxid,buspar.fiscalcode,org.AD_ORG_ID,Loc.ADDRESS1,Loc.POSTAL,City.NAME,City.LOCODE ,debpaycancel.DATEPLANNED,bank.Name,bank.Codebank,bank.Codebranch,bank.Digitcontrol,bankaccount.Digitcontrol,bankaccount.Codeaccount
+ order by buspar.name asc
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="and AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" optional="true" after="AND 3=3"><![CDATA[ AND AD_ORG_ID IN(?)]]></Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[AND DATEPLANNED >= to_date(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[AND DATEPLANNED < to_date(?) ]]></Parameter>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND C_BPARTNER_ID IN]]></Parameter>
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+
+
+</SqlClass>

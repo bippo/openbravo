@@ -1,0 +1,601 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_ACCTSCHEMA_DEFAULT_COPY">
+    <function name="C_ACCTSCHEMA_DEFAULT_COPY" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_acctschema_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_AcctSchema_Default_Copy.sql,v 1.2 2001/11/26 05:25:18 jjanke Exp $
+  ***
+  * Title: Copy Accounting Schema information to elements
+  * Description:
+  *   Existing entities are overwritten) cascade all!
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+ 
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --
+    v_AD_Client_ID VARCHAR2(32);
+    v_C_AcctSchema_ID VARCHAR2(32);
+    --
+    Cur_Acct RECORD;
+    --
+    v_Updated NUMBER:=0;
+    v_Created NUMBER:=0;
+    v_Updated_Total NUMBER:=0;
+    v_Created_Total NUMBER:=0;
+    v_rowcount NUMBER;
+    v_count  NUMBER;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      IF(Cur_Parameter.ParameterName='AD_Client_ID') THEN
+        v_AD_Client_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  AD_Client_ID=' || v_AD_Client_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='C_AcctSchema_ID') THEN
+        v_C_AcctSchema_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_ACCTSCHEMA_ID=' || v_C_AcctSchema_ID) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    -- Direct Calls
+    IF(p_Client_ID IS NOT NULL) THEN
+      v_AD_Client_ID:=p_Client_ID;
+      DBMS_OUTPUT.PUT_LINE('  AD_Client_ID=' || v_AD_Client_ID) ;
+    ELSIF(p_AcctSchema_ID IS NOT NULL) THEN
+      v_C_AcctSchema_ID:=p_AcctSchema_ID;
+      DBMS_OUTPUT.PUT_LINE('  C_ACCTSCHEMA_ID=' || v_C_AcctSchema_ID) ;
+    END IF;
+    /**
+    * For all Accounting Schema
+    */
+    FOR Cur_Acct IN
+      (SELECT * FROM C_AcctSchema_Default WHERE AD_Client_ID=v_AD_Client_ID
+      AND (C_AcctSchema_ID = v_C_AcctSchema_ID OR v_C_AcctSchema_ID IS NULL))
+    LOOP
+      -- Update existing Product Category
+      UPDATE M_Product_Category_Acct
+        SET P_Revenue_Acct=Cur_Acct.P_Revenue_Acct,
+        P_Expense_Acct=Cur_Acct.P_Expense_Acct,
+        P_Asset_Acct=Cur_Acct.P_Asset_Acct,
+        P_CoGs_Acct=Cur_Acct.P_CoGs_Acct,
+        P_PurchasePriceVariance_Acct=Cur_Acct.P_PurchasePriceVariance_Acct,
+        P_InvoicePriceVariance_Acct=Cur_Acct.P_InvoicePriceVariance_Acct,
+        P_TradeDiscountRec_Acct=Cur_Acct.P_TradeDiscountRec_Acct,
+        P_TradeDiscountGrant_Acct=Cur_Acct.P_TradeDiscountGrant_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE M_Product_Category_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM M_Product_Category p
+        WHERE p.M_Product_Category_ID=M_Product_Category_Acct.M_Product_Category_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new Product Category
+      INSERT
+      INTO M_Product_Category_Acct
+        (
+          M_Product_Category_Acct_ID, M_Product_Category_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, P_Revenue_Acct, P_Expense_Acct, P_Asset_Acct,
+          P_CoGs_Acct, P_PurchasePriceVariance_Acct, P_InvoicePriceVariance_Acct,
+          P_TradeDiscountRec_Acct, P_TradeDiscountGrant_Acct
+        )
+      SELECT get_uuid(), p.M_Product_Category_ID, Cur_Acct.C_AcctSchema_ID, p.AD_Client_ID, p.AD_Org_ID,
+        'Y', now(), '0', now(),
+        '0', Cur_Acct.P_Revenue_Acct, Cur_Acct.P_Expense_Acct,
+        Cur_Acct.P_Asset_Acct, Cur_Acct.P_CoGs_Acct, Cur_Acct.P_PurchasePriceVariance_Acct,
+        Cur_Acct.P_InvoicePriceVariance_Acct, Cur_Acct.P_TradeDiscountRec_Acct, Cur_Acct.P_TradeDiscountGrant_Acct
+      FROM M_Product_Category p
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM M_Product_Category_Acct pa
+        WHERE pa.M_Product_Category_ID=p.M_Product_Category_ID
+          AND pa.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Product Category = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Business Partner Group
+      UPDATE C_BP_Group_Acct
+        SET C_Receivable_Acct=Cur_Acct.C_Receivable_Acct,
+        C_PrePayment_Acct=Cur_Acct.C_PrePayment_Acct,
+        V_Liability_Acct=Cur_Acct.V_Liability_Acct,
+        V_Liability_Services_Acct=Cur_Acct.V_Liability_Services_Acct,
+        V_PrePayment_Acct=Cur_Acct.V_PrePayment_Acct,
+        PayDiscount_Exp_Acct=Cur_Acct.PayDiscount_Exp_Acct,
+        PayDiscount_Rev_Acct=Cur_Acct.PayDiscount_Rev_Acct,
+        WriteOff_Acct=Cur_Acct.WriteOff_Acct,
+        UnRealizedGain_Acct=Cur_Acct.UnRealizedGain_Acct,
+        UnRealizedLoss_Acct=Cur_Acct.UnRealizedLoss_Acct,
+        RealizedGain_Acct=Cur_Acct.RealizedGain_Acct,
+        RealizedLoss_Acct=Cur_Acct.RealizedLoss_Acct,
+        NotInvoicedReceipts_Acct=Cur_Acct.NotInvoicedReceipts_Acct,
+        UnEarnedRevenue_Acct=Cur_Acct.UnEarnedRevenue_Acct,
+        NotInvoicedRevenue_Acct=Cur_Acct.NotInvoicedRevenue_Acct,
+        NotInvoicedReceivables_Acct=Cur_Acct.NotInvoicedReceivables_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_BP_Group_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM C_BP_Group_Acct x
+        WHERE x.C_BP_Group_ID=C_BP_Group_Acct.C_BP_Group_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_BP_Group_Acct
+        (
+          C_BP_Group_Acct_ID, C_BP_Group_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, C_Receivable_Acct, C_PrePayment_Acct, V_Liability_Acct,
+          V_Liability_Services_Acct, V_PrePayment_Acct, PayDiscount_Exp_Acct, PayDiscount_Rev_Acct,
+          WriteOff_Acct, UnRealizedGain_Acct, UnRealizedLoss_Acct, RealizedGain_Acct,
+          RealizedLoss_Acct, NotInvoicedReceipts_Acct, UnEarnedRevenue_Acct, NotInvoicedRevenue_Acct,
+          NotInvoicedReceivables_Acct
+        )
+      SELECT get_uuid(), x.C_BP_Group_ID,
+        Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID, 'Y',
+        now(), '0', now(), '0',
+        Cur_Acct.C_Receivable_Acct, Cur_Acct.C_PrePayment_Acct, Cur_Acct.V_Liability_Acct, Cur_Acct.V_Liability_Services_Acct,
+        Cur_Acct.V_PrePayment_Acct, Cur_Acct.PayDiscount_Exp_Acct, Cur_Acct.PayDiscount_Rev_Acct, Cur_Acct.WriteOff_Acct,
+        Cur_Acct.UnRealizedGain_Acct, Cur_Acct.UnRealizedLoss_Acct, Cur_Acct.RealizedGain_Acct, Cur_Acct.RealizedLoss_Acct,
+        Cur_Acct.NotInvoicedReceipts_Acct, Cur_Acct.UnEarnedRevenue_Acct, Cur_Acct.NotInvoicedRevenue_Acct, Cur_Acct.NotInvoicedReceivables_Acct
+      FROM C_BP_Group x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_BP_Group_Acct a
+        WHERE a.C_BP_Group_ID=x.C_BP_Group_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Business Group = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Business Partner - Employee
+      UPDATE C_BP_Employee_Acct
+        SET E_Expense_Acct=Cur_Acct.E_Expense_Acct,
+        E_PrePayment_Acct=Cur_Acct.E_PrePayment_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_BP_Employee_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM C_BP_Employee_Acct x
+        WHERE x.C_BPartner_ID=C_BP_Employee_Acct.C_BPartner_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_BP_Employee_Acct
+        (
+          C_BP_Employee_Acct_Id, C_BPartner_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, E_Expense_Acct, E_PrePayment_Acct
+        )
+      SELECT get_uuid(), x.C_BPartner_ID,
+        Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID, 'Y',
+        now(), '0', now(), '0',
+        Cur_Acct.E_Expense_Acct, Cur_Acct.E_PrePayment_Acct
+      FROM C_BPartner x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_BP_Employee_Acct a
+        WHERE a.C_BPartner_ID=x.C_BPartner_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Employees = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Warehouse
+      UPDATE M_Warehouse_Acct
+        SET W_Inventory_Acct=Cur_Acct.W_Inventory_Acct,
+        W_Differences_Acct=Cur_Acct.W_Differences_Acct,
+        W_Revaluation_Acct=Cur_Acct.W_Revaluation_Acct,
+        W_InvActualAdjust_Acct=Cur_Acct.W_InvActualAdjust_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE M_Warehouse_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM M_Warehouse_Acct x
+        WHERE x.M_Warehouse_ID=M_Warehouse_Acct.M_Warehouse_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO M_Warehouse_Acct
+        (
+          M_Warehouse_Acct_ID, M_Warehouse_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, W_Inventory_Acct, W_Differences_Acct, W_Revaluation_Acct,
+          W_InvActualAdjust_Acct
+        )
+      SELECT get_uuid(), x.M_Warehouse_ID,
+        Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID, 'Y',
+        now(), '0', now(), '0',
+        Cur_Acct.W_Inventory_Acct, Cur_Acct.W_Differences_Acct, Cur_Acct.W_Revaluation_Acct, Cur_Acct.W_InvActualAdjust_Acct
+      FROM M_Warehouse x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM M_Warehouse_Acct a
+        WHERE a.M_Warehouse_ID=x.M_Warehouse_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Warehouse = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Project
+      UPDATE C_Project_Acct
+        SET PJ_Asset_Acct=Cur_Acct.PJ_Asset_Acct,
+        PJ_WIP_Acct=Cur_Acct.PJ_Asset_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_Project_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM C_Project_Acct x
+        WHERE x.C_Project_ID=C_Project_Acct.C_Project_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_Project_Acct
+        (
+          C_Project_Acct_ID, C_Project_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, PJ_Asset_Acct, PJ_WIP_Acct
+        )
+      SELECT get_uuid(), x.C_Project_ID,
+        Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID, 'Y',
+        now(), '0', now(), '0',
+        Cur_Acct.PJ_Asset_Acct, Cur_Acct.PJ_WIP_Acct
+      FROM C_Project x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_Project_Acct a
+        WHERE a.C_Project_ID=x.C_Project_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Project = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Tax
+      UPDATE C_Tax_Acct
+        SET T_Due_Acct=Cur_Acct.T_Due_Acct,
+        T_Liability_Acct=Cur_Acct.T_Liability_Acct,
+        T_Credit_Acct=Cur_Acct.T_Credit_Acct,
+        T_Receivables_Acct=Cur_Acct.T_Receivables_Acct,
+        T_Expense_Acct=Cur_Acct.T_Expense_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_Tax_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT * FROM C_Tax_Acct x WHERE x.C_Tax_ID=C_Tax_Acct.C_Tax_ID)
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_Tax_Acct
+        (
+          C_Tax_Acct_ID, C_Tax_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, T_Due_Acct, T_Liability_Acct, T_Credit_Acct,
+          T_Receivables_Acct, T_Expense_Acct
+        )
+      SELECT get_uuid(), x.C_Tax_ID, Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID,
+        'Y', now(), '0', now(), '0',
+        Cur_Acct.T_Due_Acct, Cur_Acct.T_Liability_Acct, Cur_Acct.T_Credit_Acct, Cur_Acct.T_Receivables_Acct,
+        Cur_Acct.T_Expense_Acct
+      FROM C_Tax x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_Tax_Acct a
+        WHERE a.C_Tax_ID=x.C_Tax_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Tax = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- BankAccount
+      UPDATE C_BankAccount_Acct
+        SET B_InTransit_Acct=Cur_Acct.B_InTransit_Acct,
+        B_Asset_Acct=Cur_Acct.B_Asset_Acct,
+        B_Expense_Acct=Cur_Acct.B_Expense_Acct,
+        B_InterestRev_Acct=Cur_Acct.B_InterestRev_Acct,
+        B_InterestExp_Acct=Cur_Acct.B_InterestExp_Acct,
+        B_UnIdentified_Acct=Cur_Acct.B_UnIdentified_Acct,
+        B_UnAllocatedCash_Acct=Cur_Acct.B_UnAllocatedCash_Acct,
+        B_PaymentSelect_Acct=Cur_Acct.B_PaymentSelect_Acct,
+        B_SettlementGain_Acct=Cur_Acct.B_SettlementGain_Acct,
+        B_SettlementLoss_Acct=Cur_Acct.B_SettlementLoss_Acct,
+        B_RevaluationGain_Acct=Cur_Acct.B_RevaluationGain_Acct,
+        B_RevaluationLoss_Acct=Cur_Acct.B_RevaluationLoss_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_BankAccount_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM C_BankAccount_Acct x
+        WHERE x.C_BankAccount_ID=C_BankAccount_Acct.C_BankAccount_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_BankAccount_Acct
+        (
+          C_BankAccount_Acct_ID, C_BankAccount_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated, UpdatedBy,
+          B_InTransit_Acct, B_Asset_Acct, B_Expense_Acct, B_InterestRev_Acct,
+          B_InterestExp_Acct, B_UnIdentified_Acct, B_UnAllocatedCash_Acct, B_PaymentSelect_Acct,
+          B_SettlementGain_Acct, B_SettlementLoss_Acct, B_RevaluationGain_Acct, B_RevaluationLoss_Acct
+        )
+      SELECT get_uuid(), x.C_BankAccount_ID, Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID,
+        'Y', now(), '0', now(),
+        '0', Cur_Acct.B_InTransit_Acct, Cur_Acct.B_Asset_Acct, Cur_Acct.B_Expense_Acct,
+        Cur_Acct.B_InterestRev_Acct, Cur_Acct.B_InterestExp_Acct, Cur_Acct.B_UnIdentified_Acct, Cur_Acct.B_UnAllocatedCash_Acct,
+        Cur_Acct.B_PaymentSelect_Acct, Cur_Acct.B_SettlementGain_Acct, Cur_Acct.B_SettlementLoss_Acct, Cur_Acct.B_RevaluationGain_Acct,
+        Cur_Acct.B_RevaluationLoss_Acct
+      FROM C_BankAccount x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_BankAccount_Acct a
+        WHERE a.C_BankAccount_ID=x.C_BankAccount_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Bank Account = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Withholding
+      UPDATE C_Withholding_Acct
+        SET Withholding_Acct=Cur_Acct.Withholding_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_Withholding_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM C_Withholding_Acct x
+        WHERE x.C_Withholding_ID=C_Withholding_Acct.C_Withholding_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_Withholding_Acct
+        (
+          C_Withholding_Acct_ID, C_Withholding_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, Withholding_Acct
+        )
+      SELECT get_uuid(), x.C_Withholding_ID, Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID,
+        'Y', now(), '0', now(),
+        '0', Cur_Acct.Withholding_Acct
+      FROM C_Withholding x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_Withholding_Acct a
+        WHERE a.C_Withholding_ID=x.C_Withholding_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Withholding = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Charge
+      UPDATE C_Charge_Acct
+        SET Ch_Expense_Acct=Cur_Acct.Ch_Expense_Acct,
+        Ch_Revenue_Acct=Cur_Acct.Ch_Revenue_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_Charge_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT * FROM C_Charge_Acct x WHERE x.C_Charge_ID=C_Charge_Acct.C_Charge_ID)
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_Charge_Acct
+        (
+          C_Charge_Acct_ID, C_Charge_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, Ch_Expense_Acct, Ch_Revenue_Acct
+        )
+      SELECT get_uuid(), x.C_Charge_ID,
+        Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID, 'Y',
+        now(), '0', now(), '0',
+        Cur_Acct.Ch_Expense_Acct, Cur_Acct.Ch_Revenue_Acct
+      FROM C_Charge x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_Charge_Acct a
+        WHERE a.C_Charge_ID=x.C_Charge_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Charge = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+      -- Cashbook
+      UPDATE C_Cashbook_Acct
+        SET CB_Asset_Acct=Cur_Acct.CB_Asset_Acct,
+        CB_Differences_Acct=Cur_Acct.CB_Differences_Acct,
+        CB_CashTransfer_Acct=Cur_Acct.CB_CashTransfer_Acct,
+        CB_Expense_Acct=Cur_Acct.CB_Expense_Acct,
+        CB_Receipt_Acct=Cur_Acct.CB_Receipt_Acct,
+        Updated=now(),
+        UpdatedBy='0'
+      WHERE C_Cashbook_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        AND EXISTS
+        (SELECT *
+        FROM C_Cashbook_Acct x
+        WHERE x.C_Cashbook_ID=C_Cashbook_Acct.C_Cashbook_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Updated:=v_rowcount;
+      -- Insert new
+      INSERT
+      INTO C_Cashbook_Acct
+        (
+          C_Cashbook_Acct_ID, C_Cashbook_ID, C_AcctSchema_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy, Updated,
+          UpdatedBy, CB_Asset_Acct, CB_Differences_Acct, CB_CashTransfer_Acct,
+          CB_Expense_Acct, CB_Receipt_Acct
+        )
+      SELECT get_uuid(), x.C_Cashbook_ID,
+        Cur_Acct.C_AcctSchema_ID, x.AD_Client_ID, x.AD_Org_ID, 'Y',
+        now(), '0', now(), '0',
+        Cur_Acct.CB_Asset_Acct, Cur_Acct.CB_Differences_Acct, Cur_Acct.CB_CashTransfer_Acct, Cur_Acct.CB_Expense_Acct,
+        Cur_Acct.CB_Receipt_Acct
+      FROM C_Cashbook x
+      WHERE AD_Client_ID=Cur_Acct.AD_Client_ID
+        AND NOT EXISTS
+        (SELECT *
+        FROM C_Cashbook_Acct a
+        WHERE a.C_Cashbook_ID=x.C_Cashbook_ID
+          AND a.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+        )
+        ;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Created:=v_rowcount;
+      DBMS_OUTPUT.PUT_LINE('Cashbook = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+    END LOOP;
+    v_Message:='@Created@=' || v_Created_Total || ', @Updated@=' || v_Updated_Total;
+    --<<FINISH_PROCESS>>
+    --Extension point for Transitory Account
+    SELECT count(*) INTO v_count
+   FROM DUAL
+   where exists (select 1 from ad_ep_procedures where ad_extension_points_id = 'C13A8C820A9E437CA970FF46D6E00580');
+         IF (v_count=1) THEN
+                        DECLARE
+                                v_ep_instance VARCHAR(32);        
+                                v_extension_point_id VARCHAR(32) := 'C13A8C820A9E437CA970FF46D6E00580';
+                         BEGIN
+                                v_ep_instance := get_uuid();
+                                AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'AD_Client_ID',
+                                v_AD_Client_ID, NULL, NULL, NULL, NULL, NULL, NULL); 
+                                AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'C_AcctSchema_ID',
+                                v_C_AcctSchema_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                                AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+                                DELETE FROM ad_ep_instance_para
+                                WHERE ad_ep_instance_id = v_ep_instance;
+                        END;
+          END IF;
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_ACCTSCHEMA_DEFAULT_COPY
+]]></body>
+    </function>
+  </database>

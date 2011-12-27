@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BP_BANKACCOUNTIBAN_TRG">
+    <trigger name="C_BP_BANKACCOUNTIBAN_TRG" table="C_BP_BANKACCOUNT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: A_ASSET_Trg.sql,v 1.4 2002/10/23 03:16:57 jjanke Exp $
+    ***
+    * Title: Asset new necord
+    * Description:
+    *    - create default Account records
+    ************************************************************************/
+
+  v_IBAN_check NUMBER;
+  v_Bank NVARCHAR2(4);
+  v_Branch NVARCHAR2(4);
+  v_DigitBank NVARCHAR2(1);
+  v_CountryId NVARCHAR2(2);
+  v_Length NUMBER;
+  
+  v_CodeAccountLength NUMBER;
+  v_I_AccountNumberOrig NVARCHAR2(60);
+  v_I_AccountNumberFinal NVARCHAR2(600):='';
+  v_i_char NVARCHAR2(2);
+  v_i_char_ascii NUMBER;
+  v_i NUMBER:=1;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  --  Default Accounts for all AcctSchema
+  IF(INSERTING OR UPDATING) THEN
+    IF (:NEW.IBAN IS NOT NULL) THEN
+        
+        v_I_AccountNumberOrig:=SUBSTR(:NEW.IBAN, 5, LENGTH(:NEW.IBAN)-4);
+        v_CodeAccountLength:=LENGTH(v_I_AccountNumberOrig);
+        WHILE (v_i<=v_CodeAccountLength) LOOP 
+         v_i_char:=SUBSTR(v_I_AccountNumberOrig, v_i, 1);
+         v_i_char_ascii:=ASCII(v_i_char);
+         --It is not a number, transforming to number
+         IF ((v_i_char_ascii<48) OR (v_i_char_ascii>57)) THEN
+           v_i_char:=TO_CHAR(v_i_char_ascii-55);
+         END IF;
+         v_I_AccountNumberFinal:=v_I_AccountNumberFinal||v_i_char;
+         v_i:=v_i+1;
+        END LOOP;
+ 
+    
+        SELECT MOD(TO_NUMBER(v_I_AccountNumberFinal||
+                            TRIM(TO_CHAR(ASCII(SUBSTR(UPPER(:NEW.IBAN),1,1))-55))
+                            ||TRIM(TO_CHAR(ASCII(SUBSTR(UPPER(:NEW.IBAN),2,1))-55))||
+                            SUBSTR(:NEW.IBAN,3,2)
+                            , '999999999999999999999999999999999999999999999999999999999999'
+                            )
+                   ,97) AS DC
+        INTO v_IBAN_check
+        FROM DUAL;
+        IF (v_IBAN_check <> 1) THEN
+          RAISE_APPLICATION_ERROR(-20257, 'Incorrect IBAN Code.');
+        END IF;
+        SELECT IBANCOUNTRY, IBANNODIGITS
+        INTO v_CountryId, v_Length
+        FROM C_COUNTRY
+        WHERE C_COUNTRY_ID=:NEW.C_COUNTRY_ID;
+        IF ((v_CountryId IS NULL OR v_Length IS NULL) OR (v_CountryId <> SUBSTR(UPPER(:NEW.IBAN),1,2) OR v_Length <> LENGTH(:NEW.IBAN))) THEN
+          RAISE_APPLICATION_ERROR(-20259, 'The IBAN number defined in the bank account tab, must fit the IBAN data of the country defined in the bank tab.');
+        END IF;
+      END IF;
+    IF (:NEW.SHOWIBAN='Y') THEN
+      :NEW.DISPLAYEDACCOUNT:=SUBSTR(:NEW.IBAN,1,4) || '-' || SUBSTR(:NEW.IBAN, 5, LENGTH(:NEW.IBAN)-4);
+    ELSE
+      :NEW.DISPLAYEDACCOUNT:=:NEW.ACCOUNTNO;
+    END IF;
+  END IF;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20257, 'Incorrect IBAN Code.') ;
+END C_BP_BANKACCOUNTIBAN_TRG
+]]></body>
+    </trigger>
+  </database>

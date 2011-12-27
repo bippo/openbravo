@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBKMO_WIDGET_URL_MOD_TRG">
+    <trigger name="OBKMO_WIDGET_URL_MOD_TRG" table="OBKMO_WIDGET_URL" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  fieldCount NUMBER;
+  selectorCount NUMBER;
+  devModule   CHAR(1);
+  currentWidgetClassID  VARCHAR2(32);
+  vAux NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT COUNT(*)
+        INTO devTemplate
+        FROM AD_MODULE
+        WHERE IsInDevelopment = 'Y'
+        AND Type = 'T';
+     
+    IF (UPDATING OR INSERTING) THEN
+        currentWidgetClassID := :new.obkmo_widget_class_id;
+    ELSE
+        currentWidgetClassID := :old.obkmo_widget_class_id;
+    END IF;
+
+    SELECT M.IsInDevelopment
+        INTO devModule
+        FROM AD_MODULE M, OBKMO_Widget_Class wc
+        WHERE M.AD_MODULE_ID = wc.AD_MODULE_ID
+          AND wc.OBKMO_Widget_Class_ID = currentwidgetclassid;
+
+    IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+        IF (
+            COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+            COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+            COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+            COALESCE(:NEW.obkmo_widget_class_id , '.') != COALESCE(:OLD.obkmo_widget_class_id , '.') OR
+            COALESCE(:NEW.url , '.') != COALESCE(:OLD.url , '.') OR
+            1=2) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@20532@');
+        END IF;
+    END IF;
+
+
+    -- don't allow insert/delete if not in development
+    IF ((DELETING OR INSERTING) AND devModule='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@20533@');
+    END IF;
+END OBKMO_WIDGET_URL_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

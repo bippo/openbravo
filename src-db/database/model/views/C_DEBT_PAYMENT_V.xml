@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_DEBT_PAYMENT_V">
+    <view name="C_DEBT_PAYMENT_V"><![CDATA[SELECT c_debt_payment.c_debt_payment_id, c_debt_payment.ad_client_id, c_debt_payment.ad_org_id, c_debt_payment.isactive, c_debt_payment.created, c_debt_payment.createdby, c_debt_payment.updated, c_debt_payment.updatedby, c_debt_payment.isreceipt, c_debt_payment.c_settlement_cancel_id, c_debt_payment.c_settlement_generate_id, c_debt_payment.description, c_debt_payment.c_invoice_id, c_debt_payment.c_bpartner_id, c_debt_payment.c_currency_id, c_debt_payment.c_cashline_id, c_debt_payment.c_bankaccount_id, c_debt_payment.c_cashbook_id, c_debt_payment.paymentrule, c_debt_payment.ispaid, c_debt_payment.dateplanned, c_debt_payment.ismanual, c_debt_payment.isvalid, c_debt_payment.c_bankstatementline_id, c_debt_payment.changesettlementcancel, c_debt_payment.cancel_processed, c_debt_payment.generate_processed, c_debt_payment.c_withholding_id, c_debt_payment.withholdingamount, 
+CASE c_debt_payment.isreceipt
+WHEN 'Y' THEN c_debt_payment.amount
+ELSE c_debt_payment.amount * (-1)
+END AS amount, 
+CASE c_debt_payment.isreceipt
+WHEN 'Y' THEN c_debt_payment.writeoffamt
+ELSE c_debt_payment.writeoffamt * (-1)
+END AS writeoffamt, 
+CASE c_debt_payment.isreceipt
+WHEN 'Y' THEN 1
+ELSE (-1)
+END AS multiplierap, 
+CASE
+WHEN c_debt_payment.c_invoice_id IS NOT NULL THEN c_invoice.dateinvoiced
+WHEN c_debt_payment.c_settlement_generate_id IS NOT NULL THEN c_settlement.datetrx
+ELSE to_date(now())
+END AS docdate, c_debt_payment.glitemamt, c_debt_payment.c_order_id, c_debt_payment.status
+FROM c_debt_payment
+LEFT JOIN c_invoice ON c_debt_payment.c_invoice_id = c_invoice.c_invoice_id
+LEFT JOIN c_settlement ON c_debt_payment.c_settlement_generate_id = c_settlement.c_settlement_id]]></view>
+  </database>

@@ -1,0 +1,1485 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_SYNCHRONIZE">
+    <function name="AD_SYNCHRONIZE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: AD_Syncronize.sql,v 1.12 2003/07/26 04:29:44 jjanke Exp $
+  ***
+  * Title: Syncronize Application Dictionary
+  * Description:
+  *  Synchronize Elements
+  *  Update Column and Field with Names from Element and Process
+  *  Update Process Parameters from Elements
+  *  Update Menu from Window/Form/Process
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_sql VARCHAR2(32000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  v_TemplateInDev CHAR(1);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    v_rowcount NUMBER;
+    v_count NUMBER;
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    END IF;
+  BEGIN --BODY
+    ---------------------------------------------------------------------------
+    DBMS_OUTPUT.PUT_LINE('Adding missing Elements') ;
+    DECLARE
+      NextNo varchar2(32);
+      Cur_Column RECORD;
+      Cur_Process RECORD;
+    BEGIN
+      DBMS_OUTPUT.PUT_LINE('Column:') ;
+      FOR Cur_Column IN
+        (SELECT DISTINCT C.ColumnName, C.NAME, C.Description, C.Help, C.AD_Module_ID
+        FROM AD_COLUMN c, ad_module m
+        WHERE AD_Element_ID IS NULL  
+          AND C.AD_MODULE_ID = M.AD_MODULE_ID
+          AND m.isindevelopment = 'Y'
+          AND NOT EXISTS
+          (SELECT 1 FROM AD_ELEMENT e  
+            WHERE UPPER(c.ColumnName)=UPPER(e.ColumnName)
+             AND AD_Module_Dependent(e.AD_Module_ID, c.AD_Module_ID)='Y')
+        )
+      LOOP
+        Ad_Sequence_Next('AD_Element', '0', NextNo) ; -- get ID
+        INSERT
+        INTO AD_ELEMENT
+          (
+            AD_ELEMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            ColumnName, NAME, PrintName, Description,
+            Help, AD_Module_ID
+          )
+          VALUES
+          (NextNo, '0', '0', 'Y',
+          now(), '0', now(), '0',
+          Cur_Column.ColumnName, Cur_Column.NAME, Cur_Column.NAME, Cur_Column.Description,
+          Cur_Column.Help, Cur_Column.AD_Module_ID) ;
+        DBMS_OUTPUT.PUT_LINE('  added ' || Cur_Column.ColumnName) ;
+        COMMIT;
+      END LOOP;
+      DBMS_OUTPUT.PUT_LINE('Parameter:') ;
+      FOR Cur_Process IN
+        (SELECT DISTINCT p.ColumnName, p.NAME, p.Description, p.Help, pr.AD_Module_ID
+      FROM AD_PROCESS_PARA p, AD_PROCESS pr, AD_MODULE M
+      WHERE AD_Element_ID IS NULL  
+        AND pr.AD_Process_ID = p.AD_Process_ID
+        AND M.AD_MODULE_ID = PR.AD_MODULE_ID
+        AND M.ISINDEVELOPMENT = 'Y'
+        AND NOT EXISTS
+        (SELECT 1 FROM AD_ELEMENT e  
+          WHERE UPPER(p.ColumnName)=UPPER(e.ColumnName)
+            AND AD_Module_Dependent(e.AD_Module_ID, pr.AD_Module_ID)='Y')
+        )
+      LOOP
+        INSERT
+        INTO AD_ELEMENT
+          (
+            AD_ELEMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            ColumnName, NAME, PrintName, Description,
+            Help, AD_Module_ID
+          )
+          VALUES
+          (get_uuid(), '0', '0', 'Y',
+          now(), '0', now(), '0',
+          Cur_Process.ColumnName, Cur_Process.NAME, Cur_Process.NAME, Cur_Process.Description,
+          Cur_Process.Help, Cur_Process.AD_Module_ID) ;
+        DBMS_OUTPUT.PUT_LINE('  added ' || Cur_Process.ColumnName) ;
+        COMMIT;
+      END LOOP;
+    END;
+    DBMS_OUTPUT.PUT_LINE('Adding missing Element Translations') ;
+    INSERT
+    INTO AD_ELEMENT_TRL
+      (
+        AD_ELEMENT_TRL_ID, AD_Element_ID, AD_LANGUAGE, AD_Client_ID, AD_Org_ID,
+        IsActive, Created, CreatedBy, Updated,
+        UpdatedBy, NAME, PrintName, Description,
+        Help, IsTranslated
+      )
+    SELECT get_uuid(), m.AD_Element_ID, l.AD_LANGUAGE, m.AD_Client_ID, m.AD_Org_ID, m.IsActive, m.Created, m.CreatedBy, m.Updated, m.UpdatedBy, m.NAME, m.PrintName, m.Description, m.Help, 'N'
+    FROM AD_ELEMENT m, AD_LANGUAGE l, AD_MODULE
+    WHERE l.IsActive='Y' 
+    AND l.IsSystemLanguage='Y'  
+    AND AD_MODULE.AD_MODULE_ID = M.AD_MODULE_ID
+    AND AD_MODULE.ISINDEVELOPMENT = 'Y'
+    AND L.AD_LANGUAGE != AD_MODULE.AD_LANGUAGE
+    AND NOT EXISTS (SELECT 1 
+                      FROM AD_ELEMENT_TRL 
+                     WHERE AD_ELEMENT_ID = M.AD_ELEMENT_ID
+                      AND AD_LANGUAGE = L.AD_LANGUAGE)
+      ;
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows added: ' || v_rowcount) ;
+   
+    DBMS_OUTPUT.PUT_LINE('Deleting unused Elements') ;
+    --Obtain all tables using elements
+    FOR Cur_Parameter IN (SELECT tablename
+                          FROM ad_table t
+                          WHERE t.ad_table_id != '276'
+                            AND EXISTS (SELECT 1 
+                                        FROM ad_column c
+                                        WHERE LOWER(columnname)='ad_element_id'
+                                          AND c.ad_table_id = t.ad_table_id)
+                            AND EXISTS (SELECT 1
+                                        FROM ad_column c
+                                        WHERE lower(columnname)='columnname'
+                                          AND c.ad_table_id = t.ad_table_id)) LOOP
+      v_sql := v_sql || 
+        'AND NOT EXISTS (SELECT 1 FROM '||Cur_Parameter.tablename||'
+                         WHERE UPPER(e.ColumnName)=UPPER('||Cur_Parameter.tablename||'.ColumnName) 
+                               OR e.AD_Element_ID='||Cur_Parameter.tablename||'.AD_Element_ID ) ';
+    END LOOP;
+
+    EXECUTE IMMEDIATE 
+        'DELETE FROM AD_ELEMENT_TRL
+         WHERE AD_Element_ID IN
+             (SELECT AD_Element_ID
+              FROM AD_ELEMENT e, AD_MODULE M
+              WHERE M.AD_MODULE_ID = E.AD_MODULE_ID
+                AND e.isGlossary = ''N''
+                AND m.isindevelopment = ''Y'' '||v_sql||')';
+
+    EXECUTE IMMEDIATE 
+        'DELETE FROM AD_ELEMENT e
+         WHERE e.isGlossary = ''N''
+           AND EXISTS (SELECT 1 FROM AD_MODULE 
+                       WHERE AD_MODULE_ID = e.AD_MODULE_ID 
+                         AND ISINDEVELOPMENT =''Y'') '||v_sql;
+
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows deleted: ' || v_rowcount) ;
+    DBMS_OUTPUT.PUT_LINE('Creating link from Column to Element') ;
+
+    SELECT count(*)
+      INTO v_rowcount
+      FROM AD_MODULE
+     WHERE TYPE = 'T'
+       AND ISINDEVELOPMENT = 'Y';
+       
+    IF (v_rowcount = '0') THEN
+      v_TemplateInDev:='N';
+    ELSE
+      v_TemplateInDev:='Y';
+    END IF;
+      
+    
+    --Updates ad_column: element id and name (name is only updated first time)
+    --Name is updated with the value in the element regardless the language
+    UPDATE AD_COLUMN c
+      SET AD_Element_id=(SELECT MAX(AD_Element_ID)
+                           FROM AD_ELEMENT e 
+                          WHERE UPPER(c.ColumnName)=UPPER(e.ColumnName)
+                            AND AD_Module_Dependent(e.AD_Module_ID, c.AD_Module_ID)='Y'),
+                   Name=(SELECT (CASE WHEN MT.AD_MODULE_ID = C.AD_MODULE_ID OR UPPER(AD_ELEMENT.NAME) LIKE 'EM_%'||P.NAME||'_%' 
+                                           THEN AD_ELEMENT.NAME 
+                                      ELSE 'EM_'||P.NAME||'_'||AD_ELEMENT.NAME END)
+                           FROM AD_ELEMENT, AD_MODULE_DBPREFIX P, AD_MODULE MT, AD_TABLE T, AD_PACKAGE PA
+                            WHERE AD_ELEMENT_ID = (SELECT MAX(AD_Element_ID)
+                                                   FROM AD_ELEMENT e 
+                                                  WHERE UPPER(c.ColumnName)=UPPER(e.ColumnName)
+                                                    AND AD_Module_Dependent(e.AD_Module_ID, c.AD_Module_ID)='Y')
+                            AND T.AD_TABLE_ID = C.AD_TABLE_ID
+                            AND T.AD_PACKAGE_ID = PA.AD_PACKAGE_ID
+                            AND MT.AD_MODULE_ID = PA.AD_MODULE_ID                                                    
+                            AND P.AD_MODULE_DBPREFIX_ID = (SELECT MAX(AD_MODULE_DBPREFIX_ID)
+                                                            FROM AD_MODULE_DBPREFIX P1
+                                                          WHERE P1.AD_MODULE_ID = C.Ad_MODULE_ID))
+    WHERE AD_Element_ID IS NULL
+      AND EXISTS (SELECT 1 
+                    FROM AD_MODULE M
+                    WHERE (M.AD_MODULE_ID = C.AD_MODULE_ID
+                          AND M.ISINDEVELOPMENT='Y')
+                       OR v_TemplateInDev ='Y');
+    
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    DBMS_OUTPUT.PUT_LINE('Creating link from Element to Process Para') ;
+    UPDATE AD_PROCESS_PARA
+      SET AD_Element_id=
+      (SELECT MAX(AD_Element_ID)
+      FROM AD_ELEMENT e, AD_PROCESS P
+      WHERE UPPER(AD_PROCESS_PARA.ColumnName)=UPPER(e.ColumnName)
+      AND P.AD_PROCESS_ID = AD_PROCESS_PARA.AD_PROCESS_ID
+      AND AD_Module_Dependent(e.AD_Module_ID, p.AD_Module_ID)='Y'
+      )
+    WHERE AD_Element_ID IS NULL
+     AND EXISTS (SELECT 1 
+                   FROM AD_PROCESS P, AD_MODULE M
+                  WHERE (P.AD_PROCESS_ID = AD_PROCESS_PARA.AD_PROCESS_ID
+                    AND P.AD_MODULE_ID = M.AD_MODULE_ID
+                    AND M.ISINDEVELOPMENT = 'Y')
+                    OR v_TemplateInDev ='Y');
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    COMMIT;
+    ---------------------------------------------------------------------------
+    -- Columns
+    DBMS_OUTPUT.PUT_LINE('Synchronize Column') ;
+    
+    
+    UPDATE AD_COLUMN c
+      SET 
+      Description =(SELECT COALESCE(T.Description, E.Description) AS N
+                           FROM AD_MODULE M,
+                                AD_ELEMENT E, AD_ELEMENT_TRL T
+                           WHERE  C.AD_Element_ID = e.AD_Element_ID
+                               AND c.AD_MODULE_ID = M.AD_MODULE_ID
+                               AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID
+                               AND T.AD_LANGUAGE = M.AD_LANGUAGE
+                          UNION
+                         SELECT E.Description AS N
+                           FROM AD_MODULE M,
+                                AD_MODULE M2,
+                                AD_ELEMENT E 
+                           WHERE C.AD_Element_ID = e.AD_Element_ID
+                              AND M.AD_MODULE_ID = C.AD_MODULE_ID
+                               AND M2.AD_MODULE_ID = E.AD_MODULE_ID
+                               AND M.AD_LANGUAGE = M2.AD_LANGUAGE),
+      Help =
+            (SELECT COALESCE(T.help, E.help) AS N
+                           FROM AD_MODULE M,
+                                AD_ELEMENT E, AD_ELEMENT_TRL T
+                           WHERE  C.AD_Element_ID = e.AD_Element_ID
+                               AND c.AD_MODULE_ID = M.AD_MODULE_ID
+                               AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID
+                               AND T.AD_LANGUAGE = M.AD_LANGUAGE
+                          UNION
+                         SELECT E.help AS N
+                           FROM AD_MODULE M,
+                                AD_MODULE M2,
+                                AD_ELEMENT E 
+                           WHERE C.AD_Element_ID = e.AD_Element_ID
+                               AND M2.AD_MODULE_ID = E.AD_MODULE_ID
+                               AND M.AD_MODULE_ID = C.AD_MODULE_ID
+                               AND M.AD_LANGUAGE = M2.AD_LANGUAGE), 
+      Updated = now()
+    WHERE EXISTS
+                    (SELECT 1
+                           FROM AD_MODULE M,
+                                AD_ELEMENT E, AD_ELEMENT_TRL T                                                   
+                           WHERE  C.AD_Element_ID = e.AD_Element_ID
+                               AND c.AD_MODULE_ID = M.AD_MODULE_ID
+                               AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+                               AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID
+                               AND T.AD_LANGUAGE = M.AD_LANGUAGE
+                               AND (COALESCE(TO_CHAR(COALESCE(T.help, E.help)),' ') != COALESCE(TO_CHAR(C.HELP),' ')
+                                   OR COALESCE(TO_CHAR(COALESCE(T.DESCRIPTION, E.DESCRIPTION)),' ') != COALESCE(TO_CHAR(C.DESCRIPTION),' '))
+                          UNION
+                         SELECT 1
+                           FROM AD_MODULE M,
+                                AD_MODULE M2,
+                                AD_ELEMENT E 
+                           WHERE C.AD_Element_ID = e.AD_Element_ID
+                               AND M2.AD_MODULE_ID = E.AD_MODULE_ID
+                               AND M.AD_MODULE_ID = C.AD_MODULE_ID
+                               AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+                               AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+                               AND (COALESCE(TO_CHAR(E.help),' ') != COALESCE(TO_CHAR(C.HELP),' ')
+                                   OR COALESCE(TO_CHAR(E.DESCRIPTION),' ') != COALESCE(TO_CHAR(C.DESCRIPTION),' ')));
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Fields should now be syncronized
+    DBMS_OUTPUT.PUT_LINE('Synchronize Field') ;
+    UPDATE AD_FIELD
+      SET NAME=
+        (SELECT COALESCE(T.NAME, e.NAME)
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          union
+      SELECT e.NAME
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE), 
+      Description=
+        (SELECT COALESCE(T.Description, e.Description)
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          union
+      SELECT e.Description
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE),
+      Help=
+        (SELECT COALESCE(T.HELP, e.HELP)
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          union
+      SELECT e.HELP
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE), 
+      Updated=now()
+    WHERE AD_FIELD.IsCentrallyMaintained='Y' 
+      AND AD_FIELD.IsActive='Y'  
+      AND EXISTS
+        (SELECT 1
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          AND (AD_FIELD.NAME != COALESCE(T.NAME, e.NAME)
+             OR COALESCE(TO_CHAR(AD_FIELD.Description), ' ')<>COALESCE(TO_CHAR(T.Description), TO_CHAR(e.Description), ' ')
+             OR COALESCE(TO_CHAR(AD_FIELD.Help), ' ')<>COALESCE(TO_CHAR(T.Help), TO_CHAR(e.Help), ' '))
+          union
+      SELECT 1
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE
+          AND (AD_FIELD.NAME != e.NAME
+             OR COALESCE(TO_CHAR(AD_FIELD.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+             OR COALESCE(TO_CHAR(AD_FIELD.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' ')))
+      AND NOT EXISTS
+        (SELECT 1
+        FROM AD_TAB t, AD_WINDOW w
+        WHERE AD_FIELD.AD_Tab_ID=t.AD_Tab_ID  AND t.AD_Window_ID=w.AD_Window_ID  AND w.IsSOTrx='N'
+        );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Field Translations
+    -- Translations taken from the trl table
+    DBMS_OUTPUT.PUT_LINE('Synchronize Field Translations') ;
+    UPDATE AD_FIELD_TRL
+      SET NAME=
+      (SELECT e.NAME
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Description=
+      (SELECT e.Description
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Help=
+      (SELECT e.Help
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , IsTranslated=
+      (SELECT e.IsTranslated
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT 1
+      FROM AD_FIELD f, AD_ELEMENT_TRL e, AD_COLUMN c, AD_MODULE M
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  
+      AND f.AD_Column_ID=c.AD_Column_ID
+      AND c.AD_Element_ID=e.AD_Element_ID 
+      AND c.AD_Process_ID IS NULL
+      AND AD_FIELD_TRL.AD_LANGUAGE=e.AD_LANGUAGE  
+      AND f.IsCentrallyMaintained='Y' 
+      AND f.IsActive='Y'
+      AND M.AD_MODULE_ID = F.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M.AD_LANGUAGE != E.AD_LANGUAGE
+      AND(AD_FIELD_TRL.NAME<>e.NAME OR COALESCE(TO_CHAR(AD_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+      OR COALESCE(TO_CHAR(AD_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' '))
+      ) AND NOT EXISTS
+      (SELECT 1
+      FROM AD_FIELD f, AD_TAB t, AD_WINDOW w
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  AND f.AD_Tab_ID=t.AD_Tab_ID
+      AND t.AD_Window_ID=w.AD_Window_ID  AND w.IsSOTrx='N'
+      )
+      ;
+    
+     -- Field Translations
+    -- Translations taken from the non trl table
+    UPDATE AD_FIELD_TRL
+      SET NAME=
+      (SELECT e.NAME
+      FROM AD_ELEMENT e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Description=
+      (SELECT e.Description
+      FROM AD_ELEMENT e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Help=
+      (SELECT e.Help
+      FROM AD_ELEMENT e, AD_COLUMN c, AD_FIELD f
+      WHERE  e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , IsTranslated='Y'
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT 1
+      FROM AD_FIELD f, AD_ELEMENT e, AD_COLUMN c, AD_MODULE M, AD_MODULE M1
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  
+      AND f.AD_Column_ID=c.AD_Column_ID
+      AND c.AD_Element_ID=e.AD_Element_ID 
+      AND c.AD_Process_ID IS NULL
+      AND AD_FIELD_TRL.AD_LANGUAGE=M1.AD_LANGUAGE  
+      AND f.IsCentrallyMaintained='Y' 
+      AND f.IsActive='Y'
+      AND M.AD_MODULE_ID = F.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M1.AD_MODULE_ID = E.AD_MODULE_ID
+      AND M.AD_LANGUAGE != M1.AD_LANGUAGE
+      AND(AD_FIELD_TRL.NAME<>e.NAME OR COALESCE(TO_CHAR(AD_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+      OR COALESCE(TO_CHAR(AD_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' '))
+      ) AND NOT EXISTS
+      (SELECT 1
+      FROM AD_FIELD f, AD_TAB t, AD_WINDOW w
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  AND f.AD_Tab_ID=t.AD_Tab_ID
+      AND t.AD_Window_ID=w.AD_Window_ID  AND w.IsSOTrx='N'
+      )
+      ;
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    
+    -- Fields should now be syncronized
+    DBMS_OUTPUT.PUT_LINE('Synchronize PO Field') ;
+   UPDATE AD_FIELD
+      SET NAME=
+        (SELECT COALESCE(T.PO_NAME, e.PO_NAME, t.name, e.name)
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          union
+      SELECT COALESCE(e.PO_NAME, e.name)
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE), 
+      Description=
+        (SELECT COALESCE(T.PO_Description, e.PO_Description, t.description, e.description)
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          union
+      SELECT coalesce(e.PO_Description, e.description)
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE),
+      Help=
+        (SELECT COALESCE(T.PO_HELP, e.PO_HELP, t.help, e.help)
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          union
+      SELECT coalesce(e.PO_HELP, e.help)
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE), 
+      Updated=now()
+    WHERE AD_FIELD.IsCentrallyMaintained='Y' 
+      AND AD_FIELD.IsActive='Y'  
+      AND EXISTS
+        (SELECT 1
+        FROM AD_COLUMN c,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          AND (AD_FIELD.NAME != COALESCE(T.PO_NAME, e.PO_NAME, t.name, e.name)
+             OR COALESCE(TO_CHAR(AD_FIELD.Description), ' ')<>COALESCE(TO_CHAR(T.PO_Description), TO_CHAR(e.PO_Description), to_char(t.description), to_char(e.description), ' ')
+             OR COALESCE(TO_CHAR(AD_FIELD.Help), ' ')<>COALESCE(TO_CHAR(T.PO_Help), TO_CHAR(e.PO_Help), to_char(t.help), to_char(e.help), ' '))
+          union
+      SELECT 1
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+          AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE
+          AND (AD_FIELD.NAME != e.PO_NAME
+             OR COALESCE(TO_CHAR(AD_FIELD.Description), ' ')<>COALESCE(TO_CHAR(e.PO_Description), to_char(e.description), ' ')
+             OR COALESCE(TO_CHAR(AD_FIELD.Help), ' ')<>COALESCE(TO_CHAR(e.PO_Help), to_char(e.help), ' ')))
+      AND EXISTS
+        (SELECT 1
+        FROM AD_TAB t, AD_WINDOW w
+        WHERE AD_FIELD.AD_Tab_ID=t.AD_Tab_ID  AND t.AD_Window_ID=w.AD_Window_ID  AND w.IsSOTrx='N'
+        );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Field Translations
+    DBMS_OUTPUT.PUT_LINE('Synchronize PO Field Translations') ;
+    UPDATE AD_FIELD_TRL
+      SET NAME=
+      (SELECT (CASE WHEN e.PO_Name='' THEN e.Name
+           ELSE COALESCE(e.PO_Name, e.Name)
+       END)
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Description=
+      (SELECT (CASE WHEN e.PO_Description='' THEN e.Description
+           ELSE COALESCE(e.PO_Description, e.Description)
+       END)
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Help=
+      (SELECT (CASE WHEN e.PO_Help='' THEN e.Help
+           ELSE COALESCE(e.PO_Help, e.Help)
+       END)
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , IsTranslated=
+      (SELECT e.IsTranslated
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_FIELD f, AD_ELEMENT_TRL e, AD_COLUMN c, AD_MODULE M
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  AND f.AD_Column_ID=c.AD_Column_ID
+      AND c.AD_Element_ID=e.AD_Element_ID AND c.AD_Process_ID IS NULL
+      AND AD_FIELD_TRL.AD_LANGUAGE=e.AD_LANGUAGE  AND f.IsCentrallyMaintained='Y' AND f.IsActive='Y'
+      AND M.AD_MODULE_ID = F.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M.AD_LANGUAGE != E.AD_LANGUAGE
+      AND(AD_FIELD_TRL.NAME<>e.PO_Name OR COALESCE(TO_CHAR(AD_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(e.PO_Description), ' ')
+      OR COALESCE(TO_CHAR(AD_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(e.PO_Help), ' '))
+      )
+      AND EXISTS
+      (SELECT *
+      FROM AD_FIELD f, AD_TAB t, AD_WINDOW w
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  AND f.AD_Tab_ID=t.AD_Tab_ID
+      AND t.AD_Window_ID=w.AD_Window_ID  AND w.IsSOTrx='N'
+      )
+      ;
+      
+      --Translation from non-trl table     
+      UPDATE AD_FIELD_TRL
+      SET NAME=
+      (SELECT (CASE WHEN e.PO_Name='' THEN e.Name
+           ELSE COALESCE(e.PO_Name, e.Name)
+       END)
+      FROM AD_ELEMENT e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Description=
+      (SELECT (CASE WHEN e.PO_Description='' THEN e.Description
+           ELSE COALESCE(e.PO_Description, e.Description)
+       END)
+      FROM AD_ELEMENT e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Help=
+      (SELECT (CASE WHEN e.PO_Help='' THEN e.Help
+           ELSE COALESCE(e.PO_Help, e.Help)
+       END)
+      FROM AD_ELEMENT e, AD_COLUMN c, AD_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , IsTranslated='Y'
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_FIELD f, AD_ELEMENT e, AD_COLUMN c, AD_MODULE M, AD_MODULE M1
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  AND f.AD_Column_ID=c.AD_Column_ID
+      AND c.AD_Element_ID=e.AD_Element_ID AND c.AD_Process_ID IS NULL
+      AND AD_FIELD_TRL.AD_LANGUAGE=M1.AD_LANGUAGE  
+      AND f.IsCentrallyMaintained='Y' AND f.IsActive='Y'
+      AND M.AD_MODULE_ID = F.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M1.AD_MODULE_ID = E.AD_MODULE_ID
+      AND M.AD_LANGUAGE != M1.AD_LANGUAGE
+      AND(AD_FIELD_TRL.NAME<>e.PO_Name OR COALESCE(TO_CHAR(AD_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(e.PO_Description), ' ')
+      OR COALESCE(TO_CHAR(AD_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(e.PO_Help), ' '))
+      )
+      AND EXISTS
+      (SELECT *
+      FROM AD_FIELD f, AD_TAB t, AD_WINDOW w
+      WHERE AD_FIELD_TRL.AD_Field_ID=f.AD_Field_ID  AND f.AD_Tab_ID=t.AD_Tab_ID
+      AND t.AD_Window_ID=w.AD_Window_ID  AND w.IsSOTrx='N'
+      )
+      ;
+      
+      
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Fields from Process
+    DBMS_OUTPUT.PUT_LINE('Synchronize Field from Process') ;
+
+    
+    UPDATE AD_FIELD
+      SET NAME=
+        (SELECT COALESCE(T.NAME, P.NAME)
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_PROCESS_TRL T
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND P.AD_PROCESS_ID = T.AD_PROCESS_ID         
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND T.AD_LANGUAGE= M.AD_LANGUAGE
+        UNION
+          SELECT P.name
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_MODULE M2
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND M2.AD_MODULE_ID = P.AD_MODULE_ID
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND M2.AD_LANGUAGE= M.AD_LANGUAGE)
+      , Description=
+      (SELECT COALESCE(T.Description, P.Description)
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_PROCESS_TRL T
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND P.AD_PROCESS_ID = T.AD_PROCESS_ID         
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND T.AD_LANGUAGE= M.AD_LANGUAGE
+        UNION
+          SELECT P.Description
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_MODULE M2
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND M2.AD_MODULE_ID = P.AD_MODULE_ID
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND M2.AD_LANGUAGE= M.AD_LANGUAGE)
+      , Help=
+      (SELECT COALESCE(T.HELP, P.HELP)
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_PROCESS_TRL T
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND P.AD_PROCESS_ID = T.AD_PROCESS_ID         
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND T.AD_LANGUAGE= M.AD_LANGUAGE
+        UNION
+          SELECT P.HELP
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_MODULE M2
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND M2.AD_MODULE_ID = P.AD_MODULE_ID
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND M2.AD_LANGUAGE= M.AD_LANGUAGE)
+      , Updated=now()
+    WHERE AD_FIELD.IsCentrallyMaintained='Y' AND AD_FIELD.IsActive='Y'  
+     AND EXISTS (
+        SELECT 1
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_PROCESS_TRL T
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND P.AD_PROCESS_ID = T.AD_PROCESS_ID         
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+            AND T.AD_LANGUAGE= M.AD_LANGUAGE
+            AND (COALESCE(T.HELP, P.HELP) != AD_FIELD.HELP 
+                OR COALESCE(T.NAME, P.NAME) != AD_FIELD.NAME
+                OR COALESCE(T.DESCRIPTION, P.DESCRIPTION) != AD_FIELD.DESCRIPTION)
+        UNION
+          SELECT 1
+          FROM AD_COLUMN c,
+               AD_MODULE M,
+               AD_PROCESS P,
+               AD_MODULE M2
+          WHERE P.AD_Process_ID=c.AD_Process_ID 
+            AND M2.AD_MODULE_ID = P.AD_MODULE_ID
+            AND c.AD_Column_ID=AD_FIELD.AD_Column_ID
+            AND AD_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+            AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+            AND M2.AD_LANGUAGE= M.AD_LANGUAGE
+            AND (P.HELP != AD_FIELD.HELP
+                OR P.NAME != AD_FIELD.NAME
+                OR P.DESCRIPTION != AD_FIELD.DESCRIPTION)
+         );
+     
+     
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Field Translations from Process
+    DBMS_OUTPUT.PUT_LINE('Synchronize Field Trl from Process Trl') ;
+    UPDATE AD_FIELD_TRL
+      SET NAME=
+      (SELECT p.NAME
+      FROM AD_PROCESS_TRL p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      AND p.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE
+      )
+      , Description=
+      (SELECT p.Description
+      FROM AD_PROCESS_TRL p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      AND p.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE
+      )
+      , Help=
+      (SELECT p.Help
+      FROM AD_PROCESS_TRL p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      AND p.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE
+      )
+      , IsTranslated=
+      (SELECT p.IsTranslated
+      FROM AD_PROCESS_TRL p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      AND p.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE
+      )
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_PROCESS_TRL p, AD_COLUMN c, AD_FIELD f, AD_MODULE M
+      WHERE c.AD_Process_ID=p.AD_Process_ID AND f.AD_Column_ID=c.AD_Column_ID  
+      AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      AND F.AD_MODULE_ID = M.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M.AD_LANGUAGE != P.AD_LANGUAGE
+      AND p.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE  AND f.IsCentrallyMaintained='Y' AND f.IsActive='Y'  AND(AD_FIELD_TRL.NAME<>p.NAME
+      OR COALESCE(TO_CHAR(AD_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(p.Description), ' ') OR COALESCE(TO_CHAR(AD_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(p.Help), ' '))
+      );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    
+     -- Field Translations from Process NON TRL
+
+    UPDATE AD_FIELD_TRL
+      SET NAME=
+      (SELECT p.NAME
+      FROM AD_PROCESS p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Description=
+      (SELECT p.Description
+      FROM AD_PROCESS p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , Help=
+      (SELECT p.Help
+      FROM AD_PROCESS p, AD_COLUMN c, AD_FIELD f
+      WHERE p.AD_Process_ID=c.AD_Process_ID AND c.AD_Column_ID=f.AD_Column_ID  AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      )
+      , IsTranslated='Y'
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_PROCESS p, AD_COLUMN c, AD_FIELD f, AD_MODULE M, AD_MODULE M1
+      WHERE c.AD_Process_ID=p.AD_Process_ID AND f.AD_Column_ID=c.AD_Column_ID  
+      AND f.AD_Field_ID=AD_FIELD_TRL.AD_Field_ID
+      AND F.AD_MODULE_ID = M.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND P.AD_MODULE_ID = M1.AD_MODULE_ID
+      AND M.AD_LANGUAGE != M1.AD_LANGUAGE
+      AND M1.AD_LANGUAGE=AD_FIELD_TRL.AD_LANGUAGE  
+      AND f.IsCentrallyMaintained='Y' AND f.IsActive='Y'  AND(AD_FIELD_TRL.NAME<>p.NAME
+      OR COALESCE(TO_CHAR(AD_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(p.Description), ' ') OR COALESCE(TO_CHAR(AD_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(p.Help), ' '))
+      );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Sync Parameter ColumnName
+    /*UPDATE AD_Process_Para
+    SET ColumnName = (SELECT e.ColumnName FROM AD_Element e
+    WHERE UPPER(e.ColumnName)=UPPER(AD_Process_Para.ColumnName))
+    WHERE AD_Process_Para.IsCentrallyMaintained='Y' AND AD_Process_Para.IsActive='Y'
+    AND EXISTS (SELECT * FROM AD_Element e
+    WHERE e.AD_Element_ID=AD_Process_Para.AD_Element_ID
+    AND e.ColumnName<>AD_Process_Para.ColumnName);*/
+    -- Paramenter Fields
+    UPDATE AD_PROCESS_PARA
+      SET IsCentrallyMaintained='N'
+    WHERE IsCentrallyMaintained<>'N'  AND NOT EXISTS
+      (SELECT *
+      FROM AD_ELEMENT e
+      WHERE AD_PROCESS_PARA.AD_Element_ID=e.AD_Element_ID
+      )
+    AND EXISTS
+      (SELECT 1
+        FROM AD_PROCESS P
+        LEFT JOIN  AD_MODULE M ON P.AD_MODULE_ID = M.AD_MODULE_ID
+        WHERE AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+              AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      )        
+      ;
+    -- Parameter Fields
+    DBMS_OUTPUT.PUT_LINE('Synchronize Process Parameter') ;
+    UPDATE AD_PROCESS_PARA
+      SET NAME=
+      (SELECT COALESCE(T.NAME, e.NAME)
+        FROM AD_PROCESS P,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T       
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+        UNION  
+        SELECT e.NAME
+        FROM AD_PROCESS P,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e    
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE)
+      , Description=
+      (SELECT COALESCE(T.Description, e.Description)
+        FROM AD_PROCESS P,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T       
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+        UNION  
+        SELECT e.Description
+        FROM AD_PROCESS P,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e    
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE)
+      , Help=
+      (SELECT COALESCE(T.Help, e.Help)
+        FROM AD_PROCESS P,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T       
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+        UNION  
+        SELECT e.Help
+        FROM AD_PROCESS P,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e    
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE)
+      , Updated=now()
+    WHERE AD_PROCESS_PARA.IsCentrallyMaintained='Y' AND AD_PROCESS_PARA.IsActive='Y'  AND EXISTS
+      (SELECT 1
+        FROM AD_PROCESS P,
+             AD_MODULE M,
+             AD_ELEMENT e, AD_ELEMENT_TRL T       
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE
+          AND(AD_PROCESS_PARA.NAME<>COALESCE(T.NAME,e.NAME)
+            OR COALESCE(TO_CHAR(AD_PROCESS_PARA.Description), ' ')<>COALESCE(TO_CHAR(T.DESCRIPTION),TO_CHAR(e.Description), ' ')
+            OR COALESCE(TO_CHAR(AD_PROCESS_PARA.Help), ' ')<>COALESCE(TO_CHAR(T.HELP),TO_CHAR(e.Help), ' '))
+        UNION  
+        SELECT 1
+        FROM AD_PROCESS P,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e    
+        WHERE e.AD_Element_ID=AD_PROCESS_PARA.AD_Element_ID 
+          AND AD_PROCESS_PARA.AD_PROCESS_ID  = P.AD_PROCESS_ID
+          AND P.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          AND(AD_PROCESS_PARA.NAME<>e.NAME
+            OR COALESCE(TO_CHAR(AD_PROCESS_PARA.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+            OR COALESCE(TO_CHAR(AD_PROCESS_PARA.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' '))
+     )
+      ;
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    -- Parameter Translations from trl table
+    DBMS_OUTPUT.PUT_LINE('Synchronize Process Parameter Trl') ;
+    UPDATE AD_PROCESS_PARA_TRL
+      SET NAME=
+      (SELECT et.NAME
+      FROM AD_ELEMENT_TRL et, AD_PROCESS_PARA f
+      WHERE et.AD_LANGUAGE=AD_PROCESS_PARA_TRL.AD_LANGUAGE AND f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , Description=
+      (SELECT et.Description
+      FROM AD_ELEMENT_TRL et, AD_PROCESS_PARA f
+      WHERE et.AD_LANGUAGE=AD_PROCESS_PARA_TRL.AD_LANGUAGE AND f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , Help=
+      (SELECT et.Help
+      FROM AD_ELEMENT_TRL et, AD_PROCESS_PARA f
+      WHERE et.AD_LANGUAGE=AD_PROCESS_PARA_TRL.AD_LANGUAGE AND f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , IsTranslated=
+      (SELECT et.IsTranslated
+      FROM AD_ELEMENT_TRL et, AD_PROCESS_PARA f
+      WHERE et.AD_LANGUAGE=AD_PROCESS_PARA_TRL.AD_LANGUAGE AND f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_ELEMENT_TRL et, AD_PROCESS_PARA f, AD_PROCESS P, AD_MODULE M
+      WHERE et.AD_LANGUAGE=AD_PROCESS_PARA_TRL.AD_LANGUAGE AND f.AD_Element_ID=et.AD_Element_ID
+      AND P.AD_PROCESS_ID = F.AD_PROCESS_ID
+      AND M.AD_MODULE_ID = P.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M.AD_LANGUAGE != ET.AD_LANGUAGE
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID  AND f.IsCentrallyMaintained='Y'
+      AND f.IsActive='Y'  AND(AD_PROCESS_PARA_TRL.NAME<>et.NAME OR COALESCE(TO_CHAR(AD_PROCESS_PARA_TRL.Description), ' ')<>COALESCE(TO_CHAR(et.Description), ' ')
+      OR COALESCE(TO_CHAR(AD_PROCESS_PARA_TRL.Help), ' ')<>COALESCE(TO_CHAR(et.Help), ' '))
+      );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    
+    -- Parameter Translations from non-trl table
+    DBMS_OUTPUT.PUT_LINE('Synchronize Process Parameter Trl') ;
+    UPDATE AD_PROCESS_PARA_TRL
+      SET NAME=
+      (SELECT et.NAME
+      FROM AD_ELEMENT et, AD_PROCESS_PARA f
+      WHERE f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , Description=
+      (SELECT et.Description
+      FROM AD_ELEMENT et, AD_PROCESS_PARA f
+      WHERE  f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , Help=
+      (SELECT et.Help
+      FROM AD_ELEMENT et, AD_PROCESS_PARA f
+      WHERE  f.AD_Element_ID=et.AD_Element_ID
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID
+      )
+      , IsTranslated= 'Y'
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_ELEMENT et, AD_PROCESS_PARA f, AD_PROCESS P, AD_MODULE M, AD_MODULE M1
+      WHERE M1.AD_LANGUAGE=AD_PROCESS_PARA_TRL.AD_LANGUAGE AND f.AD_Element_ID=et.AD_Element_ID
+      AND P.AD_PROCESS_ID = F.AD_PROCESS_ID
+      AND M.AD_MODULE_ID = P.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND et.AD_MODULE_ID = M1.AD_MODULE_ID
+      AND M.AD_LANGUAGE != M1.AD_LANGUAGE
+      AND f.AD_Process_Para_ID=AD_PROCESS_PARA_TRL.AD_Process_Para_ID  AND f.IsCentrallyMaintained='Y'
+      AND f.IsActive='Y'  AND(AD_PROCESS_PARA_TRL.NAME<>et.NAME OR COALESCE(TO_CHAR(AD_PROCESS_PARA_TRL.Description), ' ')<>COALESCE(TO_CHAR(et.Description), ' ')
+      OR COALESCE(TO_CHAR(AD_PROCESS_PARA_TRL.Help), ' ')<>COALESCE(TO_CHAR(et.Help), ' '))
+      );
+   
+    -- Sync Names - Window
+    DBMS_OUTPUT.PUT_LINE('Synchronizing Menu with Window') ;
+    UPDATE AD_MENU
+      SET NAME=
+      (SELECT T.NAME
+         FROM AD_MODULE M,
+              AD_WINDOW w, 
+              AD_WINDOW_TRL T
+        WHERE AD_MENU.AD_Window_ID=w.AD_Window_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND w.AD_Window_ID = T.ad_Window_ID
+          AND M.AD_LANGUAGE = T.AD_LANGUAGE
+        UNION
+        SELECT W.NAME
+         FROM AD_MODULE M, AD_MODULE M2,
+              AD_WINDOW w
+        WHERE AD_MENU.AD_Window_ID=w.AD_Window_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND W.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          )
+      , Description=
+      (SELECT T.DESCRIPTION
+         FROM AD_MODULE M,
+              AD_WINDOW w, 
+              AD_WINDOW_TRL T
+        WHERE AD_MENU.AD_Window_ID=w.AD_Window_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND w.AD_Window_ID = T.ad_Window_ID
+          AND M.AD_LANGUAGE = T.AD_LANGUAGE
+        UNION
+        SELECT W.DESCRIPTION
+         FROM AD_MODULE M, AD_MODULE M2,
+              AD_WINDOW w
+        WHERE AD_MENU.AD_Window_ID=w.AD_Window_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND W.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          )
+    WHERE AD_Window_ID IS NOT NULL AND Action='W'
+      AND EXISTS (SELECT 1 
+                    FROM AD_MODULE
+                  WHERE (AD_MENU.AD_MODULE_ID = AD_MODULE_ID
+                    AND ISINDEVELOPMENT ='Y')
+                    OR v_TemplateInDev ='Y');
+    
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    UPDATE AD_MENU_TRL
+      SET NAME=
+      (SELECT wt.NAME
+      FROM AD_WINDOW_TRL wt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=wt.AD_LANGUAGE
+      )
+      , Description=
+      (SELECT wt.Description
+      FROM AD_WINDOW_TRL wt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=wt.AD_LANGUAGE
+      )
+      , IsTranslated=
+      (SELECT wt.IsTranslated
+      FROM AD_WINDOW_TRL wt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=wt.AD_LANGUAGE
+      )
+    WHERE EXISTS
+      (SELECT 1
+      FROM AD_WINDOW_TRL wt, AD_MENU m, AD_MODULE mo
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      AND mo.AD_Module_ID = m.AD_Module_ID
+      AND (MO.ISINDEVELOPMENT = 'Y' OR v_TemplateInDev ='Y')
+      and mo.AD_Language!= wt.AD_Language
+      AND AD_MENU_TRL.AD_LANGUAGE=wt.AD_LANGUAGE  AND m.AD_Window_ID IS NOT NULL  AND m.Action='W'
+      )
+      ;
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  trl rows updated: ' || v_rowcount) ;
+    
+     UPDATE AD_MENU_TRL
+      SET NAME=
+      (SELECT wt.NAME
+      FROM AD_WINDOW wt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      )
+      , Description=
+      (SELECT wt.Description
+      FROM AD_WINDOW wt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      )
+      , IsTranslated= 'Y'
+    WHERE EXISTS
+      (SELECT 1
+      FROM AD_WINDOW wt, AD_MENU m, AD_MODULE mo, AD_MODULE mo1
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Window_ID=wt.AD_Window_ID
+      AND mo.AD_Module_ID = m.AD_Module_ID
+      AND (MO.ISINDEVELOPMENT = 'Y' OR v_TemplateInDev ='Y')
+      and mo1.AD_Module_ID = wt.AD_Module_ID
+      and mo.AD_Language!= mo1.AD_Language
+      AND mo1.AD_LANGUAGE=AD_MENU_TRL.AD_LANGUAGE  AND m.AD_Window_ID IS NOT NULL  AND m.Action='W'
+      )
+      ;
+      
+    -- Sync Names - Process
+    DBMS_OUTPUT.PUT_LINE('Synchronizing Menu with Processes') ;
+    UPDATE AD_MENU
+      SET NAME=
+      (SELECT T.NAME
+         FROM AD_MODULE M,
+              AD_PROCESS w, 
+              AD_PROCESS_TRL T
+        WHERE AD_MENU.AD_Process_ID=w.AD_Process_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND w.AD_Process_ID = T.AD_Process_ID
+          AND M.AD_LANGUAGE = T.AD_LANGUAGE
+        UNION
+        SELECT W.NAME
+         FROM AD_MODULE M, AD_MODULE M2,
+              AD_PROCESS w
+        WHERE AD_MENU.AD_Process_ID=w.AD_Process_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND W.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          )
+      , Description=
+      (SELECT T.DESCRIPTION
+         FROM AD_MODULE M,
+              AD_PROCESS w, 
+              AD_PROCESS_TRL T
+        WHERE AD_MENU.AD_Process_ID=w.AD_Process_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND w.AD_Process_ID = T.AD_Process_ID
+          AND M.AD_LANGUAGE = T.AD_LANGUAGE
+        UNION
+        SELECT W.description
+         FROM AD_MODULE M, AD_MODULE M2,
+              AD_Process w
+        WHERE AD_MENU.AD_Process_ID=w.AD_Process_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND W.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          )
+    WHERE AD_MENU.AD_Process_ID IS NOT NULL AND AD_MENU.Action IN('R', 'P')
+    AND EXISTS (SELECT 1 
+                    FROM AD_MODULE
+                  WHERE (AD_MENU.AD_MODULE_ID = AD_MODULE_ID
+                    AND ISINDEVELOPMENT ='Y')
+                    OR v_TemplateInDev ='Y');
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    UPDATE AD_MENU_TRL
+      SET NAME=
+      (SELECT pt.NAME
+      FROM AD_PROCESS_TRL pt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=pt.AD_LANGUAGE
+      )
+      , Description=
+      (SELECT pt.Description
+      FROM AD_PROCESS_TRL pt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=pt.AD_LANGUAGE
+      )
+      , IsTranslated=
+      (SELECT pt.IsTranslated
+      FROM AD_PROCESS_TRL pt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=pt.AD_LANGUAGE
+      )
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_PROCESS_TRL pt, AD_MENU m, AD_MODULE MO
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      AND M.AD_MODULE_ID = MO.AD_MODULE_ID
+      AND (MO.ISINDEVELOPMENT = 'Y' OR v_TemplateInDev ='Y')
+      AND MO.AD_LANGUAGE != AD_MENU_TRL.AD_LANGUAGE
+      AND AD_MENU_TRL.AD_LANGUAGE=pt.AD_LANGUAGE  AND m.AD_Process_ID IS NOT NULL  AND Action IN('R', 'P')
+      );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  trl rows updated: ' || v_rowcount) ;
+    
+    UPDATE AD_MENU_TRL
+      SET NAME=
+      (SELECT pt.NAME
+      FROM AD_PROCESS pt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      )
+      , Description=
+      (SELECT pt.Description
+      FROM AD_PROCESS pt, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      )
+      , IsTranslated= 'Y'
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_PROCESS pt, AD_MENU m, AD_MODULE MO, AD_MODULE M1
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Process_ID=pt.AD_Process_ID
+      AND MO.AD_MODULE_ID = M.AD_MODULE_ID
+      AND (MO.ISINDEVELOPMENT = 'Y' OR v_TemplateInDev ='Y')
+      AND M1.AD_MODULE_ID = PT.AD_MODULE_ID
+      AND M1.AD_LANGUAGE != MO.AD_LANGUAGE
+      AND AD_MENU_TRL.AD_LANGUAGE=M1.AD_LANGUAGE  AND m.AD_Process_ID IS NOT NULL  AND Action IN('R', 'P')
+      );
+    -- Sync Names = Form
+    DBMS_OUTPUT.PUT_LINE('Synchronizing Menu with Forms') ;
+    UPDATE AD_MENU
+      SET NAME=
+      (SELECT T.NAME
+         FROM AD_MODULE M,
+               AD_Form w, 
+               AD_Form_TRL T
+        WHERE AD_MENU.AD_Form_ID=w.AD_Form_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND w.AD_Form_ID = T.AD_Form_ID
+          AND M.AD_LANGUAGE = T.AD_LANGUAGE
+        UNION
+        SELECT W.NAME
+         FROM AD_MODULE M, AD_MODULE M2,
+               AD_Form w
+        WHERE AD_MENU.AD_Form_ID=w.AD_Form_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND W.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          )
+      , Description=
+        (SELECT T.description
+         FROM AD_MODULE M,
+               AD_Form w, 
+               AD_Form_TRL T
+        WHERE AD_MENU.AD_Form_ID=w.AD_Form_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND w.AD_Form_ID = T.AD_Form_ID
+          AND M.AD_LANGUAGE = T.AD_LANGUAGE
+        UNION
+        SELECT W.description
+         FROM AD_MODULE M, AD_MODULE M2,
+               AD_Form w
+        WHERE AD_MENU.AD_Form_ID=w.AD_Form_ID
+          AND AD_MENU.AD_Module_ID = M.AD_MODULE_ID
+          AND W.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M.AD_LANGUAGE = M2.AD_LANGUAGE
+          )          
+    WHERE AD_Form_ID IS NOT NULL  AND Action='X'
+    AND EXISTS (SELECT 1 
+                    FROM AD_MODULE
+                  WHERE (AD_MENU.AD_MODULE_ID = AD_MODULE_ID
+                    AND ISINDEVELOPMENT ='Y')
+                    OR v_TemplateInDev ='Y');
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  rows updated: ' || v_rowcount) ;
+    UPDATE AD_MENU_TRL
+      SET NAME=
+      (SELECT ft.NAME
+      FROM AD_FORM_TRL ft, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=ft.AD_LANGUAGE
+      )
+      , Description=
+      (SELECT ft.Description
+      FROM AD_FORM_TRL ft, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=ft.AD_LANGUAGE
+      )
+      , IsTranslated=
+      (SELECT ft.IsTranslated
+      FROM AD_FORM_TRL ft, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+      AND AD_MENU_TRL.AD_LANGUAGE=ft.AD_LANGUAGE
+      )
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_FORM_TRL ft, AD_MENU m, AD_MODULE MO
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+      AND MO.AD_MODULE_ID = M.AD_MODULE_ID
+      AND (MO.ISINDEVELOPMENT = 'Y' OR v_TemplateInDev ='Y')
+      AND MO.AD_LANGUAGE != FT.AD_LANGUAGE
+      AND AD_MENU_TRL.AD_LANGUAGE=ft.AD_LANGUAGE  AND m.AD_Form_ID IS NOT NULL  AND Action='X'
+      );
+      
+    UPDATE AD_MENU_TRL
+      SET NAME=
+      (SELECT ft.NAME
+      FROM AD_FORM ft, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+   
+      )
+      , Description=
+      (SELECT ft.Description
+      FROM AD_FORM ft, AD_MENU m
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+      
+      )
+      , IsTranslated= 'Y'
+    WHERE EXISTS
+      (SELECT *
+      FROM AD_FORM ft, AD_MENU m, AD_MODULE MO, AD_MODULE MO1
+      WHERE AD_MENU_TRL.AD_Menu_ID=m.AD_Menu_ID AND m.AD_Form_ID=ft.AD_Form_ID
+      AND MO.AD_MODULE_ID = M.AD_MODULE_ID
+      AND (MO.ISINDEVELOPMENT ='Y' OR v_TemplateInDev ='Y')
+      AND MO1.AD_MODULE_ID = FT.AD_MODULE_ID
+      AND MO.AD_LANGUAGE != MO1.AD_LANGUAGE
+      AND AD_MENU_TRL.AD_LANGUAGE=MO1.AD_LANGUAGE  AND m.AD_Form_ID IS NOT NULL  AND Action='X'
+      );
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('  trl rows updated: ' || v_rowcount) ;
+    
+    -- Call extension points
+    SELECT count(*) INTO v_count
+    FROM DUAL
+    WHERE EXISTS (SELECT 1 FROM AD_EP_PROCEDURES WHERE AD_EXTENSION_POINTS_ID= '1C3043156C334398AA114F7E0AB6A18B');
+    IF (v_count=1) THEN 
+	DECLARE
+	  v_ep_instance VARCHAR(32);
+	  v_extension_point_id VARCHAR(32) := '1C3043156C334398AA114F7E0AB6A18B';
+	BEGIN
+	  v_ep_instance := get_uuid();	 
+	  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'p_PInstance_ID', p_PInstance_ID, NULL, NULL, NULL, NULL, NULL, NULL);	  
+	  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User', v_AD_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message', NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+          AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result', NULL, NULL, v_result, NULL, NULL, NULL, NULL);
+	  AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+
+	  SELECT p_number INTO v_Result
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	    AND parametername = 'Result';
+
+	  SELECT p_text INTO v_Message
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	      AND parametername = 'Message';
+	 
+	  DELETE FROM ad_ep_instance_para WHERE ad_ep_instance_id = v_ep_instance;
+	END;
+
+    END IF; 
+
+    --<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+  RETURN;
+END AD_SYNCHRONIZE
+]]></body>
+    </function>
+  </database>

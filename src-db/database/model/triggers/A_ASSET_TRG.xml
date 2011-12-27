@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER A_ASSET_TRG">
+    <trigger name="A_ASSET_TRG" table="A_ASSET" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  TYPE RECORD IS REF CURSOR;
+  v_Acct_ID VARCHAR2(32);
+  Cur_Defaults RECORD;
+  v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+
+BEGIN
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  --  Default Accounts for all AcctSchema
+  IF(INSERTING) THEN
+     FOR Cur_Defaults IN (SELECT *
+                        FROM A_Asset_Group_Acct d1
+                        WHERE d1.A_Asset_Group_ID=:new.A_Asset_Group_ID
+                        AND EXISTS
+			      (
+			      SELECT 1
+			      FROM AD_Org_AcctSchema
+			      WHERE (AD_IsOrgIncluded(AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1 OR AD_IsOrgIncluded(:new.AD_ORG_ID, AD_Org_ID, :new.AD_Client_ID)<>-1)
+			      AND IsActive = 'Y'
+			      AND AD_Org_AcctSchema.C_AcctSchema_ID = d1.C_AcctSchema_ID
+			      )
+            AND d1.AD_CLIENT_ID = :new.AD_Client_ID
+			) LOOP
+
+      Ad_Sequence_Next('A_Asset_Acct', Cur_Defaults.AD_Client_ID, v_Acct_ID) ;
+      INSERT
+      INTO A_ASSET_ACCT
+        (
+          A_ASSET_ACCT_ID,
+          A_ASSET_ID, C_ACCTSCHEMA_ID, AD_CLIENT_ID,
+          AD_ORG_ID, ISACTIVE, CREATED,
+          CREATEDBY, UPDATED, UPDATEDBY,
+          A_DEPRECIATION_ACCT, A_ACCUMDEPRECIATION_ACCT, A_DISPOSAL_LOSS,
+          A_DISPOSAL_GAIN
+        )
+        VALUES
+        (
+          get_uuid(),
+          :new.A_Asset_ID, Cur_Defaults.C_AcctSchema_ID, :new.AD_Client_ID,
+          :new.AD_Org_ID,  'Y', now(),
+          :new.CreatedBy, now(), :new.UpdatedBy,
+          Cur_Defaults.A_DEPRECIATION_ACCT, Cur_Defaults.A_ACCUMDEPRECIATION_ACCT, Cur_Defaults.A_DISPOSAL_LOSS,
+          Cur_Defaults.A_DISPOSAL_LOSS
+        )
+        ;
+      END LOOP;
+  ELSIF (UPDATING) THEN
+    UPDATE A_ASSET_ACCT SET AD_ORG_ID = :new.AD_ORG_ID
+    WHERE A_ASSET_ID = :new.A_ASSET_ID;
+  END IF;
+  IF (INSERTING OR UPDATING) THEN
+   --Does not allow to change the attribute set value
+   -- for products which attribute set value type is Fixed
+   IF (:NEW.M_PRODUCT_ID IS NOT NULL AND COALESCE(:new.M_AttributeSetInstance_ID,'0')!='0') THEN
+    SELECT ATTRSETVALUETYPE 
+    INTO v_AttrSetValueType
+    FROM M_PRODUCT 
+    WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+    IF (v_AttrSetValueType='F') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@AttrSetValueFixed@');
+    END IF;
+   END IF;
+  END IF;
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20008, 'The asset group for this asset has no accounts') ;
+END A_ASSET_TRG
+]]></body>
+    </trigger>
+  </database>

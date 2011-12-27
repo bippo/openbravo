@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_GETTAB_FROM_TABLE">
+    <function name="AD_GETTAB_FROM_TABLE" type="VARCHAR">
+      <parameter name="p_table_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_docbasetype" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_count NUMBER;
+  v_return VARCHAR2(32);
+  v_record_ID VARCHAR2(32);
+ 
+BEGIN
+
+  IF (p_table_id = '4D8C3B3C31D1410DA046140C9F024D17') THEN --'APRM_Finacc_Transaction_v'
+    RETURN 'FF8080812F213146012F2135BC25000E'; --Transactions
+  ELSE
+    -- General Ledger Journal - Link to Tabs Extension Point
+
+    SELECT count(*) INTO v_count FROM DUAL
+    WHERE EXISTS (SELECT 1 FROM ad_ep_procedures WHERE ad_extension_points_id = '830A9E22114C4322BBD2144C215C85E4');
+    IF (v_count=1) THEN
+      DECLARE
+        v_ep_instance VARCHAR2(32);
+        v_extension_point_id VARCHAR2(32) := '830A9E22114C4322BBD2144C215C85E4';
+      BEGIN
+        DBMS_OUTPUT.PUT_LINE( '***********' || v_extension_point_id || '***********');
+        v_ep_instance := get_uuid();
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID', p_table_id, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Return', v_return, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction', p_docbasetype, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User', p_client_id, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+        SELECT p_string INTO v_return
+        FROM ad_ep_instance_para
+        WHERE ad_ep_instance_id = v_ep_instance
+   	  AND parametername LIKE 'Return';
+
+   	DBMS_OUTPUT.PUT_LINE( '***********' || v_return || '***********');
+
+        DELETE FROM ad_ep_instance_para
+        WHERE ad_ep_instance_id = v_ep_instance;
+      END;
+    END IF;
+
+    IF ((v_return is null) or (v_return = '')) THEN
+      SELECT max(tb.ad_tab_id)
+      INTO v_return
+      FROM ad_table t left join ad_tab tb on t.ad_table_id = tb.ad_table_id
+                      left join ad_window w on tb.ad_window_id = w.ad_window_id
+                      left join ad_column c on t.ad_table_id = c.ad_table_id
+      WHERE t.ad_table_id = p_table_id
+        AND (CASE (SELECT max(issotrx) 
+                   FROM c_doctype d
+                   WHERE d.docbasetype = p_docbasetype
+                    AND d.ad_client_id = p_client_id) 
+             WHEN 'N' THEN 
+               COALESCE(t.po_window_id, t.ad_window_id)
+             ELSE
+               t.ad_window_id END) = w.ad_window_id
+        AND c.iskey = 'Y';
+    END IF;
+  END IF;
+  RETURN v_return;
+END AD_GETTAB_FROM_TABLE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER GL_JOURNALLINE2_TRG">
+    <trigger name="GL_JOURNALLINE2_TRG" table="GL_JOURNALLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  v_AcctSchema_ID VARCHAR2(32) ;
+  v_TargetCurrency_ID VARCHAR2(32) ;
+  v_StdPrecision      NUMBER(10) ;
+  v_rate              NUMBER;
+  v_CurrencyRate      NUMBER;
+  v_CurrencyRateType  VARCHAR(60) ;
+  v_DateAcct          DATE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(UPDATING) THEN
+    IF NOT((COALESCE(:old.AMTSOURCEDR, 0) <> COALESCE(:NEW.AMTSOURCEDR, 0) OR COALESCE(:old.AMTSOURCECR, 0) <> COALESCE(:NEW.AMTSOURCECR, 0) OR COALESCE(:old.C_CURRENCY_ID, '0') <> COALESCE(:NEW.C_CURRENCY_ID, '0'))) THEN
+      RETURN;
+    END IF;
+  END IF;
+  SELECT C_AcctSchema_ID,
+    CurrencyRate,
+    COALESCE(CurrencyRateType, 'S'),
+    dateacct
+  INTO v_AcctSchema_ID,
+    v_CurrencyRate,
+    v_CurrencyRateType,
+    v_DateAcct
+  FROM GL_Journal
+  WHERE GL_Journal_ID=:NEW.GL_Journal_ID;
+  SELECT COALESCE(MAX(c.C_Currency_ID), '0'),
+    COALESCE(MAX(c.StdPrecision), 2)
+  INTO v_TargetCurrency_ID,
+    v_StdPrecision
+  FROM C_AcctSchema a,
+    C_Currency c
+  WHERE a.C_Currency_ID=c.C_Currency_ID
+    AND a.C_AcctSchema_ID=v_AcctSchema_ID;
+  v_rate:=C_CURRENCY_RATE(:NEW.C_Currency_ID, v_TargetCurrency_ID, v_DateAcct, v_CurrencyRateType, :NEW.AD_CLIENT_ID, :NEW.AD_ORG_ID) ;
+  IF(v_rate IS NULL) THEN
+    v_rate:=v_CurrencyRate;
+  END IF;
+  :NEW.AMTACCTDR:=ROUND(COALESCE(:NEW.AMTSOURCEDR, 0) *v_rate, v_StdPrecision) ;
+  :NEW.AMTACCTCR:=ROUND(COALESCE(:NEW.AMTSOURCECR, 0) *v_rate, v_StdPrecision) ;
+  :NEW.CURRENCYRATE:=v_rate;
+  :NEW.CURRENCYRATETYPE:=v_CurrencyRateType;
+END GL_JOURNALLINE2_TRG
+]]></body>
+    </trigger>
+  </database>

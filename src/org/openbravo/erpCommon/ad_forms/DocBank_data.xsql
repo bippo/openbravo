@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DocBankData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT B.*, '' AS C_BANK_ID, '' AS NAME, '' AS ROUTINGNO, '' AS C_LOCATION_ID, '' AS SWIFTCODE, '' AS ISOWNBANK, '' AS CODEBANK,
+        '' AS CODEBRANCH, '' AS DIGITCONTROL, '' AS C_CASH_ID, '' AS STATEMENTDATE, '' AS BEGINNINGBALANCE, '' AS ENDINGBALANCE,
+        '' AS STATEMENTDIFFERENCE, '' AS PROCESSING, '' AS PROCESSED, '' AS POSTED, '' AS AD_ORGTRX_ID, '' AS C_PROJECT_ID,
+        '' AS C_CAMPAIGN_ID, '' AS C_ACTIVITY_ID, '' AS USER1_ID, '' AS USER2_ID, '' AS C_BANKACCOUNT_ID, '' AS ISMANUAL, '' AS CREATEFROM,
+        '' AS ACCOUNT_ID
+        FROM C_BankStatementLine B WHERE C_BankStatement_ID = ? ORDER BY Line
+     ]]>
+     </Sql>
+     <Parameter name="C_BankAccount_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_Currency_ID FROM C_BankAccount WHERE C_BankAccount_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="C_BankAccount_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT B.AD_CLIENT_ID, B.AD_ORG_ID, B.NAME, B.C_BANKACCOUNT_ID, B.POSTED,
+        B.STATEMENTDATE, B.STATEMENTDIFFERENCE
+        FROM C_BANKSTATEMENT B          
+        WHERE AD_Client_ID=? 
+        AND C_BANKSTATEMENT_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+  <SqlMethod name="selectBankInTransitAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+		SELECT B_INTRANSIT_ACCT  AS ACCOUNT_ID
+		FROM C_BANKSTATEMENTLINE, C_BANKSTATEMENT, C_BANKACCOUNT, C_BANKACCOUNT_ACCT
+		WHERE C_BANKSTATEMENTLINE.C_BANKSTATEMENT_ID = C_BANKSTATEMENT.C_BANKSTATEMENT_ID
+		AND C_BANKSTATEMENT.C_BANKACCOUNT_ID = C_BANKACCOUNT.C_BANKACCOUNT_ID
+		AND C_BANKACCOUNT.C_BANKACCOUNT_ID = C_BANKACCOUNT_ACCT.C_BANKACCOUNT_ID
+		AND C_BANKSTATEMENTLINE_ID = ?
+		AND C_BANKACCOUNT_ACCT.C_ACCTSCHEMA_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_BANKSTATEMENTLINE_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>     
+   </SqlMethod>
+   </SqlClass>

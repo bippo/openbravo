@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="VIEW APRM_FINACC_TRX_FULL_ACCT_V">
+    <view name="APRM_FINACC_TRX_FULL_ACCT_V"><![CDATA[SELECT fact_acct.fact_acct_id AS aprm_finacc_trx_full_acct_v_id, fact_acct.ad_client_id, fact_acct.ad_org_id, fact_acct.isactive, fact_acct.created, fact_acct.createdby, fact_acct.updated, fact_acct.updatedby, fact_acct.c_acctschema_id, fact_acct.account_id AS c_elementvalue_id, fact_acct.datetrx, fact_acct.dateacct, fact_acct.c_period_id, fact_acct.ad_table_id, 
+CASE
+WHEN fact_acct.ad_table_id = '4D8C3B3C31D1410DA046140C9F024D17' THEN fact_acct.record_id
+ELSE fact_acct.line_id
+END AS fin_finacc_transaction_id, 
+CASE
+WHEN fact_acct.ad_table_id = '4D8C3B3C31D1410DA046140C9F024D17' THEN NULL
+ELSE fact_acct.record_id
+END AS fin_reconciliation_id, 
+CASE
+WHEN fact_acct.ad_table_id = '4D8C3B3C31D1410DA046140C9F024D17' THEN NULL
+ELSE (SELECT fin_bankstatementline.fin_bankstatement_id
+FROM fin_bankstatementline
+WHERE fin_bankstatementline.fin_finacc_transaction_id = fact_acct.line_id)
+END AS fin_bankstatement_id, 
+CASE
+WHEN fact_acct.ad_table_id = '4D8C3B3C31D1410DA046140C9F024D17' THEN NULL
+ELSE (SELECT fin_bankstatementline.line
+FROM fin_bankstatementline
+WHERE fin_bankstatementline.fin_finacc_transaction_id = fact_acct.line_id)
+END AS line, fin_finacc_transaction.fin_financial_account_id, fact_acct.gl_category_id, fact_acct.c_tax_id, fact_acct.m_locator_id, fact_acct.postingtype, fact_acct.c_currency_id, fact_acct.amtsourcedr, fact_acct.amtsourcecr, fact_acct.amtacctdr, fact_acct.amtacctcr, fact_acct.c_uom_id, fact_acct.qty, fact_acct.m_product_id, fact_acct.c_bpartner_id, fact_acct.ad_orgtrx_id, fact_acct.c_locfrom_id, fact_acct.c_locto_id, fact_acct.c_salesregion_id, fact_acct.c_project_id, fact_acct.c_campaign_id, fact_acct.c_activity_id, fact_acct.user1_id, fact_acct.user2_id, fact_acct.description, fact_acct.a_asset_id, fact_acct.fact_acct_group_id, fact_acct.seqno, fact_acct.factaccttype, fact_acct.docbasetype, fact_acct.acctvalue, fact_acct.acctdescription, fact_acct.c_withholding_id
+FROM fact_acct, fin_finacc_transaction
+WHERE (fact_acct.record_id = fin_finacc_transaction.fin_finacc_transaction_id OR fact_acct.line_id = fin_finacc_transaction.fin_finacc_transaction_id) AND (fact_acct.ad_table_id IN ('4D8C3B3C31D1410DA046140C9F024D17', 'B1B7075C46934F0A9FD4C4D0F1457B42'))]]></view>
+  </database>

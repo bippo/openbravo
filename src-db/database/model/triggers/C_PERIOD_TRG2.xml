@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_PERIOD_TRG2">
+    <trigger name="C_PERIOD_TRG2" table="C_PERIOD" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Calculate End Date
+    */
+    v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+    V_COUNT NUMBER:= 0;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+   IF(UPDATING) THEN
+     IF COALESCE(:old.StartDate, v_DateNull) <> COALESCE(:NEW.StartDate, v_DateNull) THEN
+	:new.EndDate:= ADD_MONTHS(TRUNC(:new.StartDate, 'MM'), 1) -1;
+     END IF;
+   END IF;
+
+   IF(INSERTING) THEN
+        :new.EndDate:= ADD_MONTHS(TRUNC(:new.StartDate, 'MM'), 1) -1;
+   END IF;
+
+   -- Validating dates period
+   IF(UPDATING OR INSERTING) THEN
+
+	IF (INSERTING AND :NEW.PERIODTYPE = 'C_YEARPERIOD') THEN
+		-- Creating periods from procedure, no need to check dates
+		:NEW.PERIODTYPE := 'S';
+	ELSE
+		IF (:NEW.STARTDATE > :NEW.ENDDATE) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@DatesWrong@');
+		END IF;
+		SELECT COUNT(*) INTO V_COUNT FROM C_PERIOD WHERE C_PERIOD_ID <> :NEW.C_PERIOD_ID AND C_YEAR_ID = :NEW.C_YEAR_ID AND :NEW.STARTDATE <= ENDDATE AND :NEW.ENDDATE >= STARTDATE;
+		IF (V_COUNT > 0) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@DatesOverlapped@');
+		END IF;
+	END IF;
+   END IF;
+
+   IF DELETING THEN
+        DELETE FROM C_PeriodControl_log
+	WHERE periodno=:old.C_Period_ID;
+
+	DELETE FROM C_PeriodControl
+	WHERE C_Period_ID=:old.C_Period_ID;
+   END IF;
+
+END C_PERIOD_TRG2
+]]></body>
+    </trigger>
+  </database>

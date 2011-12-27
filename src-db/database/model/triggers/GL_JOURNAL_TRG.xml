@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER GL_JOURNAL_TRG">
+    <trigger name="GL_JOURNAL_TRG" table="GL_JOURNAL" fires="after" insert="false" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    *  Journal
+    * - Update Journal Batch Totals if exists (insert is always 0)
+    */
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    -- Subtract Old Amount
+    IF(UPDATING) THEN
+      IF(:old.TotalDr <> :NEW.TotalDr OR :OLD.TotalCr <> :NEW.TotalCr) THEN  
+      IF(:old.GL_JournalBatch_ID IS NOT NULL AND :old.IsActive='Y') THEN
+	  UPDATE GL_JournalBatch
+	    SET TotalDr=TotalDr - :old.TotalDr,
+	    TotalCr=TotalCr - :old.TotalCr
+	  WHERE GL_JournalBatch_ID=:old.GL_JournalBatch_ID;
+       END IF;
+     END IF;
+   END IF;
+   IF(DELETING) THEN      
+      IF(:old.GL_JournalBatch_ID IS NOT NULL AND :old.IsActive='Y') THEN
+	  UPDATE GL_JournalBatch
+	    SET TotalDr=TotalDr - :old.TotalDr,
+	    TotalCr=TotalCr - :old.TotalCr
+	  WHERE GL_JournalBatch_ID=:old.GL_JournalBatch_ID;
+       END IF;     
+   END IF;
+ -- Add new Amount
+ IF(INSERTING OR UPDATING) THEN
+  IF(COALESCE(:old.TotalDr, 0) <> COALESCE(:NEW.TotalDr, 0)
+  OR COALESCE(:old.TotalCr, 0) <> COALESCE(:NEW.TotalCr, 0))
+ THEN
+    IF(:new.GL_JournalBatch_ID IS NOT NULL AND :new.IsActive='Y') THEN
+      UPDATE GL_JournalBatch
+        SET TotalDr=TotalDr + :new.TotalDr,
+        TotalCr=TotalCr + :new.TotalCr
+      WHERE GL_JournalBatch_ID=:new.GL_JournalBatch_ID;
+    END IF;
+  END IF;
+ END IF;
+END GL_JOURNAL_TRG
+]]></body>
+    </trigger>
+  </database>

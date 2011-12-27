@@ -1,0 +1,481 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_TAXPAYMENT_POST">
+    <function name="C_TAXPAYMENT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+v_resultstr VARCHAR2(2000) := '';
+v_message VARCHAR2(200) := '';
+v_record_ID VARCHAR2(32);
+v_result NUMBER:= 1;
+-- Success
+v_total NUMBER;
+v_c_settlement_cancel_ID VARCHAR2(32);
+-- Parameter
+TYPE record IS REF CURSOR;
+cur_parameter record;
+cur_registertype record;
+cur_line record;
+-- Record Info
+v_client_ID VARCHAR2(32);
+v_org_ID VARCHAR2(32);
+v_updatedby c_taxpayment.updatedby%TYPE;
+v_createdby c_taxpayment.createdby%TYPE;
+v_processed c_taxpayment.processed%TYPE;
+
+v_taxtotalamt NUMBER;
+v_prevvatcredit NUMBER;
+v_paymentamt NUMBER;
+v_paymentcreditamt NUMBER;
+v_paymentdebitamt NUMBER;
+v_isreceipt VARCHAR2(1);
+v_ispayment VARCHAR2(1);
+v_posted VARCHAR(60);
+
+v_taxamtfromreglines NUMBER;
+
+v_taxregistertotal NUMBER;
+
+v_date DATE;
+v_settlementid varchar2(32);
+v_settlementdoctype_ID VARCHAR2(32);
+v_sdocumentno VARCHAR(40);
+v_debtpaymentid varchar2(32);
+v_debtpaymentbalancingid varchar2(32);
+v_paymentrule VARCHAR2(30);
+v_bpartner_ID VARCHAR2(32);
+
+
+v_gl_journalbatchid varchar2(32);
+v_gljbdocumentno VARCHAR(40);
+v_gl_journaldoctype_ID VARCHAR2(32);
+v_gl_journalid varchar2(32);
+v_gljdocumentno VARCHAR(40);
+v_gl_journallineid varchar2(32);
+v_line NUMBER;
+v_validcombination_ID VARCHAR2(32);
+
+v_glitem_acct VARCHAR2(32);
+v_glitem_ID VARCHAR2(32);
+
+v_debit NUMBER;
+v_credit NUMBER;
+ v_totaldebit NUMBER;
+v_totalcredit NUMBER;
+
+
+v_acctschema_ID VARCHAR2(32);
+v_calendar_ID VARCHAR2(32);
+v_currency_ID VARCHAR2(32);
+v_currencyratetype VARCHAR2(30);
+v_gl_category_ID VARCHAR2(32);
+v_period_ID VARCHAR2(32);
+
+v_name NVARCHAR2(255);
+v_TRTcountY  NUMBER;
+v_TRTcountN  NUMBER;
+v_DBA_ErrorLog_ID VARCHAR2(32);
+v_dummy VARCHAR2(2000);
+v_count NUMBER:=0;
+v_FIN_PAYMENT_ID VARCHAR2(32);
+v_FIN_PAYMENT_DETAIL_ID VARCHAR2(32);
+v_FIN_FINACC_TRANSACTION_ID VARCHAR2(32);
+v_PaymentDocType_ID VARCHAR2(32);
+v_PaymentDocumentNo FIN_PAYMENT.DOCUMENTNO%TYPE;
+v_Financial_Account_ID VARCHAR2(32);
+v_PaymentMethod_ID VARCHAR2(32);
+v_CreateFinTransaction FIN_FINACC_PAYMENTMETHOD.AUTOMATIC_RECEIPT%TYPE;
+v_ExecutionType FIN_FINACC_PAYMENTMETHOD.PAYIN_EXECUTION_TYPE%TYPE;
+
+BEGIN
+  --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_pinstance_id);
+    v_resultstr := 'PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_pinstance_id,   NULL,   'Y',   NULL,   NULL);
+    -- Get Parameters
+    v_resultstr := 'ReadingParameters';
+    FOR cur_parameter IN
+      (SELECT i.record_id,
+         i.ad_user_id,
+         p.parametername,
+         p.p_string,
+         p.p_number,
+         p.p_date
+       FROM ad_pinstance i LEFT JOIN ad_pinstance_para p ON i.ad_pinstance_id = p.ad_pinstance_id
+       WHERE i.ad_pinstance_id = p_pinstance_id
+       ORDER BY p.seqno)
+    LOOP
+      v_record_id := cur_parameter.record_id;
+    END LOOP;
+
+    -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  v_Record_ID=' || v_record_id);
+
+    BEGIN
+      -- BODY
+
+      select dateto, ad_client_id, ad_org_id, createdby, updatedby, generatepayment, c_acctschema_id, c_currency_id, name, C_BPARTNER_ID, processed
+        into v_date, v_client_id, v_org_id, v_createdby, v_updatedby, v_ispayment, v_acctschema_id, v_currency_id, v_name, v_bpartner_id, v_processed
+        from c_taxpayment
+        where c_taxpayment_id=v_record_id;
+
+      select max(gl_category_id)
+      into v_gl_category_id
+      from gl_category where name='Standard';
+
+        v_paymentrule := 'T';
+        v_currencyratetype := 'S';
+
+      select c_calendar_id into v_calendar_ID
+      from ad_org
+      where ad_org_id = ad_org_getcalendarowner(v_org_id);
+
+      select c_period_id into v_period_id
+      from c_period
+      where enddate = (select max(enddate) from c_period where enddate <=v_date
+                      and exists (select 1 from c_year where c_calendar_id = v_calendar_ID
+                    and c_period.c_year_id = c_year.c_year_id))
+      and exists (select 1 from c_year where c_calendar_id = v_calendar_ID
+                    and c_period.c_year_id = c_year.c_year_id);
+
+     --start processing
+
+     update c_taxpayment
+     set processing='Y' where c_taxpayment_id=v_record_id;
+
+     --unprocess
+     if v_processed='Y' then
+      begin
+
+      select tp.gl_journal_id ,  gljb.gl_journalbatch_id, tp.c_settlement_id, tp.fin_payment_id
+      into v_gl_journalid, v_gl_journalbatchid, v_settlementid, v_FIN_PAYMENT_ID
+      from c_taxpayment tp
+      inner join gl_journal glj on tp.gl_journal_id=glj.gl_journal_id
+      inner join gl_journalbatch gljb on gljb.gl_journalbatch_id=glj.gl_journalbatch_id
+      where tp.C_TAXPAYMENT_ID = v_record_id;
+
+      update gl_journal set docaction='RE' where gl_journal_id=v_gl_journalid;
+      select posted into v_posted from gl_journal where gl_journal_id=v_gl_journalid;
+      if v_posted = 'Y' then
+       RAISE_APPLICATION_ERROR(-20000, '@GLJournalDocumentPosted@') ;
+       end if;
+      GL_JOURNAL_POST(null, v_gl_journalid);
+        update c_taxpayment set gl_journal_id=null where c_taxpayment.C_TAXPAYMENT_ID = v_record_id;
+        delete from gl_journalline where gl_journal_id=v_gl_journalid;
+        delete from gl_journal where gl_journal_id=v_gl_journalid;
+        delete from gl_journalbatch where gl_journalbatch_id=v_gl_journalbatchid;
+
+      if v_ispayment = 'Y' then
+        SELECT COUNT(1) INTO v_count
+        FROM ad_preference
+        WHERE property = 'FinancialManagement'
+	  AND ad_module_id <> '0';
+        IF (v_count > 0) THEN
+	  v_dummy := AD_GET_PREFERENCE_VALUE('FinancialManagement', 'Y', v_client_id, v_org_id, NULL, NULL, NULL);
+        ELSIF (v_count = 0) THEN
+	  C_SETTLEMENT_POST(null, v_settlementid);
+	  update c_taxpayment set c_settlement_id=null where c_taxpayment.C_TAXPAYMENT_ID = v_record_id;
+	  delete from c_debt_payment_balancing where c_debt_payment_id in
+	  (select c_debt_payment_id from c_debt_payment where c_settlement_generate_id = v_settlementid);
+	  delete from c_debt_payment where c_settlement_generate_id = v_settlementid;
+	  delete from c_settlement where c_settlement_id=v_settlementid;
+	end if;
+      end if;
+    end;
+    end if;
+
+
+   if v_processed='N' then
+   begin
+       --gl journal
+        ad_sequence_next('GL_JournalBatch', v_record_id, v_gl_journalbatchid);
+        ad_sequence_doc('DocumentNo_GL_JournalBatch', v_client_id, 'Y', v_gljbdocumentno);
+
+        insert
+        into gl_journalbatch (gl_journalbatch_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   updated,   updatedby,   documentno, description, postingtype,   datedoc,   dateacct, c_period_id, c_currency_id)
+        values (v_gl_journalbatchid, v_client_id, v_org_id,'Y', now(), v_createdby, now(), v_updatedby, v_gljbdocumentno, v_name, 'A', v_date, v_date, v_period_id, v_currency_id);
+
+        v_gl_journaldoctype_id := ad_get_doctype(v_client_id,   v_org_id,   to_char('GLJ'));
+        ad_sequence_next('GL_Journal', v_record_id, v_gl_journalid);
+        ad_sequence_doctype(v_gl_journaldoctype_id, v_record_id, 'Y', v_gljdocumentno);
+
+        insert
+        into gl_journal (gl_journal_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   updated,   updatedby, c_acctschema_id, c_doctype_id, documentno, docstatus, docaction, isapproved,description, postingtype, gl_category_id,   datedoc,   dateacct, c_period_id, c_currency_id, currencyratetype, gl_journalbatch_id)
+        values (v_gl_journalid, v_client_id, v_org_id,'Y', now(), v_createdby, now(), v_updatedby, v_acctschema_id, v_gl_journaldoctype_id, v_gljdocumentno, 'DR', 'CO', 'Y', v_name, 'A', v_gl_category_id, v_date, v_date, v_period_id, v_currency_id, v_currencyratetype, v_gl_journalbatchid);
+
+      v_line:=0;
+      v_totaldebit:=0;
+      v_totalcredit:=0;
+
+      for cur_line in
+      (select
+      ttl.c_tax_id,
+      tt.issotrx,
+      case when tt.issotrx='Y' then max(ta.t_due_acct) else max(ta.t_credit_acct) end as acct_id
+      from c_taxregister_type_lines ttl
+      inner join c_taxregister_type tt on ttl.c_taxregister_type_id=tt.c_taxregister_type_id
+      inner join c_tax_acct ta on ta.c_tax_id=ttl.c_tax_id
+      where tt.isactive='Y' and ttl.isactive='Y' and ta.isactive='Y'
+      group by ttl.c_tax_id, tt.issotrx )
+
+      loop --move the sum over
+
+      select sum(trl.taxamt)
+      into v_taxamtfromreglines
+      from c_taxregisterline trl
+      inner join c_taxregister tr on tr.c_taxregister_id=trl.c_taxregister_id
+      inner join c_taxregister_type trt on trt.c_taxregister_type_id=tr.c_taxregister_type_id
+      where trl.c_tax_id=cur_line.c_tax_id
+      and trt.issotrx=cur_line.issotrx
+      and tr.c_taxpayment_id=v_record_id;
+
+      ad_sequence_next('GL_JournalLine', v_record_id, v_gl_journallineid);
+
+
+      if v_taxamtfromreglines is null then
+      v_taxamtfromreglines := 0;
+      end if;
+
+      if cur_line.issotrx='N'  then
+      v_credit := v_taxamtfromreglines;
+      v_debit := 0;
+      else
+      v_credit := 0;
+      v_debit := v_taxamtfromreglines;
+      end if;
+
+      if v_taxamtfromreglines <> 0 then
+      begin
+      v_line := v_line + 10;
+      insert
+      into gl_journalline(gl_journalline_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   updated,   updatedby, gl_journal_id, line, c_currency_id, currencyratetype, dateacct, c_validcombination_id, AMTSOURCEDR, AMTSOURCECR, AMTACCTDR, AMTACCTCR)
+      values
+      (v_gl_journallineid, v_client_id, v_org_id,'Y', now(), v_createdby, now(), v_updatedby, v_gl_journalid, v_line, v_currency_id, v_currencyratetype, v_date, cur_line.acct_id, v_debit, v_credit, v_debit, v_credit);
+      end;
+      end if;
+
+      v_totaldebit := v_totaldebit+v_credit;
+      v_totalcredit := v_totalcredit+v_debit;
+
+      end loop;
+
+      select count(*)
+      into v_TRTcountY
+      from c_taxregister_type tt where tt.issotrx='Y';
+
+      select count(*)
+      into v_TRTcountN
+      from c_taxregister_type tt where tt.issotrx='N';
+
+      if v_TRTcountY=0 or v_TRTcountN=0 then
+      RAISE_APPLICATION_ERROR(-20100, '@TwoRegisterTypesNeeded@');
+      end if;
+
+      select case when tt.issotrx='Y' then max(glitem_credit_acct) else max(glitem_debit_acct) end, max(tt.c_glitem_id)
+      into v_glitem_acct, v_glitem_id
+      from c_taxregister_type tt
+      inner join c_glitem_acct gia on gia.c_glitem_id=tt.c_glitem_id
+      where tt.isactive='Y' and gia.isactive='Y' and tt.issotrx= case when v_totalcredit - v_totaldebit > 0 then 'N' else 'Y' end
+      group by tt.issotrx;
+
+      if v_totalcredit - v_totaldebit > 0
+      then
+       v_totalcredit := v_totalcredit - v_totaldebit;
+       v_totaldebit := 0;
+       else
+       v_totaldebit := v_totaldebit - v_totalcredit;
+        v_totalcredit := 0;
+        end if;
+
+      v_line := v_line + 10;
+      ad_sequence_next('GL_JournalLine', v_record_id, v_gl_journallineid);
+     insert
+     into gl_journalline(gl_journalline_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   updated,   updatedby, gl_journal_id,    line, c_currency_id, currencyratetype, dateacct, c_validcombination_id, AMTSOURCEDR, AMTSOURCECR, AMTACCTDR, AMTACCTCR)
+                 values (v_gl_journallineid,   v_client_id,      v_org_id,        'Y',     now(), v_createdby,   now(), v_updatedby, v_gl_journalid, v_line, v_currency_id, v_currencyratetype, v_date, v_glitem_acct, v_totaldebit, v_totalcredit, v_totaldebit, v_totalcredit);
+
+    GL_JOURNAL_POST(null, v_gl_journalid);
+
+      UPDATE c_taxpayment
+        SET gl_journal_id = v_gl_journalid
+        where c_taxpayment.C_TAXPAYMENT_ID = v_record_id;
+
+      --settlement
+
+
+      if v_ispayment='Y' then
+      		select sum(case when  c_taxregister.C_TAXREGISTER_TYPE_ID in
+		(select C_TAXREGISTER_TYPE_ID from c_taxregister_type where c_taxregister_type.ISSOTRX='Y')
+		then taxtotalamt
+		else -taxtotalamt end ),
+		sum(case when  c_taxregister.C_TAXREGISTER_TYPE_ID in
+		(select C_TAXREGISTER_TYPE_ID from c_taxregister_type where c_taxregister_type.ISSOTRX='Y')
+		then -lastregaccumamt
+		else lastregaccumamt end )
+		into v_taxtotalamt, v_prevvatcredit
+		from c_taxregister where c_taxregister.C_TAXPAYMENT_ID=v_record_id;
+
+		if v_prevvatcredit < 0 then v_prevvatcredit := 0;
+		end if;
+		v_paymentamt := v_taxtotalamt - v_prevvatcredit;
+
+
+	      if v_paymentamt <=0 then
+		      v_isreceipt:='Y';
+		      v_paymentamt:=(-1)*v_paymentamt;
+		      v_paymentcreditamt  := v_paymentamt;
+		      v_paymentdebitamt := 0;
+	      else
+		      v_isreceipt:='N';
+		      v_paymentcreditamt  := 0;
+		      v_paymentdebitamt := v_paymentamt;
+	      end if;
+
+	      SELECT COUNT(1) INTO v_count
+	      FROM ad_preference
+	      WHERE property = 'FinancialManagement'
+		AND ad_module_id <> '0';
+	IF (v_count > 0) THEN
+		v_dummy := AD_GET_PREFERENCE_VALUE('FinancialManagement', 'Y', v_client_id, v_org_id, NULL, NULL, NULL);
+	ELSIF (v_count = 0) THEN
+		v_ResultStr:='Generating C_Debt_Payment';
+
+		v_settlementdoctype_id := ad_get_doctype(v_client_id,   v_org_id,   to_char('STM'));
+		ad_sequence_next('C_Settlement', v_record_id, v_settlementid);
+		ad_sequence_doctype(v_settlementdoctype_id, v_record_id, 'Y', v_sdocumentno);
+
+		IF(v_sdocumentno IS NULL) THEN --to do send by mail
+		ad_sequence_doc('DocumentNo_C_Settlement', v_client_id, 'Y', v_sdocumentno);
+		END IF;
+
+		INSERT
+			INTO c_settlement(c_settlement_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   updated,   updatedby,   documentno,   datetrx,   dateacct,   settlementtype,   c_doctype_id,   processing,   processed,   posted,   createfrom,   isgenerated, c_currency_id)
+			SELECT v_settlementid,
+			  ad_client_id,
+			  ad_org_id,
+			  'Y',
+			  now(),
+			  createdby,
+			  now(),
+			  updatedby,
+			  v_sdocumentno,
+			  v_date,
+			  TRUNC(now()),
+			  'I',
+			  v_settlementdoctype_id,
+			  'N',
+			  'N',
+			  'N',
+			  'N',
+			  'N',
+			  v_currency_id
+			FROM c_taxpayment
+		       WHERE c_taxpayment_id = v_record_id;
+
+	       ad_sequence_next('C_Debt_Payment', v_record_id, v_debtpaymentid);
+
+	       INSERT
+		 INTO c_debt_payment(c_debt_payment_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   
+		 updated,   updatedby,   isreceipt,   c_settlement_cancel_id,   c_settlement_generate_id,   description,   
+		 c_invoice_id,   c_bpartner_id,   c_currency_id,   c_cashline_id,   c_bankaccount_id,   c_cashbook_id,   
+		 paymentrule,   ispaid,   amount,   writeoffamt,   dateplanned,   ismanual,   isvalid,   c_bankstatementline_id,   
+		 changesettlementcancel,   cancel_processed,   generate_processed,   c_project_id,   status,   status_initial)
+	       VALUES(v_debtpaymentid,   v_client_id,   v_org_id,   'Y',   now(),   v_createdby,   
+		  now(), v_updatedby,   v_isreceipt,   NULL,   v_settlementid, v_name,   
+		  NULL,   v_bpartner_id,   v_currency_id,   NULL,   NULL,   NULL,   
+		  v_paymentrule,   'N',  v_paymentamt ,   0,   v_date,   'Y',   'Y',   NULL,   
+		  'N',   'N',   'Y',   null,   'DE',   'DE');
+
+
+	       ad_sequence_next('C_Debt_Payment_Balancing', v_record_id, v_debtpaymentbalancingid);
+
+	       insert
+	       into c_debt_payment_balancing(c_debt_payment_balancing_id,   ad_client_id,   ad_org_id,   isactive,   created,   createdby,   
+	       updated,   updatedby, c_debt_payment_id, AMOUNTDEBIT, AMOUNTCREDIT, C_GLITEM_ID)
+	       values(v_debtpaymentbalancingid,   v_client_id,   v_org_id,   'Y',   now(),   v_createdby,   
+	       now(),   v_updatedby, v_debtpaymentid, v_paymentdebitamt, v_paymentcreditamt, v_glitem_id);
+	       C_SETTLEMENT_POST(null, v_settlementid);
+
+	       UPDATE c_taxpayment
+		SET c_settlement_id = v_settlementid
+		where c_taxpayment.C_TAXPAYMENT_ID = v_record_id;
+	END IF;
+      end if;
+     END;
+
+ end if;
+  --C_TaxPayment_Post - Extension Point
+  SELECT count(*) INTO v_count FROM DUAL
+  WHERE EXISTS (SELECT 1 FROM ad_ep_procedures WHERE ad_extension_points_id = '2166B73BAD34456CBABCDFE243A5FBCA');
+  IF (v_count=1) THEN
+    DECLARE
+      v_ep_instance VARCHAR2(32);
+      v_extension_point_id VARCHAR2(32) := '2166B73BAD34456CBABCDFE243A5FBCA';
+    BEGIN
+      v_ep_instance := get_uuid();
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID', v_record_id, NULL, NULL, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User', v_UpdatedBy, NULL, NULL, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'GLItem', v_glitem_id, NULL, NULL, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Amount', NULL, NULL, v_paymentamt, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'IsReceipt', v_isreceipt, NULL, NULL, NULL, NULL, NULL, v_Message);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message', NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result', NULL, NULL, v_result, NULL, NULL, NULL, NULL);
+      AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+      SELECT p_number INTO v_Result
+      FROM ad_ep_instance_para
+      WHERE ad_ep_instance_id = v_ep_instance
+        AND parametername LIKE 'Result';
+      SELECT p_text INTO v_Message
+      FROM ad_ep_instance_para
+      WHERE ad_ep_instance_id = v_ep_instance
+        AND parametername LIKE 'Message';
+
+      DELETE FROM ad_ep_instance_para
+      WHERE ad_ep_instance_id = v_ep_instance;
+    END;
+  END IF;
+
+  
+ -- stop processing
+  update c_taxpayment
+     set processing='N', processed = (CASE WHEN v_processed='N' THEN 'Y' ELSE 'N' END) where c_taxpayment_id=v_record_id;
+ end;
+     IF(p_pinstance_id IS NOT NULL) THEN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished');
+    AD_UPDATE_PINSTANCE(p_pinstance_id,   v_updatedby,   'N',   v_result,   v_message);
+    ELSE
+    DBMS_OUTPUT.PUT_LINE('--<<C_TaxPayment_Post finished>> ' || v_message);
+    END IF;
+
+    EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    ROLLBACK;
+    RAISE;
+  END IF;
+  RETURN;
+END C_TAXPAYMENT_POST
+]]></body>
+    </function>
+  </database>

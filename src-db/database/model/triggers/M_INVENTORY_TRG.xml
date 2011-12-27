@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_INVENTORY_TRG">
+    <trigger name="M_INVENTORY_TRG" table="M_INVENTORY" fires="after" insert="false" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2008 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF DELETING THEN
+    IF (:old.PROCESSED = 'Y') THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF UPDATING THEN
+    IF (:old.PROCESSED = 'Y' AND(
+       (:new.PROCESSED = 'N')
+       OR (COALESCE(:old.MOVEMENTDATE, v_DateNull) <> COALESCE(:new.MOVEMENTDATE, v_DateNull))
+       OR (COALESCE(:old.AD_ORGTRX_ID, '0') <> COALESCE(:new.AD_ORGTRX_ID, '0'))
+       OR (COALESCE(:old.M_WAREHOUSE_ID, '0') <> COALESCE(:new.M_WAREHOUSE_ID, '0'))
+       OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+       OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')))) THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+END M_INVENTORY_TRG
+]]></body>
+    </trigger>
+  </database>

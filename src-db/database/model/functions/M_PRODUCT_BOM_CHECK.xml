@@ -1,0 +1,170 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_PRODUCT_BOM_CHECK">
+    <function name="M_PRODUCT_BOM_CHECK" type="NULL">
+      <parameter name="pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_Product_BOM_Check.sql,v 1.2 2002/05/22 02:48:28 jjanke Exp $
+  ***
+  * Title: Check BOM Structure (free of cycles)
+  * Description:
+  *  Tree cannot contain BOMs which are already referenced
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_temp VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Variables
+    v_Verified CHAR(1):='Y';
+    v_IsBOM CHAR(1) ;
+    v_CountNo NUMBER;
+    FINISH_PROCESS BOOLEAN:=false;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    v_temp:=C_CREATE_TEMPORARY_TABLES();
+    -- Record ID is M_Product_ID of product to be tested
+    SELECT IsBOM  INTO v_IsBOM  FROM M_Product  WHERE M_Product_ID=v_Record_ID;
+    -- No BOM - should not happen, but no problem
+    IF(v_IsBOM='N') THEN
+      FINISH_PROCESS:=true;
+      -- Did not find product
+    ELSIF(v_IsBOM<>'Y') THEN
+      RETURN;
+    END IF;
+    IF(NOT FINISH_PROCESS) THEN
+      -- Checking BOM Structure
+      v_ResultStr:='InsertingRoot';
+      -- Table to put all BOMs - duplicate will cause exception
+      DELETE FROM C_TEMP_Selection2 WHERE Query_ID='0';
+      INSERT INTO C_TEMP_Selection2(Query_ID, C_TEMP_Selection_ID) VALUES('0', v_Record_ID) ;
+      -- Table of root modes
+      DELETE FROM C_TEMP_Selection;
+      INSERT INTO C_TEMP_Selection(C_TEMP_Selection_ID) VALUES(v_Record_ID) ;
+      LOOP
+        -- How many do we have:1
+        SELECT COUNT(*) INTO v_CountNo  FROM C_TEMP_Selection;
+        -- Nothing to do
+        EXIT WHEN(v_CountNo=0) ;
+        -- Insert BOM Nodes into "All" table
+        BEGIN
+          INSERT
+          INTO C_TEMP_Selection2
+            (
+              Query_ID,
+              C_TEMP_Selection_ID
+            )
+          SELECT '0',
+            p.M_Product_ID
+          FROM M_Product p
+          WHERE v_IsBOM='Y'
+            AND EXISTS
+            (SELECT *
+            FROM M_Product_BOM b
+            WHERE p.M_Product_ID=b.M_ProductBOM_ID
+              AND b.M_Product_ID IN
+              (SELECT C_TEMP_Selection_ID FROM C_TEMP_Selection)
+            )
+            ;
+        EXCEPTION 
+	  WHEN others THEN
+            RAISE_APPLICATION_ERROR(-20000,'@LOOP_IN_BOM@');
+        END;
+
+        -- Insert BOM Nodes into temporary table
+        DELETE FROM C_TEMP_Selection2 WHERE Query_ID='1';
+        INSERT
+        INTO C_TEMP_Selection2
+          (
+            Query_ID,
+            C_TEMP_Selection_ID
+          )
+        SELECT '1',
+          p.M_Product_ID
+        FROM M_Product p
+        WHERE v_IsBOM='Y'
+          AND EXISTS
+          (SELECT *
+          FROM M_Product_BOM b
+          WHERE p.M_Product_ID=b.M_ProductBOM_ID
+            AND b.M_Product_ID IN
+            (SELECT C_TEMP_Selection_ID FROM C_TEMP_Selection)
+          )
+          ;
+        -- Copy into root table
+        DELETE FROM C_TEMP_Selection;
+        INSERT
+        INTO C_TEMP_Selection
+          (
+            C_TEMP_Selection_ID
+          )
+        SELECT C_TEMP_Selection_ID  FROM C_TEMP_Selection2  WHERE Query_ID='1';
+      END LOOP;
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    UPDATE M_Product  SET IsVerified='Y'  WHERE M_Product_ID=v_Record_ID;
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  --
+  UPDATE M_Product  SET IsVerified='N'  WHERE M_Product_ID=v_Record_ID;
+  -- Commented by cromero 19102006 COMMIT;
+  --
+  RETURN;
+END M_PRODUCT_BOM_CHECK
+]]></body>
+    </function>
+  </database>

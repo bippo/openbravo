@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportShipperData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT i.DOCUMENTNO AS SHIPMENT, i.M_Inout_id AS shipmentid, AD_COLUMN_IDENTIFIER('M_Freightcategory', to_char(i.M_FREIGHTCATEGORY_ID), ?) AS CATEGORY,
+        AD_COLUMN_IDENTIFIER('M_Shipper', to_char(i.M_SHIPPER_ID), ?) AS SHIPPER,
+        CASE i.IsSOTrx WHEN 'Y' THEN AD_COLUMN_IDENTIFIER('C_Region', to_char(wl.C_REGION_ID), ?)
+                       WHEN 'N' THEN AD_COLUMN_IDENTIFIER('C_Region', to_char(COALESCE(dl.C_REGION_ID, l.C_REGION_ID)), ?) END AS ORIGIN, 
+        CASE i.IsSOTrx WHEN 'Y' THEN AD_COLUMN_IDENTIFIER('C_Region', to_char(COALESCE(dl.C_REGION_ID, l.C_REGION_ID)), ?) 
+                       WHEN 'N' THEN AD_COLUMN_IDENTIFIER('C_Region', to_char(wl.C_REGION_ID), ?) END AS DESTINATION,
+        i.NOPACKAGES AS QTY, 
+	    (CASE WHEN i.FREIGHT_CURRENCY_ID IS NOT NULL
+	    	THEN C_CURRENCY_CONVERT(i.FREIGHTAMT, i.FREIGHT_CURRENCY_ID, ?, TO_DATE(i.MOVEMENTDATE), NULL, i.AD_CLIENT_ID, i.AD_ORG_ID)
+	    	ELSE C_CURRENCY_CONVERT(i.FREIGHTAMT, ?, ?, TO_DATE(i.MOVEMENTDATE), NULL, i.AD_CLIENT_ID, i.AD_ORG_ID) END) AS FREIGHTAMT, 
+	    i.MOVEMENTDATE, '' AS line, '' AS qtyline, '' AS product
+        FROM M_InOut i LEFT JOIN C_BPartner_Location dbl ON dbl.C_BPARTNER_LOCATION_ID = i.DELIVERY_LOCATION_ID
+                       LEFT JOIN C_location dl ON dbl.C_LOCATION_ID = dl.C_LOCATION_ID,
+        C_BPartner_Location bl, C_location l, M_Warehouse w, C_Location wl
+      WHERE i.C_BPARTNER_LOCATION_ID = bl.C_BPARTNER_LOCATION_ID
+        AND bl.C_LOCATION_ID = l.C_LOCATION_ID
+        AND i.M_WAREHOUSE_ID = w.M_WAREHOUSE_ID
+        AND w.C_LOCATION_ID = wl.C_LOCATION_ID 
+        AND i.FREIGHTCOSTRULE = 'C'
+        AND i.M_FREIGHTCATEGORY_ID IS NOT NULL
+        AND i.MOVEMENTDATE >= TO_DATE(?)
+        AND i.MOVEMENTDATE < TO_DATE(?) +1
+        AND 1=1
+      ORDER BY SHIPPER, MOVEMENTDATE
+     ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyBase"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="from"/>
+    <Parameter name="to"/>
+    <Parameter name="shipper" optional="true" after="AND 1=1" text=" AND i.M_SHIPPER_ID = ? "/>
+    <Parameter name="issotrx" optional="true" after="AND 1=1" text=" AND i.IsSOTrx = ? "/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectLine" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT AD_COLUMN_IDENTIFIER('M_Product', to_char(il.M_PRODUCT_ID), ?) AS PRODUCT, il.LINE, 
+        CASE f.LINE_ROUND WHEN 'N' THEN CASE f.FREIGHT_UNIT WHEN 'P' THEN il.MOVEMENTQTY/p.UNITSPERPALLET WHEN 'U' THEN il.MOVEMENTQTY END 
+                          WHEN 'I' THEN trunc(CASE f.FREIGHT_UNIT WHEN 'P' THEN il.MOVEMENTQTY/p.UNITSPERPALLET WHEN 'U' THEN il.MOVEMENTQTY END)
+                          WHEN 'U' THEN CEIL(CASE f.FREIGHT_UNIT WHEN 'P' THEN il.MOVEMENTQTY/p.UNITSPERPALLET WHEN 'U' THEN il.MOVEMENTQTY END)
+                          WHEN 'R' THEN ROUND(CASE f.FREIGHT_UNIT WHEN 'P' THEN il.MOVEMENTQTY/p.UNITSPERPALLET WHEN 'U' THEN il.MOVEMENTQTY END)
+        END AS qtyline
+      FROM M_InOut i, M_InoutLine il, M_Product p, M_FreightCategory f
+      WHERE i.M_InOut_ID = il.M_InOut_ID
+        AND i.M_Inout_ID = ?
+        AND il.M_PRODUCT_ID = p.M_PRODUCT_ID
+        AND i.M_FREIGHTCATEGORY_ID = f.M_FREIGHTCATEGORY_ID
+      ORDER BY line
+     ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="shipment"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,149 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ELEMENTVALUE_TRG">
+    <trigger name="C_ELEMENTVALUE_TRG" table="C_ELEMENTVALUE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+
+
+
+  v_xTree_ID VARCHAR2(32);
+  v_xParent_ID VARCHAR2(32);
+  v_NextNo     VARCHAR2(32);
+  v_count NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+  -- Insert C_ElementValue Trigger
+  --  for Translation
+  --  and TreeNode
+  IF INSERTING THEN
+    --  Create Translation Row
+    INSERT
+    INTO C_ElementValue_Trl
+      (
+        C_ElementValue_Trl_ID, C_ElementValue_ID, AD_Language, AD_Client_ID,
+        AD_Org_ID, IsActive, Created,
+        CreatedBy, Updated, UpdatedBy,
+        Name, IsTranslated
+      )
+    SELECT get_uuid(), :new.C_ElementValue_ID,
+      AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+      :new.IsActive, :new.Created, :new.CreatedBy,
+      :new.Updated, :new.UpdatedBy, :new.Name,
+       'N'
+    FROM AD_Language
+    WHERE IsActive='Y'
+      AND IsSystemLanguage='Y';
+    --  Create TreeNode --
+    --  get AD_Tree_ID + ParentID
+    SELECT e.AD_Tree_ID,
+      n.Node_ID
+    INTO v_xTree_ID,
+      v_xParent_ID
+    FROM C_Element e,
+      AD_TreeNode n
+    WHERE e.AD_Tree_ID=n.AD_Tree_ID
+      AND n.Parent_ID IS NULL
+      AND e.C_Element_ID=:new.C_Element_ID;
+    --  DBMS_OUTPUT.PUT_LINE('Tree='||v_xTree_ID||'  Node='||:new.C_ElementValue_ID||'  Parent='||v_xParent_ID);
+    --  Insert into TreeNode
+    INSERT
+    INTO AD_TreeNode
+      (
+        AD_TreeNode_ID, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated,
+        UpdatedBy, AD_Tree_ID, Node_ID,
+        Parent_ID, SeqNo
+      )
+      VALUES
+      (
+        get_uuid(), :new.AD_Client_ID, :new.AD_Org_ID, :new.IsActive,
+        :new.Created, :new.CreatedBy, :new.Updated,
+        :new.UpdatedBy, v_xTree_ID, :new.C_ElementValue_ID,
+        v_xParent_ID,(
+        CASE :new.IsSummary
+          WHEN 'Y'
+          THEN 100
+          ELSE 999
+        END
+        )
+      )
+      ;
+    -- Summary Nodes first
+  END IF;
+  -- Inserting
+  -- C_ElementValue update trigger
+  --  synchronize name,...
+  IF UPDATING THEN
+    IF COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.') THEN
+      UPDATE C_ElementValue_Trl
+        SET IsTranslated='N',
+        Updated=now()
+      WHERE C_ElementValue_ID=:new.C_ElementValue_ID;
+    END IF;
+    
+     -- Update combination and description fields only if needed to not to trigger a cross tables update     
+    UPDATE C_ValidCombination
+      SET Updated=now(), 
+          combination= TO_CHAR(REPLACE(combination, :old.VALUE, :new.VALUE)),
+          description= TO_CHAR(REPLACE(description, :old.NAME, :new.NAME))
+      WHERE (Account_ID=:new.C_ElementValue_ID OR User1_ID=:new.C_ElementValue_ID OR User2_ID=:new.C_ElementValue_ID)
+         AND (combination <> (TO_CHAR(REPLACE(combination, :old.VALUE, :new.VALUE))))
+         OR description <> (TO_CHAR(REPLACE(description, :old.NAME, :new.NAME)));
+
+     UPDATE Fact_Acct SET AcctValue=:new.VALUE,AcctDescription=:new.DESCRIPTION WHERE Account_ID=:new.C_ElementValue_ID;
+  END IF;
+  -- Updating
+  IF DELETING THEN
+
+
+    --  Delete TreeNode --
+    --  get AD_Tree_ID
+    SELECT e.AD_Tree_ID
+    INTO v_xTree_ID
+    FROM C_Element e
+    WHERE e.C_Element_ID=:old.C_Element_ID;
+
+    SELECT COUNT(*)
+    INTO v_count
+    FROM AD_TREENODE
+    WHERE AD_CLIENT_ID=:old.AD_Client_ID
+      AND AD_Tree_ID=v_xTree_ID
+      AND parent_ID=:old.C_ElementValue_ID;
+
+    IF (v_count>0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@ElementHasChildren@');
+    END IF;
+
+    DELETE
+    FROM AD_TREENODE
+    WHERE AD_CLIENT_ID=:old.AD_Client_ID
+      AND AD_Tree_ID=v_xTree_ID
+      AND Node_ID=:old.C_ElementValue_ID;
+  END IF;
+  -- Deleting
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20013, 'C_ElementValue InsertTrigger Error: No ClientInfo or parent TreeNode') ;
+END C_ELEMENTVALUE_TRG
+]]></body>
+    </trigger>
+  </database>

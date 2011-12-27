@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="ReportCashFlowData" package="org.openbravo.erpCommon.ad_reports">
+
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+          SELECT ? as PARENT, AR.AD_ACCOUNTINGRPT_ELEMENT_ID AS ID, AR.NAME, AR.DESCRIPTION, AR.ISSUMMARY, AR.ISSHOWN,
+          AD_TREENODE.NODE_ID, COALESCE(CASE
+          AR.ISSUMMARY WHEN 'N' THEN      sum(amount) ELSE 0 END,0) AS TOTAL, AR.FILTEREDBYORGANIZATION,
+          AR.TEMPORARYFILTERTYPE, '' AS VALUE, ? AS LEVEL_ACCOUNT, (CASE TO_NUMBER(?) WHEN 0 THEN
+          '' ELSE '' END) AS CLASS_ACCOUNT, 'TEXT-INDENT: '||TO_CHAR(TO_NUMBER(?)*10)||'pt' AS CLASS_STYLE,
+          '' AS PADRE, '' AS STARTDATE, '' AS ENDDATE
+          FROM AD_ACCOUNTINGRPT_ELEMENT AR left join (SELECT AMOUNT, C_ACCTSCHEMA_ID
+          FROM FACT_ACCT, FACT_ACCT_CFS
+          WHERE FACT_ACCT.AD_CLIENT_ID IN ('1')
+          AND FACT_ACCT.AD_ORG_ID IN ('1')
+		  AND FACT_ACCT.FACT_ACCT_ID = FACT_ACCT_CFS.FACT_ACCT_ID
+          AND 1=1) A on AR.C_ACCTSCHEMA_ID = A.C_ACCTSCHEMA_ID,
+          AD_TREE, AD_TREENODE
+          WHERE AD_TREE.AD_TREE_ID = AD_TREENODE.AD_TREE_ID
+          AND AD_TREENODE.NODE_ID = AR.AD_ACCOUNTINGRPT_ELEMENT_ID
+          AND AR.AD_ACCOUNTINGRPT_ELEMENT_ID = ?
+          AND AR.C_ACCTSCHEMA_ID = ?
+          AND AD_TREE.TREETYPE = 'AR'
+          GROUP BY REPORT_TYPE, AR.AD_ACCOUNTINGRPT_ELEMENT_ID, AR.NAME, AR.DESCRIPTION, AR.ISSUMMARY, AR.ISSHOWN,
+          AD_TREENODE.NODE_ID,
+          AR.FILTEREDBYORGANIZATION, AR.TEMPORARYFILTERTYPE
+      ]]>
+    </Sql>
+    <Parameter name="parent"/>
+    <Parameter name="level"/>
+    <Parameter name="level"/>
+    <Parameter name="level"/>
+    <Parameter name="adClientId" optional="true" type="replace" after="FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="periodFrom" optional="true" after="AND 1=1"><![CDATA[ AND FACT_ACCT.DATEACCT >= TO_DATE(?)]]></Parameter>
+    <Parameter name="periodTo" optional="true" after="AND 1=1"><![CDATA[ AND FACT_ACCT.DATEACCT < TO_DATE(?)]]></Parameter>
+    <Parameter name="accountId" optional="true" after="AND 1=1"><![CDATA[ AND FACT_ACCT_CFS.ACCOUNT_ID = ?]]></Parameter>
+    <Parameter name="adAccountingElementId"/>
+    <Parameter name="acctschema"/>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectMissingEntries" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT 1 as ID
+        FROM FACT_ACCT
+        WHERE FACT_ACCT.AD_CLIENT_ID IN ('1')
+        AND FACT_ACCT.AD_ORG_ID IN ('1')
+        AND FACT_ACCT.AD_TABLE_ID IN ('392','407')
+        AND LINE_ID IS NOT NULL
+        AND 1=1
+        AND AD_CLIENT_ID = ?
+        AND NOT EXISTS (SELECT 1 FROM FACT_ACCT_CFS
+                WHERE FACT_ACCT.FACT_ACCT_ID = FACT_ACCT_CFS.FACT_ACCT_ID)
+      ]]>
+    </Sql>
+    <Parameter name="adClientId" optional="true" type="replace" after="FACT_ACCT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND FACT_ACCT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND FACT_ACCT.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="periodFrom" optional="true" after="AND 1=1"><![CDATA[ AND FACT_ACCT.DATEACCT >= TO_DATE(?)]]></Parameter>
+    <Parameter name="periodTo" optional="true" after="AND 1=1"><![CDATA[ AND FACT_ACCT.DATEACCT < TO_DATE(?)]]></Parameter>
+    <Parameter name="currentClient"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectChild" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AR.AD_ACCOUNTINGRPT_ELEMENT_ID AS ID, AR.NAME, AR.DESCRIPTION, AR.ISSUMMARY, AR.ISSHOWN, AD_TREENODE.NODE_ID,
+      AR.FILTEREDBYORGANIZATION, AR.TEMPORARYFILTERTYPE
+      FROM AD_TREE, AD_TREENODE, AD_ACCOUNTINGRPT_ELEMENT AR
+      WHERE AD_TREE.AD_TREE_ID = AD_TREENODE.AD_TREE_ID
+      AND AD_TREENODE.NODE_ID = AR.AD_ACCOUNTINGRPT_ELEMENT_ID
+      AND AR.AD_CLIENT_ID IN ('1')
+      AND AR.AD_ORG_ID IN ('1')
+      AND AD_TREENODE.PARENT_ID = ?
+      AND AD_TREE.AD_TREE_ID = ?
+      GROUP BY AR.AD_ACCOUNTINGRPT_ELEMENT_ID, AR.NAME, AR.DESCRIPTION, AR.ISSUMMARY, AR.ISSHOWN, AD_TREENODE.NODE_ID,
+      AR.FILTEREDBYORGANIZATION, AR.TEMPORARYFILTERTYPE, AD_TREENODE.SEQNO
+      ORDER BY AD_TREENODE.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="adClientId" optional="true" type="replace" after="AR.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND AR.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adAccountingElementId"/>
+    <Parameter name="tree"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectTree" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_TREE_ID AS ID FROM AD_TREE
+        WHERE TREETYPE = 'AR'
+        AND AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectOrg" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_ORG.AD_ORG_ID AS ID, AD_ORG.NAME, AD_ORG.ISSUMMARY, AD_TREENODE.NODE_ID
+      FROM AD_CLIENTINFO, AD_TREENODE, AD_ORG
+      WHERE AD_CLIENTINFO.AD_TREE_ORG_ID = AD_TREENODE.AD_TREE_ID
+      AND AD_TREENODE.NODE_ID = AD_ORG.AD_ORG_ID
+      AND AD_TREENODE.PARENT_ID = ?
+      AND AD_CLIENTINFO.AD_CLIENT_ID = ?
+      ORDER BY ISSUMMARY DESC
+      ]]>
+    </Sql>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+
+  <SqlMethod name="processId" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_PROCESS.AD_PROCESS_ID AS ID
+      FROM AD_PROCESS
+      WHERE VALUE = ?
+      ]]>
+    </Sql>
+    <Parameter name="processId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectMin" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT MIN(VALUE) AS VALUE
+      FROM AD_MONTH
+      WHERE QUARTER = ?
+      ]]>
+    </Sql>
+    <Parameter name="quarter"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectMax" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT MAX(VALUE) AS VALUE
+      FROM AD_MONTH
+      WHERE QUARTER = ?
+      ]]>
+    </Sql>
+    <Parameter name="quarter"/>
+  </SqlMethod>
+
+  <SqlMethod name="lastDay" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select TO_CHAR(last_day(TO_DATE(?)), to_char(?)) from dual
+      ]]>
+    </Sql>
+    <Parameter name="quarter"/>
+    <Parameter name="dateFormat"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectFormat" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select TO_CHAR(TO_DATE(?), TO_CHAR(?)) from dual
+      ]]>
+    </Sql>
+    <Parameter name="quarter"/>
+    <Parameter name="dateFormat"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectAccounting" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ACCOUNT_ID AS ID
+        FROM AD_ACCOUNTINGRPT_ELEMENT
+        WHERE AD_ACCOUNTINGRPT_ELEMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adAccountingrptElementId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectAD_Accountingrpt_Element_ID" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_ACCOUNTINGRPT_ELEMENT_ID AS ID, NAME, FILTEREDBYORGANIZATION, TEMPORARYFILTERTYPE
+      FROM AD_ACCOUNTINGRPT_ELEMENT
+      WHERE AD_ORG_ID IN ('1')
+      AND AD_CLIENT_ID IN ('1')
+      AND ISREPORT='Y'
+      AND (isActive = 'Y' OR AD_ACCOUNTINGRPT_ELEMENT_ID = ? )
+      AND 1=1
+      ]]>
+    </Sql>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="WHERE AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adAccountingrptElementId"/>
+    <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND C_ACCTSCHEMA_ID = ?]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectAD_Accountingrpt_Element_ID_Double" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_ACCTSCHEMA_ID AS PADRE, AD_ACCOUNTINGRPT_ELEMENT_ID AS ID, NAME, FILTEREDBYORGANIZATION, TEMPORARYFILTERTYPE
+      FROM AD_ACCOUNTINGRPT_ELEMENT
+      WHERE AD_ORG_ID IN ('1')
+      AND AD_CLIENT_ID IN ('1')
+      AND TEMPORARYFILTERTYPE IN ('A','M')
+      AND ISREPORT='Y'
+      AND (isActive = 'Y' OR AD_ACCOUNTINGRPT_ELEMENT_ID = ? )
+      AND 1=1
+      ]]>
+    </Sql>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="WHERE AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adAccountingrptElementId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectType" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT TEMPORARYFILTERTYPE
+      FROM AD_ACCOUNTINGRPT_ELEMENT
+      WHERE AD_ACCOUNTINGRPT_ELEMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adAccountingrptElementId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectPeriod" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_REF_LIST.AD_REF_LIST_ID AS ID, CASE ? WHEN 'en_US' THEN AD_REF_LIST.NAME ELSE AD_REF_LIST_TRL.NAME END AS NAME
+	   FROM AD_REF_LIST, AD_REF_LIST_TRL
+	   WHERE AD_REF_LIST.AD_REF_LIST_ID = AD_REF_LIST_TRL.AD_REF_LIST_ID
+	   AND AD_REF_LIST.AD_CLIENT_ID IN ('1')
+	   AND AD_REF_LIST.AD_ORG_ID IN ('1')
+	   AND AD_REF_LIST.AD_REFERENCE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND AD_REF_LIST.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_REF_LIST.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adAccountingrptElementId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectCombo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT 'M' AS VALUE, C_PERIOD_ID AS ID, AD_COLUMN_IDENTIFIER('C_PERIOD',C_PERIOD_ID,?) AS NAME
+      FROM C_PERIOD
+      WHERE AD_CLIENT_ID IN ('1')
+        AND AD_ORG_ID IN ('1')
+      UNION 
+      SELECT 'A' AS VALUE, C_YEAR_ID AS ID, AD_COLUMN_IDENTIFIER('C_YEAR', C_YEAR_ID, ?) AS NAME
+      FROM C_YEAR
+      WHERE AD_CLIENT_ID  IN ('2')
+        AND AD_ORG_ID  IN ('2')
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adClient" type="replace" optional="true" after="WHERE AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrg" type="replace" optional="true" after="AND AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adClient" type="replace" optional="true" after="WHERE AD_CLIENT_ID  IN (" text="'2'"/>
+    <Parameter name="adOrg" type="replace" optional="true" after="AND AD_ORG_ID  IN (" text="'2'"/>
+  </SqlMethod>
+
+  <SqlMethod name="startEndMonth" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT STARTDATE, ENDDATE+1 AS ENDDATE
+      FROM C_PERIOD
+      WHERE C_PERIOD_ID=?
+      ]]>
+    </Sql>
+    <Parameter name="cPeriodId"/>
+  </SqlMethod>
+
+  <SqlMethod name="startEndYear" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select min(startdate) as startdate, max(enddate)+1 as enddate 
+      from c_period 
+      where c_year_id=?
+      ]]>
+    </Sql>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+
+
+</SqlClass>

@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBUISEL_ELEMENT_TRL_TRG">
+    <trigger name="OBUISEL_ELEMENT_TRL_TRG" table="AD_ELEMENT_TRL" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2010 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: AD_Element_Trl_Trg.sql,v 1.4 2002/11/08 05:42:01 jjanke Exp $
+***
+* Title: AD_Element_Trl update trigger
+* Description:
+*   Synchronize name,... with  Selector Field if centrally maintained
+************************************************************************/
+BEGIN --BODY
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    IF UPDATING THEN
+    IF (   
+        COALESCE (:OLD.NAME, '.') <> COALESCE (:NEW.NAME, '.')
+        OR COALESCE (:OLD.Description, '.') <> COALESCE (:NEW.Description, '.')
+        OR COALESCE (:OLD.HELP, '.') <> COALESCE (:NEW.HELP, '.')
+        OR COALESCE (:OLD.PrintName, '.') <> COALESCE (:NEW.PrintName, '.')
+        OR COALESCE (:OLD.IsTranslated, '.') <> COALESCE (:NEW.IsTranslated, '.')
+       )
+    THEN
+        UPDATE OBUISEL_Selector_Field_Trl
+        SET NAME = :NEW.NAME,
+            Description = :NEW.Description,
+            HELP = :NEW.HELP,
+            IsTranslated = :NEW.IsTranslated
+        WHERE  AD_Language_ID = :NEW.AD_Language
+            AND OBUISEL_Selector_Field_ID IN (
+                SELECT F.OBUISEL_Selector_Field_ID
+                FROM OBUISEL_Selector_Field F, AD_Column C, AD_Module M
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                    AND C.AD_Element_ID = :NEW.AD_Element_ID
+                    AND F.IsCentrallyMaintained = 'Y'
+                    AND M.aD_Module_id = f.ad_module_id
+                    and m.AD_Language != :new.AD_Language);
+                  
+        UPDATE OBUISEL_Selector_Field
+        SET NAME = :NEW.NAME,
+            Description = :NEW.Description,
+            HELP = :NEW.HELP
+        WHERE  OBUISEL_Selector_Field_ID IN (
+            SELECT F.OBUISEL_Selector_Field_ID
+                FROM OBUISEL_Selector_Field F, AD_Column C, AD_Module M
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                AND C.AD_Element_ID = :NEW.AD_Element_ID
+                AND F.IsCentrallyMaintained = 'Y'
+                AND M.aD_Module_id = f.ad_module_id
+                and m.AD_Language = :new.AD_Language)
+            AND exists (SELECT 1 from ad_module m
+                where m.ad_module_id=OBUISEL_Selector_Field.ad_module_id
+                and m.isindevelopment='Y');
+        END IF;
+    END IF;
+END OBUISEL_ELEMENT_TRL_TRG
+]]></body>
+    </trigger>
+  </database>

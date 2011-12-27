@@ -1,0 +1,708 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="FieldsData" package="org.openbravo.wad" accessModifier="public">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_column.ad_column_id as adColumnId, ad_column.ColumnName as realName, ad_column.ColumnName As Name, '' as NameRef, 
+        'x' as xmltext, ad_reference_id as reference, ad_reference_value_id as referencevalue,
+        ismandatory as required, (CASE ad_field.isActive WHEN 'N' THEN 'N' ELSE isDisplayed END) as isdisplayed, isupdateable as isupdateable,
+        REPLACE(REPLACE(ad_column.defaultvalue, CHR(13), '\\n'), CHR(10), '') As defaultValue, 
+        ad_column.fieldlength As fieldLength, 
+        'Medio' as Text_Align, '' AS Xml_Format, 
+        ad_field.displaylength, REPLACE(replace(REPLACE(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname, 
+        '' as WHERECLAUSE, ad_table.tablename, 'StringParameter' as Type, ad_column.ISSESSIONATTR, ad_column.iskey, 
+        isParent, '' as ACCESSLEVEL, ad_field.isreadonly, '' as issecondarykey, ad_field.showInRelation, ad_column.isEncrypted,
+        ad_field.SORTNO, ad_column.istranslated, '' as id, '' as htmltext, '' as htmltexttrl, '' as xmltexttrl, '' as tablenametrl, 
+        0 AS NOWRAP, ad_column.isEncrypted AS isColumnEncrypted, ad_column.isDesencryptable, ad_reference_value_id, ad_column.ad_val_rule_id, '' AS isjasper, ad_field.isactive, '' as AD_Tab_ID, '' as parent_tab_name, '' as orgcode,
+        '' as tableModule, '' as columnModule, '' as clientcode, '' as isautosave, '' as ad_field_id
+      FROM ad_column left join ad_element on ad_column.ad_element_id = ad_element.ad_element_id,
+           ad_field,  ad_table
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+        AND ad_column.ad_table_id = ad_table.ad_table_id 
+        AND ad_column.isActive = 'Y' 
+        AND upper(ad_column.columnname) <> 'BINARYDATA' 
+        AND ad_tab_id = ?
+      ORDER BY ad_field.SEQNO
+      ]]>
+    </Sql>
+    <Field name="trytext" value="void" />
+    <Field name="catchtext" value="void" />
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment>Create a registry</SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectAuxiliar" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns and name of the fields of a tab</SqlMethodComment>
+    <Sql>
+      SELECT AD_AUXILIARINPUT_ID as reference, name as realname, name as columnname, name as name, 
+      code as defaultValue, 'x' as xmltext, '' as WHERECLAUSE
+      FROM ad_auxiliarinput 
+      WHERE ad_tab_id = ?
+    </Sql>
+    <Parameter name="sql" optional="true" after="WHERE " text="code LIKE ? || '%' AND "/>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  
+  <SqlMethod name="tableKeyColumnName" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the column key of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ad_column.ColumnName As Name 
+        FROM ad_table, ad_column 
+        WHERE ad_table.ad_table_id = ad_column.ad_table_id
+          AND UPPER(ad_table.tablename) = UPPER(?) 
+          AND ad_column.isActive = 'Y'
+          and ad_column.iskey='Y'
+        UNION
+        SELECT ad_column.ColumnName As Name 
+        FROM ad_table, ad_column 
+        WHERE ad_table.ad_table_id = ad_column.ad_table_id
+          AND UPPER(ad_table.tablename) = UPPER(?) 
+          AND ad_column.isActive = 'Y'
+          and ad_column.issecondarykey='Y'
+      ]]></Sql>
+      <Parameter name="tablename"/>
+      <Parameter name="tablename"/>
+  </SqlMethod>
+  <SqlMethod name="keyColumnName" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the column key of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ColumnName As Name, issecondarykey FROM ad_table, ad_column, ad_tab 
+        WHERE ad_table.ad_table_id = ad_column.ad_table_id
+          AND ad_tab.ad_table_id = ad_table.ad_table_id
+          AND ad_tab_id = ? 
+          and iskey='Y'
+      ]]></Sql>
+      <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="parentsColumnNameSortTab" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_FIELD.AD_FIELD_ID, ColumnName AS NAME, AD_REFERENCE_id AS reference, ad_reference_value_id AS referencevalue,
+        (SELECT tableNAME FROM AD_TABLE, AD_TAB WHERE AD_TABLE.ad_table_id = AD_TAB.ad_table_id
+        AND AD_TAB.ad_tab_id=?) AS tablename,
+        (SELECT P.ad_module_id FROM AD_TABLE T, AD_PACKAGE P WHERE T.ad_table_id = AD_COLUMN.ad_table_id AND T.AD_PACKAGE_ID = P.AD_PACKAGE_ID) as tableModule,
+        AD_COLUMN.AD_Module_ID as columnModule
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_table_id = ? AND isParent='Y' 
+      ]]></Sql>
+      <Parameter name="parentTab"/>
+      <Parameter name="adTableId"/>
+  </SqlMethod>
+
+<!-- method copied to src/src/org/openbravo/erpCommon/businessUtility/AuditTrailPopup_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="parentsColumnName" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_FIELD.AD_FIELD_ID, ColumnName AS NAME, AD_REFERENCE_id AS reference, ad_reference_value_id AS referencevalue,
+        (SELECT tableNAME FROM AD_TABLE, AD_TAB WHERE AD_TABLE.ad_table_id = AD_TAB.ad_table_id
+        AND AD_TAB.ad_tab_id=?) AS tablename, ? as AD_Tab_ID, (select name from ad_tab where ad_tab_id = ?) as parent_tab_name,
+        (SELECT P.ad_module_id FROM AD_TABLE T, AD_PACKAGE P WHERE T.ad_table_id = AD_COLUMN.ad_table_id AND T.AD_PACKAGE_ID = P.AD_PACKAGE_ID) as tableModule,
+        AD_COLUMN.AD_Module_ID as columnModule, 
+          (SELECT c.issecondarykey 
+             FROM AD_COLUMN c, AD_FIELD f 
+            WHERE c.ad_column_id = f.ad_column_id AND (c.iskey='Y' OR c.issecondarykey='Y')
+              AND ad_tab_id=? AND UPPER(c.columnname) = UPPER(AD_COLUMN.columnname)) as issecondarykey 
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_tab_id = ? AND isParent='Y' 
+        AND EXISTS (SELECT 1 FROM AD_COLUMN c, AD_FIELD f WHERE c.ad_column_id = f.ad_column_id AND (c.iskey='Y' OR c.issecondarykey='Y')
+        AND ad_tab_id=? AND UPPER(c.columnname) = UPPER(AD_COLUMN.columnname))
+      ]]></Sql>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="tab"/>
+      <Parameter name="parentTab"/>
+  </SqlMethod>
+
+<!-- method copied to src/src/org/openbravo/erpCommon/businessUtility/AuditTrailPopup_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="parentsColumnReal" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql>
+        SELECT AD_FIELD.AD_FIELD_ID, ColumnName AS NAME, AD_REFERENCE_id AS reference, ad_reference_value_id AS referencevalue,
+        (SELECT tableNAME FROM AD_TABLE, AD_TAB WHERE AD_TABLE.ad_table_id = AD_TAB.ad_table_id
+        AND AD_TAB.ad_tab_id=?) AS tablename,
+        (SELECT P.ad_module_id FROM AD_TABLE T, AD_PACKAGE P WHERE T.ad_table_id = AD_COLUMN.ad_table_id AND T.AD_PACKAGE_ID = P.AD_PACKAGE_ID) as tableModule,
+        AD_COLUMN.AD_Module_ID as columnModule
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_tab_id = ?
+        AND (UPPER(columnname) IN (SELECT UPPER(columnname) 
+                                    FROM AD_FIELD, AD_COLUMN 
+                                   WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+                                     AND AD_COLUMN.iskey='Y' 
+                                     AND AD_FIELD.ad_tab_id=?)
+            OR (UPPER(columnname) LIKE 'EM_%'  
+               AND UPPER(SUBSTR(COLUMNNAME,4)) IN  (SELECT UPPER(columnname) 
+                                    FROM AD_FIELD, AD_COLUMN 
+                                   WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+                                     AND AD_COLUMN.iskey='Y' 
+                                     AND AD_FIELD.ad_tab_id=?)))
+      </Sql>
+      <Parameter name="parentTab"/>
+      <Parameter name="tab"/>
+      <Parameter name="parentTab"/>
+      <Parameter name="parentTab"/>
+  </SqlMethod>
+ 
+  <SqlMethod name="tableName" type="preparedStatement" return="string">
+      <SqlMethodComment>Name of the table of the tab</SqlMethodComment>
+      <Sql>
+        SELECT ad_table.TABLEName FROM ad_tab, ad_table
+        WHERE ad_table.ad_table_id = ad_tab.ad_table_id and ad_tab_id = ?
+      </Sql>
+      <Parameter name="tab"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectUpdatables" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab that are updatables</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT ColumnName As Name, '?' AS Xml_Format, ad_column.ad_reference_id as reference, 
+      ad_column.ad_reference_value_id as referencevalue FROM ad_field, ad_column 
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+      and UPPER(ad_column.columnname) not in ('CREATED', 'UPDATED', 'CREATEDBY', 'UPDATEDBY') 
+      and ad_tab_id = ? 
+      AND upper(ad_column.columnname) <> 'BINARYDATA' 
+      AND ad_column.isEncrypted <> 'Y'
+      AND ad_column.isactive = 'Y'
+      ORDER BY ad_field.SEQNO
+    ]]></Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  
+  <SqlMethod name="columnIdentifier" type="preparedStatement" return="string">
+      <SqlMethodComment>Name of the table of the tab</SqlMethodComment>
+      <Sql>
+        SELECT MAX(columnname) AS NAME FROM AD_COLUMN, AD_TABLE 
+        WHERE AD_TABLE.TABLENAME = ?
+          AND AD_COLUMN.ad_table_id = AD_TABLE.ad_table_id
+          AND isidentifier = 'Y' 
+          AND SeqNo = (CASE TO_CHAR(AD_TABLE.TABLENAME) 
+                          WHEN 'C_PaySelectionCheck' THEN 2 
+                          ELSE (SELECT MIN(SeqNo) 
+                                  FROM AD_Column 
+                                 WHERE AD_Table_ID=AD_TABLE.AD_Table_ID 
+                                   AND IsIdentifier='Y')
+                           END)
+      </Sql>
+      <Parameter name="tableName"/>
+  </SqlMethod>
+  <SqlMethod name="identifierColumns" type="preparedStatement" return="multiple">
+      <SqlMethodComment>identifier columns of a table</SqlMethodComment>
+      <Sql>
+        SELECT ad_column.columnname as name, ad_reference_id as reference, ismandatory as required, 
+        REPLACE(replace(REPLACE(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname, ad_reference_value_id as referencevalue, 
+        ad_column.istranslated, ad_table.tablename, ad_reference_value_id
+        FROM ad_column left join ad_element on ad_column.ad_element_id = ad_element.ad_element_id, 
+             ad_table 
+        WHERE UPPER(ad_table.tablename) = UPPER(?)
+          AND ad_column.ad_table_id = ad_table.ad_table_id
+          AND isidentifier = 'Y' 
+        order by seqno
+      </Sql>
+      <Parameter name="tableName"/>
+  </SqlMethod>
+  <SqlMethod name="selectSequence" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns to order by</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ColumnName As Name
+      FROM ad_field, ad_column
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+        AND ad_tab_id = ?
+        AND ad_field.SORTNO is not null
+      ORDER BY ad_field.SORTNO, ad_field.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="isSOTrx" type="preparedStatement" return="String" default="N">
+    <SqlMethodComment>isSOTrx of the window</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT isSOTrx FROM AD_WINDOW, AD_TAB 
+      WHERE AD_TAB.AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID 
+      AND AD_TAB.AD_TAB_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectDefaultValue" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Default values of the columns</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_column.AD_COLUMN_ID as adColumnId, ad_column.ISMANDATORY as required, 
+      REPLACE(replace(REPLACE(REPLACE(columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as Name, 
+      REPLACE(REPLACE(ad_column.defaultvalue, CHR(13), '\\n'), CHR(10), '') as defaultValue, '' as WHERECLAUSE, 
+      ad_reference_id as reference,
+      isdisplayed, ad_column.columnname as columnname, ad_table.ACCESSLEVEL, 
+      ad_table.TABLENAME as NameRef, ad_reference_value_id as referencevalue, ad_column.name as realname
+      FROM ad_field, ad_column, ad_table
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id
+        AND ad_column.AD_TABLE_ID = ad_table.AD_TABLE_ID 
+        AND ad_tab_id = ? 
+        AND upper(ad_column.columnname) <> 'BINARYDATA'
+      union
+      SELECT ad_column.AD_COLUMN_ID as reference, ad_column.ISMANDATORY as required, 
+      columnname as Name, 
+      REPLACE(REPLACE(ad_column.defaultvalue, CHR(13), '\\n'), CHR(10), '') as defaultValue, '' as WHERECLAUSE, 
+      ad_reference_id as referencevalue,
+      'Y', ad_column.columnname as columnname, ad_table.ACCESSLEVEL, 
+      ad_table.TABLENAME as NameRef, ad_reference_value_id as type, ad_column.name as realname
+      FROM ad_column, ad_table, ad_tab t
+      WHERE lower(columnname) in ('createdby', 'updatedby')
+      AND ad_column.AD_TABLE_ID = ad_table.AD_TABLE_ID 
+        AND t.ad_tab_id = ?
+        and ad_table.ad_table_id = t.ad_table_id
+      ORDER BY adcolumnid
+      ]]>
+    </Sql>
+    <Parameter name="sql" optional="true" after="WHERE " text="ad_column.defaultvalue LIKE ? || '%' AND "/>
+    <Parameter name="tab"/>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectSession" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT REPLACE(replace(REPLACE(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as realName, REPLACE(replace(REPLACE(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') As Name, 
+        ad_reference_id as reference, ad_reference_value_id as referencevalue, 'x' as xmltext,
+        ismandatory as required, isDisplayed as isdisplayed, isupdateable as isupdateable,
+        ad_column.defaultvalue As defaultValue, ad_column.fieldlength As fieldLength,
+        ad_field.displaylength, REPLACE(replace(REPLACE(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname
+      FROM ad_field, ad_column left join ad_element on ad_column.ad_element_id = ad_element.ad_element_id
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+        AND ad_tab_id = ?
+        AND (ad_column.ISSESSIONATTR = 'Y' 
+        OR ad_column.iskey = 'Y') 
+        AND upper(ad_column.columnname) <> 'BINARYDATA' 
+        AND ad_column.ColumnName <> 'Created'
+      ORDER BY ad_field.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectDocumentsNo" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_column.AD_COLUMN_ID as reference, REPLACE(replace(REPLACE(REPLACE(columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as Name, 
+      ad_column.defaultvalue as defaultValue, '' as WHERECLAUSE, ad_reference_id as referencevalue,
+      isdisplayed, ad_column.columnname as columnname, ad_table.ACCESSLEVEL, 
+      ad_table.TABLENAME as NameRef, '' as realname
+      FROM ad_field, ad_column, ad_table
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id
+        AND ad_column.AD_TABLE_ID = ad_table.AD_TABLE_ID 
+        AND ad_tab_id = ? 
+        and isParent='N'
+        and ad_column.columnname = 'DocumentNo'
+        and ad_column.defaultvalue is null
+      ORDER BY ad_field.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectActionButton" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT distinct ad_column.columnname, 
+      ad_column.ad_process_id as reference, ad_process.procedurename as name, 
+      ad_column.ad_reference_id as type, ad_column.ad_reference_value_id as referencevalue,
+      ad_val_rule_id as defaultvalue, ad_column.fieldlength, ad_field.name as realname, 
+      ad_process.description as tablename, ad_process.help as xmltext, ad_column.ad_reference_value_id, ad_process.isjasper, ad_column.isautosave
+      FROM ad_column, ad_process, ad_field
+      where ad_column.ad_process_id = ad_process.ad_process_id 
+      and ad_column.ad_column_id = ad_field.ad_column_id  
+      AND (ad_process.procedurename is not null 
+           or ad_process.isjasper = 'Y'
+           or (UIPattern='S' AND EXISTS (SELECT 1 FROM AD_MODEL_OBJECT WHERE AD_PROCESS_ID = AD_PROCESS.AD_PROCESS_ID))) 
+      and ad_column.columnname not in('DocAction', 'PaymentRule') 
+      and (ad_column.columnname <> 'CreateFrom'
+      or ad_column.ad_process_id is not null)
+      and (ad_column.columnname <> 'Posted'
+      or ad_column.ad_process_id is not null)
+      and ad_column.ad_column_id in (select ad_column_id from ad_field where isdisplayed='Y' and isactive='Y')
+      and ad_column.isactive='Y'
+      order by ad_column.ad_process_id
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="buildActionButton" type="preparedStatement" return="boolean">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT count(*) as total
+      FROM ad_column, ad_process, ad_field, ad_system_info si
+      where ad_column.ad_process_id = ad_process.ad_process_id 
+      and ad_column.ad_column_id = ad_field.ad_column_id 
+      AND (ad_process.procedurename is not null 
+           or ad_process.isjasper = 'Y'
+           or (UIPattern='S' AND EXISTS (SELECT 1 FROM AD_MODEL_OBJECT WHERE AD_PROCESS_ID = AD_PROCESS.AD_PROCESS_ID)))
+      and ad_column.columnname not in('DocAction', 'PaymentRule') 
+      and (ad_column.columnname <> 'CreateFrom'
+      or ad_column.ad_process_id is not null)
+      and (ad_column.columnname <> 'Posted'
+      or ad_column.ad_process_id is not null)
+      and ad_column.ad_column_id in (select ad_column_id from ad_field where isdisplayed='Y' and isactive='Y')
+      and ad_column.isactive='Y'
+      and (ad_process.updated > si.last_build
+           or exists (select 1 
+                        from ad_process_para pp 
+                       where pp.ad_process_id = ad_process.ad_process_id
+                         and pp.updated > si.last_build))
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectActionButtonGenerics" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DISTINCT 'ActionButton'  AS columnname, 
+        ad_process_id AS reference, procedurename AS NAME, 
+        '' AS TYPE, '' AS referencevalue,
+        '' AS defaultvalue, '' AS fieldlength, '' AS realname, 
+        description AS tablename, help AS xmltext, isjasper, '' AS isautosave
+        FROM AD_PROCESS
+        WHERE isactive='Y'
+        AND UIPattern='S'
+        and ad_process_id in (select ad_process_id from ad_menu)
+        ORDER BY ad_process_id
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="isHighVolume" type="preparedStatement" return="String">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ishighvolume FROM AD_TAB, AD_TABLE 
+      WHERE AD_TAB.ad_table_id = AD_TABLE.ad_table_id
+      AND AD_TAB.ad_tab_id=?
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="isSingleRow" type="preparedStatement" return="String">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT issinglerow FROM AD_TAB 
+      WHERE ad_tab_id=?
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="hasCreateFromButton" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(ad_column.ad_process_id, '-1') AS total 
+        FROM AD_FIELD, AD_COLUMN, AD_TABLE
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id
+        AND AD_COLUMN.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND ad_tab_id = ? 
+        AND AD_COLUMN.ad_reference_id = '28'
+        AND AD_COLUMN.COLUMNNAME = 'CreateFrom'
+        AND AD_COLUMN.AD_PROCESS_ID IS NULL
+        AND AD_FIELD.ISDISPLAYED = 'Y'
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="hasPostedButton" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(ad_column.ad_process_id, '-1') AS total 
+        FROM AD_FIELD, AD_COLUMN, AD_TABLE
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id
+        AND AD_COLUMN.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND ad_tab_id = ? 
+        AND AD_COLUMN.ad_reference_id = '28'
+        AND AD_COLUMN.COLUMNNAME = 'Posted'
+        AND AD_COLUMN.AD_PROCESS_ID IS NULL
+        AND AD_FIELD.ISDISPLAYED = 'Y'
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectValidationTab" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Method need to be synchronized with src/org/openbravo/erpCommon/businessUtility/Buscador_data.xsql::selectValidationTab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT c.ad_column_id as id, c.columnname, t.WHERECLAUSE as whereClause, v.code as referencevalue, c.ad_reference_id as reference,
+        c.ad_reference_value_id as NameRef, c.ad_val_rule_id as defaultvalue, f.isdisplayed, c.istranslated, c.columnname as name,
+        (case when t.whereclause is not null or v.code is not null then 'C' else 'R' end) as type /*Combo reaload or Reference*/ 
+        FROM AD_FIELD f, 
+             AD_COLUMN c left join  AD_VAL_RULE v on c.AD_VAL_RULE_ID = v.AD_VAL_RULE_ID
+                         left join AD_REF_TABLE t on (CASE c.ad_reference_id WHEN '18' THEN c.AD_REFERENCE_VALUE_ID ELSE '0' END) = t.AD_REFERENCE_ID     
+        WHERE f.AD_COLUMN_ID = c.ad_column_id
+        AND f.ad_tab_id = ? 
+        AND (t.whereclause IS NOT NULL
+            OR v.code IS NOT NULL
+            OR c.ad_reference_id in ('19','18','17'))
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectProcessesWithReloads" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Obtains all processes that might require combo reload</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+         SELECT distinct c.AD_PROCESS_id as id
+        FROM AD_PROCESS_PARA c left join  AD_VAL_RULE v on c.AD_VAL_RULE_ID = v.AD_VAL_RULE_ID
+                         left join AD_REF_TABLE t on (CASE c.ad_reference_id WHEN '18' THEN c.AD_REFERENCE_VALUE_ID ELSE '0' END) = t.AD_REFERENCE_ID     
+        WHERE (t.whereclause IS NOT NULL
+            OR v.code IS NOT NULL
+            OR c.ad_reference_id in ('19','18','17'))
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectValidationProcess" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Obtains all param for processes that might require combo reload</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+         SELECT c.AD_PROCESS_PARA_id as id, c.columnname, t.WHERECLAUSE as whereClause, v.code as referencevalue, c.ad_reference_id as reference,
+        c.ad_reference_value_id as NameRef, c.ad_val_rule_id as defaultvalue,  c.columnname as name,
+        (case when t.whereclause is not null or v.code is not null then 'C' else 'R' end) as type /*Combo reaload or Reference*/ 
+        FROM AD_PROCESS_PARA c left join  AD_VAL_RULE v on c.AD_VAL_RULE_ID = v.AD_VAL_RULE_ID
+                         left join AD_REF_TABLE t on (CASE c.ad_reference_id WHEN '18' THEN c.AD_REFERENCE_VALUE_ID ELSE '0' END) = t.AD_REFERENCE_ID     
+        WHERE (t.whereclause IS NOT NULL
+            OR v.code IS NOT NULL
+            OR c.ad_reference_id in ('19','18','17'))
+         AND c.AD_Process_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="processId"/>
+  </SqlMethod>
+  
+    <SqlMethod name="processHasOrgParam" type="preparedStatement" return="boolean">
+    <Sql>
+      <![CDATA[
+         select count(*)
+           from ad_process_para 
+          where lower(columnname) = 'ad_org_id'
+            and ad_process_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="processId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectColumnTable" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Fields of reference table in a tab</SqlMethodComment>
+    <Sql>
+      SELECT ColumnName As Name, 'x' as xmltext, ad_reference_value_id as referencevalue, 
+      ad_val_rule.CODE as defaultValue, ad_val_rule.AD_VAL_RULE_ID as columnname,
+      ad_ref_table.WHERECLAUSE, ad_table.tablename, 'TableList' as tablenametrl, ad_table.name as nameref, 
+      '18' as reference, 'Y' as required, ad_column.istranslated 
+      FROM ad_field, ad_column left join ad_val_rule on ad_column.AD_VAL_RULE_ID = ad_val_rule.AD_VAL_RULE_ID, ad_ref_table, ad_table 
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+      AND ad_ref_table.ad_table_id = ad_table.ad_table_id 
+      AND ad_column.AD_REFERENCE_VALUE_ID = ad_ref_table.AD_REFERENCE_ID  
+      and ad_field.ISDISPLAYED = 'Y'
+      AND ad_field.ad_tab_id = ?
+      AND ad_column.ad_column_id = ? 
+      AND ad_column.ad_reference_id = '18'
+    </Sql>
+    <Parameter name="adTabId"/>
+    <Parameter name="adColumnId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectColumnTableProcess" type="preparedStatement" return="multiple">
+    <Sql>
+      SELECT ColumnName As Name, 'x' as xmltext, ad_reference_value_id as referencevalue, 
+      ad_val_rule.CODE as defaultValue, ad_val_rule.AD_VAL_RULE_ID as columnname,
+      ad_ref_table.WHERECLAUSE, ad_table.tablename, 'TableList' as tablenametrl, ad_table.name as nameref, 
+      '18' as reference, 'Y' as required, 'N'as istranslated 
+      FROM ad_process_para p left join ad_val_rule on p.AD_VAL_RULE_ID = ad_val_rule.AD_VAL_RULE_ID, 
+           ad_ref_table, 
+           ad_table 
+      WHERE ad_ref_table.ad_table_id = ad_table.ad_table_id 
+      AND p.AD_REFERENCE_VALUE_ID = ad_ref_table.AD_REFERENCE_ID  
+      AND p.ad_process_para_id = ?
+      AND p.ad_reference_id = '18'
+    </Sql>
+    <Parameter name="processParaId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectColumnTableDir" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Fields of reference table in a tab</SqlMethodComment>
+    <Sql>
+      SELECT ColumnName As Name, 'x' as xmltext, ColumnName as referencevalue, 
+      ad_val_rule.CODE as defaultValue, ad_val_rule.AD_VAL_RULE_ID as columnname, ad_table.tablename, 
+      'TableDir' as tablenametrl, '' as WHERECLAUSE, '19' as reference, ad_column.istranslated 
+      FROM ad_field, ad_column left join ad_val_rule on ad_column.AD_VAL_RULE_ID = ad_val_rule.AD_VAL_RULE_ID , ad_table 
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+      and ad_column.ad_table_id = ad_table.ad_table_id 
+      and ad_field.ISDISPLAYED = 'Y'
+      AND ad_field.ad_tab_id = ?
+      AND ad_column.ad_column_id = ? 
+      AND ad_reference_id = '19'
+    </Sql>
+    <Parameter name="adTabId"/>
+    <Parameter name="adColumnId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectColumnTableDirProcess" type="preparedStatement" return="multiple">
+    <Sql>
+      SELECT ColumnName As Name, 'x' as xmltext, ColumnName as referencevalue, 
+      ad_val_rule.CODE as defaultValue, ad_val_rule.AD_VAL_RULE_ID as columnname,  
+      'TableDir' as tablenametrl, '' as WHERECLAUSE, '19' as reference, 'N' as istranslated 
+      FROM ad_process_para p left join ad_val_rule on p.AD_VAL_RULE_ID = ad_val_rule.AD_VAL_RULE_ID
+      WHERE p.ad_process_para_id = ?
+      AND ad_reference_id = '19'
+    </Sql>
+    <Parameter name="processParaId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="columnName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT columnname FROM AD_column 
+      WHERE ad_column_id=?
+      ]]>
+    </Sql>
+    <Parameter name="adColumnId"/>
+  </SqlMethod>
+  <SqlMethod name="selectIdentify" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_column.AD_COLUMN_ID as reference, REPLACE(replace(REPLACE(REPLACE(columnname, 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as Name, 
+      ad_column.defaultvalue as defaultValue, '' as WHERECLAUSE, ad_reference_id as referencevalue,
+      isdisplayed, ad_column.columnname as columnname, ad_table.ACCESSLEVEL, 
+      ad_table.TABLENAME as NameRef, '' as realname, ad_column.ISSESSIONATTR, ad_column.istranslated 
+      FROM ad_field, ad_column, ad_table
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id
+        AND ad_column.AD_TABLE_ID = ad_table.AD_TABLE_ID 
+        AND ad_tab_id = ? 
+        and ismandatory='Y' 
+        AND upper(ad_column.columnname) = 'VALUE'
+      ORDER BY ad_field.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectParentWhereClause" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT whereclause
+      FROM ad_tab
+      WHERE ad_tab_id = ? 
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="hasEncryptionFields" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(*) AS total 
+        FROM AD_FIELD, AD_COLUMN
+        WHERE AD_FIELD.ad_tab_id = ? 
+        AND ad_field.ad_column_id = ad_column.ad_column_id 
+        AND ad_column.isEncrypted = 'Y' 
+        AND ad_field.ISDISPLAYED = 'Y'
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectEncrypted" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_field.ad_field_id as id, ad_column.ColumnName, ad_column.ColumnName as realName, ad_column.ColumnName as Name, ad_column.isDesencryptable, '' AS Xml_Format, '' as htmltext 
+      FROM ad_field, ad_column
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id 
+        AND ad_column.isEncrypted = 'Y' 
+        AND ad_field.ISDISPLAYED = 'Y'
+        AND ad_tab_id = ?
+      ORDER BY ad_field.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="selectButton" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select ad_reference_value_id as id, columnname, columnname || '_BTN' as realName 
+      from ad_field f, ad_column c
+      where f.ad_column_id = c.ad_column_id 
+      and f.ad_tab_id = ?
+      and f.isactive = 'Y'
+      and f.isdisplayed = 'Y'
+      and c.isactive = 'Y'
+      and ad_reference_value_id is not null
+      and c.ad_reference_id = '28' 
+      and c.columnname <> 'ChangeProjectStatus'
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="hasActionButton" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment>Checks if the tab has action buttons</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select count(*) as actionButtons
+      from ad_field f, ad_column c
+      where f.ad_column_id = c.ad_column_id 
+      and f.ad_tab_id = ?
+      and f.isactive = 'Y'
+      and f.isdisplayed = 'Y'
+      and c.isactive = 'Y'
+      and ad_reference_value_id is not null
+      and c.ad_reference_id = '28' 
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+
+  <SqlMethod name="hasButtonFixed" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment>Checks if the tab has action buttons</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+          select count(*) as total
+        from ad_field f,
+             ad_column c
+       where f.ad_tab_id = ?
+         and f.ad_column_id = c.ad_column_id
+         and ad_reference_id = '28'
+         and f.isdisplayed = 'Y'
+         and f.isactive='Y'
+      ]]>
+    </Sql>
+    <Parameter name="tab"/>
+  </SqlMethod>
+  </SqlClass>

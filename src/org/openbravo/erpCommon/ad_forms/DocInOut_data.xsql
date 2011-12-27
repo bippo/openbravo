@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DocInOutData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS M_INOUT_ID, '' AS AD_CLIENT_ID, '' AS AD_ORG_ID, '' AS ISACTIVE, '' AS CREATED,
+        '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS ISSOTRX, '' AS DOCUMENTNO, '' AS DOCACTION,
+        '' AS DOCSTATUS, '' AS POSTED, '' AS PROCESSING, '' AS PROCESSED, '' AS C_DOCTYPE_ID, '' AS DESCRIPTION,
+        '' AS C_ORDER_ID, '' AS DATEORDERED, '' AS ISPRINTED, '' AS MOVEMENTTYPE, '' AS MOVEMENTDATE, '' AS DATEACCT,
+        '' AS C_BPARTNER_ID, '' AS C_BPARTNER_LOCATION_ID, '' AS M_WAREHOUSE_ID, '' AS POREFERENCE, '' AS DELIVERYRULE,
+        '' AS FREIGHTCOSTRULE, '' AS FREIGHTAMT, '' AS DELIVERYVIARULE, '' AS M_SHIPPER_ID, '' AS C_CHARGE_ID,
+        '' AS CHARGEAMT, '' AS PRIORITYRULE, '' AS DATEPRINTED, '' AS C_INVOICE_ID, '' AS CREATEFROM, '' AS GENERATETO,
+        '' AS SENDEMAIL, '' AS AD_USER_ID, '' AS SALESREP_ID, '' AS NOPACKAGES, '' AS PICKDATE, '' AS SHIPDATE,
+        '' AS TRACKINGNO, '' AS AD_ORGTRX_ID, '' AS C_PROJECT_ID, '' AS C_CAMPAIGN_ID, '' AS C_ACTIVITY_ID, '' AS USER1_ID,
+        '' AS USER2_ID, '' AS UPDATELINES, '' AS M_COSTING_ID, '' AS stdprecision
+        FROM DUAL
+     ]]>
+     </Sql>
+   </SqlMethod>
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT I.AD_CLIENT_ID, I.AD_ORG_ID, I.C_BPARTNER_ID, I.AD_ORGTRX_ID, I.C_PROJECT_ID,
+        I.C_CAMPAIGN_ID, I.C_ACTIVITY_ID, I.USER1_ID, I.USER2_ID, I.DOCUMENTNO, I.DATEACCT,
+        I.C_DOCTYPE_ID, I.C_CHARGE_ID, I.CHARGEAMT, I.POSTED, I.MOVEMENTDATE, I.C_BPARTNER_LOCATION_ID
+        FROM M_INOUT I
+        WHERE AD_Client_ID=? 
+        AND M_INOUT_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+  </SqlMethod>
+  <SqlMethod name="existsCost" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(M_COSTING_ID)
+        FROM M_COSTING
+        WHERE TO_DATE(?) BETWEEN DATEFROM AND DATETO
+          AND M_PRODUCT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="date"/>
+     <Parameter name="mProductId"/>
+  </SqlMethod>
+  <SqlMethod name="selectClientCurrencyPrecission" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select stdprecision 
+      from c_currency cu, ad_client cl
+       where cu.c_currency_id=cl.c_currency_id
+         and cl.ad_client_id=?
+     ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+</SqlClass>

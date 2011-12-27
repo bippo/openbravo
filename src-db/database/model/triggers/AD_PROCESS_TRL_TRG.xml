@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_PROCESS_TRL_TRG">
+    <trigger name="AD_PROCESS_TRL_TRG" table="AD_PROCESS_TRL" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* AD_Process_Trl update trigger
+*  synchronize name,... with  Field if centrally maintained
+*/
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF UPDATING
+  THEN
+      UPDATE AD_Field_Trl
+         SET NAME = :NEW.NAME,
+             Description = :NEW.Description,
+             HELP = :NEW.HELP,
+             IsTranslated = :NEW.IsTranslated,
+             Updated = now()
+       WHERE AD_Language = :NEW.AD_Language
+         AND AD_Field_ID IN (
+               SELECT F.AD_Field_ID
+                 FROM AD_Field F, AD_Column C, ad_module m
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                  AND C.AD_Process_ID = :NEW.AD_Process_ID
+                  AND F.IsCentrallyMaintained = 'Y'
+                  and m.ad_module_id = f.ad_module_id
+                  and m.ad_language <> :new.ad_language);
+                  
+      UPDATE AD_Field f
+         SET NAME = :NEW.NAME,
+             Description = :NEW.Description,
+             HELP = :NEW.HELP,             
+             Updated = now()
+       WHERE AD_Field_ID IN (
+               SELECT F.AD_Field_ID
+                 FROM AD_Column C, ad_module m
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                  AND C.AD_Process_ID = :NEW.AD_Process_ID
+                  AND F.IsCentrallyMaintained = 'Y'
+                  and m.ad_module_id = f.ad_module_id
+                  and m.ad_language = :new.ad_language);
+                  
+     --column cannot be updated because of mutating tables
+  END IF;
+END AD_PROCESS_TRL_TRG
+]]></body>
+    </trigger>
+  </database>

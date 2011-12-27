@@ -1,0 +1,1818 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  Enterprise Intelligence Systems (http://www.eintel.com.au).
+ *************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title id="paramTitle">xxTitle</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+  var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  var defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.userinterface.selector/js/classic-skin-variable.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/calculator.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+<script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.advpaymentmngt/FIN_Utilities.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+  OB.APRM = OB.APRM || {};
+  OB.APRM.APFT_GLItems = [];
+  OB.APRM.APFT_GLItemsId = 0;
+  OB.APRM.HasGLItems = false;
+  OB.APRM.APFT_bp = null;
+  OB.APRM.APPM_bp = null;
+function callBackGrid(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = '';
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+        var aux = strText.substring(29, strText.length-8);
+        var tableBody = document.getElementById('sectionGrid');
+        var browserName = getBrowserInfo('name');
+        if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') !== -1) {
+          var temp = document.createElement('span');
+          temp.id = 'temp';
+          temp.style.display = 'none';
+          var newRows = '<table><tbody id=\"sectionGrid\">'+ aux;
+          temp.innerHTML = newRows;
+          tableBody.parentNode.replaceChild(temp.firstChild.firstChild, tableBody);
+          temp.parentNode.removeChild(temp);
+        }
+        tableBody.innerHTML = aux;
+        
+        updateAll();
+        updateTotal();
+
+        if (document.frmMain.paramFinBankStatementLineId.value !== '' && document.frmMain.isFirstLoad.value === 'true') {
+          document.frmMain.isFirstLoad.value='false';
+          actualPaymentOnChange();
+        }
+      } else {
+        document.getElementById('sectionGrid').innerHTML = '';
+      }
+    } catch (e) {
+    }
+  }
+  return true;
+}
+
+function loadGridList() {
+  if (OB.APRM.APFT_bp === null ||
+      OB.APRM.APFT_bp !== frmMain['inpcBpartnerId'].value ||
+      OB.APRM.APFT_fa !== frmMain['inpFinancialAccountId'].value ||
+      OB.APRM.APFT_ddf !== frmMain['inpDueDateFrom'].value ||
+      OB.APRM.APFT_ddt !== frmMain['inpDueDateTo'].value ||
+      OB.APRM.APFT_tdf !== frmMain['inpTransDateFrom'].value ||
+      OB.APRM.APFT_tdt !== frmMain['inpTransDateTo'].value ||
+      OB.APRM.APFT_dt !== frmMain['inpDocumentType'].value ||
+      OB.APRM.APFT_cu !== frmMain['inpCurrencyId'].value ||
+      OB.APRM.APFT_dn !== frmMain['inpDocumentNo'].value ||
+      OB.APRM.APFT_re !== frmMain['isReceipt'].value) {
+
+    OB.APRM.APFT_bp = frmMain['inpcBpartnerId'].value;
+    OB.APRM.APFT_fa = frmMain['inpFinancialAccountId'].value;
+    OB.APRM.APFT_ddf = frmMain['inpDueDateFrom'].value;
+    OB.APRM.APFT_ddt = frmMain['inpDueDateTo'].value;
+    OB.APRM.APFT_tdf = frmMain['inpTransDateFrom'].value;
+    OB.APRM.APFT_tdt = frmMain['inpTransDateTo'].value;
+    OB.APRM.APFT_dt = frmMain['inpDocumentType'].value;
+    OB.APRM.APFT_cu = frmMain['inpCurrencyId'].value;
+    OB.APRM.APFT_dn = frmMain['inpDocumentNo'].value;
+    OB.APRM.APFT_re = frmMain['isReceipt'].value;
+
+    try {
+      var url = '../org.openbravo.advpaymentmngt.ad_actionbutton/AddPaymentFromTransaction.html';
+      var paramXMLReq = null;
+      return submitXmlHttpRequest(callBackGrid, document.frmMain, 'GRIDLIST', url, false, null, paramXMLReq);
+    } catch (e) {
+      alert(e);
+    }
+  }
+}
+function callBackPaymentMethod(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+        createCombo(document.getElementById('inpPaymentMethod'), strText);
+        paymentMethodOnChange();
+      }
+    } catch (e) {}
+  }
+  return true;
+}
+
+function loadPaymentMethodCombo() {
+
+  if (OB.APRM.APPM_bp === null ||
+      OB.APRM.APPM_bp !== frmMain['inpcBpartnerId'].value ||
+      OB.APRM.APPM_fa !== frmMain['inpFinancialAccountId'].value ||
+      OB.APRM.APPM_re !== frmMain['isReceipt'].value) {
+
+    OB.APRM.APPM_bp = frmMain['inpcBpartnerId'].value;
+    OB.APRM.APPM_fa = frmMain['inpFinancialAccountId'].value;
+    OB.APRM.APPM_re = frmMain['isReceipt'].value;
+
+    try {
+      var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/AddPaymentFromTransaction.html";
+      var paramXMLReq = null;
+      return submitXmlHttpRequest(callBackPaymentMethod, document.frmMain, "PAYMENTMETHODCOMBO", url, false, null, paramXMLReq);
+    } catch (e) {
+      alert(e);
+    }
+  }
+}
+
+function loadCreditAvailable() {
+  try {
+    if (document.frmMain.inpcBpartnerId.value != "") {
+      var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/AddPaymentFromTransaction.html";
+      var paramXMLReq = null;
+      return submitXmlHttpRequest(callBackCredit, document.frmMain, "LOADCREDIT", url, false, null, paramXMLReq); 
+    }
+  } catch (e) {
+    alert(e);
+  }
+}
+
+function callBackCredit(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+        var data = eval(strText);
+        document.getElementById('paramCredit').value = applyFormatJSToOBMasked(data.credit);
+        displayLogicForCredit();
+      }
+    } catch (e) {
+      alert(e);
+    }
+  }
+  return true;
+}
+function loadGLItemList() {
+  var table = document.getElementById('sectionGLItemGrid'),
+      glitemCount = OB.APRM.APFT_GLItems.length,
+      glitemAmount = 0,
+      glitemDescLength = 20, glitemDescCont = "...",
+      cellCount, row, cellGLItemDesc, cellGLITemReceivedInAmt, cellGLITemPaidOutAmt, cellRemoveButton, i, textNode, glAcctDimsDesc, acctDim, cellGLItemDim;
+
+  table.innerHTML = '';
+  if (glitemCount === 0) {
+    OB.APRM.HasGLItems = false;
+    OB.APRM.APFT_GLItems = [];
+    updateTotal();
+    return;
+  }
+  OB.APRM.HasGLItems = true;
+  for (i = 0; i < glitemCount; i++) {
+    row = table.insertRow(table.rows.length);
+    row.className = 'DataGrid_Body_Row DataGrid_Body_Row_'+i%2;
+    cellCount = 0;
+    
+    cellGLItemDesc = row.insertCell(cellCount);
+    textNode = document.createTextNode(OB.APRM.APFT_GLItems[i].glitemDesc);
+    cellGLItemDesc.appendChild(textNode);
+    cellGLItemDesc.className = 'DataGrid_Body_Cell';
+    cellCount++;
+    
+    // Accounting Dimensions
+    glAcctDimsDesc = ["cBpartnerDimDesc", "cActivityDimDesc", "mProductDimDesc", "cCampaignDimDesc", "cProjectDimDesc", "cSalesregionDimDesc"];
+    for (acctDim = 0; acctDim < glAcctDimsDesc.length; acctDim++) {
+      if (OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]]) {
+        cellGLItemDim = row.insertCell(cellCount);
+        if (OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]].length > glitemDescLength + glitemDescCont.length) {
+          textNode = document.createTextNode(OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]].slice(0, glitemDescLength) + glitemDescCont);
+        } else {
+          textNode = document.createTextNode(OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim]]);
+        }
+        cellGLItemDim.appendChild(textNode);
+        cellGLItemDim.className = 'DataGrid_Body_Cell';
+        cellCount++;
+      } else if (OB.APRM.APFT_GLItems[i][glAcctDimsDesc[acctDim].replace("Desc", "Displayed")]) {
+        // The Acct. Dimen is displayed and the user has left it empty
+        cellGLItemDim = row.insertCell(cellCount);
+        textNode = document.createTextNode("");
+        cellGLItemDim.appendChild(textNode);
+        cellGLItemDim.className = 'DataGrid_Body_Cell';
+        cellCount++;
+      }
+    }
+    
+    cellGLITemReceivedInAmt = row.insertCell(cellCount);
+    textNode = document.createTextNode(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt));
+    cellGLITemReceivedInAmt.appendChild(textNode);
+    cellGLITemReceivedInAmt.className = 'DataGrid_Body_Cell_Amount';
+    cellCount++;
+    
+    cellGLITemPaidOutAmt = row.insertCell(cellCount);
+    textNode = document.createTextNode(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt));
+    cellGLITemPaidOutAmt.appendChild(textNode);
+    cellGLITemPaidOutAmt.className = 'DataGrid_Body_Cell_Amount';
+    cellCount++;
+    
+    if (isTrue('isReceipt')) {
+      glitemAmount = subtract(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt), applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt));
+    } else {
+      glitemAmount = subtract(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt), applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt));
+    }
+    cellRemoveButton = row.insertCell(cellCount);
+    cellRemoveButton.innerHTML = '<div><button type="button" id="buttonRemoveGLItem"'
+        + ' class="ButtonLink_focus" onclick="removeGLItem(' + i + ', ' + applyFormatOBMaskedToJS(glitemAmount) + ');return false;"'
+        + ' onfocus="buttonEvent(\'onfocus\', this); window.status=\'OK\'; return true;"'
+        + ' onblur="buttonEvent(\'onblur\', this);"'
+        + '  onkeyup="buttonEvent(\'onkeyup\', this);"'
+        + '  onkeydown="buttonEvent(\'onkeydown\', this);"'
+        + '  onkeypress="buttonEvent(\'onkeypress\', this);"'
+        + '  onmouseup="buttonEvent(\'onmouseup\', this);"'
+        + '  onmousedown="buttonEvent(\'onmousedown\', this);"'
+        + '  onmouseover="buttonEvent(\'onmouseover\', this); window.status=\'OK\'; return true;"'
+        + '  onmouseout="buttonEvent(\'onmouseout\', this);">'
+        + '  <table class="Button"><tr><td>'
+        + '    <img alt="Remove" title="Remove" src="../web/org.openbravo.advpaymentmngt/images/GLItemGridCancel-xButt.png" id="imgButtonRemove" border="0"/></td>'
+        + '  </tr></table></button></div>';
+  }
+  updateTotal();
+}
+function addGLItem() {
+  var amount = 0, glamount = 0, expectedAmt = 0;
+  if (frm.inpGLItemReceivedInAmount.value === null || frm.inpGLItemReceivedInAmount.value === '') {
+    setWindowElementFocus(frm.inpGLItemReceivedInAmount);
+    showJSMessage(7);
+    return false;
+  } else if (frm.inpGLItemPaidOutAmount.value === null || frm.inpGLItemPaidOutAmount.value === '') {
+    setWindowElementFocus(frm.inpGLItemPaidOutAmount);
+    showJSMessage(7);
+    return false;
+  } else if (frm.inpcGlitemId.value === null || frm.inpcGlitemId.value === '') {
+    setWindowElementFocus(frm.inpcGlitemId);
+    showJSMessage(7);
+    return false;
+  } else if ( (compare(frm.inpGLItemReceivedInAmount.value, '==', 0) && compare(frm.inpGLItemPaidOutAmount.value, '==', 0)) ||
+              (compare(frm.inpGLItemReceivedInAmount.value, '!=', 0) && compare(frm.inpGLItemPaidOutAmount.value, '!=', 0)) ) {
+    setWindowElementFocus(frm.paramPaymentAmountGLItem);
+    showJSMessage('APRM_JSAMOUNTDIFFTOZERO');
+    return false;
+  }
+  if (isTrue('isReceipt')) {
+    glamount = subtract(frm.inpGLItemReceivedInAmount.value, frm.inpGLItemPaidOutAmount.value);
+  } else {
+    glamount = subtract(frm.inpGLItemPaidOutAmount.value, frm.inpGLItemReceivedInAmount.value);
+  }
+  amount = add(document.frmMain.inpGLSumAmount.value, glamount);
+  document.frmMain.inpGLSumAmount.value = amount;
+  document.frmMain.inpExpectedPayment.value = add(document.frmMain.inpExpectedPayment.value, glamount);
+  var isInheritedActualPayment = (document.getElementById('paramInheritedActualPayment').value === 'Y');
+  if (!isTrue('isReceipt') && !isInheritedActualPayment) {
+    if (document.frmMain.inpUseCredit.checked) {
+      amount = subtract(amount, document.frmMain.inpCredit.value);
+      if ( compare(amount, '<', '0') ) {
+        amount = 0;
+      }
+    }
+    document.frmMain.inpActualPayment.value = amount;
+  }
+  OB.APRM.APFT_GLItemsId++;
+  OB.APRM.APFT_GLItems.push({
+    id: OB.APRM.APFT_GLItemsId,
+    glitemId: frm.inpcGlitemId.value,
+    glitemDesc: sc_C_Glitem_ID.selectorField.getDisplayValue(),
+    cBpartnerDim: frm.inpCBPartnerId_dim && frm.inpCBPartnerId_dim.value,
+    cBpartnerDimDesc: sc_C_BPartner_ID_dim.selectorField.getDisplayValue(),
+    cBpartnerDimDisplayed: frm.strElement_BP.value,
+    cActivityDim: frm.inpCActivityId && frm.inpCActivityId.value,
+    cActivityDimDesc: sc_C_Activity_ID.selectorField.getDisplayValue(),
+    cActivityDimDisplayed: frm.strElement_AY.value,
+    mProductDim: frm.inpMProductId && frm.inpMProductId.value,
+    mProductDimDesc:  sc_M_Product_ID.selectorField.getDisplayValue(),
+    mProductDimDisplayed: frm.strElement_PR.value,
+    cCampaignDim: frm.inpCampaignId && frm.inpCampaignId.value,
+    cCampaignDimDesc: sc_C_Campaign_ID.selectorField.getDisplayValue(),
+    cCampaignDimDisplayed: frm.strElement_MC.value,
+    cProjectDim: frm.inpCProjectId && frm.inpCProjectId.value,
+    cProjectDimDesc: sc_C_Project_ID.selectorField.getDisplayValue(),
+    cProjectDimDisplayed: frm.strElement_PJ.value,
+    cSalesregionDim: frm.inpCSalesRegionId && frm.inpCSalesRegionId.value,
+    cSalesregionDimDesc: sc_C_SalesRegion_ID.selectorField.getDisplayValue(),
+    cSalesregionDimDisplayed: frm.strElement_SR.value,
+    glitemReceivedInAmt: OB.Utilities.Number.OBMaskedToJS(frm.inpGLItemReceivedInAmount.value,
+                                                          getGlobalDecSeparator(),
+                                                          getGlobalGroupSeparator()),
+    glitemPaidOutAmt: OB.Utilities.Number.OBMaskedToJS(frm.inpGLItemPaidOutAmount.value,
+                                                       getGlobalDecSeparator(),
+                                                       getGlobalGroupSeparator())
+  });
+  loadGLItemList();
+}
+function removeGLItem(key, removedAmount) {
+  var isInheritedActualPayment = (document.getElementById('paramInheritedActualPayment').value === 'Y'),
+      removedAmount = applyFormatJSToOBMasked(removedAmount);
+  if (!isTrue('isReceipt') && !isInheritedActualPayment) {
+    if ( compare(document.frmMain.inpActualPayment.value, '>', removedAmount) ) {
+      document.frmMain.inpActualPayment.value = subtract(document.frmMain.inpActualPayment.value, removedAmount);
+    } else {
+      document.frmMain.inpActualPayment.value = 0;
+    }
+  }
+  document.frmMain.inpGLSumAmount.value = subtract(document.frmMain.inpGLSumAmount.value, removedAmount);
+  document.frmMain.inpExpectedPayment.value = subtract(document.frmMain.inpExpectedPayment.value, removedAmount);
+  OB.APRM.APFT_GLItems.splice(key, 1);
+  loadGLItemList();
+}
+function removeAllGLItem(closePopup) {
+  OB.APRM.APFT_GLItems = [];
+  loadGLItemList();
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+function validate(action) {
+  var frm = document.frmMain;
+  if (action === 'openprocess') {
+    if (frm.inpActualPayment.value === null || frm.inpActualPayment.value === '') {
+      setWindowElementFocus(frm.inpActualPayment);
+      showJSMessage(7);
+      return false;
+    } else if (frm.inpDocNumber.value === null || frm.inpDocNumber.value === '') {
+      setWindowElementFocus(frm.inpDocNumber);
+      showJSMessage(7);
+      return false;
+    } else if (frm.inpPaymentMethod.value==null || frm.inpPaymentMethod.value=="") {
+      setWindowElementFocus(frm.inpPaymentMethod);
+      showJSMessage(7);
+      return false;
+    } else if (frm.inpExpectedPayment.value==null || frm.inpExpectedPayment.value=="") {
+      setWindowElementFocus(frm.inpExpectedPayment);
+      showJSMessage(7);
+      return false;
+    } else if (frm.inpPaymentDate.value==null || frm.inpPaymentDate.value=="") {
+      setWindowElementFocus(frm.inpPaymentDate);
+      showJSMessage(7);
+      return false;
+    } else if (isMulticurrencyTxn()) {
+      if (frm.inpActualConverted.value==null || frm.inpActualConverted.value=="") {
+        setWindowElementFocus(frm.inpActualConverted);
+        showJSMessage(7);
+        return false;
+      } else if (frm.inpExchangeRate.value==null || frm.inpExchangeRate.value=="") {
+        setWindowElementFocus(frm.inpExchangeRate);
+        showJSMessage(7);
+        return false;
+      }
+    } else {
+      var diffAction = frm.inpDifferenceAction,
+          selectedAction = null, i, actionSelected = false;
+      for (i = 0; i < diffAction.length; i++) {
+        if (diffAction[i].checked) {
+          actionSelected = true;
+          break;
+        }
+      }
+      if (actionSelected) {
+        selectedAction = diffAction[i].value;
+        if ((frm.inpcBpartnerId.value==null || frm.inpcBpartnerId.value=="") && (selectedAction === "credit" || selectedAction === "refund") ) {
+            setWindowElementFocus(frm.inpBpartnerId_DES);
+            showJSMessage('APRM_bpmandatory_creditrefund');
+            return false;
+        }
+      }
+      if (!validateSelectedPendingPayments(true, selectedAction)) { return false; }
+    }
+  }
+  return true;
+}
+function updateData(key, mark, drivenByGrid) {
+  if (mark === null) { mark=false; }
+  updateReadOnly(key, mark);
+  var paymentAmount = document.frmMain.elements['inpPaymentAmount'+key];
+  var isInheritedActualPayment = (document.getElementById('paramInheritedActualPayment').value === 'Y');
+  if (!isTrue('isReceipt') && !isInheritedActualPayment) {
+    if (mark && paymentAmount.value === '') {
+      paymentAmount.value=document.frmMain.elements['inpRecordAmt'+key].value;
+    }
+  } else { // sales
+    if (drivenByGrid && mark && !paymentAmount.value) {
+      var total = document.getElementById('inpTotal').value ? document.getElementById('inpTotal').value : 0;
+      var actualPayment = document.getElementById('paramActualPayment').value;
+      if (frm.inpUseCredit.checked) {
+        actualPayment = add(actualPayment, document.frmMain.inpCredit.value);
+      }
+      var gridAmt = document.frmMain.elements['inpRecordAmt'+key].value;
+      if ( compare(actualPayment, '<', 0) && compare(gridAmt, '>=', 0) ) {
+        paymentAmount.value = 0;
+      } else {
+        if ( compare(actualPayment, '<', 0) && compare(gridAmt, '<', 0) ) {
+          total = abs(total);
+          actualPayment = abs(actualPayment);
+          subtotal = add(total, abs(gridAmt));
+          if ( compare(subtotal, '>', actualPayment)) {
+            paymentAmount.value = subtract(0, subtract(actualPayment, total));
+          } else {
+            paymentAmount.value = gridAmt;
+          }
+        } else {
+          var subtotal = add(total, gridAmt);
+          if ( compare(subtotal, '>', actualPayment)) {
+            paymentAmount.value = subtract(actualPayment, total);
+          } else {
+            paymentAmount.value = gridAmt;
+          }
+        }
+      }
+    }
+  }
+  updateTotal();
+
+  return true;
+}
+function validateDate(element){
+  if(isValidDate(element.value, element.getAttribute('displayformat'))) {
+    loadGridList();
+  }
+}
+function paymentAmountOnChange(element){
+  updateTotal();
+  numberInputEvent('onchange', element);
+}
+function setGLItemMode(toGLItem){
+  displayLogicElement('glitemRow', toGLItem);
+  displayLogicElement('glitemAddRow', toGLItem);
+  displayLogicElement('gridGLItem', toGLItem);
+  displayLogicElement('totalInvoices', toGLItem);
+  displayLogicElement('GLItemSelectorLbl', toGLItem);
+  displayLogicElement('GLItemSelector', toGLItem);
+  
+  displayLogicElement('DueDateFromLbl', !toGLItem);
+  displayLogicElement('DueDateFrom', !toGLItem);
+  displayLogicElement('DueDateToLbl', !toGLItem);
+  displayLogicElement('DueDateTo', !toGLItem);
+  displayLogicElement('DocumentNoLbl', !toGLItem);
+  displayLogicElement('DocumentNo', !toGLItem);
+  displayLogicElement('TrxDateFromLbl', !toGLItem);
+  displayLogicElement('TrxDateFrom', !toGLItem);
+  displayLogicElement('TrxDateToLbl', !toGLItem);
+  displayLogicElement('TrxDateTo', !toGLItem);
+  displayLogicElement('gridPayment', !toGLItem);
+  displayLogicElement('totalGLItems', !toGLItem);
+  
+  autoDisplayLogicDimensions(toGLItem);
+  
+  resizeAreaCreateFrom();
+  if (toGLItem) {
+    loadGLItemList();
+  }
+  return true;
+}
+function autoDisplayLogicDimensions(isDisplayed) {
+  var displayLogicDimension = function (dimension, isDisplayed) {
+    displayLogicElement(dimension + '_dim_label', isDisplayed);
+    displayLogicElement(dimension + '_dim_inp', isDisplayed);
+    displayLogicElement(dimension + '_th', isDisplayed)
+  }
+  var displayTitle = false;
+  if (document.frmMain.strElement_BP.value === 'Y' && isDisplayed) {
+    displayLogicDimension('c_bpartner_id', true);
+    displayTitle = true;
+  } else {
+    displayLogicDimension('c_bpartner_id', false);
+  }  
+  if (document.frmMain.strElement_AY.value === 'Y' && isDisplayed) {
+    displayLogicDimension('c_activity_id', true);
+    displayTitle = true;
+  } else {
+    displayLogicDimension('c_activity_id', false);
+  }
+  
+  if (document.frmMain.strElement_PR.value === 'Y' && isDisplayed) {
+    displayLogicDimension('m_product_id', true);
+    displayTitle = true;
+  } else {
+    displayLogicDimension('m_product_id', false);
+  }
+  if (document.frmMain.strElement_MC.value === 'Y' && isDisplayed) {
+    displayLogicDimension('c_campaign_id', true);
+    displayTitle = true;
+  } else {
+    displayLogicDimension('c_campaign_id', false);
+  }
+  
+  if (document.frmMain.strElement_PJ.value === 'Y' && isDisplayed) {
+    displayLogicDimension('c_project_id', true);
+    displayTitle = true;
+  } else {
+    displayLogicDimension('c_project_id', false);
+  }
+  if (document.frmMain.strElement_SR.value === 'Y' && isDisplayed) {
+    displayLogicDimension('c_salesregion_id', true);
+    displayTitle = true;
+  } else {
+    displayLogicDimension('c_salesregion_id', false);
+  }
+  
+  if (displayTitle) {
+    displayLogicElement('acctDimensionsTitle', true);
+  } else {
+    displayLogicElement('acctDimensionsTitle', false);
+  }
+}
+function documentTypeOnChange(value){
+  if ('G' === value) {
+    //if we are not already on GL Item mode.
+    if (!isTrue('isInGLItemMode')) {
+      document.frmMain.isInGLItemMode.value='Y';
+      document.getElementById('paramInvoicesAmt').innerHTML = frm.inpInvoiceAmount.value;
+      setGLItemMode(true);
+    }
+  } else {
+    document.getElementById('paramGLItemsAmt').innerHTML = document.frmMain.inpGLSumAmount.value;
+    document.frmMain.isFirstLoad.value = 'true';
+    if (isTrue('isInGLItemMode')) {
+      document.frmMain.isInGLItemMode.value='N';
+      setGLItemMode(false);
+    }
+    loadGridList();
+  }
+}
+function actualPaymentOnChange(){
+  if (isTrue('isReceipt')) {
+    var amount = document.frmMain.inpActualPayment.value;
+    if (document.frmMain.inpUseCredit.checked) {
+      amount = add(amount, document.frmMain.inpCredit.value);
+    }
+    if (isTrue('isInGLItemMode')) {
+      updateTotal();
+    } else {
+      distributeAmount(amount);
+    }
+  }
+}
+function useCreditOnChange(){
+  actualPaymentOnChange();
+  updateTotal();
+}
+function onchangeBPartner(dummy) {
+  initialize_MessageBox('messageBoxID');
+  loadGridList();
+  loadCreditAvailable();
+  loadPaymentMethodCombo();
+}
+function isMulticurrencyTxn() {
+  var invCurrency = document.getElementById('paramCurrencyId').value
+  var accountCurrency = document.getElementById('paramFinancialAccountCurrencyId').value
+  return invCurrency && accountCurrency && invCurrency != accountCurrency;
+}
+function isPaymentMethodMulticurrency(combo) {
+  if( combo == null ) {
+    combo = document.frmMain.inpPaymentMethod;
+  }
+  var paymentMethodId = inputValue(combo);
+  var multicurrency = false;
+  if( paymentMethodId ) {
+    multicurrency  = paymentMethodMulticurrency[paymentMethodId]
+  }
+  return multicurrency;
+}
+
+function displayMulticurrencyControls() {
+  var display = isMulticurrencyTxn();
+  displayLogicElement('paramExchangeRate', display );
+  displayLogicElement('lblExchangeRate', display );
+  displayLogicElement('paramExpectedConverted', display );
+  displayLogicElement('lblExpectedConverted', display );
+  displayLogicElement('paramActualConvertedCell', display );
+  displayLogicElement('lblActualConverted', display );
+}
+
+function currencyOnChange() {
+  if( isPaymentMethodMulticurrency() ) {
+    changeClass('paramCurrencyId','ComboKeyReadOnly ', 'ComboKey dojoValidateValid required ')
+    loadGridList();
+    return refreshExchangeRate();
+  } else {
+    // Reset currency
+    changeClass('paramCurrencyId', 'ComboKey dojoValidateValid required ', 'ComboKeyReadOnly ');
+    selectCombo(document.getElementById('paramCurrencyId'), document.getElementById('paramFinancialAccountCurrencyId').value);
+    document.getElementById('paramExchangeRate').value='1';
+    updateConvertedAmounts();
+    displayMulticurrencyControls();
+    loadGridList();
+  }
+}
+
+function callBackExchangeRate(paramXMLParticular, XMLHttpRequestObj) {
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        var resp = decodeJSON(XMLHttpRequestObj.responseText);
+        document.getElementById('paramExchangeRate').value=resp.exchangeRate;
+      } else {
+        document.getElementById('paramExchangeRate').value='';
+      }
+      updateConvertedAmounts();
+      displayMulticurrencyControls();
+    } catch (e) {
+    }
+  }
+  return true;
+}
+
+function refreshExchangeRate() {
+  try {
+    var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/AddPaymentFromTransaction.html";
+    var paramXMLReq = null;
+    return submitXmlHttpRequest(callBackExchangeRate, document.frmMain, "EXCHANGERATE", url, false, null, paramXMLReq);
+  } catch (e) {
+    alert(e);
+  }
+}
+
+function paymentMethodOnChange(){
+  currencyOnChange();
+}
+function paymentDateOnChange(){
+  return refreshExchangeRate();
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+function onloadFunctions() {
+  keyArray[keyArray.length] = new keyArrayItem("ENTER", "openSearch(null, null, '../info/BusinessPartner.html', 'BPARTNER_SELECTOR', false, 'frmMain', 'inpcBpartnerId', 'inpBpartnerId_DES', document.frmMain.inpBpartnerId_DES.value, 'Command', 'KEY');", "inpBpartnerId_DES", "null");
+}
+function displayLogicForCredit() {
+  var hasCredit = compare(document.getElementById('paramCredit').value, '>', '0');
+  displayLogicElement('paramCredit', hasCredit );
+  displayLogicElement('paramUseCreditContainer', hasCredit );
+  displayLogicElement('rowCredit', hasCredit );
+}
+function initializeTemplate(){
+  // credit is allowed looking at the business partner selection in the grid
+  initFIN_Utilities(document.frmMain, true, true, true);
+  processLabels();
+  displayLogicElement('paramCustBalance', isTrue('isReceipt'));
+  displayLogicElement('NoPackageslinkCalc', isTrue('isReceipt'));
+  if (isTrue('isReceipt')) {
+  } else {
+      document.getElementById('paramActualPayment').readOnly = true;
+      document.getElementById('paramActualPayment').className = "readonly required dojoValidateValid TextBox_btn_OneCell_width number";
+  }
+  setWindowElementFocus(frm.inpBpartnerId_DES);
+  loadGridList();
+}
+function onLoadDo(){
+  var tableTopPopup = new windowTableId('client_top_popup', 'buttonOK'),
+      tableTop = new windowTableId('client_top', 'buttonProcess'),
+      tableMiddle = new  windowTableId('client_middle', 'buttonProcess'),
+      tableBottom = new windowTableId('client_bottom', 'buttonProcess');
+  this.windowTables = new Array(tableTopPopup, tableTop, tableMiddle, tableBottom);
+
+  setWindowTableParentElement();
+  enableShortcuts('popup');
+  setBrowserAutoComplete(false);
+
+  initializeTemplate();
+  try {
+    onloadFunctions();
+  } catch (e) {}
+  setGLItemMode(isTrue('isInGLItemMode'));
+  displayLogicElement('sectionDifference', false);
+  displayLogicElement('sectionDifferenceBox', false);
+  displayLogicForCredit();
+  displayMulticurrencyControls();
+
+  resizeAreaCreateFrom();
+}
+function onResizeDo(){
+  resizeAreaCreateFrom(true);
+}
+function closeThisPage() {
+  removeAllGLItem(true);
+  closePage();
+  return true;
+}
+function submitThisPage(strCommand) {
+  if (validate(strCommand)) {
+    document.frmMain.inpGLItems.value = isc.JSON.encode(OB.APRM.APFT_GLItems);
+    submitCommandForm(strCommand, false, null, null, '_self');
+    return true;
+  }
+  return true;
+}
+function openProcessPayment() {
+  if (validate('openprocess')) {
+    var amount = document.frmMain.inpActualPayment.value;
+    // if amount is 0 deposit or withdrawn is not allowed
+    // skip action regarding document window
+    if ( compare(amount, '==', 0) ) {
+      submitThisPage('SAVEANDPROCESS');
+      return true;
+    }
+    document.getElementById('client_top_popup').style.display = 'block';
+    document.getElementById('client_top').style.display = 'none';
+    document.getElementById('client_middle').style.display = 'none';
+    document.getElementById('client_bottom').style.display = 'none';
+  }
+}
+function closeProcessPayment() {
+  document.getElementById('client_top_popup').style.display = 'none';
+  document.getElementById('client_top').style.display = 'block';
+  document.getElementById('client_middle').style.display = 'block';
+  document.getElementById('client_bottom').style.display = 'block';
+  setGLItemMode(isTrue('isInGLItemMode'));
+}
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form name="frmMain" method="post" action="AddPaymentFromTransaction.html">
+  <input type="hidden" name="Command" />
+  <input type="hidden" name="IsPopUpCall" value="1" />
+  <input type="hidden" name="inpadOrgId" value="" id="fieldOrg"/>
+  <input type="hidden" name="isReceipt" value="" id="fieldReceipt"/>
+  <input type="hidden" name="inpissotrx" value="" id="fieldIsSoTrx"/>
+  <input type="hidden" name="inpFinBankStatementLineId" value="" id="paramFinBankStatementLineId"></input>
+  <input type="hidden" name="isFirstLoad" value="true"/>
+  <input type="hidden" name="isInGLItemMode" value="N"/>
+  <input type="hidden" name="inpGLItems" value=""/>
+  <input type="hidden" name="inpInheritedActualPayment" value="N" id="paramInheritedActualPayment"/>
+  <input type="hidden" name="strElement_BP" id="paramStrElement_BP" value=""/>
+  <input type="hidden" name="strElement_PR" id="paramStrElement_PR" value=""/>
+  <input type="hidden" name="strElement_PJ" id="paramStrElement_PJ" value=""/>
+  <input type="hidden" name="strElement_AY" id="paramStrElement_AY" value=""/>
+  <input type="hidden" name="strElement_SR" id="paramStrElement_SR" value=""/>
+  <input type="hidden" name="strElement_MC" id="paramStrElement_MC" value=""/>
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../../../../../web/images/blank.gif" border=0/></img>
+    </div>
+  </div>
+  <table cellspacing="0" cellpadding="0" width="100%" id="table_header">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span name="lblR" id="lblRPopupTitle">Add Payment In</span><span name="lblP" id="lblPPopupTitle">Add Payment Out</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+  </table>
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_messagebox">
+
+          <!-- MessageBox -->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                            <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_Icon_ContentCell">
+                                  <div class="MessageBox_Icon"></div>
+                                </td>
+                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                  <span>
+                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                      xxInfo: AccessTableWithNoView
+                                    </div>
+                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                      xxThe current information is empty.
+                                    </div>
+                                    <div class="MessageBox_TextSeparator"></div>
+                                  </span>
+                                </td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+                <td class="MessageBox_RightMargin"></td>
+              </tr>
+            </tbody>
+          </table>
+        <!-- MessageBox END -->
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+
+    <tr>
+      <td>
+        <!-- Hidden Process Payment Div  -->
+        <div class="Popup_ContentPane_Client" style="display: none;" id="client_top_popup">
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_InfoBar">
+           <tr>
+             <td class="Popup_InfoBar_Icon_cell"><img src="../web/images/blank.gif" class="Popup_InfoBar_Icon_info" border="0"></td>
+             <td class="Popup_InfoBar_text_table">
+               <table>
+                 <tr><td class="Popup_InfoBar_text" id="processHelp">Process Payment</td></tr>
+                 </table>
+              </td>
+            </tr>
+          </table>
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr><td colspan="6" height="20"></td></tr>
+            <tr>
+              <td class="TitleCell"></td>
+              <td class="TitleCell" colspan="2"><span class="LabelText">Action regarding document</span></td>
+              <td class="Combo_ContentCell">
+                <select name="inpActionDocument" id="paramActionDocument" class="ComboKey Combo_TwoCells_width" required="true">
+                  <div id="reportActionDocument"></div>
+                </select>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+            </tr>
+            <tr><td colspan="6" height="20"></td></tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonOK"
+                    class="ButtonLink_focus"
+                    onclick="submitThisPage('SAVE');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='OK'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='OK'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="OK" title="OK" src="../web/images/blank.gif" id="imgButtonOK" border="0"></td>
+                        <td class="Button_text Button_width" id="tdButtonOK">OK</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonCancel"
+                    class="ButtonLink"
+                    onclick="closeProcessPayment();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../web/images/blank.gif" id="imgButtonCancel" border="0"></td>
+                        <td class="Button_text Button_width" id="tdButtonCancel">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_top">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+
+            <!-- Line 1 -->
+            <tr>
+              <td class="TitleCell"><span name="lblP" id="lblPDocNo" class="LabelText">Payment Out Document No.</span><span name="lblR" id="lblRDocNo" class="LabelText">Payment In Document No.</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input class="dojoValidateValid required TextBox_TwoCells_width" type="text" name="inpDocNumber" value="" id="paramDocNumber"></input></td>
+              <td class="TitleCell"><span class="LabelText">Document Type</span></td>
+              <td class="TextBox_ContentCell"><input class="readonly dojoValidateValid TextBox_OneCell_width" type="text" name="inpDocType" value="" id="paramDocType"></input></td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <!-- Line 2 -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText" name="lblP" id="lblPTakeFrom">Take From</span><span class="LabelText" name="lblR" id="lblRDepositTo">Deposit To</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input type="text" name="inpFinancialAccount" id="paramFinancialAccount" class="readonly dojoValidateValid required TextBox_TwoCells_width" value="" />
+                <input type="hidden" name="inpFinancialAccountId" id="paramFinancialAccountId" value="">
+                <input type="hidden" id="paramFinancialAccountCurrencyId" name="inpFinancialAccountCurrencyId" value=""/>
+                <input type="hidden" id="paramFinancialAccountCurrencyPrecision" name="inpFinancialAccountCurrencyPrecision" value="2"/>
+              </td>
+              <td class="TitleCell"><span class="LabelText">Reference No.</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input class="dojoValidateValid TextBox_OneCell_width" type="text" name="inpReferenceNo" value="" id="paramReferenceNo"></input></td>
+              <td class="TitleCell"></td>
+            </tr>
+
+            <!-- Line 3 -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText" name="lblP" id="lblPToBePaidTo">To Be Paid To</span><span class="LabelText" name="lblR" id="lblRReceivedFrom">Received From</span></td>
+              <td class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Bpartner_ID = null;</script>
+                      <input type="hidden" name="inpcBpartnerId" id="C_Bpartner_ID" value="" onreset="sc_C_Bpartner_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Bpartner_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/A98899B1C75A4F4EBD3414F1B654EFAB?columnName=C_Bpartner_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&callOut=onchangeBPartner&required=false&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&_selectorDefinitionId=A98899B1C75A4F4EBD3414F1B654EFAB"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+            </tr>
+
+            <!-- Line 4 (Hidden if no credit)-->
+            <tr id="rowCredit">
+              <td class="TitleCell"><span class="LabelText" name="lbl" id="lblCredit">Available Credit</span></td>
+              <td class="TextBox_ContentCell"><input class="readonly dojoValidateValid TextBox_OneCell_width number" type="text" name="inpCredit" value="0" id="paramCredit"></input></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"><span class="LabelText" name="lbl" id="lblUseCredit">Use Available Credit</span></td>
+              <td class="Radio_Check_ContentCell"><span class="Checkbox_container_NOT_Focused"><input type="checkbox" name="inpUseCredit" value="Y" id="paramUseCredit" onclick="useCreditOnChange();"></input></span></td>
+            </tr>
+
+            
+            <!-- Line 5 -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Payment Method</span></td>
+              <td class="Combo_ContentCell" colspan="2">
+                <select name="inpPaymentMethod"
+                        onkeypress="changeToEditingMode('onkeypress');"
+                        onchange="changeToEditingMode('onchange', this);logChanges(this);paymentMethodOnChange(this);return true;"
+                        class="dojoValidateValid ComboKey Combo_TwoCells_width required" id="inpPaymentMethod">
+                  <div id="sectionDetailPaymentMethod"></div>
+                </select>
+                <div id="sectionDetailPaymentMethodMulticurrency"></div>
+              </td>
+              <td class="TitleCell"><span class="LabelText">Currency</span></td>
+              <td class="TextBox_ContentCell" colspan="2">
+                <select name="inpCurrencyId" id="paramCurrencyId" class="ComboKeyReadOnly Combo_OneCell_width"
+                        onkeypress="changeToEditingMode('onkeypress');"
+                        onchange="changeToEditingMode('onchange', this);logChanges(this);currencyOnChange();return true;">
+                    <option value=""><div id="reportCurrencyId"></div></option>
+                </select>
+
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <!-- Line 6 -->
+            <tr>
+              <td class="TitleCell"><span name="lblP" id="lblPExpectedPaym" class="LabelText">Expected Payment Out</span><span name="lblR" id="lblRExpectedPaym" class="LabelText">Expected Payment In</span></td>
+              <td class="TextBox_ContentCell"><input class="readonly dojoValidateValid required TextBox_OneCell_width number" readonly type="text" id="paramExpectedPayment" name="inpExpectedPayment" value="" onchange="updateDifference();"></input></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"><span class="LabelText" id="lblExpectedConverted">Expected Converted</span></td>
+              <td class="TextBox_ContentCell"> <input class="readonly dojoValidateValid required TextBox_OneCell_width number" type="text" id="paramExpectedConverted" name="inpExpectedConverted" value="" onchange="" disabled="true"></input>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+
+            <!-- Line 7 -->
+            <tr>
+              <td class="TitleCell"><span name="lblP" id="lblPActualPaym"class="LabelText">Actual Payment Out</span><span name="lblR" id="lblRActualPaym" class="LabelText">Actual Payment In</span></td>
+              <td class="TextBox_btn_ContentCell">
+                  <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                    <tr>
+                      <td class="Textbox_ContentCell">
+                        <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" outputformat="euroEdition" onchange="actualPaymentOnChange();return true;" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" name="inpActualPayment" maxlength="22" value="" required="true" class="dojoValidateValid required TextBox_btn_OneCell_width number" id="paramActualPayment"/>
+                        </td></tr>
+                        </table>
+                        <span id="paramActualPaymentinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                          <table class="TextBox_MsgContainer_table">
+                            <tbody><tr class="TextBox_MsgContainer_tr">
+                              <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                            </tr>
+                            <tr>
+                              <td class="invalid" colspan="2"><div name="invalidText" id="paramActualPaymentinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                            </tr>
+                          </tbody></table>
+                        </span>
+                      </td>
+                      <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount From'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpActualPayment', document.frmMain.inpActualPayment.value, false);return false;">
+                      <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                      </td>
+                    </tr>
+                  </table>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"><span class="LabelText" id="lblActualConverted">Actual Converted</span></td>
+              <td class="TextBox_btn_ContentCell">
+                  <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;" id="paramActualConvertedCell">
+                    <tr>
+                      <td class="Textbox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" outputformat="euroEdition" onchange="updateConvertedAmounts(true);return true;" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" name="inpActualConverted" maxlength="22" value="" required="true" class="dojoValidateValid required TextBox_btn_OneCell_width number" id="paramActualConverted"/>
+                        </td></tr>
+                      </table>
+                      <span id="paramActualConvertedinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr">
+                            <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                          </tr>
+                          <tr>
+                            <td class="invalid" colspan="2"><div name="invalidText" id="paramActualConvertedinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                          </tr>
+                        </tbody></table>
+                      </span>
+                      </td>
+                      <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount From'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpActualConverted', document.frmMain.inpActualConverted.value, false);return false;">
+                      <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                      </td>
+                    </tr>
+                  </table>
+              </td>
+
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <!-- Line 8 -->
+            <tr>
+              <td class="TitleCell"><span name="lblP" id="lblPPaymDate" class="LabelText">Payment Out Date</span><span name="lblR" id="lblRPaymDate"class="LabelText">Payment In Date</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" id="paramPaymentDate" class="dojoValidateValid required TextBox_btn_OneCell_width" value="" maxlength="10" name="inpPaymentDate" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" displayFormat="xx" saveFormat="yy"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramPaymentDateinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramPaymentDateinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                          </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpPaymentDate', document.frmMain.inpPaymentDate.value, false);return false;">
+                        <table class="FieldButton"  onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"><span class="LabelText" id="lblExchangeRate">Exchange Rate</span></td>
+              <td class="Textbox_ContentCell">
+                <table style="border: 0px none; border-collapse: collapse;">
+                  <tr><td style="padding-top: 0px;">
+                    <input type="text" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" outputformat="generalQtyEdition" onchange="updateConvertedAmounts();return true;" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" name="inpExchangeRate" maxlength="22" value="" required="true" class="dojoValidateValid required TextBox_btn_OneCell_width number" id="paramExchangeRate"/>
+                  </td></tr>
+                </table>
+                <span id="paramExchangeRateinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                  <table class="TextBox_MsgContainer_table">
+                    <tbody><tr class="TextBox_MsgContainer_tr">
+                      <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                    </tr>
+                    <tr>
+                      <td class="invalid" colspan="2"><div name="invalidText" id="paramExchangeRateinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                    </tr>
+                  </tbody></table>
+                </span>
+              </td>
+            </tr>
+            
+            <!-- Text -->
+            <tr>
+                <td colspan="6" class="LabelText" style="font-weight: bold;">
+                    <span name="lblP" id="lblPText">Select additional purchase invoices, purchase orders or gl items that you want to add to this payment out</span>
+                    <span name="lblR" id="lblRText">Select additional sales invoices, sales orders or gl items that you want to add to this payment in</span>
+                </td>
+            </tr>
+            
+            <tr class="FieldGroup_BottomMargin"></tr>
+            
+            <!-- Table filters -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Transaction Type</span></td>
+              <td class="Combo_ContentCell">
+                <select name="inpDocumentType" class="ComboKey Combo_OneCell_width" onchange="documentTypeOnChange(this.value);">
+                  <option value="O">Orders</option>
+                  <option value="I" selected="selected">Invoices</option>
+                  <option value="B">Orders and Invoices</option>
+                  <option value="G">GL Items</option>
+                </select>
+              </td>
+              <!-- Cells shown when not in GL Item mode -->
+              <td class="TitleCell" id="DueDateFromLbl"><span class="LabelText">Due Date From</span></td>
+              <td class="TextBox_btn_ContentCell" id="DueDateFrom">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" id="paramDueDateFrom" class="dojoValidateValid TextBox_btn_OneCell_width" value="" maxlength="10" name="inpDueDateFrom" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" onchange="validateDateTextBox(this.id);  validateDate(this);return true;" displayFormat="xx" saveFormat="xx"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramDueDateFrominvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramDueDateFrominvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpDueDateFrom', document.frmMain.inpDueDateFrom.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell" id="DueDateToLbl"><span class="LabelText">Due Date To</span></td>
+              <td class="TextBox_btn_ContentCell" id="DueDateTo">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" id="paramDueDateTo" class="dojoValidateValid TextBox_btn_OneCell_width" value="" maxlength="10" name="inpDueDateTo" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" onchange="validateDateTextBox(this.id); validateDate(this);return true;" displayFormat="xx" saveFormat="xx"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramDueDateToinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramDueDateToinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpDueDateTo', document.frmMain.inpDueDateTo.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <!-- Cells shown when not in GL Item mode -->
+              <td class="TitleCell" colspan="2" id="GLItemSelectorLbl"><span class="LabelText">GL Item</span></td>
+              <td class="TextBox_ContentCell" colspan="2" id="GLItemSelector">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Glitem_ID = null;</script>
+                      <input type="hidden" name="inpcGlitemId" id="C_Glitem_ID" value="" onreset="sc_C_Glitem_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Glitem_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/9FAD469CE4414A25974CF45C0AD22D35?columnName=C_Glitem_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=true"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr> 
+             <td class="TitleCell" id="DocumentNoLbl"><span class="LabelText">Document No.</span></td>
+             <td class="Combo_OneCell_width" id="DocumentNo">
+               <input type="text" id="paramDocumentNo" class="dojoValidateValid TextBox_OneCell_width" value="" maxlength="10" name="inpDocumentNo" onchange="loadGridList();return true;"></input>
+             </td>
+             <td class="TitleCell" id="TrxDateFromLbl"><span class="LabelText">Transaction Date From</span></td>
+             <td class="TextBox_btn_ContentCell" id="TrxDateFrom">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" id="paramTransDateFrom" class="dojoValidateValid TextBox_btn_OneCell_width" value="" maxlength="10" name="inpTransDateFrom" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" onchange="validateDateTextBox(this.id);  validateDate(this);return true;" displayFormat="xx" saveFormat="xx"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramTransDateFrominvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramTransDateFrominvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpTransDateFrom', document.frmMain.inpTransDateFrom.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell" id="TrxDateToLbl"><span class="LabelText">Transaction Date To</span></td>
+              <td class="TextBox_btn_ContentCell" id="TrxDateTo">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" id="paramTransDateTo" class="dojoValidateValid TextBox_btn_OneCell_width" value="" maxlength="10" name="inpTransDateTo" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" onchange="validateDateTextBox(this.id); validateDate(this);return true;" displayFormat="xx" saveFormat="xx"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramTransDateToinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr"><td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td></tr>
+                          <tr><td class="invalid" colspan="2"><div name="invalidText" id="paramTransDateToinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td></tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpTransDateTo', document.frmMain.inpTransDateTo.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr id="glitemRow">
+              <td class="TitleCell"><span class="LabelText">Received In</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="Textbox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                        <input type="text" id="paramGLItemReceivedInAmount" class="dojoValidateValid required TextBox_btn_OneCell_width number"  value="0" maxlength="22" name="inpGLItemReceivedInAmount" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" onchange="" oncontextmenu="changeToEditingMode('oncontextmenu');" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" outputformat="euroEdition"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramGLItemReceivedInAmountinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr">
+                            <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                          </tr>
+                          <tr>
+                            <td class="invalid" colspan="2"><div name="invalidText" id="paramGLItemReceivedInAmountinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                          </tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpGLItemReceivedInAmount', document.frmMain.inpGLItemReceivedInAmount.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"><span class="LabelText">Paid Out</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="Textbox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                        <input type="text" id="paramGLItemPaidOutAmount" class="dojoValidateValid required TextBox_btn_OneCell_width number"  value="0" maxlength="22" name="inpGLItemPaidOutAmount" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" onchange="" oncontextmenu="changeToEditingMode('oncontextmenu');" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" outputformat="euroEdition"></input>
+                        </td></tr>
+                      </table>
+                      <span id="paramGLItemPaidOutAmountinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr">
+                            <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                          </tr>
+                          <tr>
+                            <td class="invalid" colspan="2"><div name="invalidText" id="paramGLItemPaidOutAmountinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                          </tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Amount'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpGLItemPaidOutAmount', document.frmMain.inpGLItemPaidOutAmount.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+                        
+            <tr id="acctDimensionsTitle">
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Accounting Dimensions</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+            <tr id="GLItemSection1_Dim">
+              <!-- Business Partner Dimension -->
+              <td id="c_bpartner_id_dim_label" class="TitleCell"><span class="LabelText">Business Partner</span></td>
+              <td id="c_bpartner_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_BPartner_ID_dim = null;</script>
+                      <input type="hidden" name="inpCBPartnerId_dim" id="C_BPartner_ID_dim" value="" onreset="sc_C_BPartner_ID_dim.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_BPartner_ID_dim.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/A98899B1C75A4F4EBD3414F1B654EFAB?columnName=C_BPartner_ID_dim&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=false"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <!-- Activity Dimension -->
+              <td id="c_activity_id_dim_label" class="TitleCell"><span class="LabelText">Activity</span></td>
+              <td id="c_activity_id_dim_inp" class="TextBox_ContentCell" colspan="1">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Activity_ID = null;</script>
+                      <input type="hidden" name="inpCActivityId" id="C_Activity_ID" value="" onreset="sc_C_Activity_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Activity_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D8C1EC40036?columnName=C_Activity_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=false"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>             
+              <td class="TitleCell"></td>
+            </tr>
+            <tr id="GLItemSection2_Dim">
+              <!-- Product Dimension -->
+              <td id="m_product_id_dim_label" class="TitleCell"><span class="LabelText">Product</span></td>
+              <td id="m_product_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_M_Product_ID = null;</script>
+                      <input type="hidden" name="inpMProductId" id="M_Product_ID" value="" onreset="sc_M_Product_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_M_Product_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312DA8D801312DDE869B000C?columnName=M_Product_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=false"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <!-- Campaign Dimension -->
+              <td id="c_campaign_id_dim_label" class="TitleCell"><span class="LabelText">Campaign</span></td>
+              <td id="c_campaign_id_dim_inp" class="TextBox_ContentCell" colspan="1">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Campaign_ID = null;</script>
+                      <input type="hidden" name="inpCampaignId" id="C_Campaign_ID" value="" onreset="sc_C_Campaign_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Campaign_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D8DCCD50045?columnName=C_Campaign_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=false"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>
+            <tr id="GLItemSection3_Dim">
+              <!-- Project Dimension -->
+              <td id="c_project_id_dim_label" class="TitleCell"><span class="LabelText">Project</span></td>
+              <td id="c_project_id_dim_inp" class="TextBox_ContentCell" colspan="2">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_Project_ID = null;</script>
+                      <input type="hidden" name="inpCProjectId" id="C_Project_ID" value="" onreset="sc_C_Project_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_Project_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D90408D005D?columnName=C_Project_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=false"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <!-- Sales Region Dimension -->
+              <td id="c_salesregion_id_dim_label" class="TitleCell"><span class="LabelText">Sales Region</span></td>
+              <td id="c_salesregion_id_dim_inp" class="TextBox_ContentCell" colspan="1">
+                <table style="border:0px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding-top: 0px;">
+                      <script>var sc_C_SalesRegion_ID = null;</script>
+                      <input type="hidden" name="inpCSalesRegionId" id="C_SalesRegion_ID" value="" onreset="sc_C_SalesRegion_ID.resetSelector();" onchange="openbravo.Utilities.updateSmartClientComponentValue(this, sc_C_SalesRegion_ID.selectorField);"></input>
+                      <script id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/FF808181312D569C01312D8EE5430054?columnName=C_SalesRegion_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=false"></script>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+            </tr>   
+            <tr id="glitemAddRow">
+              <td class="TitleCell"></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonAddGLItem"
+                    class="ButtonLink_focus"
+                    onclick="addGLItem();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='OK'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='OK'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="OK" title="OK" src="../web/images/blank.gif" id="imgButtonOK" border="0"></td>
+                        <td class="Button_text Button_width" id="tdButtonOK">Add</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="TitleCell" colspan="4"></td>
+            </tr>
+            <tr class="FieldGroup_BottomMargin"></tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_middle">
+          <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+            <tr>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_LeftMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdleftSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_LeftMargin"></td></tr>
+                </table>
+              </td>
+              <td valign="top">
+                <div id="client2" style="overflow: auto;">
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="gridPayment">
+                    <thead>
+                      <tr class="DataGrid_Body_Row">
+                        <th class="DataGrid_Header_LineNoCell DataGrid_Body_Cell_CheckBox" width="25"> 
+                          <input type="checkbox" name="inpAllLines" onclick="markAll(document.frmMain.inpScheduledPaymentDetailId, this.checked);updateAll(true);return true;"/>
+                        </th>
+                        <th class="DataGrid_Header_Cell" width="120"><span name="lblP" id="lblPPON">Purchase Order No.</span><span name="lblR" id="lblRSON">Sales Order No.</span></th>
+                        <th class="DataGrid_Header_Cell" width="120"><span name="lblP" id="lblPPIN">Purchase Invoice No.</span><span name="lblR" id="lblRSIN">Sales Invoice No.</span></th>
+                        <th class="DataGrid_Header_Cell" width="100">Payment Method</th>
+                        <th class="DataGrid_Header_Cell" width="100">Bussines Partner</th>
+                        <th class="DataGrid_Header_Cell" width="70">Transaction Date</th>
+                        <th class="DataGrid_Header_Cell" width="70">Due Date</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Invoiced Amount</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Expected Amount</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Outstanding Amount</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="110"><span name="lblP" id="lblPPayment">Payment Out</span><span name="lblR" id="lblRPayment">Payment In</span></th>
+                      </tr>
+                    </thead>
+                    <tbody id="sectionGrid">
+                    </tbody>
+                  </table>
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="gridGLItem">
+                    <thead>
+                      <tr class="DataGrid_Body_Row">
+                         <th class="DataGrid_Header_Cell" width="300">GL Item</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" id="c_bpartner_id_th">Business Partner</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" id="c_activity_id_th">Activity</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" id="m_product_id_th">Product</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" id="c_campaign_id_th">Campaign</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" id="c_project_id_th">Project</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100" id="c_salesregion_id_th">Sales Region</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Received In</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Paid Out</th>
+                        <th class="DataGrid_Header_LineNoCell" width="20"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="sectionGLItemGrid">
+                    </tbody>
+                  </table>
+                  
+                  <input type="hidden" name="inpGLSumAmount" value="0" outputformat="euroEdition"/>
+                  <input type="hidden" name="inpInvoiceAmount" value="0" outputformat="euroEdition"/>
+                  <input type="hidden" id="inpTotal" value="0" outputformat="euroEdition"/>
+                  <input type="hidden" name="inpDifference" id="inpDifference" value="0" outputformat="euroEdition"/>
+                  <table cellspacing="0" cellpadding="0" width="100%" class="" style="table-layout: auto;">
+                    <tr class="FieldGroup_BottomMargin"></tr>
+                    <tr id="totalInvoices">
+                      <td width="80%" class="LabelText" style="text-align:right">Amount on Invoices and/or Orders</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramInvoicesAmt"></span></td>
+                    </tr>
+                    <tr id="totalGLItems">
+                      <td width="80%" class="LabelText" style="text-align:right">Amount on GL Items</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramGLItemsAmt"></span></td>
+                    </tr>
+                    <tr>
+                      <td width="715" class="LabelText" style="text-align:right">Total</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramTotal"></span></td>
+                    </tr>
+                    <tr id="sectionDifference">
+                      <td class="LabelText" style="text-align:right">There is a difference of</td>
+                      <td class="LabelText number" style="padding-right:10px;font-weight: bold;"><span id="paramDifference"></span></td>
+                    </tr>
+                    <tr id="sectionDifferenceBox">
+                      <td></td>
+                      <td>
+                        <table cellspacing="0" cellpadding="0" width="100%" class="" style="border: #888888 2px solid; table-layout: auto;">
+                          <tr id="underpayment">
+                            <td class="Radio_Check_ContentCell" width="20">
+                              <input type="radio" name="inpDifferenceAction" value="underpayment" checked="checked"/>
+                            </td>
+                            <td><span class="LabelText">Leave this as an underpayment</span></td>
+                          </tr>
+                          <tr id="credit">
+                            <td class="Radio_Check_ContentCell" width="20">
+                              <input type="radio" name="inpDifferenceAction" value="credit"/>
+                            </td>
+                            <td><span class="LabelText">Leave the credit to be used later</span></td>
+                          </tr>
+                          <tr id="refund">
+                            <td class="Radio_Check_ContentCell" width="20">
+                              <input type="radio" name="inpDifferenceAction" value="refund"/>
+                            </td>
+                            <td><span class="LabelText">Refund amount to customer</span></td>
+                          </tr>
+                          <tr id="writeoff">
+                            <td class="Radio_Check_ContentCell">
+                              <input type="radio" name="inpDifferenceAction" value="writeoff"/>
+                            </td>
+                            <td><span class="LabelText">Write off the difference</span></td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+              </td>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_RightMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdrightSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_RightMargin"></td></tr>
+                </table>
+              </td>
+            </tr>
+            
+          </table>
+        </div>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto; padding-bottom: 5px;" id="client_bottom">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonProcess"
+                    class="ButtonLink" 
+                    onclick="openProcessPayment();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Create'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Create'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Process" title="Process" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Process</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonCancel" 
+                    class="ButtonLink" 
+                    onclick="closeThisPage();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

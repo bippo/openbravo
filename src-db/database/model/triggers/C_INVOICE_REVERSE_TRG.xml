@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_INVOICE_REVERSE_TRG">
+    <trigger name="C_INVOICE_REVERSE_TRG" table="C_INVOICE_REVERSE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2009-2010 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    /*************************************************************************
+    * Title: Check the introduced BP is the same as the Invoice
+    ************************************************************************/
+   v_n NUMBER;
+   v_isprocessed C_Invoice.Processed%TYPE;
+   v_bpheader_id C_Invoice.C_BPARTNER_ID%TYPE;
+   v_bpreversed_id C_Invoice.C_BPARTNER_ID%TYPE;
+   v_docstatus C_Invoice.DOCSTATUS%TYPE;
+   v_isposted C_Invoice.POSTED%TYPE;
+   v_amt C_Invoice.GrandTotal%TYPE;
+   TYPE RECORD IS REF CURSOR;
+   Cur_Exchange_info RECORD;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF(INSERTING OR UPDATING) THEN
+   SELECT PROCESSED, C_BPARTNER_ID, DOCSTATUS, POSTED, GRANDTOTAL
+   INTO v_isprocessed, v_bpheader_id, v_docstatus, v_isposted, v_amt
+   FROM C_INVOICE
+   WHERE C_INVOICE_ID=:NEW.C_INVOICE_ID;
+   
+   SELECT C_BPARTNER_ID
+   INTO v_bpreversed_id
+   FROM C_INVOICE
+   WHERE C_INVOICE_ID=:NEW.REVERSED_C_INVOICE_ID;
+   
+   IF ((v_isposted='Y') OR (v_isprocessed='Y' AND v_docstatus<>'VO')) THEN
+     RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+   END IF;
+
+   IF (UPDATING) THEN 
+       IF (v_isprocessed='Y' AND v_docstatus='VO' AND :NEW.REVERSED_C_INVOICE_ID <> :OLD.REVERSED_C_INVOICE_ID) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+       END IF;
+   END IF;
+
+   IF (INSERTING) THEN 
+       IF (v_isprocessed='Y' AND v_docstatus='VO' AND v_amt > 0) THEN
+         RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+       END IF;
+   END IF;
+   
+   IF(v_bpheader_id <> v_bpreversed_id) THEN
+     RAISE_APPLICATION_ERROR(-20000, '@NotEqualBPartner@');
+   END IF; 
+
+   -- Copy Exchange rate info
+  FOR Cur_Exchange_info IN (
+	SELECT * FROM 
+	C_CONVERSION_RATE_DOCUMENT 
+	WHERE C_INVOICE_ID = :NEW.REVERSED_C_INVOICE_ID
+  ) 
+  LOOP
+    INSERT
+    INTO c_conversion_rate_document
+      (
+        c_conversion_rate_document_id, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY,
+        UPDATED, UPDATEDBY, C_CURRENCY_ID,
+        C_CURRENCY_ID_TO, C_INVOICE_ID, FIN_PAYMENT_ID,
+        APRM_FINACC_TRANSACTION_V_ID, RATE, FOREIGN_AMOUNT
+      )
+      VALUES
+      (
+        get_uuid(), Cur_Exchange_info.AD_Client_ID, Cur_Exchange_info.AD_Org_ID,
+         Cur_Exchange_info.ISACTIVE, now(), Cur_Exchange_info.CREATEDBY,
+        now(), Cur_Exchange_info.UPDATEDBY, Cur_Exchange_info.C_CURRENCY_ID,
+        Cur_Exchange_info.C_CURRENCY_ID_TO, :NEW.C_INVOICE_ID, Cur_Exchange_info.FIN_PAYMENT_ID,
+        Cur_Exchange_info.APRM_FINACC_TRANSACTION_V_ID, Cur_Exchange_info.RATE, Cur_Exchange_info.FOREIGN_AMOUNT
+      )
+      ;
+  END LOOP;
+    
+  END IF;
+  
+  IF(DELETING) THEN
+   SELECT PROCESSED, POSTED, DOCSTATUS, GRANDTOTAL
+   INTO v_isprocessed, v_isposted, v_docstatus, v_amt
+   FROM C_INVOICE
+   WHERE C_INVOICE_ID=:OLD.C_INVOICE_ID;
+   
+   IF((v_isposted='Y') OR (v_isprocessed='Y' AND v_docstatus<>'VO')) THEN
+     RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+   END IF;
+
+   IF (v_isprocessed='Y' AND v_docstatus='VO' AND v_amt > 0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+   END IF;
+   
+  END IF;
+  
+END C_INVOICE_REVERSE_TRG
+]]></body>
+    </trigger>
+  </database>

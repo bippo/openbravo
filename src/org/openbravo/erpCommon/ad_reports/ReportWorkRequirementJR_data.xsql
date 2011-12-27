@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportWorkRequirementJRData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT wr.MA_WorkRequirement_ID AS wrid, AD_COLUMN_IDENTIFIER('MA_WorkRequirement', to_char(wr.MA_WORKREQUIREMENT_ID), ?) AS wrname, 
+             AD_COLUMN_IDENTIFIER('MA_ProcessPlan', to_char(pp.MA_ProcessPlan_ID), ?) AS processplan, 
+             wr.STARTDATE AS startdate, wr.ENDDATE AS enddate, wrp.SeqNO,
+             AD_COLUMN_IDENTIFIER('MA_WRPhase', to_char(wrp.MA_WRPhase_ID), ?) AS wrpname, 
+             AD_COLUMN_IDENTIFIER('MA_Process', to_char(ps.MA_Process_ID), ?) AS process, 
+             wrp.DONEQUANTITY AS quantity, wrp.QUANTITY AS needqty, wrpp.M_PRODUCT_ID AS productid, 
+             AD_COLUMN_IDENTIFIER('M_Product', to_char(pd.M_Product_ID), ?) AS product, 
+             SUM(T.QTYONHAND) AS stock, (wrp.QUANTITY - wrp.DONEQUANTITY) * wrpp.MOVEMENTQTY AS needed, 123 AS inprocess, wrp.MA_WRPhase_ID AS WRPID
+      FROM MA_WorkRequirement wr, MA_WRPhase wrp, MA_WRPhaseProduct wrpp, MA_Process ps, MA_ProcessPlan pp, M_Product pd, M_STORAGE_DETAIL T
+      WHERE wr.MA_WORKREQUIREMENT_ID = wrp.MA_WORKREQUIREMENT_ID
+        AND wr.MA_PROCESSPLAN_ID = pp.MA_PROCESSPLAN_ID
+        AND wrp.MA_WRPHASE_ID = wrpp.MA_WRPHASE_ID
+        AND wrpp.M_PRODUCT_ID = pd.M_PRODUCT_ID
+        AND wrp.MA_PROCESS_ID = ps.MA_PROCESS_ID
+        AND pd.M_PRODUCT_ID = T.M_PRODUCT_ID
+        AND wrp.CLOSED = 'N'
+        AND wrpp.PRODUCTIONTYPE = '-'
+        AND wr.AD_CLIENT_ID IN ('1')
+        AND wr.AD_ORG_ID IN ('1')
+        AND 1=1
+      GROUP BY wr.MA_WorkRequirement_ID, wrp.MA_WRPHASE_ID, wr.DOCUMENTNO, pp.MA_ProcessPlan_ID, wr.STARTDATE, wr.ENDDATE,
+               ps.MA_Process_ID, wrp.DONEQUANTITY, wrp.QUANTITY, pd.M_PRODUCT_ID, wrpp.MOVEMENTQTY, wrp.SeqNo, wrpp.M_PRODUCT_ID
+      ORDER BY enddate, wr.MA_WorkRequirement_ID, wrp.SeqNo, wrp.MA_WRPHASE_ID 
+     ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND wr.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND wr.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parStartDateFrom" optional="true" after="AND 1=1"><![CDATA[AND wr.STARTDATE > TO_DATE(?)]]></Parameter>
+    <Parameter name="parStartDateTo" optional="true" after="AND 1=1"><![CDATA[AND wr.STARTDATE < TO_DATE(?)+1]]></Parameter>
+    <Parameter name="parEndDateFrom" optional="true" after="AND 1=1"><![CDATA[AND wr.ENDDATE > TO_DATE(?)]]></Parameter>
+    <Parameter name="parEndDateTo" optional="true" after="AND 1=1"><![CDATA[AND wr.ENDDATE < TO_DATE(?)+1]]></Parameter>
+    <Parameter name="parProcessPlan" optional="true" after="AND 1=1"><![CDATA[AND pp.MA_ProcessPlan_id =?]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="inprocess" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+          SELECT sum((wrp.QUANTITY - wrp.DONEQUANTITY) * wrpp.MOVEMENTQTY) AS cantidad
+        FROM MA_WRPhaseProduct wrpp, MA_WRPhase wrp 
+        WHERE wrpp.MA_WRPHASE_ID = wrp.MA_WRPHASE_ID
+        AND wrpp.PRODUCTIONTYPE = '+'
+        AND wrp.MA_WORKREQUIREMENT_ID = ?
+          AND wrpp.M_PRODUCT_ID = ?
+        AND wrp.CLOSED = 'N'
+        ]]></Sql>
+        <Parameter name="wrid"/>
+        <Parameter name="wrppproduct"/>
+      
+  </SqlMethod>
+</SqlClass>

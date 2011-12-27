@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="SLOrderProductData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_ORDER_ID AS ID, DATEORDERED, C_BPARTNER_ID, M_PRICELIST_ID, '' AS DATEINVOICED 
+        FROM C_ORDER WHERE C_ORDER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="selectInvoice" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_INVOICE_ID AS ID, DATEINVOICED, C_BPARTNER_ID, M_PRICELIST_ID
+      	FROM C_INVOICE WHERE C_INVOICE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cInvoiceId"/>
+  </SqlMethod>
+  <!--SqlMethod name="strMProductUOMID" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT M_PRODUCT_UOM_ID FROM M_PRODUCT_UOM WHERE M_PRODUCT_ID = ? AND C_UOM_ID = ?
+    </Sql>
+    <Parameter name="mProductId"/>
+    <Parameter name="cUOMId"/>
+  </SqlMethod-->
+  <SqlMethod name="hasSecondaryUOM" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT (CASE COUNT(*) WHEN 0 THEN 0 ELSE 1 END) AS TOTAL 
+      FROM M_PRODUCT_UOM 
+      WHERE M_PRODUCT_ID = ?
+    </Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+
+  <SqlMethod name="getOffersPrice" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT ROUND(M_GET_OFFERS_PRICE(TO_DATE(?),?,?,TO_NUMBER(?), TO_NUMBER(?), ?),
+                   (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C,
+                            C_ORDER    O 
+                      WHERE C.C_CURRENCY_ID = O.C_CURRENCY_ID
+                        AND O.C_ORDER_ID    = ?)) AS TOTAL FROM DUAL
+    </Sql>
+    <Parameter name="dateordered"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="qty"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="orderid"/>
+    
+  </SqlMethod>
+
+  <SqlMethod name="getOffersPriceInvoice" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT ROUND(M_GET_OFFERS_PRICE(TO_DATE(?),?,?,TO_NUMBER(?), TO_NUMBER(?), ?),
+                    (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C,
+                            C_INVOICE  I 
+                      WHERE C.C_CURRENCY_ID = I.C_CURRENCY_ID
+                        AND I.C_INVOICE_ID  = ?)) AS TOTAL FROM DUAL
+    </Sql>
+    <Parameter name="dateordered"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="qty"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="invoiceid"/>
+    
+  </SqlMethod>
+
+   <SqlMethod name="getOffersStdPrice" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+	  SELECT ROUND(M_GET_OFFERS_STD_PRICE(?,TO_NUMBER(?),?,TO_DATE(?), TO_NUMBER(?), ?),
+                    (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C,
+                            C_ORDER    O 
+                      WHERE C.C_CURRENCY_ID = O.C_CURRENCY_ID
+                        AND O.C_ORDER_ID    = ?)) as TOTAL FROM DUAL
+	 </Sql>
+    <Parameter name="cBpartnerId"/>
+	<Parameter name="pricestd"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="qty"/>
+    <Parameter name="priclist"/>
+    <Parameter name="orderid"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getOffersStdPriceInvoice" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+	  SELECT ROUND(M_GET_OFFERS_STD_PRICE(?,TO_NUMBER(?),?,TO_DATE(?), TO_NUMBER(?), ?),
+                    (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C,
+                            C_INVOICE  I 
+                      WHERE C.C_CURRENCY_ID = I.C_CURRENCY_ID
+                        AND I.C_INVOICE_ID    = ?)) as TOTAL FROM DUAL
+	 </Sql>
+    <Parameter name="cBpartnerId"/>
+	<Parameter name="pricestd"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="qty"/>
+    <Parameter name="priclist"/>
+    <Parameter name="invoiceid"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getOrgLocationId" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+	  	SELECT C_LOCATION_ID 
+	  		FROM AD_ORGINFO 
+	  		WHERE AD_Client_ID IN ('1') 
+	  		AND AD_Org_ID IN ('1')
+	 </Sql>
+     <Parameter name="adUserClient" type="replace" optional="true" after="AD_Client_ID IN (" text="'1'"/>
+     <Parameter name="adUserOrg" type="replace" optional="true" after="AD_Org_ID IN (" text="'1'"/>
+  </SqlMethod>
+
+  <SqlMethod name="getWarehouseOrg" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+	  SELECT AD_ORG_ID
+      FROM M_WAREHOUSE
+      WHERE M_WAREHOUSE_ID = ?
+	 </Sql>
+    <Parameter name="cWarehouseID"/>
+  </SqlMethod>
+
+  <SqlMethod name="getWarehouseOfOrg" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select min(w.m_warehouse_id)
+        from m_warehouse w
+        where w.ad_client_id=?
+          and (ad_isorgincluded(?,w.ad_org_id,?)<>-1
+            or ad_isorgincluded(w.ad_org_id,?,?)<>-1)
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+
+</SqlClass>

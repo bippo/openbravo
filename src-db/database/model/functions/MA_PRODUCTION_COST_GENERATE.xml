@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_PRODUCTION_COST_GENERATE">
+    <function name="MA_PRODUCTION_COST_GENERATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************/
+ -- Logistice
+ v_ResultStr      VARCHAR2(2000);
+ v_Result NUMBER:= 1;
+ v_Message        VARCHAR2(2000);
+ p_User VARCHAR2(32);
+ v_Deleted        NUMBER;
+ -- Parameter
+TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  Cur_Production RECORD;
+  rowcount NUMBER;
+BEGIN
+
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID);
+  v_ResultStr := 'PInstanceNotFound';
+
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL);
+  BEGIN --BODY
+    --  Get Parameters
+    v_ResultStr := 'ReadingParameters';
+    SELECT AD_User_ID INTO p_User
+    FROM AD_PINSTANCE
+    WHERE AD_PINSTANCE_ID = p_PInstance_ID;
+--    p_User := 0;
+/*    FOR Cur_Parameter IN (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date, i.UpdatedBy
+                          FROM AD_PINSTANCE i LEFT JOIN AD_PINSTANCE_PARA p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+                          WHERE i.AD_PInstance_ID=p_PInstance_ID
+                          ORDER BY p.SeqNo) LOOP
+        p_User := Cur_Parameter.AD_User_ID;
+      END LOOP;  --  Get Parameter*/
+
+    v_ResultStr := 'Deleting previous cost results';
+    DELETE FROM M_COSTING
+    WHERE ispermanent = 'N'
+      AND ismanual = 'N'
+      AND costtype = 'AV'
+      AND isproduction = 'Y';
+
+      rowcount:=SQL%ROWCOUNT;
+      v_Deleted := v_Deleted + rowcount;
+      DBMS_OUTPUT.PUT_LINE('  deleted=' || rowcount);
+
+    v_ResultStr := 'Initializing productions as not calculated';
+    UPDATE M_PRODUCTIONLINE
+    SET calculated = 'N'
+    WHERE m_productionline_id IN (SELECT m_productionline_id
+                                  FROM M_PRODUCTION p, M_PRODUCTIONPLAN pp, M_PRODUCTIONLINE pl
+                                  WHERE p.m_production_id = pp.m_production_id
+                                    AND p.ISSOTRX = 'N'
+                                    AND pp.m_productionplan_id = pl.m_productionplan_id
+                                    AND pl.productiontype = '+'
+                                    AND p.processed = 'Y'
+      AND NOT EXISTS (SELECT 1
+                      FROM M_COSTING
+                      WHERE M_COSTING.m_productionline_id = pl.m_productionline_id));
+
+      FOR Cur_Production IN (SELECT m_production_id
+                             FROM M_PRODUCTION
+                             WHERE processed = 'Y'
+                             AND issotrx = 'N'
+                             AND EXISTS (SELECT 1
+                                         FROM M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp
+                                         WHERE pp.m_production_id=M_PRODUCTION.m_production_id
+                                           AND pp.m_productionplan_id = pl.m_productionplan_id
+                                           AND pl.calculated='N'
+                                           AND pp.ma_costcenter_version_id IS NOT NULL)
+                             ORDER BY movementdate, m_production_id) LOOP
+        Ma_Production_Cost(Cur_Production.M_Production_ID, p_User, v_Message);
+      END LOOP;
+
+--<<FINISH_PROCESS>>
+      --  Update AD_PInstance
+       IF (v_Message IS NOT NULL) THEN
+        v_Result := 2;
+        v_Message := '@Success@<br>' || v_Message;
+      END IF;
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message);
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, p_User, 'N', v_Result, v_Message);
+      RETURN;
+
+  END; --BODY
+EXCEPTION
+    WHEN  OTHERS THEN
+    ROLLBACK;
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr);
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr);
+    RETURN;
+END MA_PRODUCTION_COST_GENERATE
+]]></body>
+    </function>
+  </database>

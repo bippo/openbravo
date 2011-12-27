@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="CbpvendoracctData" package="org.openbravo.buildvalidation">
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT  AD_CLIENT_ID,
+                AD_ORG_ID,
+                CREATED,
+                CREATEDBY,
+                UPDATED,
+                UPDATEDBY,
+                ISACTIVE, 
+                '' as RECORD_ID,
+                '' as DESCRIPTION,
+                '' as REFERENCEKEY_ID, 
+                '' as AD_ROLE_ID, 
+                AD_ALERTRULE_ID,
+                SQL,
+                NAME
+          FROM AD_ALERTRULE
+	  WHERE AD_ALERTRULE_ID = ?
+    ]]></Sql>
+      <Parameter name="alertRule"/>
+   </SqlMethod>
+   <SqlMethod name="existsAlertRule" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          SELECT COUNT(*) AS EXISTING
+            FROM AD_ALERTRULE
+           WHERE NAME LIKE 'Vendor Duplicate Accounts'
+             AND ISACTIVE = 'Y'
+      ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="existsReference" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          SELECT COUNT(*) AS EXISTING
+            FROM AD_ALERT
+           WHERE AD_ALERTRULE_ID = ?
+             AND REFERENCEKEY_ID = ?
+             AND STATUS != 'SOLVED'
+      ]]></Sql>
+      <Parameter name="alertRule"/>
+      <Parameter name="ref"/>      
+   </SqlMethod>
+   <SqlMethod name="getUUID" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          SELECT get_uuid()
+            FROM dual
+      ]]></Sql>
+   </SqlMethod>
+  <SqlMethod name="countNoDistinct" type="preparedStatement" return="string">
+      <SqlMethodComment>This query counts the number of rows in c_bp_vendor_acct</SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT count(*) as count from (select c_acctschema_id, c_bpartner_id, status from c_bp_vendor_acct) a
+          ]]>
+      </Sql>
+  </SqlMethod>
+  <SqlMethod name="countDistinct" type="preparedStatement" return="string">
+      <SqlMethodComment>This query counts the number of unique combinations of (c_acctschema_id, c_bpartner_id, status) tuples in c_bp_vendor_acct</SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT count(*) as count from (select distinct c_acctschema_id, c_bpartner_id, status from c_bp_vendor_acct) a
+          ]]>
+      </Sql>
+  </SqlMethod>
+  <SqlMethod name="insertAlertRule" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         INSERT INTO AD_ALERTRULE (
+    AD_ALERTRULE_ID,
+    AD_CLIENT_ID   ,
+    AD_ORG_ID      ,
+    ISACTIVE       ,
+    CREATED        ,
+    CREATEDBY      ,
+    UPDATED        ,
+    UPDATEDBY      ,
+    NAME           ,
+    AD_TAB_ID      ,
+    FILTERCLAUSE   ,
+    SQL            ,
+    TYPE
+  )
+  VALUES (?, '0', '0', 'Y', now(), '100', now(), '100', 'Vendor Duplicate Accounts', '213', '', 
+  'select max(c_bp_vendor_acct_id) as referencekey_id, ad_column_identifier(''C_BP_Vendor_Acct'',max(C_BP_Vendor_Acct_ID),''en_US'') as record_id, 0 as ad_role_id, null as ad_user_id, ''Duplicated accounting Configuration entry. Please ensure just one entry exists per accounting schema and status for this business partner'' as description, ''Y'' as isActive, max(ad_org_id), max(ad_client_id), now() as created, 0 as createdBy,  now() as updated, 0 as updatedBy  from c_bp_vendor_acct p group by c_acctschema_id, c_bpartner_id, status having count(c_bp_vendor_acct_id)>1'
+  , 'D')
+          ]]>
+      </Sql>
+    <Parameter name="alertRuleId"/>
+  </SqlMethod>
+   <SqlMethod name="insertAlert" type="preparedStatement"
+   	return="rowcount">
+   	<SqlMethodComment></SqlMethodComment>
+   	<Sql>
+   		<![CDATA[
+       INSERT INTO AD_Alert (AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+                      Created, CreatedBy, Updated, UpdatedBy, Description, AD_AlertRule_ID, Record_Id, Referencekey_ID,
+                      status)
+      		VALUES (get_uuid(), '0', '0', 'Y', NOW(), '0', NOW(), '0', ?, ?, ?, ?, 'NEW')
+      ]]>
+   	</Sql>
+   	<Parameter name="description" />
+   	<Parameter name="adAlertRuleId" />
+   	<Parameter name="recordId" />
+   	<Parameter name="referencekey_id" />
+   </SqlMethod>
+   
+   <SqlMethod name="selectAlert" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          SELECT AAA.* 
+            FROM (SELECT '' AS DESCRIPTION, '' AS RECORD_ID, '' AS REFERENCEKEY_ID FROM DUAL) AAA 
+      ]]></Sql>
+      <Parameter name="sql" type="replace" optional="true" after="FROM (" text="SELECT '' AS DESCRIPTION, '' AS RECORD_ID, '' AS REFERENCEKEY_ID FROM DUAL"/>
+   </SqlMethod>
+</SqlClass>

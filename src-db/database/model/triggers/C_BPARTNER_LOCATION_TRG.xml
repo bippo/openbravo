@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BPARTNER_LOCATION_TRG">
+    <trigger name="C_BPARTNER_LOCATION_TRG" table="C_BPARTNER_LOCATION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_BPartner_Location_Trg.sql,v 1.3 2002/10/01 02:23:31 jjanke Exp $
+    ***
+    * Title: Update Name with (updated) Location details
+    * Description:
+    * Set Name to City
+    *  or if not exists to Address1
+    *  or if not exists to "-'
+    ************************************************************************/
+
+    --v_City    VARCHAR2(60);
+    --v_Address1   VARCHAR2(60);
+    --v_Address2   VARCHAR2(60);
+    v_name NVARCHAR2(60) ;
+    v_DateNull DATE := TO_DATE('01-01-1900', 'DD-MM-YYYY');
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF(UPDATING) THEN
+    IF NOT(COALESCE(:old.C_Location_ID, '0') <> COALESCE(:NEW.C_Location_ID, '0') OR COALESCE(:old.Updated, v_DateNull) <> COALESCE(:NEW.Updated, v_DateNull)) THEN
+      RETURN;
+    END IF;
+  END IF;
+  /* -- Get Address Info
+  SELECT City, Address1, Address2
+  INTO v_City, v_Address1, v_Address2
+  FROM  C_Location
+  WHERE  C_Location_ID=:new.C_Location_ID;
+  -- No City
+  IF (v_City IS NULL) THEN
+  v_City:=v_Address1;
+  END IF;
+  -- No City nor Address 1
+  IF (v_City IS NULL) THEN
+  v_City:='-';
+  DBMS_OUTPUT.PUT_LINE('No Address Info ID=' || :new.C_BPartner_Location_ID);
+  END IF;
+  */
+  -- Set Name
+  IF DELETING THEN
+    v_name:=:old.Name;
+  ELSE
+    v_name:=:new.Name;
+  END IF;
+  IF(SUBSTR(v_name, 1, 1)='.') THEN
+    :new.Name:='.'||C_Location_Name(:new.C_Location_ID) ;
+  END IF;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('Not unique - ' || SQLERRM) ;
+  :new.Name:=C_Location_Name(:new.C_Location_ID) ||'('||:new.C_Location_ID||')';
+END C_BPARTNER_LOCATION_TRG
+]]></body>
+    </trigger>
+  </database>

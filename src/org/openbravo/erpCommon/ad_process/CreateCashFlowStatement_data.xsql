@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="CreateCashFlowStatementData" package="org.openbravo.erpCommon.ad_process">
+
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT FACT_ACCT_ID, AMTACCTCR-AMTACCTDR AS AMOUNT, RECORD_ID2,
+        FACT_ACCT.AD_TABLE_ID, FACT_ACCT.DATEACCT, ACCOUNT_ID, 
+        '' AS C_INVOICE_ID, '' AS C_ORDER_ID, '' AS C_SETTLEMENT_GENERATE_ID, '' AS ID, '' AS ISMANUAL,
+        '' AS ACCOUNT, '' AS C_SETTLEMENT_CANCEL_ID
+        FROM FACT_ACCT
+        WHERE AD_TABLE_ID IN ('392', '407')
+        AND LINE_ID IS NOT NULL
+        and AD_CLIENT_ID = ?
+        AND NOT EXISTS (SELECT 1 FROM FACT_ACCT_CFS
+                WHERE FACT_ACCT.FACT_ACCT_ID = FACT_ACCT_CFS.FACT_ACCT_ID)
+        ORDER BY FACT_ACCT.DATEACCT ,FACT_ACCT_ID 
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectPaymentWriteOff" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ACCOUNT_ID, (AMTACCTCR-AMTACCTDR) AS AMOUNT, FACT_ACCT_ID AS ID
+        FROM FACT_ACCT
+        WHERE AD_TABLE_ID = '800019'
+        AND RECORD_ID2 = ?
+        AND RECORD_ID = ?
+        AND ACCOUNT_ID IN (
+                SELECT ACCOUNT_ID FROM C_ACCTSCHEMA_DEFAULT, C_VALIDCOMBINATION
+                WHERE C_ACCTSCHEMA_DEFAULT.WRITEOFF_ACCT = C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID)
+      ]]>
+    </Sql>
+    <Parameter name="payment"/>
+    <Parameter name="settlementCancel"/>
+  </SqlMethod>
+
+  <SqlMethod name="processId" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_PROCESS.AD_PROCESS_ID AS ID
+      FROM AD_PROCESS
+      WHERE VALUE = ?
+      ]]>
+    </Sql>
+    <Parameter name="processId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectOrderAccount" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ACCOUNT_ID FROM C_ACCTSCHEMA_GL, C_VALIDCOMBINATION
+      WHERE C_ACCTSCHEMA_GL.CFS_ORDER_ACCT = C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID
+      ]]>
+    </Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectPaymentAccount" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ACCOUNT_ID FROM C_ACCTSCHEMA_DEFAULT, C_VALIDCOMBINATION
+      WHERE C_ACCTSCHEMA_DEFAULT.W_INVENTORY_ACCT = C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID
+      ]]>
+    </Sql>
+  </SqlMethod>
+
+
+  <SqlMethod name="selectPaymentInfo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_INVOICE_ID, C_ORDER_ID, C_SETTLEMENT_GENERATE_ID, C_SETTLEMENT_CANCEL_ID, ISMANUAL
+        FROM C_DEBT_PAYMENT
+        WHERE C_DEBT_PAYMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="payment"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectCancelledPayments" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_DEBT_PAYMENT_ID AS ID, C_INVOICE_ID, C_ORDER_ID, C_SETTLEMENT_GENERATE_ID, AMTACCTDR-AMTACCTCR AS AMOUNT
+        FROM C_DEBT_PAYMENT, FACT_ACCT
+        WHERE C_SETTLEMENT_CANCEL_ID = ?
+        AND C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID = FACT_ACCT.RECORD_ID2
+        AND AD_TABLE_ID = '800019'
+        AND RECORD_ID = C_SETTLEMENT_CANCEL_ID
+        AND LINE_ID = C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID
+        AND ISPAID = 'N'
+      ]]>
+    </Sql>
+    <Parameter name="settlement"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectSumGeneratedPayments" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT SUM(AMTACCTCR-AMTACCTDR) AS AMOUNT
+        FROM C_DEBT_PAYMENT, FACT_ACCT
+        WHERE C_SETTLEMENT_GENERATE_ID = ?
+        AND C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID = FACT_ACCT.RECORD_ID2
+        AND AD_TABLE_ID = '800019'
+        AND RECORD_ID = C_SETTLEMENT_GENERATE_ID
+        AND LINE_ID = C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID 
+        AND ACCOUNT_ID NOT IN (SELECT C_VALIDCOMBINATION.ACCOUNT_ID FROM C_GLITEM_ACCT, C_DEBT_PAYMENT, C_VALIDCOMBINATION
+                                  WHERE C_GLITEM_ACCT.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+                                  AND C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID = C_GLITEM_ACCT.GLITEM_CREDIT_ACCT
+                                  AND C_DEBT_PAYMENT_ID = RECORD_ID2)
+        AND ACCOUNT_ID NOT IN (SELECT C_VALIDCOMBINATION.ACCOUNT_ID FROM C_GLITEM_ACCT, C_DEBT_PAYMENT, C_VALIDCOMBINATION
+                                  WHERE C_GLITEM_ACCT.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+                                  AND C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID = C_GLITEM_ACCT.GLITEM_DEBIT_ACCT
+                                  AND C_DEBT_PAYMENT_ID = RECORD_ID2)
+      ]]>
+    </Sql>
+    <Parameter name="settlement"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectGLItemsSettlementCancel" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ACCOUNT_ID AS ACCOUNT, AMTACCTDR-AMTACCTCR AS AMOUNT, FACT_ACCT_ID AS ID
+        FROM FACT_ACCT
+        WHERE RECORD_ID = ?
+        AND AD_TABLE_ID = '800019'
+        AND RECORD_ID2 = ?
+        AND ACCOUNT_ID NOT IN (SELECT ACCOUNT_ID FROM FACT_ACCT
+                                          WHERE AD_TABLE_ID IN ('392','407')
+                                          AND RECORD_ID2 = ?)
+      ]]>
+    </Sql>
+    <Parameter name="settlement"/>
+    <Parameter name="payment"/>
+    <Parameter name="payment"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectSumGLItemsCancel" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT sum(AMTACCTDR-AMTACCTCR) AS AMOUNT
+        FROM FACT_ACCT
+        WHERE RECORD_ID = ?
+        AND AD_TABLE_ID = '800019'
+        AND RECORD_ID2 = ?
+        AND ACCOUNT_ID NOT IN (SELECT ACCOUNT_ID FROM FACT_ACCT
+                                          WHERE AD_TABLE_ID IN ('392','407')
+                                          AND RECORD_ID2 = ?)
+      ]]>
+    </Sql>
+    <Parameter name="settlement"/>
+    <Parameter name="payment"/>
+    <Parameter name="payment"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectGLItemsSettlementGenerate" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ACCOUNT_ID AS ACCOUNT, AMTACCTDR-AMTACCTCR AS AMOUNT, FACT_ACCT_ID AS ID
+        FROM FACT_ACCT
+        WHERE RECORD_ID =   ?
+        AND AD_TABLE_ID = '800019'
+        AND RECORD_ID2 = 	?
+        AND ACCOUNT_ID NOT IN (SELECT C_VALIDCOMBINATION.ACCOUNT_ID FROM C_GLITEM_ACCT, C_DEBT_PAYMENT, C_VALIDCOMBINATION
+                                          WHERE C_GLITEM_ACCT.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+                                          AND C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID = C_GLITEM_ACCT.GLITEM_CREDIT_ACCT
+                                          AND C_DEBT_PAYMENT_ID = ?)
+        AND ACCOUNT_ID NOT IN (SELECT C_VALIDCOMBINATION.ACCOUNT_ID FROM C_GLITEM_ACCT, C_DEBT_PAYMENT, C_VALIDCOMBINATION
+                                          WHERE C_GLITEM_ACCT.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+                                          AND C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID = C_GLITEM_ACCT.GLITEM_DEBIT_ACCT
+                                          AND C_DEBT_PAYMENT_ID = ?)
+      ]]>
+    </Sql>
+    <Parameter name="settlement"/>
+    <Parameter name="payment"/>
+    <Parameter name="payment"/>
+    <Parameter name="payment"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectSumGLItemsGenerate" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT sum(AMTACCTDR-AMTACCTCR) AS AMOUNT
+        FROM FACT_ACCT
+        WHERE RECORD_ID =   ?
+        AND AD_TABLE_ID = '800019'
+        AND RECORD_ID2 = 	?
+        AND ACCOUNT_ID NOT IN (SELECT C_VALIDCOMBINATION.ACCOUNT_ID FROM C_GLITEM_ACCT, C_DEBT_PAYMENT, C_VALIDCOMBINATION
+                                          WHERE C_GLITEM_ACCT.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+                                          AND C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID = C_GLITEM_ACCT.GLITEM_CREDIT_ACCT
+                                          AND C_DEBT_PAYMENT_ID = ?)
+        AND ACCOUNT_ID NOT IN (SELECT C_VALIDCOMBINATION.ACCOUNT_ID FROM C_GLITEM_ACCT, C_DEBT_PAYMENT, C_VALIDCOMBINATION
+                                          WHERE C_GLITEM_ACCT.C_GLITEM_ID = C_DEBT_PAYMENT.C_GLITEM_ID
+                                          AND C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID = C_GLITEM_ACCT.GLITEM_DEBIT_ACCT
+                                          AND C_DEBT_PAYMENT_ID = ?)
+      ]]>
+    </Sql>
+    <Parameter name="settlement"/>
+    <Parameter name="payment"/>
+    <Parameter name="payment"/>
+    <Parameter name="payment"/>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="insertStatements" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        INSERT INTO FACT_ACCT_CFS
+        (FACT_ACCT_CFS_ID,  FACT_ACCT_ID,  AD_CLIENT_ID,  AD_ORG_ID,  ISACTIVE,  CREATED,  CREATEDBY,  UPDATED,  UPDATEDBY,  ACCOUNT_ID,  AMOUNT, FACT_ACCT_REF_ID)
+        VALUES
+        (?,?,?,?,'Y',NOW(),?,NOW(),?,?,TO_NUMBER(?),?)
+      </Sql>
+    <Parameter name="factAcctCFS"/>
+    <Parameter name="factAcctId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="accountId"/>
+    <Parameter name="amount"/>
+    <Parameter name="factAcctRef"/>
+ </SqlMethod>
+
+  <SqlMethod name="selectStatements" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ACCOUNT_ID, AMTACCTDR-AMTACCTCR AS AMOUNT, FACT_ACCT_ID AS ID
+        FROM FACT_ACCT
+        WHERE AD_TABLE_ID = ?
+        AND RECORD_ID = ?
+        AND RECORD_ID2 IS NULL
+      ]]>
+    </Sql>
+    <Parameter name="table"/>
+    <Parameter name="record"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectSumStatements" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select sum(AmtAcctDr-AmtAcctCr) as amount
+        from fact_acct
+        where ad_table_id = ?
+        and record_id = ?
+        and record_id2 is null
+      ]]>
+    </Sql>
+    <Parameter name="table"/>
+    <Parameter name="record"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectCheckDifference" type="preparedStatement" connection="true" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select max(amtacctCr-amtacctDr)-sum(fact_acct_CFS.amount) as Difference
+        from fact_acct, fact_acct_CFS 
+        where fact_acct.fact_acct_id = fact_acct_CFS.fact_acct_id 
+        AND fact_acct.fact_acct_id = ?
+        group by fact_acct.fact_acct_id 
+      ]]>
+    </Sql>
+    <Parameter name="factAcctId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectGetMaxId" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select fact_acct_CFS.FACT_ACCT_CFS_ID as ID, amount
+        from fact_acct, fact_acct_CFS 
+        where fact_acct.fact_acct_id = fact_acct_CFS.fact_acct_id 
+        AND fact_acct.fact_acct_id = ? 
+        order by abs(fact_acct_CFS.amount) desc
+      ]]>
+    </Sql>
+    <Parameter name="factAcctId"/>
+  </SqlMethod>
+
+  <SqlMethod name="updateDifference" type="preparedStatement" connection="true" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        update fact_acct_CFS set amount = TO_NUMBER(?) + amount
+        where fact_acct_CFS_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="difference"/>
+    <Parameter name="factAcctCFSId"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_ATTRIBUTEVALUE_TRG">
+    <trigger name="M_ATTRIBUTEVALUE_TRG" table="M_ATTRIBUTEVALUE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2006 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+
+  v_desc     varchar2(500);
+  v_desc_aux varchar2(500);
+  pos        NUMBER;
+  TYPE RECORD IS REF CURSOR;
+  CurSetInstance RECORD;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF COALESCE(:New.Name,'.')!=COALESCE(:Old.Name,'.') THEN
+    UPDATE M_AttributeInstance
+       SET Value = :New.Name
+     WHERE M_AttributeValue_ID = :New.M_AttributeValue_ID;
+
+    --Upate Attribute set instance descriptions...
+  FOR CurSetInstance IN (select si.description, si.m_attributeset_id, i.m_attribute_id, si.M_AttributeSetInstance_ID
+                          from m_attributeinstance i,
+                               m_attributesetinstance si
+                          where si.m_attributesetinstance_id = i.m_attributesetinstance_id
+                          and i.m_attributevalue_id = :New.M_AttributeValue_ID) LOOP
+         select (case when isSerNo ='Y' then 1 else 0 end)+
+                (case when isLot ='Y' then 1 else 0 end)+
+                (case when isGuaranteeDate ='Y' then 1 else 0 end)+
+                (select count(*)
+                   from M_AttributeUse u1
+                  where u1.M_AttributeSet_ID = u.M_AttributeSet_ID
+                    and u1.seqno<u.seqno) +1
+           into pos
+           from M_AttributeSet s,
+                M_AttributeUse u
+          where u.M_Attribute_ID = CurSetInstance.M_Attribute_ID
+          and s.M_AttributeSet_ID = CurSetInstance.M_AttributeSet_ID
+          and s.m_attributeSet_id = u.m_attributeset_id;
+
+      v_desc := '_'||CurSetInstance.description||'_';
+      v_desc:=substr(v_desc,1, instr(v_desc,'_',1,pos))||:new.Name||substr(v_desc,instr(v_desc,'_',1,pos+1));
+      v_desc:=substr(v_desc,2,length(v_desc)-2);
+
+      UPDATE M_AttributeSetInstance
+         SET description = v_desc
+       WHERE M_AttributeSetInstance_ID = CurSetInstance.M_AttributeSetInstance_ID;
+    END LOOP;
+  END IF;
+END M_ATTRIBUTEVALUE_TRG
+]]></body>
+    </trigger>
+  </database>

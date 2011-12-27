@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html 
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License. 
+* The Original Code is Openbravo ERP. 
+* The Initial Developer of the Original Code is Openbravo SL 
+* All portions are Copyright (C) 2009-2011 Openbravo SL 
+* All Rights Reserved. 
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <TEMPLATE file="PaymentReport.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  <PARAMETER id="paramOrg" name="org" attribute="value"/>
+  <SUBREPORT id="reportAD_Org_ID" name="reportAD_Org_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramOrg"/>
+  </SUBREPORT>
+  <PARAMETER id="paramDueDateFrom" name="dueDateFrom" attribute="value"/>
+  <PARAMETER id="paramDueDateFrom" name="dueDateFromdisplaySave" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramDueDateFrom" name="dueDateFromsdisplaySave" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramDueDateTo" name="dueDateTo" attribute="value"/>
+  <PARAMETER id="paramDueDateTo" name="dueDateTodisplaySave" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramDueDateTo" name="dueDateTodisplaySave" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramAmountFrom" name="amountFrom" attribute="value" format="euroEdition"/>
+  <PARAMETER id="paramAmountTo" name="amountTo" attribute="value" format="euroEdition"/>
+  <PARAMETER id="paramDocumentDateFrom" name="documentDateFrom" attribute="value"/>
+  <PARAMETER id="paramDocumentDateFrom" name="documentDateFromdisplaySave" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramDocumentDateFrom" name="documentDateFromdisplaySave" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramDocumentDateTo" name="documentDateTo" attribute="value"/>
+  <PARAMETER id="paramDocumentDateTo" name="documentDateTodisplaySave" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramDocumentDateTo" name="documentDateTodisplaySave" attribute="saveformat" replace="yy"/>
+
+  <PARAMETER id="parameterInclPaymentUsingCredit" name="pinclPaymentUsingCredit" default="Y"/>
+  <PARAMETER id="paramInclPaymentUsingCredit" name="inclPaymentUsingCredit" boolean="checked" withId="parameterInclPaymentUsingCredit" default="Y"/>
+  
+  <PARAMETER id="paramcBPartnerId_INselected" name="paramcBPartnerId_INselected" default=""/>
+  <SUBREPORT id="paramcBPartnerId_IN" name="paramcBPartnerId_IN" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramcBPartnerId_INselected"/>
+  </SUBREPORT>
+    
+  <PARAMETER id="paramcBPGroupId_IN" name="cBPGroupId_IN" attribute="value"/>
+  <SUBREPORT id="reportBPGroupId_IN" name="reportBPGroupId_IN" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramcBPGroupId_IN"/>
+  </SUBREPORT>
+  
+  <PARAMETER id="paramcProjectId_INselected" name="paramcProjectId_INselected" default=""/>
+  <SUBREPORT id="paramcProjectId_IN" name="paramcProjectId_IN" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramcProjectId_INselected"/>
+  </SUBREPORT>
+  
+  <PARAMETER id="inpSelectedStatuses" name="selectedStatuses" attribute="value"/>
+  <PARAMETER id="paramStatus" name="paramStatus" default=""/>
+  <SUBREPORT id="paramfinPaymSt" name="reportStatus" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramStatus"/>
+  </SUBREPORT>
+  
+  <PARAMETER id="paramPaymentMethodId" name="paymentMethodId" attribute="value"/> 
+  <SUBREPORT id="reportPaymentMethod_ID" name="reportPaymentMethod_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramPaymentMethodId"/>
+  </SUBREPORT>
+  <PARAMETER id="paramFinancialAccountId" name="financialAccountId" attribute="value"/> 
+  <SUBREPORT id="reportFinancialAccount_ID" name="reportFinancialAccount_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramFinancialAccountId"/>
+  </SUBREPORT>
+  <PARAMETER id="paramcCurrencyId" name="cCurrencyId" attribute="value"/> 
+  <SUBREPORT id="reportC_Currency_ID" name="reportC_Currency_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramcCurrencyId"/>
+  </SUBREPORT>
+  
+  <PARAMETER id="paramcConvertCurrencyId" name="cConvertCurrencyId" attribute="value"/> 
+  <SUBREPORT id="reportConvertCurrency_ID" name="reportConvertCurrency_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramcConvertCurrencyId"/>
+  </SUBREPORT>
+  <PARAMETER id="paramConversionDate" name="conversionDate" attribute="value"/>
+  <PARAMETER id="paramConversionDate" name="conversionDatedisplaySave" attribute="displayformat" replace="xx"/>
+  <PARAMETER id="paramConversionDate" name="conversionDatedisplaySave" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramPaymType" name="paymType" attribute="value"/>
+  <SUBREPORT id="reportPaymType" name="reportPaymType" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramPaymType"/>
+  </SUBREPORT>
+  <PARAMETER id="parameterOver" name="all" default="1"/>
+  <PARAMETER id="paramOverdue" name="paramOver" boolean="checked" withId="parameterOver" default="0"/>
+  <PARAMETER id="paramGroupCrit" name="groupCrit" attribute="value"/>
+  <SUBREPORT id="reportGroupCrit" name="reportGroupCrit" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramGroupCrit"/>
+  </SUBREPORT>
+  <PARAMETER id="paramOrdCrit" name="ordCrit" attribute="value"/>
+  <SUBREPORT id="reportOrdCrit" name="reportOrdCrit" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramOrdCrit"/>
+  </SUBREPORT>
+  
+  <PARAMETER id="paramShown" name="inpShown" attribute="value"/>
+  <SUBREPORT id="reportShown" name="reportShown" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramShown"/>
+  </SUBREPORT>
+  
+  
+  <structure name="structure1">
+    <FIELD id="fieldBPartner">BPARTNER</FIELD>
+    <FIELD id="fieldBPGroup">BP_GROUP</FIELD>
+    <FIELD id="fieldStatus">STATUS</FIELD>
+    <FIELD id="fieldProject">PROJECT</FIELD>
+    <FIELD id="fieldSalesPerson">SALES_PERSON</FIELD>
+    
+    <FIELD id="fieldInvLink" attribute="onclick" replace="zz">PAYMENT_PLAN_ID</FIELD>
+    <FIELD id="fieldInvLink" attribute="onclick" replace="yy">ISRECEIPT</FIELD>
+    <FIELD id="fieldInvLink" attribute="style" replace="xx">PAYMENT_PLAN_Y_N</FIELD>
+    <FIELD id="fieldInvoiceNumber">INVOICE_NUMBER</FIELD>
+    <FIELD id="fieldInvoiceNumber_nolink">INVOICE_NUMBER</FIELD>
+    <FIELD id="fieldInvoiceNumber_nolink" attribute="style" replace="xx">NOT_PAYMENT_PLAN_Y_N</FIELD>
+    
+    <FIELD id="fieldInvoiceDate">INVOICE_DATE</FIELD>
+    
+    <FIELD id="fieldPayment">PAYMENT</FIELD>
+    <FIELD id="fieldPaymLink" attribute="onclick" replace="zz">PAYMENT_ID</FIELD>
+    <FIELD id="fieldPaymLink" attribute="onclick" replace="yy">ISRECEIPT</FIELD>
+    <FIELD id="fieldPaymLink" attribute="style" replace="xx">PAYMENT_Y_N</FIELD>
+    <FIELD id="fieldPaymLink" attribute="title" replace="xx">PAYMENT_DESC</FIELD>
+    
+    <FIELD id="fieldDueDate">DUE_DATE</FIELD>
+    <FIELD id="fieldPlannedDSO">PLANNED_DSO</FIELD>
+    <FIELD id="fieldCurrentDSO">CURRENT_DSO</FIELD>
+    <FIELD id="fieldOverdue">OVERDUE</FIELD>
+    <FIELD id="fieldTransAmount" format="euroInform">TRANS_AMOUNT</FIELD>
+    <FIELD id="fieldTransCurrency">TRANS_CURRENCY</FIELD>
+    <FIELD id="fieldBaseAmount" format="euroInform">BASE_AMOUNT</FIELD>
+    <FIELD id="fieldBaseCurrency">BASE_CURRENCY</FIELD>
+
+<!--     Accumulates Base Amount columns values -->
+    <FUNCTION id="subtotalBaseAmount" name="SUM" format="euroInform">BASE_AMOUNT</FUNCTION>
+    
+    <SECTION id="sectionStatus" field="STATUS"/>
+    <SECTION id="sectionDetail"/>
+  </structure>
+  
+  <structure name="structure2">
+    <FIELD id="fieldBPartner2">BPARTNER</FIELD>
+    <FIELD id="fieldBPGroup2">BP_GROUP</FIELD>
+    <FIELD id="fieldStatus2">STATUS</FIELD>
+    <FIELD id="fieldProject2">PROJECT</FIELD>
+    <FIELD id="fieldSalesPerson2">SALES_PERSON</FIELD>
+    
+    <FIELD id="fieldInvLink2" attribute="onclick" replace="zz">PAYMENT_PLAN_ID</FIELD>
+    <FIELD id="fieldInvLink2" attribute="onclick" replace="yy">ISRECEIPT</FIELD>
+    <FIELD id="fieldInvLink2" attribute="style" replace="xx">PAYMENT_PLAN_Y_N</FIELD>
+    <FIELD id="fieldInvoiceNumber2">INVOICE_NUMBER</FIELD>
+    <FIELD id="fieldInvoiceNumber2_nolink">INVOICE_NUMBER</FIELD>
+    <FIELD id="fieldInvoiceNumber2_nolink" attribute="style" replace="xx">NOT_PAYMENT_PLAN_Y_N</FIELD>
+    
+    <FIELD id="fieldInvoiceDate2">INVOICE_DATE</FIELD>
+    
+    <FIELD id="fieldPaymLink2" attribute="onclick" replace="zz">PAYMENT_ID</FIELD>
+    <FIELD id="fieldPaymLink2" attribute="onclick" replace="yy">ISRECEIPT</FIELD>
+    <FIELD id="fieldPaymLink2" attribute="style" replace="xx">PAYMENT_Y_N</FIELD>
+    <FIELD id="fieldPaymLink2" attribute="title" replace="xx">PAYMENT_DESC</FIELD>
+    <FIELD id="fieldPayment2">PAYMENT</FIELD>
+    
+    <FIELD id="fieldDueDate2">DUE_DATE</FIELD>
+    <FIELD id="fieldPlannedDSO2">PLANNED_DSO</FIELD>
+    <FIELD id="fieldCurrentDSO2">CURRENT_DSO</FIELD>
+    <FIELD id="fieldOverdue2">OVERDUE</FIELD>
+    <FIELD id="fieldTransAmount2" format="euroInform">TRANS_AMOUNT</FIELD>
+    <FIELD id="fieldTransCurrency2">TRANS_CURRENCY</FIELD>
+    <FIELD id="fieldBaseAmount2" format="euroInform">BASE_AMOUNT</FIELD>
+    <FIELD id="fieldBaseCurrency2">BASE_CURRENCY</FIELD>
+    <FIELD id="fieldGroupCritName">GROUP_CRIT_ID</FIELD>
+    <FIELD id="fieldGroupCrit">GROUP_CRIT_ID</FIELD>
+
+<!--     Base Amount columns values -->
+    <FUNCTION id="subtotalBaseAmountStatus" name="SUM" format="euroInform">BASE_AMOUNT</FUNCTION>
+    <FUNCTION id="sumBalanceAmount" name="SUM" format="euroInform">BALANCE</FUNCTION>
+    
+    <SECTION id="sectionGroupCrit" field="GROUP_CRIT_ID"/>
+    <SECTION id="sectionStatus2" field="STATUS"/>
+    <SECTION id="sectionDetail2"/>
+  </structure>
+
+   
+  <PARAMETER id="paramShowOneAsterisk" name="showOneAsterisk" attribute="style" replace="xx"/>
+  <PARAMETER id="paramShowTwoAsterisk" name="showTwoAsterisk" attribute="style" replace="xx"/>  
+  <DISCARD id="discard"/>
+</REPORT>

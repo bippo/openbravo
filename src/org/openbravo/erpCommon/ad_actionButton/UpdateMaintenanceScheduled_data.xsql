@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="UpdateMaintenanceScheduledData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MA_Maint_Scheduled_ID, AD_COLUMN_IDENTIFIER(TO_CHAR('MA_Maint_Scheduled'), TO_CHAR(MA_Maint_Scheduled_ID), TO_CHAR(?)) AS maintscheduled, scheduledDate
+        FROM MA_Maint_Scheduled 
+        WHERE scheduleddate >= TO_DATE(?)
+          AND confirmed = 'Y'
+          AND MA_Maint_Part_ID IS NULL
+          AND 1=1
+      ]]>
+      </Sql>
+      <Parameter name="language"/>
+      <Parameter name="scheduleddateFrom"/>
+      <Parameter name="scheduleddateTo" optional="true" after="AND 1=1"><![CDATA[ AND scheduleddate < TO_DATE(?) + 1 ]]></Parameter>
+      <Parameter name="maintenancetype" optional="true" after="AND 1=1" text=" AND maintenance_type = ?"/>
+  </SqlMethod>
+  <SqlMethod name="update" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE MA_MAINT_SCHEDULED
+        SET RESULT = ?,
+            USEDTIME = TO_NUMBER(?),
+            OBSERVATION = ?,
+            UPDATED = now(),
+            UPDATEDBY = ?,
+            MA_MAINT_PART_ID = ?
+        WHERE MA_MAINT_SCHEDULED_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="result"/>
+    <Parameter name="usedtime"/>
+    <Parameter name="observation"/>
+    <Parameter name="aduser"/>
+    <Parameter name="maintpart"/>
+    <Parameter name="maMaintScheduledId"/>
+  </SqlMethod>
+
+  </SqlClass>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReportSalesPartnerProduct_srpt" pageWidth="595" pageHeight="842" columnWidth="535" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<parameter name="PARTNER" class="java.lang.String">
+		<defaultValueExpression><![CDATA["1000004"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["es_ES"]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[SELECT C_ORDER.C_BPARTNER_ID, AD_COLUMN_IDENTIFIER(to_char('M_PRODUCT'), to_char(M_PRODUCT_ID), to_char($P{LANGUAGE})) AS PRODUCT, SUM(C_ORDERLINE.LINENETAMT) as LINENETAMT
+FROM C_ORDER, C_ORDERLINE
+WHERE C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+  AND ISSOTRX = 'Y'
+  AND C_ORDER.C_BPARTNER_ID = $P{PARTNER}
+GROUP BY C_ORDERLINE.M_PRODUCT_ID, C_ORDER.C_BPARTNER_ID
+ORDER BY C_ORDER.C_BPARTNER_ID]]>
+	</queryString>
+	<field name="c_bpartner_id" class="java.lang.String"/>
+	<field name="product" class="java.lang.String"/>
+	<field name="linenetamt" class="java.math.BigDecimal"/>
+	<variable name="sumlinenetamt" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{linenetamt}]]></variableExpression>
+	</variable>
+	<group name="C_BPARTNER_ID">
+		<groupExpression><![CDATA[$F{c_bpartner_id}]]></groupExpression>
+		<groupHeader>
+			<band height="237" splitType="Stretch">
+				<pieChart>
+					<chart>
+						<reportElement key="element-2" x="25" y="0" width="458" height="232"/>
+						<box>
+							<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+							<bottomPen lineWidth="0.0" lineColor="#000000"/>
+							<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<chartTitle/>
+						<chartSubtitle/>
+						<chartLegend textColor="#000000" backgroundColor="#FFFFFF"/>
+					</chart>
+					<pieDataset>
+						<dataset resetType="Group" resetGroup="C_BPARTNER_ID"/>
+						<keyExpression><![CDATA[$F{product}]]></keyExpression>
+						<valueExpression><![CDATA[$F{linenetamt}]]></valueExpression>
+						<labelExpression><![CDATA[$F{product}]]></labelExpression>
+					</pieDataset>
+					<piePlot isCircular="true">
+						<plot/>
+						<itemLabel color="#000000" backgroundColor="#FFFFFF"/>
+					</piePlot>
+				</pieChart>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band splitType="Stretch"/>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band splitType="Stretch"/>
+	</title>
+	<pageHeader>
+		<band splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band splitType="Stretch"/>
+	</detail>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<summary>
+		<band splitType="Stretch"/>
+	</summary>
+</jasperReport>

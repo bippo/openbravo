@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptCInvoiceHeaderData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+          SELECT C_INVOICE.C_INVOICE_ID, C_BPARTNER.NAME, C_BPARTNER.TAXID AS CIF, AD_USER.NAME AS CONTACT_NAME, C_LOCATION.ADDRESS1, 
+          C_LOCATION.POSTAL, C_LOCATION.CITY, C_REGION.NAME AS PLACE, C_COUNTRY.NAME AS COUNTRY,C_BPARTNER_LOCATION.PHONE AS PHONE, C_BPARTNER_LOCATION.FAX AS FAX,
+          C_INVOICE.DATEINVOICED, C_INVOICE.DOCUMENTNO, C_BPARTNER.VALUE AS CODE_BPARTNER, 
+          AD_CLIENT.DESCRIPTION AS ENTITY, C_Location_Description(AD_ORGINFO.C_LOCATION_ID) AS LOCATION, C_CURRENCY.ISO_CODE AS CURRENCY_CODE,C_CURRENCY.CURSYMBOL AS SYMBOL
+          FROM   C_INVOICE left join C_BPARTNER on C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+                           left join AD_USER on C_INVOICE.AD_USER_ID = AD_USER.AD_USER_ID
+                           left join C_BPARTNER_LOCATION on C_INVOICE.C_BPARTNER_LOCATION_ID = C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID
+                           left join C_LOCATION on C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+                           left join C_REGION on C_LOCATION.C_REGION_ID = C_REGION.C_REGION_ID
+                 		   left join C_COUNTRY ON C_LOCATION.C_COUNTRY_ID=C_COUNTRY.C_COUNTRY_ID
+                 		   left join C_CURRENCY ON C_INVOICE.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID,
+                  AD_ORGINFO, AD_CLIENT
+          WHERE C_INVOICE.ad_org_id = AD_ORGINFO.ad_org_id
+          AND C_INVOICE.ad_client_id = AD_CLIENT.ad_client_id
+        ]]>
+        </Sql>
+        <Parameter name="cInvoiceId" optional="true" type="argument" after="AND C_INVOICE.ad_client_id = AD_CLIENT.ad_client_id">
+        <![CDATA[ AND C_INVOICE.C_INVOICE_ID IN ]]>
+        </Parameter>
+   </SqlMethod>
+</SqlClass>

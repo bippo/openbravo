@@ -1,0 +1,621 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Module Management</title>
+
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</script> 
+   <script language="JavaScript" type="text/javascript" id="paramDirectory">var baseDirectory = "http://yourSite/web/";</script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">defaultLang = "en_US";</script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+<script language="JavaScript" src="../../../../../web/js/djConfig.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/dojotoolkit/dojo/dojo.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/djDependencies.js" type="text/javascript"></script>
+
+
+<script language="JavaScript" type="text/javascript">
+  function maturityChange(combo) {
+    var i, mdi = getFrame('LayoutMDI');
+    if (mdi && mdi.OB.Application.licenseType === 'C' && combo[combo.selectedIndex].value >= 500) {
+      mdi.isc.warn(mdi.OB.I18N.getLabel('OBUIAPP_GAinCommunity', [combo[combo.selectedIndex].innerHTML]));
+
+      // Select maximum maturity available
+      for (i = combo.length - 1; i !=0 && combo[i].value >= 500; i--);
+      combo.selectedIndex = i;
+    }
+  }
+
+  function removeModule(moduleId){
+    var frm = document.frmMain;
+    frm.inpModuleId.value = moduleId;
+    submitCommandForm('SETTINGS_REMOVE', false, null, 'ModuleManagement.html', '_self', null, false);
+  }
+
+  function validate()
+  {
+    return true;
+  }
+  
+  
+  function onloadFunctions() {
+    setProcessingMode('window',false);
+  }
+  
+  </script>
+  <script language="JavaScript" type="text/javascript">
+  function onLoadDo(){
+    this.windowTables = new Array(
+      new windowTableId('client', 'buttonHTML')
+    );
+    setWindowTableParentElement();
+    this.tabsTables = new Array(
+      new tabTableId('tdtopTabs')
+    );
+    setTabTableParentElement();
+    enableShortcuts('edition');
+    setBrowserAutoComplete(false);
+    try {
+      onloadFunctions();
+    } catch (e) {}
+    resizeArea();
+    updateMenuIcon('buttonMenu');
+
+    setWindowElementFocus('buttonSave');
+  }
+
+  function onResizeDo(){
+    resizeArea();
+  }
+  </script>
+</head>
+<body onload="onLoadDo();" onresize="onResizeDo();" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" id="paramMessage">
+<form method="post" action="ModuleManagement.html" name="frmMain">
+  <input type="hidden" name="Command"/>
+  <input type="hidden" name="inpModuleId" value=""/>
+  
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"><td class="tabBackGroundInit">
+            <div>
+              <span class="tabTitle">
+                <div class="tabTitle_background">
+                  <span class="tabTitle_elements_container">
+                    <span class="tabTitle_elements_text" id="tabTitle_text">Module Manager</span>
+                    <span class="tabTitle_elements_separator"><div class="tabTitle_elements_separator_icon"></div></span>
+                    <span class="tabTitle_elements_image"><div class="tabTitle_elements_image_normal_icon" id="TabStatusIcon"></div></span>
+                  </span>
+                </div>
+              </span>
+            </div>
+            </td></tr><tr><td class="tabBackGround">  <div class="marginLeft">
+            <div><span class="dojoTabNULL dojoTabparentfirst"></span>
+              </div>
+              </div>
+            </td>
+            </tr>
+            <tr id="paramMainTabContainer">
+              <td class="tabBackGround">
+                <table class="tabTable">
+                  <tr>
+                    <td valign="top"><span class="tabLeft">&nbsp;</span></td>
+                    <td class="tabPaneBackGround">
+                    <div>
+                      <span class="dojoTab"><div><span><a class="dojoTabLink" href="#" onclick="submitCommandForm('DEFAULT', false, null, 'ModuleManagement.html', '_self', null, true);return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabDefault">Installed Modules</a></span></div></span>
+                      <span class="tabSeparator">&nbsp;</span>
+                      <span class="dojoTab"><div><span><a class="dojoTabLink" href="#" onclick="submitCommandForm('ADD', false, null, 'ModuleManagement.html', '_self', null, true);return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabInstall">Add Modules</a></span></div></span>
+                      <span class="tabSeparator">&nbsp;</span>
+                      <span class="dojoTab"><div><span><a class="dojoTabLink" href="#" onclick="submitCommandForm('HISTORY', false, null, 'ModuleManagement.html', '_self', null, true);return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabHistory">Installation History</a></span></div></span>
+                      <span class="tabSeparator">&nbsp;</span>
+                      <span class="dojoTabCurrent"><div><span><a class="dojoTabLink" href="#" onclick="return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabSettings">Settings</a></span></div></span>
+                    </div>
+                    <td valign="top"><span class="tabRight">&nbsp;</span></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none;" id="client">
+                <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                  <tr>
+                    <td>
+                      <table class="dojoTabPaneWrapper" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                        <tr>
+                          <td>
+                            <!-- MessageBox -->
+
+                            <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+                              <tbody>
+                              <tr class="MessageBox_TopMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr>
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td>
+
+                                  <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                                    <tbody>
+                                    <tr>
+                                      <td class="MessageBox_LeftTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopLeft"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Left"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                      <td class="MessageBox_bg">
+
+                                        <table class="MessageBox_Top">
+                                        <tbody>
+                                          <tr>
+                                            <td>
+                                              <span>
+                                              <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                                <tbody>
+                                                <tr>
+                                                  <td class="MessageBox_Icon_ContentCell">
+                                                    <div class="MessageBox_Icon"></div>
+                                                  </td>
+                                                  <td style="vertical-align: top;" id="messageBoxIDContent">
+                                                    <span>
+                                                      <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                                        xxInfo: AccessTableWithNoView
+                                                      </div>
+                                                      <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                                        xxThe current information is empty.
+                                                      </div>
+                                                      <div class="MessageBox_TextSeparator"></div>
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                                </tbody>
+                                              </table>
+                                              </span>
+                                            </td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+
+                                      </td>
+                                      <td class="MessageBox_RightTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopRight"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Right"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td rowspan="2" class="MessageBox_BottomLeft">
+                                      </td>
+                                      <td class="MessageBox_BottomTrans MessageBox_bg">
+                                      </td>
+                                      <td rowspan="2" class="MessageBox_BottomRight">
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="MessageBox_Bottom">
+                                      </td>
+                                    </tr>
+                                    </tbody>
+                                  </table>
+
+                                </td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr class="MessageBox_BottomMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              </tbody>
+                            </table>              <!-- USER CONTROLS -->
+              <table class="Main_Client_TableEdition" id="client_top">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">
+                    <table border=0 cellspacing=0 cellpadding=0 class="FieldGroup">
+                      <tr class="FieldGroup_TopMargin"/>
+                      <tr>
+                        <td class="FieldGroupTitle_Left">
+                          <img src="../../../../../web/images/blank.gif" class="FieldGroupTitle_Left_bg" border=0/>
+                         </td>
+                         <td class="FieldGroupTitle">
+                           <span>Life Cycle</span>
+                         </td>
+                         <td class="FieldGroupTitle_Right">
+                           <img src="../../../../../web/images/blank.gif" class="FieldGroupTitle_Right_bg" border=0/>
+                         </td>
+                         <td class="FieldGroupContent">&nbsp;</td>
+                       </tr>
+                       <tr class="FieldGroup_BottomMargin"/>
+                     </table>      
+                   </td>
+                 </tr>
+
+                <tr>
+                  <td colspan="6">
+                    <span class="LabelText">
+                     Modules are published with different maturity statuses representing the amount of validation that they received. 
+                     Modules in status&nbsp;<FIELD_TMP id="lessMature">xxx</FIELD_TMP>&nbsp;are the least mature while those in status
+                     &nbsp;<FIELD_TMP id="mostMature">yyy</FIELD_TMP>&nbsp;are the most mature, having received the validation of usage by production 
+                     users over an extended period of time.<br/>
+                     When scanning for updates and searching for new modules you can define the minimum level of maturity you accept. 
+                     You can define this control globally for new modules, for updates to any already installed module or, optionally, you can specify a rule 
+                     for a specific module.
+                    </span>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">&nbsp;</td>
+                </tr>
+                
+                <tr>
+                  <td colspan="4">
+                    <span class="Label_ReadOnly_Text">
+                      When doing a scan for updates, accept versions of the following status or higher
+                    </span>
+                  </td>
+                  <td class="Combo_ContentCell" colspan="2">
+                    <select name="inpScanLevel" id="inpScanLevel" class="Combo Combo_TwoCells_width" onchange="maturityChange(this);">
+                        <div id="reportScanLevel">
+                          <div id="sectionDetailScanLevel"></div>
+                        </div>
+                      </option>
+                    </select>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">&nbsp;</td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">
+                   <span class="Label_ReadOnly_Text">
+                      Use the following module-specific exceptions:<br/>
+                    </span>
+                  </td>  
+                </tr>
+                </table>
+                
+                <table cellspacing="0" cellpadding="0" width="1000px" style="text-align:-moz-center;_text-align:center;" id="moduleTable">
+				    <tr>
+				      <td>
+				      <div class="Popup_ContentPane_Client" style="overflow: auto;">
+				        <table cellspacing="0" cellpadding="0" width="80%" class="DataGrid_Header_Table DataGrid_Body_Table">
+				          <tr class="Popup_Client_Selector_DataGrid_HeaderRow"> 
+				            <th class="DataGrid_Header_Cell" width="67%">Module</th>
+				            <th class="DataGrid_Header_Cell" width="30%">Maturity level for upgrades</th>
+				            <th class="DataGrid_Header_Cell" width="3%"></th>
+				          </tr>
+				          <div id="sectionModuleDetail"> 
+				            <tr class="DataGrid_Body_Row DataGrid_Body_Row_xx" id="funcEvenOddRow"> 
+				              <td class="DataGrid_Body_Cell" id="fieldModuleName">xxModule</td>
+				              <td class="DataGrid_Body_Cell" id="fieldModuleLevel">xxTesting</td>
+				              <td class="DataGrid_Body_Cell"">
+				                <a href="#">
+				                  <img id="fieldModuleRemove" onclick="removeModule('xx'); return false;" class="Small_cancel"  alt="Remove" title="Remove" src="../../../../../web/images/blank.gif" border="0"/>
+				                </a>
+				              </td>
+				            </tr>
+				          </div>
+				        </table>
+				     </div>
+				    </td>
+				   </tr>
+				   <tr>
+				     <td>&nbsp;</td>
+				   </tr>
+				</table>
+                
+               <table class="Main_Client_TableEdition" id="client_top2">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                <tr>
+                  <td colspan="6"/>
+                </tr>
+                <tr id="assignModule">
+                  <td><span class="Label_ReadOnly_Text">Module</span></td>
+                  <td class="Combo_ContentCell" colspan="2">
+                    <select class="Combo Combo_TwoCells_width" name="inpModule">
+                      <div id="sectionModuleComboDetail">
+                        <option id="moduleComboOption" value="">xxModule</option>
+                      </div>
+                    </select>
+                  </td>
+                  <td class="Combo_ContentCell" colspan="2">
+                    <select name="inpModuleLevel" id="inpModuleLevel" class="Combo Combo_TwoCells_width" onchange="maturityChange(this);">
+                        <div id="reportModuleLevel">
+                          <div id="sectionModuleLevel"></div>
+                        </div>
+                      </option>
+                    </select>
+                  </td>
+                   <td class="Button_LeftAlign_ContentCell">
+                      <div>
+                      <button type="button" 
+                        id="buttonAdd" 
+                        class="ButtonLink" 
+                        onclick="submitCommandForm('SETTINGS_ADD', false, null, 'ModuleManagement.html', '_self', null, false);return false;" 
+                        onfocus="buttonEvent('onfocus', this); window.status='Add'; return true;" 
+                        onblur="buttonEvent('onblur', this);" 
+                        onkeyup="buttonEvent('onkeyup', this);" 
+                        onkeydown="buttonEvent('onkeydown', this);" 
+                        onkeypress="buttonEvent('onkeypress', this);" 
+                        onmouseup="buttonEvent('onmouseup', this);" 
+                        onmousedown="buttonEvent('onmousedown', this);" 
+                        onmouseover="buttonEvent('onmouseover', this); window.status='Add'; return true;" 
+                        onmouseout="buttonEvent('onmouseout', this);">
+                        <table class="Button">
+                          <tr>
+                            <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Add" title="Add" src="../../../../../web/images/blank.gif" border="0" /></td>
+                            <td class="Button_text">Add</td>
+                            <td class="Button_right"></td>
+                          </tr>
+                        </table>
+                      </button>
+                      </div>
+                    </td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td colspan="6">&nbsp;</td>
+                </tr>
+               
+                <tr>
+                  <td colspan="4">
+                    <span class="Label_ReadOnly_Text">When searching for new modules, accept versions of the following status or higher</span>
+                  </td>
+                  <td class="Combo_ContentCell" colspan="2">
+                    <select name="inpSearchLevel" id="inpSearchLevel" class="Combo Combo_TwoCells_width" onchange="maturityChange(this);">
+                        <div id="reportSearchLevel">
+                          <div id="sectionDetailSearchLevel"></div>
+                        </div>
+                      </option>
+                    </select>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">&nbsp;</td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">
+                    <table border=0 cellspacing=0 cellpadding=0 class="FieldGroup">
+                      <tr class="FieldGroup_TopMargin"/>
+                      <tr>
+                        <td class="FieldGroupTitle_Left">
+                          <img src="../../../../../web/images/blank.gif" class="FieldGroupTitle_Left_bg" border=0/>
+                         </td>
+                         <td class="FieldGroupTitle">
+                           <span>Editable Dependencies</span>
+                         </td>
+                         <td class="FieldGroupTitle_Right">
+                           <img src="../../../../../web/images/blank.gif" class="FieldGroupTitle_Right_bg" border=0/>
+                         </td>
+                         <td class="FieldGroupContent">&nbsp;</td>
+                       </tr>
+                       <tr class="FieldGroup_BottomMargin"/>
+                     </table>      
+                   </td>
+                 </tr>
+                
+                  <tr id="noEditableEnforcement">
+                    <td colspan="4">
+                      <span class="Label_ReadOnly_Text">Your instance does not contain any module with an editable dependency enforcement level.</span>
+                    </td>
+                  </tr>
+                </table>
+                
+                <table id="enforcementTable" cellspacing="0" cellpadding="0" width="1000px" style="text-align:-moz-center;_text-align:center;">
+                    <tr>
+                      <td>
+                      <div class="Popup_ContentPane_Client" style="overflow: auto;">
+                        <table cellspacing="0" cellpadding="0" width="80%" class="DataGrid_Header_Table DataGrid_Body_Table">
+                          <tr class="Popup_Client_Selector_DataGrid_HeaderRow"> 
+                            <th class="DataGrid_Header_Cell" width="24%">Module</th>
+                            <th class="DataGrid_Header_Cell" width="9%">Type</th>
+                            <th class="DataGrid_Header_Cell" width="24%">Included/Base Module</th>
+                            <th class="DataGrid_Header_Cell" width="17%">Enforcement</th>
+                            <th class="DataGrid_Header_Cell" width="8%">Current</th>
+                            <th class="DataGrid_Header_Cell" width="8%">First Version</th>
+                            <th class="DataGrid_Header_Cell" width="8%">Last Version</th>
+                          </tr>
+                          <div id="sectionDependencyDetail"> 
+                            <tr class="DataGrid_Body_Row DataGrid_Body_Row_xx" id="funcEvenOddRow"> 
+                              <td class="DataGrid_Body_Cell" id="fieldDepModName">xxNeverland Localization Pack</td>
+                              <td class="DataGrid_Body_Cell" id="fieldDepType">xxInclusion</td>
+                              <td class="DataGrid_Body_Cell" id="fieldDepBaseMod">xxTaxes for Neverland</td>
+                              <td class="DataGrid_Body_Cell">
+			                    <select class="Combo" name="inpEnforcementxx" id="enforcementCombo">
+			                      <div id="reportEnforcementType">
+                                    <div id="sectionEnforcementType"></div>
+                                  </div>
+			                    </select>
+                              </td>
+                              <td class="DataGrid_Body_Cell" id="fieldDepCurrent"></td>
+                              <td class="DataGrid_Body_Cell" id="fieldDepFirst"></td>
+                              <td class="DataGrid_Body_Cell" id="fieldDepLast"></td>
+                            </tr>
+                          </div>
+                        </table>
+                     </div>
+                    </td>
+                   </tr>
+                </table>
+                
+               <table class="Main_Client_TableEdition" id="client_top3">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                
+                <tr>
+                  <td colspan="2"/>
+                  <td class="Button_LeftAlign_ContentCell">
+                      <div>
+                      <button type="button" 
+                        id="buttonSave" 
+                        class="ButtonLink" 
+                        onclick="submitCommandForm('SETTINGS_SAVE', false, null, 'ModuleManagement.html', '_self', null, false);return false;" 
+                        onfocus="buttonEvent('onfocus', this); window.status='Save'; return true;" 
+                        onblur="buttonEvent('onblur', this);" 
+                        onkeyup="buttonEvent('onkeyup', this);" 
+                        onkeydown="buttonEvent('onkeydown', this);" 
+                        onkeypress="buttonEvent('onkeypress', this);" 
+                        onmouseup="buttonEvent('onmouseup', this);" 
+                        onmousedown="buttonEvent('onmousedown', this);" 
+                        onmouseover="buttonEvent('onmouseover', this); window.status='Save'; return true;" 
+                        onmouseout="buttonEvent('onmouseout', this);">
+                        <table class="Button">
+                          <tr>
+                            <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Save" title="Save" src="../../../../../web/images/blank.gif" border="0" /></td>
+                            <td class="Button_text">Save</td>
+                            <td class="Button_right"></td>
+                          </tr>
+                        </table>
+                      </button>
+                      </div>
+                    </td>
+                    
+                    <td class="Button_LeftAlign_ContentCell">
+                      <div>
+                      <button type="button" 
+                        id="buttonCancel" 
+                        class="ButtonLink" 
+                        onclick="submitCommandForm('SETTINGS', false, null, 'ModuleManagement.html', '_self', null, false);return false;" 
+                        onfocus="buttonEvent('onfocus', this); window.status='Scan for updates'; return true;" 
+                        onblur="buttonEvent('onblur', this);" 
+                        onkeyup="buttonEvent('onkeyup', this);" 
+                        onkeydown="buttonEvent('onkeydown', this);" 
+                        onkeypress="buttonEvent('onkeypress', this);" 
+                        onmouseup="buttonEvent('onmouseup', this);" 
+                        onmousedown="buttonEvent('onmousedown', this);" 
+                        onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;" 
+                        onmouseout="buttonEvent('onmouseout', this);">
+                        <table class="Button">
+                          <tr>
+                            <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Add" title="Add" src="../../../../../web/images/blank.gif" border="0" /></td>
+                            <td class="Button_text">Cancel</td>
+                            <td class="Button_right"></td>
+                          </tr>
+                        </table>
+                      </button>
+                      </div>
+                    </td>
+                     <td colspan="2"/>
+                </tr>
+               
+               
+               </table>
+                
+                
+                </td>
+              </tr>
+              </tbody></table>
+              </td>
+            </tr>
+          </tbody></table>
+               
+       
+        </div>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

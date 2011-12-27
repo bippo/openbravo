@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+<SqlClass name="SEProjectLineValueData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select value, name, description, '' as project, '' as pricelist_version, '' as pricelist, '' as warehouse, '' as bplocation, '' as projcat, '' as plannedprice
+        from m_product 
+        where m_product_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="product"/>
+  </SqlMethod>
+  <SqlMethod name="selectProject" type="preparedStatement" return="multiple" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_Project.Projectcategory as projcat, C_Project.M_Pricelist_ID as pricelist, C_Project.M_Warehouse_Id as warehouse, C_Project.C_BPartner_Location_Id as bplocation
+      FROM C_Project
+      WHERE C_Project.C_Project_ID = ?
+    </Sql>
+    <Parameter name="cProjectId"/>
+  </SqlMethod>
+  <SqlMethod name="selectPhaseProject" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT c_projectphase.c_project_id
+      FROM c_projectphase
+      WHERE c_projectphase.c_projectphase_ID = ?
+    </Sql>
+    <Parameter name="cPhaseId"/>
+  </SqlMethod>
+  <SqlMethod name="selectPriceListVersion" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT M_GET_PRICELIST_VERSION(?, to_date(?)) as pricelist_version
+      FROM DUAL
+    </Sql>
+    <Parameter name="mPriceListId"/>
+    <Parameter name="date"/>
+  </SqlMethod>
+  <SqlMethod name="selectPlannedPrice" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT ROUND((SELECT COALESCE(SUM(PriceStd), 0)
+				    FROM M_ProductPrice
+				    WHERE M_PriceList_Version_id = ?
+				      AND M_Product_id = ?),
+                   (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C,
+                            C_PROJECT P 
+                      WHERE C.C_CURRENCY_ID = P.C_CURRENCY_ID
+                        AND P.C_PROJECT_ID = ?)) AS plannedprice FROM DUAL
+    </Sql>
+    <Parameter name="mPriceListVersionId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="cProjectId"/>    
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+</SqlClass>

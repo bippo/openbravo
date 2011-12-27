@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_DPMLINE_CHK_RESTRICTIONS_TRG">
+    <trigger name="C_DPMLINE_CHK_RESTRICTIONS_TRG" table="C_DP_MANAGEMENTLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  v_Processed VARCHAR(60) ;
+  v_C_dp_ID VARCHAR2(32) ;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_DP_ID:=:NEW.C_DP_MANAGEMENT_ID;
+  ELSE
+    v_C_DP_ID:=:OLD.C_DP_MANAGEMENT_ID;
+  END IF;
+  SELECT PROCESSED
+  INTO v_Processed
+  FROM C_DP_Management
+  WHERE C_DP_Management_ID=v_C_DP_ID;
+  IF UPDATING THEN
+    IF(v_Processed='Y'
+      AND ((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+      OR(COALESCE(:OLD.C_DEBT_PAYMENT_ID, '0') <> COALESCE(:NEW.C_DEBT_PAYMENT_ID, '0'))
+      OR(COALESCE(:OLD.STATUS_FROM, '0') <> COALESCE(:NEW.STATUS_FROM, '0'))
+      OR(COALESCE(:OLD.STATUS_TO, '0') <> COALESCE(:NEW.STATUS_TO, '0'))
+      OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+      OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')))) THEN
+        RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF((DELETING OR INSERTING) AND v_Processed='Y') THEN
+    RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+  END IF;
+END C_DPMLINE_CHK_RESTRICTIONS_TRG
+]]></body>
+    </trigger>
+  </database>

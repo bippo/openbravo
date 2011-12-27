@@ -1,0 +1,565 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_MAINTENANCE_SCHEDULE">
+    <function name="MA_MAINTENANCE_SCHEDULE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ma_maintenance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_initdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_enddate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  --  Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_Record_ID VARCHAR2(32);
+  v_Result NUMBER:=1; --  Success
+  v_AD_User_ID VARCHAR2(32);
+  v_InitDate DATE;
+  v_EndDate DATE;
+  v_Date DATE;
+  v_DateInt DATE;
+  v_Int NUMBER;
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --  Record Info
+    Cur_Periodicity RECORD;
+    Cur_Machine RECORD;
+    v_Count NUMBER;
+    v_InsertCount NUMBER:=0;
+    v_MA_Maint_Scheduled VARCHAR2(32);
+    v_Maint MA_Maintenance%ROWTYPE;
+    v_InitDay NUMBER;
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,
+          i.AD_User_ID,
+          i.AD_Client_ID,
+          i.AD_Org_ID,
+          p.ParameterName,
+          p.P_String,
+          p.P_Number,
+          p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+        v_Client_ID:=Cur_Parameter.AD_Client_ID;
+        v_Org_ID:=Cur_Parameter.AD_Org_ID;
+        IF(Cur_Parameter.ParameterName='InitDate') THEN
+          v_InitDate:=Cur_Parameter.P_Date;
+          DBMS_OUTPUT.PUT_LINE('  InitDate=' || p_InitDate) ;
+        ELSIF(Cur_Parameter.ParameterName='EndDate') THEN
+          v_EndDate:=Cur_Parameter.P_Date;
+          DBMS_OUTPUT.PUT_LINE('  EndDate=' || p_EndDate) ;
+        ELSE
+          DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+        END IF;
+      END LOOP;
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<MA_Maintenance_Schedule>>') ;
+      v_Record_ID:=p_MA_Maintenance_ID;
+      v_InitDate:=p_InitDate;
+      v_EndDate:=p_EndDate;
+      v_AD_User_ID:=p_User_ID;
+      v_Client_ID:=p_Client_ID;
+      v_Org_ID:=p_Org_ID;
+    END IF;
+  BEGIN --BODY
+    IF(v_EndDate IS NULL) THEN
+      v_EndDate:=v_InitDate +1;
+    END IF;
+    SELECT *
+    INTO v_Maint
+    FROM MA_Maintenance
+    WHERE MA_Maintenance_ID=v_Record_ID;
+    v_ResultStr:='ProcessingPeriodicities';
+    FOR Cur_Periodicity IN
+      (SELECT *
+      FROM MA_Maint_Periodicity
+      WHERE MA_Maintenance_Id=v_Record_ID
+        AND isActive='Y'
+      )
+    LOOP
+      DBMS_OUTPUT.PUT_LINE('  Periodicity_ID=' || Cur_Periodicity.MA_Maint_Periodicity_ID) ;
+      IF(Cur_Periodicity.Periodicity_Type='DA') THEN
+        v_ResultStr:='Daily Periodicity';
+        v_Date:=v_InitDate;
+        WHILE(v_Date<v_EndDate)
+        LOOP
+          SELECT count(*)
+          INTO v_Count
+          FROM MA_Maint_Scheduled
+          WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
+            AND SCHEDULEDDATE=v_Date;
+          IF NOT(v_Count!=0 OR(Cur_Periodicity.ExcludeWeekend='Y' AND(TO_CHAR(v_Date, 'd')='6' OR TO_CHAR(v_Date, 'd')='7'))) THEN
+            IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
+              FOR Cur_Machine IN
+                (SELECT MA_Machine_ID
+                FROM MA_Machine
+                WHERE MA_Machine_Type_ID=v_Maint.MA_Machine_Type_ID
+                  AND isActive='Y'
+                )
+              LOOP
+                Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+                INSERT
+                INTO MA_Maint_Scheduled
+                  (
+                    MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                    Created, Createdby, Updated, Updatedby,
+                    MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                    Scheduleddate, Confirmed, Shift, Description
+                  )
+                  VALUES
+                  (
+                    v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                    now(), v_AD_User_ID, now(), v_AD_User_ID,
+                    v_Record_ID, Cur_Machine.MA_Machine_ID, NULL, v_Maint.Maintenance_Type,
+                    v_Date, 'N', Cur_Periodicity.Shift, v_Maint.description
+                  )
+                  ;
+                v_InsertCount:=v_InsertCount + 1;
+              END LOOP;
+            ELSE
+              Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled);
+              INSERT
+              INTO MA_Maint_Scheduled
+                (
+                  MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                  Created, Createdby, Updated, Updatedby,
+                  MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                  Scheduleddate, Confirmed, Shift, Description
+                )
+                VALUES
+                (
+                  v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_AD_User_ID, now(), v_AD_User_ID,
+                  v_Record_ID, v_Maint.MA_Machine_ID, v_Maint.MA_Machine_Type_ID, v_Maint.Maintenance_Type,
+                  v_Date, 'N', Cur_Periodicity.Shift, v_Maint.description
+                )
+                ;
+              v_InsertCount:=v_InsertCount + 1;
+            END IF;
+          END IF;
+          v_Date:=v_Date+1;
+        END LOOP;
+      ELSIF(Cur_Periodicity.Periodicity_Type='WE') THEN
+        v_ResultStr:='Weekly Periodicity';
+        SELECT next_day(v_InitDate-1, to_number(Cur_Periodicity.weekday))
+        INTO v_Date
+        FROM DUAL;
+        WHILE(v_Date<v_EndDate)
+        LOOP
+          SELECT count(*)
+          INTO v_Count
+          FROM MA_Maint_Scheduled
+          WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
+            AND SCHEDULEDDATE=v_Date;
+          IF(v_Count=0) THEN
+            IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
+              FOR Cur_Machine IN
+                (SELECT MA_Machine_ID
+                FROM MA_Machine
+                WHERE MA_Machine_Type_ID=v_Maint.MA_Machine_Type_ID
+                  AND isActive='Y'
+                )
+              LOOP
+                Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+                INSERT
+                INTO MA_Maint_Scheduled
+                  (
+                    MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                    Created, Createdby, Updated, Updatedby,
+                    MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                    Scheduleddate, Confirmed, Shift, Description
+                  )
+                  VALUES
+                  (
+                    v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                    now(), v_AD_User_ID, now(), v_AD_User_ID,
+                    v_Record_ID, Cur_Machine.MA_Machine_ID, NULL, v_Maint.Maintenance_Type,
+                    v_Date, 'N', Cur_Periodicity.Shift, v_Maint.description
+                  )
+                  ;
+                v_InsertCount:=v_InsertCount + 1;
+              END LOOP;
+            ELSE
+              Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+              INSERT
+              INTO MA_Maint_Scheduled
+                (
+                  MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                  Created, Createdby, Updated, Updatedby,
+                  MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                  Scheduleddate, Confirmed, Shift, Description
+                )
+                VALUES
+                (
+                  v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_AD_User_ID, now(), v_AD_User_ID,
+                  v_Record_ID, v_Maint.MA_Machine_ID, v_Maint.MA_Machine_Type_ID, v_Maint.Maintenance_Type,
+                  v_Date, 'N', Cur_Periodicity.Shift, v_Maint.description
+                )
+                ;
+              v_InsertCount:=v_InsertCount + 1;
+            END IF;
+          END IF;
+          v_Date:=v_Date+7;
+        END LOOP;
+      ELSIF(Cur_Periodicity.Periodicity_Type='M1') THEN
+        v_ResultStr:='Monthly Periodicity';
+        v_Date:=TO_DATE(Cur_Periodicity.Monthday || '/' || TO_CHAR(v_InitDate, 'mm/yyyy'), 'dd/mm/yyyy') ;
+        IF(v_date<v_InitDate) THEN
+          v_Date:=ADD_MONTHS(v_Date, to_number(1)) ;
+        END IF;
+        WHILE(v_Date<v_EndDate)
+        LOOP
+          v_DateInt:=v_Date;
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+            v_DateInt:=v_Date +2;
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+            v_DateInt:=v_Date +1;
+          END IF;
+          SELECT count(*)
+          INTO v_Count
+          FROM MA_Maint_Scheduled
+          WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
+            AND SCHEDULEDDATE=v_DateInt;
+          IF(v_Count=0) THEN
+            IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
+              FOR Cur_Machine IN
+                (SELECT MA_Machine_ID
+                FROM MA_Machine
+                WHERE MA_Machine_Type_ID=v_Maint.MA_Machine_Type_ID
+                  AND isActive='Y'
+                )
+              LOOP
+                Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+                INSERT
+                INTO MA_Maint_Scheduled
+                  (
+                    MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                    Created, Createdby, Updated, Updatedby,
+                    MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                    Scheduleddate, Confirmed, Shift, Description
+                  )
+                  VALUES
+                  (
+                    v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                    now(), v_AD_User_ID, now(), v_AD_User_ID,
+                    v_Record_ID, Cur_Machine.MA_Machine_ID, NULL, v_Maint.Maintenance_Type,
+                    v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                  )
+                  ;
+                v_InsertCount:=v_InsertCount + 1;
+              END LOOP;
+            ELSE
+              Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+              INSERT
+              INTO MA_Maint_Scheduled
+                (
+                  MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                  Created, Createdby, Updated, Updatedby,
+                  MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                  Scheduleddate, Confirmed, Shift, Description
+                )
+                VALUES
+                (
+                  v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_AD_User_ID, now(), v_AD_User_ID,
+                  v_Record_ID, v_Maint.MA_Machine_ID, v_Maint.MA_Machine_Type_ID, v_Maint.Maintenance_Type,
+                  v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                )
+                ;
+              v_InsertCount:=v_InsertCount + 1;
+            END IF;
+          END IF;
+          v_Date:=ADD_MONTHS(v_Date, to_number(1)) ;
+        END LOOP;
+      ELSIF(Cur_Periodicity.Periodicity_Type='M2') THEN
+        v_ResultStr:='Bi-Monthly Periodicity';
+        v_Int := 2*(TRUNC(MONTHS_BETWEEN(v_InitDate, Cur_Periodicity.initdate) /2));
+        v_Date:=ADD_MONTHS(Cur_Periodicity.initdate, v_Int) ;
+        --v_Date := TRUNC(Cur_Periodicity.lastdatecalc, 'mm/yyyy')+Cur_Periodicity.Monthday;
+        IF(v_date<v_InitDate) THEN
+          v_Date:=ADD_MONTHS(v_Date, to_number(2)) ;
+        END IF;
+        WHILE(v_Date<v_EndDate)
+        LOOP
+          v_DateInt:=v_Date;
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+            v_DateInt:=v_Date +2;
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+            v_DateInt:=v_Date +1;
+          END IF;
+          SELECT count(*)
+          INTO v_Count
+          FROM MA_Maint_Scheduled
+          WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
+            AND SCHEDULEDDATE=v_DateInt;
+          IF(v_Count=0) THEN
+            IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
+              FOR Cur_Machine IN
+                (SELECT MA_Machine_ID
+                FROM MA_Machine
+                WHERE MA_Machine_Type_ID=v_Maint.MA_Machine_Type_ID
+                  AND isActive='Y'
+                )
+              LOOP
+                Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+                INSERT
+                INTO MA_Maint_Scheduled
+                  (
+                    MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                    Created, Createdby, Updated, Updatedby,
+                    MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                    Scheduleddate, Confirmed, Shift, Description
+                  )
+                  VALUES
+                  (
+                    v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                    now(), v_AD_User_ID, now(), v_AD_User_ID,
+                    v_Record_ID, Cur_Machine.MA_Machine_ID, NULL, v_Maint.Maintenance_Type,
+                    v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                  )
+                  ;
+                v_InsertCount:=v_InsertCount + 1;
+              END LOOP;
+            ELSE
+              Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled);
+              INSERT
+              INTO MA_Maint_Scheduled
+                (
+                  MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                  Created, Createdby, Updated, Updatedby,
+                  MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                  Scheduleddate, Confirmed, Shift, Description
+                )
+                VALUES
+                (
+                  v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_AD_User_ID, now(), v_AD_User_ID,
+                  v_Record_ID, v_Maint.MA_Machine_ID, v_Maint.MA_Machine_Type_ID, v_Maint.Maintenance_Type,
+                  v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                )
+                ;
+              v_InsertCount:=v_InsertCount + 1;
+            END IF;
+          END IF;
+          v_Date:=ADD_MONTHS(v_Date, to_number(2)) ;
+        END LOOP;
+      ELSIF(Cur_Periodicity.Periodicity_Type='M3') THEN
+        v_ResultStr:='Quarterly Periodicity';
+        v_Int := 3*(TRUNC(MONTHS_BETWEEN(v_InitDate, Cur_Periodicity.initdate) /3));
+        v_Date:=ADD_MONTHS(Cur_Periodicity.initdate, v_Int) ;
+        IF(v_date<v_InitDate) THEN
+          v_Date:=ADD_MONTHS(v_Date, to_number(3)) ;
+        END IF;
+        WHILE(v_Date<v_EndDate)
+        LOOP
+          v_DateInt:=v_Date;
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+            v_DateInt:=v_Date +2;
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+            v_DateInt:=v_Date +1;
+          END IF;
+          SELECT count(*)
+          INTO v_Count
+          FROM MA_Maint_Scheduled
+          WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
+            AND SCHEDULEDDATE=v_DateInt;
+          IF(v_Count=0) THEN
+            IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
+              FOR Cur_Machine IN
+                (SELECT MA_Machine_ID
+                FROM MA_Machine
+                WHERE MA_Machine_Type_ID=v_Maint.MA_Machine_Type_ID
+                  AND isActive='Y'
+                )
+              LOOP
+                Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+                INSERT
+                INTO MA_Maint_Scheduled
+                  (
+                    MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                    Created, Createdby, Updated, Updatedby,
+                    MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                    Scheduleddate, Confirmed, Shift, Description
+                  )
+                  VALUES
+                  (
+                    v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                    now(), v_AD_User_ID, now(), v_AD_User_ID,
+                    v_Record_ID, Cur_Machine.MA_Machine_ID, NULL, v_Maint.Maintenance_Type,
+                    v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                  )
+                  ;
+                v_InsertCount:=v_InsertCount + 1;
+              END LOOP;
+            ELSE
+              Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled) ;
+              INSERT
+              INTO MA_Maint_Scheduled
+                (
+                  MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                  Created, Createdby, Updated, Updatedby,
+                  MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                  Scheduleddate, Confirmed, Shift, Description
+                )
+                VALUES
+                (
+                  v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_AD_User_ID, now(), v_AD_User_ID,
+                  v_Record_ID, v_Maint.MA_Machine_ID, v_Maint.MA_Machine_Type_ID, v_Maint.Maintenance_Type,
+                  v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                )
+                ;
+              v_InsertCount:=v_InsertCount + 1;
+            END IF;
+          END IF;
+          v_Date:=ADD_MONTHS(v_Date, to_number(3)) ;
+        END LOOP;
+      ELSIF(Cur_Periodicity.Periodicity_Type='M6') THEN
+        v_ResultStr:='Half-yearly Periodicity';
+        v_Int := 3*(TRUNC(MONTHS_BETWEEN(v_InitDate, Cur_Periodicity.initdate) /3));
+        v_Date:=ADD_MONTHS(Cur_Periodicity.initdate, v_Int) ;
+        IF(v_date<v_InitDate) THEN
+          v_Date:=ADD_MONTHS(v_Date, to_number(6)) ;
+        END IF;
+        WHILE(v_Date<v_EndDate)
+        LOOP
+          v_DateInt:=v_Date;
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+            v_DateInt:=v_Date +2;
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+            v_DateInt:=v_Date +1;
+          END IF;
+          SELECT count(*)
+          INTO v_Count
+          FROM MA_Maint_Scheduled
+          WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
+            AND SCHEDULEDDATE=v_DateInt;
+          IF(v_Count=0) THEN
+            IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
+              FOR Cur_Machine IN
+                (SELECT MA_Machine_ID
+                FROM MA_Machine
+                WHERE MA_Machine_Type_ID=v_Maint.MA_Machine_Type_ID
+                  AND isActive='Y'
+                )
+              LOOP
+                Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled);
+                INSERT
+                INTO MA_Maint_Scheduled
+                  (
+                    MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                    Created, Createdby, Updated, Updatedby,
+                    MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                    Scheduleddate, Confirmed, Shift, Description
+                  )
+                  VALUES
+                  (
+                    v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                    now(), v_AD_User_ID, now(), v_AD_User_ID,
+                    v_Record_ID, Cur_Machine.MA_Machine_ID, NULL, v_Maint.Maintenance_Type,
+                    v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                  )
+                  ;
+                v_InsertCount:=v_InsertCount + 1;
+              END LOOP;
+            ELSE
+              Ad_Sequence_Next('MA_Maint_Scheduled', v_Org_ID, v_MA_Maint_Scheduled);
+              INSERT
+              INTO MA_Maint_Scheduled
+                (
+                  MA_Maint_Scheduled_ID, AD_Client_ID, AD_Org_ID, Isactive,
+                  Created, Createdby, Updated, Updatedby,
+                  MA_Maintenance_ID, MA_Machine_ID, MA_Machine_Type_ID, Maintenance_Type,
+                  Scheduleddate, Confirmed, Shift, Description
+                )
+                VALUES
+                (
+                  v_MA_Maint_Scheduled, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_AD_User_ID, now(), v_AD_User_ID,
+                  v_Record_ID, v_Maint.MA_Machine_ID, v_Maint.MA_Machine_Type_ID, v_Maint.Maintenance_Type,
+                  v_DateInt, 'N', Cur_Periodicity.Shift, v_Maint.description
+                )
+                ;
+              v_InsertCount:=v_InsertCount + 1;
+            END IF;
+          END IF;
+          v_Date:=ADD_MONTHS(v_Date, to_number(6)) ;
+        END LOOP;
+      END IF;
+    END LOOP;
+    v_Message:='@Created@=' || v_InsertCount;
+    --<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, v_AD_User_ID, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<MA_Maintenance escheduling finished>> ' || v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END MA_MAINTENANCE_SCHEDULE
+]]></body>
+    </function>
+  </database>

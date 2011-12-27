@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER APRM_FIN_BANK_STMT_CHECK_TRG">
+    <trigger name="APRM_FIN_BANK_STMT_CHECK_TRG" table="FIN_BANKSTATEMENT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+*************************************************************************/
+
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+  
+BEGIN
+   
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (UPDATING) THEN
+    IF(:OLD.PROCESSED='Y' AND ((COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+      OR(COALESCE(:OLD.ISACTIVE, '0') <> COALESCE(:NEW.ISACTIVE, '0'))
+      OR(COALESCE(:OLD.FIN_FINANCIAL_ACCOUNT_ID, '0') <> COALESCE(:NEW.FIN_FINANCIAL_ACCOUNT_ID, '0'))
+      OR(COALESCE(:OLD.DOCUMENTNO, '0') <> COALESCE(:NEW.DOCUMENTNO, '0'))
+      OR(COALESCE(:OLD.NAME, '0') <> COALESCE(:NEW.NAME, '0'))
+      OR(COALESCE(:OLD.C_DOCTYPE_ID, '0') <> COALESCE(:NEW.C_DOCTYPE_ID, '0'))
+      OR(COALESCE(:OLD.FILENAME, '0') <> COALESCE(:NEW.FILENAME, '0'))
+      OR(COALESCE(:OLD.IMPORTDATE, v_DateNull) <> COALESCE(:NEW.IMPORTDATE, v_DateNull))
+      OR(COALESCE(:OLD.STATEMENTDATE, v_DateNull) <> COALESCE(:NEW.STATEMENTDATE, v_DateNull)))) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20501@');
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+   IF(:NEW.PROCESSED='Y') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@20501@');
+   END IF;
+  END IF;
+  IF(DELETING) THEN
+   IF(:OLD.PROCESSED='Y') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@20501@');
+   END IF;
+  END IF;
+END APRM_FIN_BANK_STMT_CHECK_TRG
+]]></body>
+    </trigger>
+  </database>

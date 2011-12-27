@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION OBKMO_UPDATE_ACCESS">
+    <function name="OBKMO_UPDATE_ACCESS" type="NULL">
+      <parameter name="p_ep_instance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+BEGIN
+
+  INSERT INTO OBKMO_Widget_Class_Access
+    (
+      OBKMO_Widget_Class_Access_ID, OBKMO_Widget_Class_ID, AD_Role_ID, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy
+    )
+  SELECT get_uuid(), W.OBKMO_Widget_Class_ID, R.AD_ROLE_ID, R.AD_CLIENT_ID,
+    R.AD_ORG_ID, 'Y', now(),
+    '0', now(), '0'
+  FROM OBKMO_Widget_Class W, AD_ROLE R
+  WHERE R.ISMANUAL = 'N'
+  AND W.IsActive='Y'
+    AND (
+      (R.USERLEVEL = 'S' AND W.ACCESSLEVEL IN ('4','7','6'))
+      OR
+      (R.USERLEVEL IN (' CO', ' C') AND W.ACCESSLEVEL IN ('7','6','3','1'))
+      OR
+      (R.USERLEVEL = '  O' AND W.ACCESSLEVEL IN ('3','1','7'))
+    )
+    AND NOT EXISTS (SELECT 1
+                     FROM OBKMO_Widget_Class_Access
+                    WHERE OBKMO_Widget_Class_ID = W.OBKMO_Widget_Class_ID
+                      AND AD_ROLE_ID = R.AD_ROLE_ID);
+END OBKMO_UPDATE_ACCESS
+]]></body>
+    </function>
+  </database>

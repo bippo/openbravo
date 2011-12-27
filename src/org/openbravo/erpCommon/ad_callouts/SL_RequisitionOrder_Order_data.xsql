@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="SLRequisitionOrderOrderData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT * FROM DUAL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="getRequired" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT M_REQUISITIONLINE.QTY - COALESCE(SUM(M_REQUISITIONORDER.QTY),0) AS REQUIRED
+      FROM M_REQUISITIONLINE LEFT JOIN M_REQUISITIONORDER 
+                             ON M_REQUISITIONLINE.M_REQUISITIONLINE_ID = M_REQUISITIONORDER.M_REQUISITIONLINE_ID
+      WHERE M_REQUISITIONLINE.M_REQUISITIONLINE_ID = ?
+      GROUP BY M_REQUISITIONLINE.QTY
+    </Sql>
+    <Parameter name="mRequisitionLineId"/>
+  </SqlMethod>
+  <SqlMethod name="getOrderLine" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT QTYORDERED
+      FROM C_ORDERLINE
+      WHERE C_ORDERLINE_ID = ?
+    </Sql>
+    <Parameter name="mOrderLineId"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,193 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_VALIDCOMBINATION_CLONE">
+    <function name="C_VALIDCOMBINATION_CLONE" type="NULL">
+      <parameter name="p_orginal_validcombination" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_sequenceno" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_accountname" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_acct_length" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_subacct_length" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_result" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+	v_Node_ID   			            VARCHAR(32) :=null; 	--OBTG:varchar2--
+	v_AD_TREE_ID			            VARCHAR(32) :=null;	--OBTG:varchar2--
+	v_PARENT_ID			              VARCHAR(32) :=null;	--OBTG:varchar2--
+	v_SeqNo			                  NUMBER(38);
+	v_Next_Sequence_No 		        VARCHAR(32) :=null;	--OBTG:varchar2-- 
+	v_Account_No 			            VARCHAR(32) :=null;	--OBTG:varchar2-- 
+	v_Acct_No_For_SubAccount	    VARCHAR(32) :=null;	--OBTG:varchar2-- 
+	v_Subacct_No			            VARCHAR(32) :=null; 	--OBTG:varchar2-- 
+	v_New_SubAccount_No 		      VARCHAR(32) :=null; 	--OBTG:varchar2-- 
+	v_Default_Account_No 		      VARCHAR(32) :=null; 	--OBTG:varchar2-- 
+	v_Seq_No_For_Subaccount_No	  VARCHAR(32) :=null; 	--OBTG:varchar2--	
+	v_Default_Account_Name 		    VARCHAR(60) :=null; 	--OBTG:varchar2--
+	v_Default_Account_Desc 		    CHARACTER VARYING(255); --OBTG:varchar2--
+	v_Default_Account_Client_ID 	VARCHAR(32); 		--OBTG:varchar2--
+	v_Org_ID			                VARCHAR(32); 		--OBTG:varchar2--
+	v_Account_ID			            VARCHAR(32); 		--OBTG:varchar2--
+	v_seq_name 			              CHARACTER VARYING(255); --OBTG:varchar2--
+	v_C_AcctSchema_ID		          VARCHAR(32) :=null; 	--OBTG:varchar2--
+	v_UpdateSequence		          CHAR;
+	tmp_Subaccout_no		          VARCHAR(32) :=null; 	--OBTG:varchar2--
+	v_C_ElementValue_ID		        VARCHAR(32) :=null; 	--OBTG:varchar2--
+	
+BEGIN
+  IF (p_orginal_validcombination IS NULL) THEN
+    p_Result:=null;
+  END IF;
+	v_C_ElementValue_ID := GET_UUID();
+
+	/* 
+		Querying the default Account NUMBER, Client ID, Account Schema ID for cloning.
+	*/
+	SELECT 
+		C_ElementValue.Value, 
+		C_ElementValue.Name, 
+		C_ElementValue.Description, 
+		C_ElementValue.AD_Client_ID,
+		C_ElementValue.C_ElementValue_ID, 
+		C_ValidCombination.C_AcctSchema_ID, 
+		C_ElementValue.AD_Org_ID
+		INTO 
+		v_Default_Account_No,
+		v_Default_Account_Name,
+		v_Default_Account_Desc, 
+		v_Default_Account_Client_ID,
+		v_Node_ID, 
+		v_C_AcctSchema_ID, 
+		v_Org_ID 
+		FROM C_ValidCombination, C_ElementValue 
+		WHERE C_ValidCombination.Account_ID = C_ElementValue.C_ElementValue_ID
+		AND C_ValidCombination_ID =p_Orginal_Validcombination;
+
+	-- Logic for generating the New Sub account number from Original Accounts.
+	v_Acct_No_For_SubAccount:=SUBSTR(v_Default_Account_No,1,p_Acct_Length);
+	tmp_Subaccout_no := p_Subacct_Length - p_Acct_Length;
+	v_Seq_No_For_Subaccount_No:= lpad(p_SequenceNo,cast(tmp_Subaccout_no as integer),'0');
+	v_New_Subaccount_No:= v_Acct_No_For_SubAccount || v_Seq_No_For_Subaccount_No;
+  /*
+		Inserting the new element value for new account for Business Partner Or Product. 	
+	*/
+	INSERT INTO C_ElementValue
+		(
+		C_ElementValue_ID,
+		AD_Client_ID, 
+		AD_Org_ID, 
+		IsActive,
+		Created,
+		CreatedBy, 
+		Updated, 
+		UpdatedBy, 
+		Value, 
+		Name, 
+		Description,
+		AccountType, 
+		AccountSign,
+		IsDocControlled,
+		C_Element_ID,
+		IsSummary,	
+		ValidFrom,
+		ValidTo,
+		PostActual, 
+		PostBudget, 
+		PostEncumbrance,
+		PostStatistical, 
+		IsBankAccount,
+		C_BankAccount_ID, 
+		IsForeignCurrency, 
+		C_Currency_ID , 
+		ShowElement , 
+		ShowValueCond , 
+		ElementLevel)
+
+        SELECT 
+		v_C_ElementValue_ID, 
+		EV.AD_Client_ID, 
+		EV.AD_Org_ID, 
+		EV.IsActive, 
+		now(),
+		EV.CreatedBy, 
+		now(), 
+		EV.UpdatedBy, 
+		v_New_Subaccount_No, 
+		case when (p_accountName is not null) then (EV.Name || ' - ' || p_accountName) else EV.Name end, 
+		EV.Description,
+                EV.AccountType, 
+                EV.AccountSign, 
+                EV.IsDocControlled, 
+                EV.C_Element_ID, 
+                EV.IsSummary,
+                EV.ValidFrom, 
+                EV.ValidTo, 
+                EV.PostActual, 
+                EV.PostBudget, 
+                EV.PostEncumbrance,
+                EV.PostStatistical, 
+                EV.IsBankAccount, 
+                EV.C_BankAccount_ID, 
+                EV.IsForeignCurrency,
+                EV.C_Currency_ID, 
+                EV.ShowElement, 
+                EV.ShowValueCond, 
+                EV.ElementLevel
+                FROM C_ValidCombination VC, C_ElementValue EV        
+                WHERE VC.Account_ID = EV.C_ElementValue_ID
+                AND VC.C_ValidCombination_ID = p_orginal_validcombination;
+
+        SELECT AD_TREE_ID INTO v_AD_TREE_ID
+                FROM C_ACCTSCHEMA_ELEMENT, C_ELEMENT
+                WHERE C_ACCTSCHEMA_ELEMENT.C_ELEMENT_ID = C_ELEMENT.C_ELEMENT_ID
+                AND C_ACCTSCHEMA_ELEMENT.ELEMENTTYPE = 'AC'
+                AND C_ACCTSCHEMA_ELEMENT.C_ACCTSCHEMA_ID = v_C_AcctSchema_ID;
+
+
+       SELECT PARENT_ID INTO v_PARENT_ID
+                FROM ad_treenode
+                WHERE AD_TREE_ID = v_AD_TREE_ID
+                AND NODE_ID = v_Node_ID; 
+
+
+       SELECT MAX(COALESCE(SEQNO,0)) + 10 INTO v_SEQNO
+                FROM ad_treenode
+                WHERE AD_TREE_ID = v_AD_TREE_ID
+                AND PARENT_ID = v_PARENT_ID; 
+
+
+	UPDATE AD_TREENODE SET  PARENT_ID = (SELECT PARENT_ID 
+		FROM ad_treenode WHERE AD_TREE_ID = v_AD_TREE_ID
+		AND NODE_ID = v_Node_ID ), SEQNO =  v_SEQNO
+                WHERE NODE_ID = V_C_ElementValue_ID;
+                
+	/*
+		Function call to Retrieve the new account NUMBER for Business Partner or Product. */					
+		C_ValidCombination_Insert(p_Result, v_Default_Account_Client_ID, v_Org_ID, v_C_AcctSchema_ID, v_C_ElementValue_ID, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+END C_VALIDCOMBINATION_CLONE
+]]></body>
+    </function>
+  </database>

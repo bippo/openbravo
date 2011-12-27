@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_ORG_GETCALENDAROWNER">
+    <function name="AD_ORG_GETCALENDAROWNER" type="VARCHAR">
+      <parameter name="p_organization" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+/*
+* It returns the organization that owns the calendar for the p_organization Organization.
+* If no calendar is found, it returns NULL.
+*/
+
+  v_calendar_id AD_Org.C_Calendar_ID%TYPE;  
+  v_parent_id ad_treenode.parent_id%TYPE;
+  v_node_id ad_treenode.parent_id%TYPE;
+
+BEGIN
+  SELECT C_Calendar_ID, AD_Org_ID
+  INTO v_calendar_id, v_parent_id
+  FROM AD_Org
+  WHERE AD_Org_ID=p_organization;
+  
+  IF (v_calendar_id IS NOT NULL) THEN
+    RETURN v_parent_id;
+  ELSE
+    v_node_id:=p_organization;
+    WHILE ( v_parent_id <> '0' AND v_node_id <> '0' ) LOOP      
+      SELECT parent_id
+      INTO v_parent_id
+      FROM ad_treenode t
+      WHERE node_id=v_node_id
+      AND EXISTS (SELECT 1 
+                  FROM ad_tree, ad_org
+                  WHERE ad_tree.ad_client_id = ad_org.ad_client_id
+                  AND ad_tree.ad_client_id=t.ad_client_id
+                  AND ad_tree.treetype='OO'
+                  AND t.ad_tree_id=ad_tree.ad_tree_id
+                  );
+
+      SELECT C_Calendar_ID, AD_Org_ID
+      INTO v_calendar_id, v_parent_id
+      FROM AD_Org
+      WHERE AD_Org_ID=v_parent_id;
+      
+      IF (v_calendar_id IS NOT NULL) THEN
+        RETURN v_parent_id;
+      END IF;
+      
+      v_node_id:=v_parent_id;
+   END LOOP;
+END IF;
+RETURN NULL;
+END AD_ORG_GETCALENDAROWNER
+]]></body>
+    </function>
+  </database>

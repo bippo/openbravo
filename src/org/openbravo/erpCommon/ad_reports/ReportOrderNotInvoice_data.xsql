@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportOrderNotInvoiceData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ORGNAME, C_BPARTNER_ID, BPARTNERNAME, C_ORDER_ID, DOCUMENTNO, DATEORDERED, GRANDTOTAL, CONVGRANDTOTAL, INVOICERULE,       
+	  LINE, PRODUCT, PRICE, CONVPRICE, QTYORDERED, UOMSYMBOL, TAX, TAXBASE, CONVTAXBASE, LINENETAMT, CONVLINENETAMT,
+	  ORDERCURRENCYSYM, TRANSCURRENCYIDORDER, TRANSDATEORDER, TRANSCLIENTIDORDER, TRANSORGIDORDER,
+	  LINECURRENCYSYM, TRANSCURRENCYIDLINE, TRANSDATELINE, TRANSCLIENTIDLINE, TRANSORGIDLINE,
+	  C_CURRENCY_SYMBOL(?, 0, 'Y') AS CONVSYM, C_CURRENCY_ISOSYM(?) AS CONVISOSYM
+	  FROM (
+	  SELECT AD_ORG.NAME AS ORGNAME, C_BPARTNER.C_BPARTNER_ID, C_BPARTNER.NAME AS BPARTNERNAME, C_ORDER.C_ORDER_ID, C_ORDER.DOCUMENTNO, C_ORDER.DATEORDERED, C_ORDER.GRANDTOTAL,
+	  C_CURRENCY_CONVERT(C_ORDER.GRANDTOTAL, C_ORDER.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_ORDER.DATEORDERED, NOW())), NULL, C_ORDER.AD_CLIENT_ID, C_ORDER.AD_ORG_ID) AS CONVGRANDTOTAL, 
+	  (CASE C_ORDER.INVOICERULE WHEN 'S' THEN COALESCE(AD_REF_LIST_TRL.NAME, AD_REF_LIST.NAME)||' ('||C_INVOICESCHEDULE.NAME||')' ELSE COALESCE(AD_REF_LIST_TRL.NAME, AD_REF_LIST.NAME) END) AS INVOICERULE,      
+	  C_ORDERLINE.LINE AS LINE, COALESCE(M_PRODUCT.NAME, M_PRODUCT.DESCRIPTION) AS PRODUCT, C_ORDERLINE.PRICEACTUAL AS PRICE,
+	  C_CURRENCY_CONVERT(C_ORDERLINE.PRICEACTUAL, COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), ?, TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())), NULL, C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID) AS CONVPRICE,        
+	  C_ORDERLINE.QTYORDERED, C_UOM.UOMSYMBOL, NULL AS TAX, NULL AS TAXBASE, NULL AS CONVTAXBASE, C_ORDERLINE.LINENETAMT,
+	  C_CURRENCY_CONVERT(C_ORDERLINE.LINENETAMT, COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), ?, TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())), NULL, C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID) AS CONVLINENETAMT,        
+	  C_CURRENCY_SYMBOL(C_ORDER.C_CURRENCY_ID, 0, 'Y') AS ORDERCURRENCYSYM,
+	  C_ORDER.C_CURRENCY_ID AS TRANSCURRENCYIDORDER,
+	  C_ORDER.DATEORDERED AS TRANSDATEORDER,
+	  C_ORDER.AD_CLIENT_ID AS TRANSCLIENTIDORDER,
+	  C_ORDER.AD_ORG_ID AS TRANSORGIDORDER,
+	  C_CURRENCY_SYMBOL(COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), 0, 'Y') AS LINECURRENCYSYM,
+	  COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID) AS TRANSCURRENCYIDLINE,
+	  TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())) AS TRANSDATELINE,
+	  C_ORDERLINE.AD_CLIENT_ID AS TRANSCLIENTIDLINE,
+	  C_ORDERLINE.AD_ORG_ID AS TRANSORGIDLINE 
+      FROM C_BPARTNER left join C_INVOICESCHEDULE on C_BPARTNER.C_INVOICESCHEDULE_ID = C_INVOICESCHEDULE.C_INVOICESCHEDULE_ID,
+           AD_REF_LIST left join AD_REF_LIST_TRL  on AD_REF_LIST.AD_REF_LIST_ID = AD_REF_LIST_TRL.AD_REF_LIST_ID  
+                                                     and AD_REF_LIST_TRL.AD_LANGUAGE = ?,
+           C_ORDERLINE left join M_PRODUCT on C_ORDERLINE.M_PRODUCT_ID=M_PRODUCT.M_PRODUCT_ID,
+           C_ORDER, AD_ORG, C_UOM, C_CURRENCY
+      WHERE C_ORDER.C_ORDER_ID=C_ORDERLINE.C_ORDER_ID
+      AND C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_ORDER.INVOICERULE = AD_REF_LIST.VALUE
+      AND C_ORDER.INVOICERULE <> 'N'
+      AND C_ORDERLINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND C_ORDER.AD_ORG_ID = AD_ORG.AD_ORG_ID
+      AND C_ORDER.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID
+      AND AD_REF_LIST.AD_REFERENCE_ID = '150'
+      AND C_ORDER.PROCESSED = 'Y'
+      AND C_ORDER.ISSOTRX = 'Y'
+      AND C_ORDERLINE.QTYORDERED<>C_ORDERLINE.QTYINVOICED 
+      AND C_ORDER.AD_Client_ID IN ('1')
+      AND C_ORDER.AD_ORG_ID IN ('1')
+      AND 1=1
+      UNION ALL
+      SELECT AD_ORG.NAME AS ORGNAME, C_BPARTNER.C_BPARTNER_ID, C_BPARTNER.NAME AS BPARTNERNAME, C.C_ORDER_ID, C.DOCUMENTNO, C.DATEORDERED, C.GRANDTOTAL,
+	  C_CURRENCY_CONVERT(C.GRANDTOTAL, C.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C.DATEORDERED, NOW())), NULL, C.AD_CLIENT_ID, C.AD_ORG_ID) AS CONVGRANDTOTAL, 
+	  (CASE C.INVOICERULE WHEN 'S' THEN COALESCE(AD_REF_LIST_TRL.NAME, AD_REF_LIST.NAME)||' ('||C_INVOICESCHEDULE.NAME||')' ELSE COALESCE(AD_REF_LIST_TRL.NAME, AD_REF_LIST.NAME) END) AS INVOICERULE,      
+	  NULL AS LINE , C_TAX.NAME AS PRODUCT, NULL AS PRICE, NULL AS CONVPRICE, NULL AS QTYORDERED, NULL AS UOMSYMBOL, 
+	  C_TAX.RATE AS TAX,  C_ORDERTAX.TAXBASEAMT AS TAXBASE,
+	  C_CURRENCY_CONVERT(C_ORDERTAX.TAXBASEAMT, C.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C.DATEORDERED, NOW())), NULL, C_ORDERTAX.AD_CLIENT_ID, C_ORDERTAX.AD_ORG_ID) AS CONVTAXBASE,         
+	  C_ORDERTAX.TAXAMT AS LINENETAMT,
+	  C_CURRENCY_CONVERT(C_ORDERTAX.TAXAMT, C.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C.DATEORDERED, NOW())), NULL, C_ORDERTAX.AD_CLIENT_ID, C_ORDERTAX.AD_ORG_ID) AS CONVLINENETAMT,        
+	  C_CURRENCY_SYMBOL(C.C_CURRENCY_ID, 0, 'Y') AS ORDERCURRENCYSYM,
+	  C.C_CURRENCY_ID AS TRANSCURRENCYIDORDER,
+	  C.DATEORDERED AS TRANSDATEORDER,
+	  C.AD_CLIENT_ID AS TRANSCLIENTIDORDER,
+	  C.AD_ORG_ID AS TRANSORGIDORDER,
+	  C_CURRENCY_SYMBOL(C.C_CURRENCY_ID, 0, 'Y') AS LINECURRENCYSYM,
+	  C.C_CURRENCY_ID AS TRANSCURRENCYIDLINE,
+	  TO_DATE(COALESCE(C.DATEORDERED, NOW())) AS TRANSDATELINE,
+	  C_ORDERTAX.AD_CLIENT_ID AS TRANSCLIENTIDLINE,
+	  C_ORDERTAX.AD_ORG_ID AS TRANSORGIDLINE
+      FROM C_BPARTNER left join C_INVOICESCHEDULE on C_BPARTNER.C_INVOICESCHEDULE_ID = C_INVOICESCHEDULE.C_INVOICESCHEDULE_ID,
+           AD_REF_LIST left join AD_REF_LIST_TRL on AD_REF_LIST.AD_REF_LIST_ID = AD_REF_LIST_TRL.AD_REF_LIST_ID 
+                                                 AND AD_REF_LIST_TRL.AD_LANGUAGE = ? ,
+      C_ORDER C ,C_ORDERTAX, AD_ORG,  C_TAX, C_CURRENCY      
+      WHERE C.C_ORDER_ID=C_ORDERTAX.C_ORDER_ID
+      AND C.C_BPARTNER_ID=C_BPARTNER.C_BPARTNER_ID
+      AND C.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID
+      AND C.INVOICERULE = AD_REF_LIST.VALUE
+      AND C.INVOICERULE <> 'N'
+      AND AD_REF_LIST.AD_REFERENCE_ID = '150'
+      AND C_ORDERTAX.C_TAX_ID = C_TAX.C_TAX_ID
+      AND C.AD_ORG_ID = AD_ORG.AD_ORG_ID
+      AND C.PROCESSED = 'Y'
+      AND C.ISSOTRX = 'Y'
+      AND EXISTS (SELECT 1 FROM C_ORDER C2, C_ORDERLINE CL
+                 WHERE C2.c_order_id = C.c_order_id
+                 and c2.c_order_id=cl.c_order_id
+                 and cl.QTYORDERED<>cl.QTYINVOICED)
+      AND C.AD_Client_ID IN ('2')
+      AND C.AD_ORG_ID IN ('2')
+      AND 2=2
+      ) AAA
+      ORDER BY ORGNAME, BPARTNERNAME, DATEORDERED DESC, DOCUMENTNO, LINE
+      ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="C_ORDER.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="cBpartnerId" optional="true" after="1=1">AND C_ORDER.C_BPARTNER_ID = ?</Parameter>
+    <Parameter name="cOrgId" optional="true" after="1=1">AND C_ORDER.AD_ORG_ID = ?</Parameter>
+    <Parameter name="invoiceRule" optional="true" after="1=1">AND C_ORDER.INVOICERULE = ?</Parameter>
+    <Parameter name="dateFrom" optional="true" after="1=1"><![CDATA[ AND C_ORDER.DATEORDERED >= to_date(?) ]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="1=1"><![CDATA[ AND C_ORDER.DATEORDERED < to_date(?) ]]></Parameter>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'2'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="cBpartnerId" optional="true" after="2=2">AND C.C_BPARTNER_ID = ?</Parameter>
+    <Parameter name="cOrgId" optional="true" after="2=2">AND C.AD_ORG_ID = ?</Parameter>
+    <Parameter name="invoiceRule" optional="true" after="2=2">AND C.INVOICERULE = ?</Parameter>
+    <Parameter name="dateFrom" optional="true" after="2=2"><![CDATA[ AND C.DATEORDERED >= to_date(?) ]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="2=2"><![CDATA[ AND C.DATEORDERED < to_date(?) ]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="bPartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT max(NAME) as name FROM C_BPARTNER 
+    WHERE C_BPARTNER_ID = ?
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+</SqlClass>

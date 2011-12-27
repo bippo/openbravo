@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportDebtPaymentData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT (BANK.NAME || '/' || BANK.CODEBRANCH || BANK.DIGITCONTROL || BA.CODEACCOUNT || '.' || BA.DIGITCONTROL) AS BANKACC,
+      (CASE BA.showspanish WHEN 'Y' then BA.CODEACCOUNT ELSE 
+          CASE BA.SHOWGENERIC when 'Y' then GENERICACCOUNT ELSE 
+                  CASE BA.SHOWIBAN WHEN 'Y' THEN BA.IBAN END END END) as ACCOUNTSTR,
+      (CASE WHEN I.C_INVOICE_ID IS NULL THEN '0' ELSE I.C_INVOICE_ID END) AS C_INVOICE_ID, (CASE WHEN DP.C_DEBT_PAYMENT_ID IS NULL THEN '0' ELSE DP.C_DEBT_PAYMENT_ID END) AS C_DEBT_PAYMENT_ID, B.NAME AS BPARTNER, (CASE WHEN I.DOCUMENTNO IS NOT NULL THEN I.DOCUMENTNO||' ('||I.DATEINVOICED||')' END) AS INVOICE, DP.DATEPLANNED,
+      DP.AMOUNT, DP.WRITEOFFAMT, C.ISO_CODE AS CURRENCY,
+      (CASE WHEN S1.DOCUMENTNO IS NOT NULL THEN S1.DOCUMENTNO||' ('||S1.DATETRX||')' END) AS DEBTCANCEL,
+      C_CURRENCY_CONVERT(DP.AMOUNT, DP.C_CURRENCY_ID, ?, TO_DATE(I.DATEINVOICED), NULL, I.AD_CLIENT_ID, I.AD_ORG_ID) AS CONVAMOUNT,
+      C_CURRENCY_SYMBOL(?, 0, 'Y') AS CONVSYM,
+      C_CURRENCY_ISOSYM(?) AS CONVISOSYM,
+      (CASE WHEN S2.DOCUMENTNO IS NOT NULL THEN S2.DOCUMENTNO||' ('||S2.DATETRX||')' END) AS DEBTGENERATE, COALESCE(RLT.NAME, RL.NAME) AS PAYMENTRULE,
+      (CASE C_DEBT_PAYMENT_STATUS(DP.C_Settlement_Cancel_ID, DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, 
+      DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID) WHEN 'I' THEN AD_MESSAGE_GET2('DPR_INVALID',?) WHEN 'C' THEN AD_MESSAGE_GET2('DPR_CONCILIATED',?) WHEN 'W' THEN AD_MESSAGE_GET2('DPR_CANCELLED',?) WHEN 'A' THEN AD_MESSAGE_GET2('DPR_SETTLE',?) WHEN 
+      'P' THEN AD_MESSAGE_GET2('DPR_PENDING',?) END) AS STATUS,
+      DP.DESCRIPTION, AD_MESSAGE_GET2(DP.ISPAID, ?) AS ISPAID, 
+      (CASE DP.ISRECEIPT WHEN 'Y' THEN 'SalesInvoice' ELSE 'PurchaseInvoice' END) AS INVOICE_TYPE, 
+      (CASE s2.SETTLEMENTTYPE WHEN 'I' THEN '../ManualSettlement/CreatePayment_Relation.html' ELSE '../Settlement/CreatedPayments_Relation.html' END) AS PATH, COALESCE(RLT2.NAME, RL2.NAME) AS DPSTATUS, URS.NAME AS SALESREPNAME
+      FROM C_DEBT_PAYMENT DP left join C_SETTLEMENT S1 on DP.C_SETTLEMENT_CANCEL_ID = S1.C_SETTLEMENT_ID
+                             left join C_SETTLEMENT S2 on DP.C_SETTLEMENT_GENERATE_ID = S2.C_SETTLEMENT_ID
+                             left join C_BPARTNER B    on DP.C_BPARTNER_ID = B.C_BPARTNER_ID
+                             left join C_BANKACCOUNT BA on DP.C_BANKACCOUNT_ID = BA.C_BANKACCOUNT_ID
+                             left join C_BANK BANK ON BA.C_BANK_ID = BANK.C_BANK_ID
+                             left join C_INVOICE I     on DP.C_INVOICE_ID = I.C_INVOICE_ID left join AD_USER URS on I.SALESREP_ID = URS.AD_USER_ID,
+           AD_REF_LIST RL    left join AD_REF_LIST_TRL RLT on RL.AD_REF_LIST_ID = RLT.AD_REF_LIST_ID
+                                                              AND RLT.AD_LANGUAGE = ?,
+           AD_REF_LIST RL2    left join AD_REF_LIST_TRL RLT2 on RL2.AD_REF_LIST_ID = RLT2.AD_REF_LIST_ID
+                                                              AND RLT2.AD_LANGUAGE = ?,
+           C_CURRENCY C
+      WHERE DP.C_CURRENCY_ID = C.C_CURRENCY_ID
+      AND DP.PAYMENTRULE = RL.VALUE
+      AND RL.AD_REFERENCE_ID = '195'
+      AND DP.STATUS = RL2.VALUE
+      AND RL2.AD_REFERENCE_ID = '800070'
+      AND DP.AD_Client_ID IN ('1') 
+      AND DP.AD_Org_ID IN ('1') 
+      AND DP.IsActive='Y'
+      AND DP.IsValid='Y'
+      GROUP BY (BANK.NAME || '/' || BANK.CODEBRANCH || BANK.DIGITCONTROL || BA.CODEACCOUNT || '.' || BA.DIGITCONTROL),(CASE BA.showspanish WHEN 'Y' then BA.CODEACCOUNT ELSE CASE BA.SHOWGENERIC when 'Y' then GENERICACCOUNT ELSE CASE BA.SHOWIBAN WHEN 'Y' THEN BA.IBAN END END END),
+      CASE WHEN I.C_INVOICE_ID IS NULL THEN '0' ELSE I.C_INVOICE_ID END, (CASE WHEN DP.C_DEBT_PAYMENT_ID IS NULL THEN '0' ELSE DP.C_DEBT_PAYMENT_ID END), B.NAME, (CASE WHEN I.DOCUMENTNO IS NOT NULL THEN I.DOCUMENTNO||' ('||I.DATEINVOICED||')' END), DP.DATEPLANNED, 
+      DP.AMOUNT,DP.C_CURRENCY_ID, I.AD_CLIENT_ID, I.AD_ORG_ID, I.DATEINVOICED,
+      DP.WRITEOFFAMT, C.ISO_CODE, (CASE WHEN S1.DOCUMENTNO IS NOT NULL THEN S1.DOCUMENTNO||' ('||S1.DATETRX||')' END), (CASE WHEN S2.DOCUMENTNO IS NOT NULL THEN S2.DOCUMENTNO||' ('||S2.DATETRX||')' END), RLT.NAME, RL.NAME, RLT2.NAME, RL2.NAME, DP.C_Settlement_Cancel_ID,
+      DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID, DP.DESCRIPTION, (CASE DP.ISRECEIPT WHEN 'Y' THEN 'SalesInvoice' ELSE 'PurchaseInvoice' END),s2.SETTLEMENTTYPE, DP.STATUS, URS.NAME
+      ORDER BY 1,STATUS, DP.DATEPLANNED
+     ]]></Sql>
+      <Field name="rownum" value="count"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_ID IN (" text="'1'"/>
+      <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_ID IN (" text="'1'"/>
+      <Parameter name="cBpartnerId" optional="true" type="argument" after="AND DP.IsValid='Y'"><![CDATA[ AND dp.C_BPARTNER_ID IN ]]></Parameter>
+      <!-- <Parameter name="businesPartner" optional="true" after="AND DP.IsValid='Y'"><![CDATA[ AND b.C_BPartner_ID = ? ]]></Parameter>  -->
+      <Parameter name="dateFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned >= to_date(?) ]]></Parameter>
+      <Parameter name="dateTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned < to_date(?) ]]></Parameter>
+      <Parameter name="AmountFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount >= TO_NUMBER(?) ]]></Parameter>
+      <Parameter name="AmountTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount <= TO_NUMBER(?) ]]></Parameter>
+      <Parameter name="paymentRule" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.paymentrule = ? ]]></Parameter>
+      <Parameter name="isReceipt" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.isreceipt=? ]]></Parameter>
+      <Parameter name="status" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.status=? ]]></Parameter>
+      <Parameter name="isSettle" optional="true" type="argument" after="DP.IsValid='Y'" text="AND C_DEBT_PAYMENT_STATUS(DP.C_Settlement_Cancel_ID, DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, 
+      DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID) IN"/>
+      <Parameter name="cbankaccount" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND DP.C_BANKACCOUNT_ID = ? ]]></Parameter>
+        <Parameter name="ord" type="replace" optional="true" after="ORDER BY " text="1"></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectNoBpartner" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT (BANK.NAME || '/' || BANK.CODEBRANCH || BANK.DIGITCONTROL || BA.CODEACCOUNT || '.' || BA.DIGITCONTROL) AS BANKACC,
+      (CASE BA.showspanish WHEN 'Y' then BA.CODEACCOUNT ELSE 
+          CASE BA.SHOWGENERIC when 'Y' then GENERICACCOUNT ELSE 
+                  CASE BA.SHOWIBAN WHEN 'Y' THEN BA.IBAN END END END) AS ACCOUNTSTR,
+      (CASE WHEN I.C_INVOICE_ID IS NULL THEN '0' ELSE I.C_INVOICE_ID END) AS C_INVOICE_ID, (CASE WHEN DP.C_DEBT_PAYMENT_ID IS NULL THEN '0' ELSE DP.C_DEBT_PAYMENT_ID END) AS C_DEBT_PAYMENT_ID, B.NAME AS BPARTNER, (CASE WHEN I.DOCUMENTNO IS NOT NULL THEN I.DOCUMENTNO||' ('||I.DATEINVOICED||')' END) AS INVOICE, DP.DATEPLANNED,
+      DP.AMOUNT, DP.WRITEOFFAMT, C.ISO_CODE AS CURRENCY,
+      (CASE WHEN S1.DOCUMENTNO IS NOT NULL THEN S1.DOCUMENTNO||' ('||S1.DATETRX||')' END) AS DEBTCANCEL, (CASE WHEN S2.DOCUMENTNO IS NOT NULL THEN S2.DOCUMENTNO||' ('||S2.DATETRX||')' END) AS DEBTGENERATE, COALESCE(RLT.NAME, RL.NAME) AS PAYMENTRULE,
+      C_CURRENCY_CONVERT(DP.AMOUNT, DP.C_CURRENCY_ID, ?, TO_DATE(I.DATEINVOICED), NULL, I.AD_CLIENT_ID, I.AD_ORG_ID) AS CONVAMOUNT,
+      C_CURRENCY_SYMBOL(?, 0, 'Y') AS CONVSYM,          
+      C_CURRENCY_ISOSYM(?) AS CONVISOSYM, 
+      (CASE C_DEBT_PAYMENT_STATUS(DP.C_Settlement_Cancel_ID, DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, 
+      DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID) WHEN 'I' THEN AD_MESSAGE_GET2('DPR_INVALID',?) WHEN 'C' THEN AD_MESSAGE_GET2('DPR_CONCILIATED',?) WHEN 'W' THEN AD_MESSAGE_GET2('DPR_CANCELLED',?) WHEN 'A' THEN AD_MESSAGE_GET2('DPR_SETTLE',?) WHEN 
+      'P' THEN AD_MESSAGE_GET2('DPR_PENDING',?) END) AS STATUS,
+      DP.DESCRIPTION, AD_MESSAGE_GET2(DP.ISPAID, ?) AS ISPAID, 
+      (CASE DP.ISRECEIPT WHEN 'Y' THEN 'SalesInvoice' ELSE 'PurchaseInvoice' END) AS INVOICE_TYPE, 
+      (CASE s2.SETTLEMENTTYPE WHEN 'I' THEN '../ManualSettlement/CreatePayment_Relation.html' ELSE '../Settlement/CreatedPayments_Relation.html' END) AS PATH, COALESCE(RLT2.NAME, RL2.NAME) AS DPSTATUS, URS.NAME AS SALESREPNAME
+      FROM C_DEBT_PAYMENT DP left join C_SETTLEMENT S1 on DP.C_SETTLEMENT_CANCEL_ID = S1.C_SETTLEMENT_ID
+                             left join C_SETTLEMENT S2 on DP.C_SETTLEMENT_GENERATE_ID = S2.C_SETTLEMENT_ID
+                             left join C_BPARTNER B    on DP.C_BPARTNER_ID = B.C_BPARTNER_ID
+                             left join C_BANKACCOUNT BA on DP.C_BANKACCOUNT_ID = BA.C_BANKACCOUNT_ID
+                             left join C_BANK BANK ON BA.C_BANK_ID = BANK.C_BANK_ID
+                             left join C_INVOICE I     on DP.C_INVOICE_ID = I.C_INVOICE_ID left join AD_USER URS on I.SALESREP_ID = URS.AD_USER_ID,
+           AD_REF_LIST RL    left join AD_REF_LIST_TRL RLT on RL.AD_REF_LIST_ID = RLT.AD_REF_LIST_ID
+                                                              AND RLT.AD_LANGUAGE = ?,
+           AD_REF_LIST RL2    left join AD_REF_LIST_TRL RLT2 on RL2.AD_REF_LIST_ID = RLT2.AD_REF_LIST_ID
+                                                              AND RLT2.AD_LANGUAGE = ?,
+           C_CURRENCY C
+      WHERE DP.C_CURRENCY_ID = C.C_CURRENCY_ID 
+      AND DP.PAYMENTRULE = RL.VALUE
+      AND RL.AD_REFERENCE_ID = '195'
+      AND DP.STATUS = RL2.VALUE
+      AND RL2.AD_REFERENCE_ID = '800070'
+      AND DP.AD_Client_ID IN ('1') 
+      AND DP.AD_Org_ID IN ('1') 
+      AND DP.IsActive='Y'
+      AND DP.IsValid='Y'
+      GROUP BY (BANK.NAME || '/' || BANK.CODEBRANCH || BANK.DIGITCONTROL || BA.CODEACCOUNT || '.' || BA.DIGITCONTROL), (CASE BA.showspanish WHEN 'Y' then BA.CODEACCOUNT ELSE CASE BA.SHOWGENERIC when 'Y' then GENERICACCOUNT ELSE CASE BA.SHOWIBAN WHEN 'Y' THEN BA.IBAN END END END),
+      CASE WHEN I.C_INVOICE_ID IS NULL THEN '0' ELSE I.C_INVOICE_ID END, (CASE WHEN DP.C_DEBT_PAYMENT_ID IS NULL THEN '0' ELSE DP.C_DEBT_PAYMENT_ID END), B.NAME, (CASE WHEN I.DOCUMENTNO IS NOT NULL THEN I.DOCUMENTNO||' ('||I.DATEINVOICED||')' END), DP.DATEPLANNED, DP.AMOUNT,
+      DP.C_CURRENCY_ID, I.AD_CLIENT_ID, I.AD_ORG_ID, I.DATEINVOICED,
+      DP.WRITEOFFAMT, C.ISO_CODE, (CASE WHEN S1.DOCUMENTNO IS NOT NULL THEN S1.DOCUMENTNO||' ('||S1.DATETRX||')' END), (CASE WHEN S2.DOCUMENTNO IS NOT NULL THEN S2.DOCUMENTNO||' ('||S2.DATETRX||')' END), RLT.NAME, RL.NAME, RLT2.NAME, RL2.NAME, DP.C_Settlement_Cancel_ID,
+      DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID, DP.DESCRIPTION, (CASE DP.ISRECEIPT WHEN 'Y' THEN 'SalesInvoice' ELSE 'PurchaseInvoice' END),s2.SETTLEMENTTYPE, DP.STATUS, URS.NAME
+      ORDER BY 1,STATUS, DP.DATEPLANNED
+     ]]></Sql>
+      <Field name="rownum" value="count"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_ID IN (" text="'1'"/>
+      <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_ID IN (" text="'1'"/>
+      <Parameter name="cBpartnerId" optional="true" type="argument" after="AND DP.IsValid='Y'"><![CDATA[ AND dp.C_BPARTNER_ID IN ]]></Parameter>
+      <!-- <Parameter name="businesPartner" optional="true" after="AND DP.IsValid='Y'"><![CDATA[ AND b.C_BPartner_ID = ? ]]></Parameter>  -->
+      <Parameter name="dateFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned >= to_date(?) ]]></Parameter>
+      <Parameter name="dateTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned < to_date(?) ]]></Parameter>
+      <Parameter name="AmountFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount >= TO_NUMBER(?) ]]></Parameter>
+      <Parameter name="AmountTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount <= TO_NUMBER(?) ]]></Parameter>
+      <Parameter name="paymentRule" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.paymentrule = ? ]]></Parameter>
+      <Parameter name="isReceipt" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.isreceipt=? ]]></Parameter>
+      <Parameter name="status" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.status=? ]]></Parameter>
+      <Parameter name="isSettle" optional="true" type="argument" after="DP.IsValid='Y'" text="AND C_DEBT_PAYMENT_STATUS(DP.C_Settlement_Cancel_ID, DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, 
+      DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID) IN"/>
+      <Parameter name="cbankaccount" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND DP.C_BANKACCOUNT_ID = ? ]]></Parameter>
+      <Parameter name="ord" type="replace" optional="true" after="ORDER BY " text="1"></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>
+

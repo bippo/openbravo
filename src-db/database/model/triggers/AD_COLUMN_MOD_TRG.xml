@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_COLUMN_MOD_TRG">
+    <trigger name="AD_COLUMN_MOD_TRG" table="AD_COLUMN" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  cuerrentID  VARCHAR2(32);
+  cuerrentModuleID  VARCHAR2(32);
+  vAux NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  SELECT COUNT(*)
+    INTO devTemplate
+    FROM AD_MODULE
+   WHERE IsInDevelopment = 'Y'
+     AND Type = 'T';
+     
+  --Check if trying to move object from module not in dev
+  IF (UPDATING) THEN
+    IF (COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.')) THEN
+      SELECT COUNT(*) 
+        INTO vAux
+        FROM AD_MODULE
+       WHERE AD_MODULE_ID = :old.AD_Module_ID
+        AND isindevelopment = 'N';
+      IF (vAux!=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ChangeNotInDevModule@');
+      END IF;
+    END IF;
+  END IF;
+     
+  IF (UPDATING OR INSERTING) THEN
+    cuerrentID := :new.AD_Column_ID;
+    cuerrentModuleID := :new.AD_Module_ID;
+  ELSE
+    cuerrentID := :old.AD_Column_ID;
+    cuerrentModuleID := :old.AD_Module_ID;
+  END IF;
+  
+  SELECT M.IsInDevelopment
+    INTO devModule
+    FROM AD_MODULE M
+   WHERE M.AD_MODULE_ID = cuerrentModuleID;
+     
+  IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+    IF (
+        COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+        COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+        COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+        COALESCE(:NEW.Name , '.') != COALESCE(:OLD.Name , '.') OR
+        COALESCE(:NEW.Description , '.') != COALESCE(:OLD.Description , '.') OR
+        COALESCE(:NEW.Help , '.') != COALESCE(:OLD.Help , '.') OR
+        COALESCE(:NEW.ColumnName , '.') != COALESCE(:OLD.ColumnName , '.') OR
+        COALESCE(:NEW.AD_Table_ID , '.') != COALESCE(:OLD.AD_Table_ID , '.') OR
+        COALESCE(:NEW.AD_Reference_ID , '.') != COALESCE(:OLD.AD_Reference_ID , '.') OR
+        COALESCE(:NEW.AD_Reference_Value_ID , '.') != COALESCE(:OLD.AD_Reference_Value_ID , '.') OR
+        COALESCE(:NEW.AD_Val_Rule_ID , '.') != COALESCE(:OLD.AD_Val_Rule_ID , '.') OR
+        COALESCE(:NEW.FieldLength , 0) != COALESCE(:OLD.FieldLength , 0) OR
+        COALESCE(:NEW.DefaultValue , '.') != COALESCE(:OLD.DefaultValue , '.') OR
+        COALESCE(:NEW.IsKey , '.') != COALESCE(:OLD.IsKey , '.') OR
+        COALESCE(:NEW.IsParent , '.') != COALESCE(:OLD.IsParent , '.') OR
+        COALESCE(:NEW.IsMandatory , '.') != COALESCE(:OLD.IsMandatory , '.') OR
+        COALESCE(:NEW.IsUpdateable , '.') != COALESCE(:OLD.IsUpdateable , '.') OR
+        COALESCE(:NEW.ReadOnlyLogic , '.') != COALESCE(:OLD.ReadOnlyLogic , '.') OR
+        COALESCE(:NEW.IsIdentifier , '.') != COALESCE(:OLD.IsIdentifier , '.') OR
+        COALESCE(:NEW.SeqNo , 0) != COALESCE(:OLD.SeqNo , 0) OR
+        COALESCE(:NEW.IsTranslated , '.') != COALESCE(:OLD.IsTranslated , '.') OR
+        COALESCE(:NEW.IsEncrypted , '.') != COALESCE(:OLD.IsEncrypted , '.') OR
+        COALESCE(:NEW.Callout , '.') != COALESCE(:OLD.Callout , '.') OR
+        COALESCE(:NEW.VFormat , '.') != COALESCE(:OLD.VFormat , '.') OR
+        COALESCE(:NEW.ValueMin , '.') != COALESCE(:OLD.ValueMin , '.') OR
+        COALESCE(:NEW.ValueMax , '.') != COALESCE(:OLD.ValueMax , '.') OR
+        COALESCE(:NEW.IsSelectionColumn , '.') != COALESCE(:OLD.IsSelectionColumn , '.') OR
+        COALESCE(:NEW.AD_Element_ID , '.') != COALESCE(:OLD.AD_Element_ID , '.') OR
+        COALESCE(:NEW.AD_Process_ID , '.') != COALESCE(:OLD.AD_Process_ID , '.') OR
+        COALESCE(:NEW.IsSessionAttr , '.') != COALESCE(:OLD.IsSessionAttr , '.') OR
+        COALESCE(:NEW.IsSecondaryKey , '.') != COALESCE(:OLD.IsSecondaryKey , '.') OR
+        COALESCE(:NEW.IsDesencryptable , '.') != COALESCE(:OLD.IsDesencryptable , '.') OR
+        COALESCE(:NEW.AD_Callout_ID , '.') != COALESCE(:OLD.AD_Callout_ID , '.') OR
+        COALESCE(:NEW.Developmentstatus , '.') != COALESCE(:OLD.Developmentstatus , '.') OR
+        COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.') OR
+        COALESCE(:NEW.Position , 0) != COALESCE(:OLD.Position , 0) OR
+        COALESCE(:NEW.IsTransient , '.') != COALESCE(:OLD.IsTransient , '.') OR
+        COALESCE(:NEW.isTransientCondition , '.') != COALESCE(:OLD.isTransientCondition , '.') OR
+        1=2) THEN
+      RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+    END IF;
+  END IF;
+  
+  IF ((DELETING OR INSERTING) AND devModule='N') THEN
+    RAISE_APPLICATION_ERROR(-20533, 'Cannot insert/delete objects in a module not in development.');
+  END IF;
+
+  IF (UPDATING OR INSERTING) THEN
+    /* Update old-style password flags: isencrypted & isdesencryptable if used with new reference */
+    IF (:new.ad_reference_id = '16EC6DF4A59747749FDF256B7FBBB058') THEN
+      :new.isencrypted := 'Y';
+      :new.isdesencryptable := 'Y';
+    END IF;
+    IF (:new.ad_reference_id = 'C5C21C28B39E4683A91779F16C112E40') THEN
+      :new.isencrypted := 'Y';
+    :new.isdesencryptable := 'N';
+    END IF;
+  END IF;
+
+  --Check the only updated column is 'IsExcludeAudit'. In this case maintain updated(timestamp)
+  --column as it was to prevent changes detection when trying to update database.
+  IF (UPDATING) THEN
+    IF (COALESCE(:OLD.ISACTIVE			,'.') = COALESCE(:NEW.ISACTIVE			,'.')AND
+	COALESCE(:OLD.NAME			,'.') = COALESCE(:NEW.NAME			,'.')AND
+	COALESCE(:OLD.DESCRIPTION		,'.') = COALESCE(:NEW.DESCRIPTION		,'.')AND
+	COALESCE(:OLD.HELP			,'.') = COALESCE(:NEW.HELP			,'.')AND
+	COALESCE(:OLD.COLUMNNAME			,'.') = COALESCE(:NEW.COLUMNNAME			,'.')AND
+	COALESCE(:OLD.AD_TABLE_ID		,'.') = COALESCE(:NEW.AD_TABLE_ID		,'.')AND
+	COALESCE(:OLD.AD_REFERENCE_ID		,'.') = COALESCE(:NEW.AD_REFERENCE_ID		,'.')AND
+	COALESCE(:OLD.AD_REFERENCE_VALUE_ID	,'.') = COALESCE(:NEW.AD_REFERENCE_VALUE_ID	,'.')AND
+	COALESCE(:OLD.AD_VAL_RULE_ID		,'.') = COALESCE(:NEW.AD_VAL_RULE_ID		,'.')AND
+	COALESCE(:OLD.FIELDLENGTH		, 1 ) = COALESCE(:NEW.FIELDLENGTH		, 1 )AND
+	COALESCE(:OLD.DEFAULTVALUE		,'.') = COALESCE(:NEW.DEFAULTVALUE		,'.')AND
+	COALESCE(:OLD.ISKEY			,'.') = COALESCE(:NEW.ISKEY			,'.')AND
+	COALESCE(:OLD.ISPARENT			,'.') = COALESCE(:NEW.ISPARENT			,'.')AND
+	COALESCE(:OLD.ISMANDATORY		,'.') = COALESCE(:NEW.ISMANDATORY		,'.')AND
+	COALESCE(:OLD.ISUPDATEABLE		,'.') = COALESCE(:NEW.ISUPDATEABLE		,'.')AND
+	COALESCE(:OLD.READONLYLOGIC		,'.') = COALESCE(:NEW.READONLYLOGIC		,'.')AND
+	COALESCE(:OLD.ISIDENTIFIER		,'.') = COALESCE(:NEW.ISIDENTIFIER		,'.')AND
+	COALESCE(:OLD.SEQNO			, 1 ) = COALESCE(:NEW.SEQNO			, 1 )AND
+	COALESCE(:OLD.ISTRANSLATED		,'.') = COALESCE(:NEW.ISTRANSLATED		,'.')AND
+	COALESCE(:OLD.ISENCRYPTED		,'.') = COALESCE(:NEW.ISENCRYPTED		,'.')AND
+	COALESCE(:OLD.CALLOUT			,'.') = COALESCE(:NEW.CALLOUT			,'.')AND
+	COALESCE(:OLD.VFORMAT			,'.') = COALESCE(:NEW.VFORMAT			,'.')AND
+	COALESCE(:OLD.VALUEMIN			,'.') = COALESCE(:NEW.VALUEMIN			,'.')AND
+	COALESCE(:OLD.VALUEMAX			,'.') = COALESCE(:NEW.VALUEMAX			,'.')AND
+	COALESCE(:OLD.ISSELECTIONCOLUMN		,'.') = COALESCE(:NEW.ISSELECTIONCOLUMN		,'.')AND
+	COALESCE(:OLD.AD_ELEMENT_ID		,'.') = COALESCE(:NEW.AD_ELEMENT_ID		,'.')AND
+	COALESCE(:OLD.AD_PROCESS_ID		,'.') = COALESCE(:NEW.AD_PROCESS_ID		,'.')AND
+	COALESCE(:OLD.ISSESSIONATTR		,'.') = COALESCE(:NEW.ISSESSIONATTR		,'.')AND
+	COALESCE(:OLD.ISSECONDARYKEY		,'.') = COALESCE(:NEW.ISSECONDARYKEY		,'.')AND
+	COALESCE(:OLD.ISDESENCRYPTABLE		,'.') = COALESCE(:NEW.ISDESENCRYPTABLE		,'.')AND
+	COALESCE(:OLD.AD_CALLOUT_ID		,'.') = COALESCE(:NEW.AD_CALLOUT_ID		,'.')AND
+	COALESCE(:OLD.DEVELOPMENTSTATUS		,'.') = COALESCE(:NEW.DEVELOPMENTSTATUS		,'.')AND
+	COALESCE(:OLD.AD_MODULE_ID		,'.') = COALESCE(:NEW.AD_MODULE_ID		,'.')AND
+	COALESCE(:OLD.POSITION			, 1 ) = COALESCE(:NEW.POSITION			, 1 )AND
+	COALESCE(:OLD.ISTRANSIENT		,'.') = COALESCE(:NEW.ISTRANSIENT		,'.')AND
+	COALESCE(:OLD.ISTRANSIENTCONDITION	,'.') = COALESCE(:NEW.ISTRANSIENTCONDITION	,'.')AND
+	COALESCE(:OLD.ISAUTOSAVE			,'.') = COALESCE(:NEW.ISAUTOSAVE			,'.')AND
+	COALESCE(:OLD.VALIDATEONNEW		,'.') = COALESCE(:NEW.VALIDATEONNEW		,'.')AND
+	COALESCE(:OLD.ISEXCLUDEAUDIT		,'.') != COALESCE(:NEW.ISEXCLUDEAUDIT		,'.')) THEN
+      
+		:NEW.UPDATED := :OLD.UPDATED;
+     END IF;
+   END IF;
+
+END AD_COLUMN_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

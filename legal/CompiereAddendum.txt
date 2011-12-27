@@ -1,0 +1,473 @@
+This file contains a description of the usage of Compiere Inc. assets within
+Openbravo ERP and the changes that Openbravo implemented on those assets.
+
+Java and XSQL Code
+------------------
+Some Java and XSQL files are inspired by Compiere ERP & CRM v.2.5.0c. In 
+particular, some of Openbravo Java classes use some Compiere files as model
+and replicate their business logic in a different implementation.
+The following list contains the name of the Openbravo files that have been
+developed in this manner and maps them to the Compiere files that have been
+used as model:
+
+  Openbravo Path                              Openbravo File                Compiere Path                    Compiere file
+  --------------                              --------------                -------------                   -------------
+  src/org/openbravo/erpCommon/ad_forms        Account.java                  base/src/org/compiere/model     Account.java
+  src/org/openbravo/erpCommon/ad_forms        Account_data.xsql             base/src/org/compiere/model     Account.java
+  src/org/openbravo/erpCommon/ad_forms        AcctSchema.java               base/src/org/compiere/model     AcctSchema.java
+  src/org/openbravo/erpCommon/ad_forms        AcctSchema_data.xsql          base/src/org/compiere/model     AcctSchema.java
+  src/org/openbravo/erpCommon/ad_forms        AcctSchemaElement.java        base/src/org/compiere/model     AcctSchemaElement.java
+  src/org/openbravo/erpCommon/ad_forms        AcctSchemaElement_data.xsql   base/src/org/compiere/model     AcctSchemaElement.java
+  src/org/openbravo/erpCommon/ad_forms        AcctServer.java               server/src/org/compiere/acct    AcctServer.java + DocVO.java
+  src/org/openbravo/erpCommon/ad_forms        AcctServer_data.xsql          server/src/org/compiere/acct    AcctServer.java + DocVO.java
+  src/org/openbravo/erpCommon/ad_forms        DocBank.java                  server/src/org/compiere/acct    Doc_Bank.java
+  src/org/openbravo/erpCommon/ad_forms        DocBank_data.xsql             server/src/org/compiere/acct    Doc_Bank.java
+  src/org/openbravo/erpCommon/ad_forms        DocCash.java                  server/src/org/compiere/acct    Doc_Cash.java
+  src/org/openbravo/erpCommon/ad_forms        DocCash_data.xsql             server/src/org/compiere/acct    Doc_Cash.java
+  src/org/openbravo/erpCommon/ad_forms        DocGLJournal.java             server/src/org/compiere/acct    Doc_GLJournal.java
+  src/org/openbravo/erpCommon/ad_forms        DocGLJournal_data.xsql        server/src/org/compiere/acct    Doc_GLJournal.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineInOut_data.xsql        server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocInOut.java                 server/src/org/compiere/acct    Doc_InOut.java
+  src/org/openbravo/erpCommon/ad_forms        DocInOut_data.xsql            server/src/org/compiere/acct    Doc_InOut.java
+  src/org/openbravo/erpCommon/ad_forms        DocInventory.java             server/src/org/compiere/acct    Doc_Inventory.java
+  src/org/openbravo/erpCommon/ad_forms        DocInventory_data.xsql        server/src/org/compiere/acct    Doc_Inventory.java
+  src/org/openbravo/erpCommon/ad_forms        DocInvoice.java               server/src/org/compiere/acct    Doc_Invoice.java
+  src/org/openbravo/erpCommon/ad_forms        DocInvoice_data.xsql          server/src/org/compiere/acct    Doc_Invoice.java
+  src/org/openbravo/erpCommon/ad_forms        DocLine.java                  server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineBank_data.xsql         server/src/org/compiere/acct    DocLine_Bank.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineCash_data.xsql         server/src/org/compiere/acct    DocLine_Cash.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineGLJournal_data.xsql    server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineInventory_data.xsql    server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineInvoice_data.xsql      server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineMovement_data.xsql     server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLineOrder_data.xsql        server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLine_Bank.java             server/src/org/compiere/acct    DocLine_Bank.java
+  src/org/openbravo/erpCommon/ad_forms        DocLine_Cash.java             server/src/org/compiere/acct    DocLine_Cash.java
+  src/org/openbravo/erpCommon/ad_forms        DocLine_data.xsql             server/src/org/compiere/acct    DocLine.java
+  src/org/openbravo/erpCommon/ad_forms        DocLine_Invoice.java          server/src/org/compiere/acct    DocLine_Invoice.java
+  src/org/openbravo/erpCommon/ad_forms        DocLine_Material.java         server/src/org/compiere/acct    DocLine_Material.java
+  src/org/openbravo/erpCommon/ad_forms        DocMovement.java              server/src/org/compiere/acct    Doc_Movement.java
+  src/org/openbravo/erpCommon/ad_forms        DocMovement_data.xsql         server/src/org/compiere/acct    Doc_Movement.java
+  src/org/openbravo/erpCommon/ad_forms        DocOrder.java                 server/src/org/compiere/acct    Doc_Order.java
+  src/org/openbravo/erpCommon/ad_forms        DocOrder_data.xsql            server/src/org/compiere/acct    Doc_Order.java
+  src/org/openbravo/erpCommon/ad_forms        DocTax.java                   server/src/org/compiere/acct    DocTax.java
+  src/org/openbravo/erpCommon/ad_forms        DocTax_data.xsql              server/src/org/compiere/acct    DocTax.java
+  src/org/openbravo/erpCommon/ad_forms        Fact.java                     server/src/org/compiere/acct    Fact.java
+  src/org/openbravo/erpCommon/ad_forms        FactLine.java                 server/src/org/compiere/acct    FactLine.java
+  src/org/openbravo/erpCommon/ad_forms        FactLine_data.xsql            server/src/org/compiere/acct    FactLine.java
+  src/org/openbravo/erpCommon/ad_forms        ProductInfo.java              server/src/org/compiere/acct    ProductInfo.java
+  src/org/openbravo/erpCommon/ad_forms        ProductInfo_data.xsql         server/src/org/compiere/acct    ProductInfo.java
+  src/org/openbravo/erpCommon/ad_forms        Translation.java              client/Src/org/compiere/install Translation.java
+  src/org/openbravo/erpCommon/ad_forms        TranslationHandler.java       client/Src/org/compiere/install TranslationHandler.java
+  src/org/openbravo/erpCommon/businessUtility AccountTree.java              base/src/org/compiere/model     Account.java
+  src/org/openbravo/erpCommon/businessUtility AccountTree_data.xsql         base/src/org/compiere/model     Account.java
+  src/org/openbravo/erpCommon/businessUtility ByteArrayDataSource.java      base/src/org/compiere/util      ByteArrayDataSource.java
+  src/org/openbravo/erpCommon/businessUtility EMail.java                    base/src/org/compiere/util      EMail.java
+  src/org/openbravo/erpCommon/businessUtility EMailAuthenticator.java       base/src/org/compiere/util      EMailAuthenticator.java
+
+PL/SQL Code
+-----------
+The following PL/SQL functions, procedures and triggers were originally
+developed by Compiere Inc. and distributed in Compiere ERP & CRM v.2.5.0c. 
+Openbravo has modified them in order to satisfy its own functional and
+technical requirements. Whenever the name was change, the PL/SQL object is 
+listed with its new name and the original Compiere name is reported in brackets.
+This PL/SQL code is currently distributed by Openbravo using XML files stored
+in the /src-db/database folder and named after the database objects
+themselves. Each file properly identifies Compiere Inc. as the original 
+developer using comments.
+  Type          Name
+  ----          ----
+  FUNCTION      AD_SEQUENCE_NEXTNO
+  FUNCTION      M_BOM_PRICELIMIT (original name: BOM_PRICELIMIT)
+  FUNCTION      M_BOM_PRICELIST (original name: BOM_PRICELIST)
+  FUNCTION      M_BOM_PRICESTD (original name: BOM_PRICESTD)
+  FUNCTION      M_BOM_QTY_AVAILABLE (original name: BOM_QTY_AVAILABLE)
+  FUNCTION      M_BOM_QTY_ONHAND (original name: BOM_QTY_ONHAND)
+  FUNCTION      M_BOM_QTY_ORDERED (original name: BOM_QTY_ORDERED)
+  FUNCTION      M_BOM_QTY_RESERVED (original name: BOM_QTY_RESERVED)
+  FUNCTION      C_BASE_CONVERT
+  FUNCTION      C_CURRENCY_CONVERT
+  FUNCTION      C_CURRENCY_CONVERT0
+  FUNCTION      C_CURRENCY_RATE
+  FUNCTION      C_CURRENCY_ROUND
+  FUNCTION      C_UOM_CONVERT
+  PROCEDURE     A_ASSET_CREATE
+  PROCEDURE     AD_LANGUAGE_CREATE
+  PROCEDURE     AD_SEQUENCE_DOC
+  PROCEDURE     AD_SEQUENCE_DOCTYPE
+  PROCEDURE     AD_SEQUENCE_NEXT
+  PROCEDURE     AD_SYNCHRONIZE
+  PROCEDURE     AD_TAB_COPY
+  PROCEDURE     AD_TAB_IMPORT
+  PROCEDURE     AD_TAB_IMPORT0
+  PROCEDURE     AD_TABLE_IMPORT
+  PROCEDURE     AD_TABLE_IMPORT0
+  PROCEDURE     AD_WINDOW_COPY
+  PROCEDURE     C_ACCTSCHEMA_DEFAULT_COPY
+  PROCEDURE     C_BANKSTATEMENT_POST
+  PROCEDURE     C_BP_GROUP_ACCT_COPY
+  PROCEDURE     C_CASH_POST
+  PROCEDURE     C_COMMISSION_COPY
+  PROCEDURE     C_COMMISSION_PROCESS
+  PROCEDURE     C_COMMISSIONRUN_PROCESS
+  PROCEDURE     C_INVOICE_CANCEL
+  PROCEDURE     C_INVOICE_CREATE
+  PROCEDURE     C_INVOICE_CREATERECEIPT
+  PROCEDURE     C_INVOICE_CREATE0
+  PROCEDURE     C_INVOICE_POST
+  PROCEDURE     C_INVOICE_POST0
+  PROCEDURE     C_ORDER_PO_CREATE
+  PROCEDURE     C_ORDER_POST
+  PROCEDURE     C_PERIODCONTROL_PROCESS
+  PROCEDURE     C_PERIOD_PROCESS
+  PROCEDURE     C_PROJECT_GENERATE
+  PROCEDURE     C_VALIDCOMBINATION_GET
+  PROCEDURE     C_YEARPERIODS
+  PROCEDURE     FACT_ACCT_RESET
+  PROCEDURE     GL_JOURNALBATCH_POST
+  PROCEDURE     GL_JOURNAL_POST
+  PROCEDURE     GL_JOURNAL_POST0
+  PROCEDURE     M_DISCOUNTSCHEMA_RESEQ
+  PROCEDURE     M_INOUT_CANCEL
+  PROCEDURE     M_INOUT_CREATE
+  PROCEDURE     M_INOUT_CREATEINVOICE
+  PROCEDURE     M_INOUT_CREATE0
+  PROCEDURE     M_INOUT_POST
+  PROCEDURE     M_INOUT_POST0
+  PROCEDURE     M_INVENTORY_LISTCREATE
+  PROCEDURE     M_INVENTORY_LISTUPDATE
+  PROCEDURE     M_INVENTORY_POST
+  PROCEDURE     M_MOVEMENT_POST
+  PROCEDURE     M_PRICELIST_CREATE
+  PROCEDURE     M_PRODUCT_BOM_CHECK
+  PROCEDURE     M_PRODUCT_CATEGORY_ACCT_COPY
+  PROCEDURE     M_PRODUCTION_RUN
+  PROCEDURE     S_TIMEEXPENSE_POST
+  TRIGGER       AD_CLIENT_TRG
+  TRIGGER       AD_COLUMN_TRG
+  TRIGGER       AD_ELEMENT_TRG
+  TRIGGER       AD_ELEMENT_TRL_TRG
+  TRIGGER       AD_FIELDGROUP_TRG
+  TRIGGER       AD_FIELD_TRG
+  TRIGGER       AD_FORM_TRG
+  TRIGGER       AD_MENU_TRG
+  TRIGGER       AD_MESSAGE_TRG
+  TRIGGER       AD_ORG_TRG
+  TRIGGER       AD_PROCESS_PARA_TRG
+  TRIGGER       AD_PROCESS_TRG
+  TRIGGER       AD_PROCESS_TRL_TRG
+  TRIGGER       AD_REFERENCE_TRG
+  TRIGGER       AD_REF_LIST_TRG
+  TRIGGER       AD_ROLE_ORGACCESS_TRG
+  TRIGGER       AD_ROLE_TRG
+  TRIGGER       AD_TABLE_TRG
+  TRIGGER       AD_TAB_TRG
+  TRIGGER       AD_TREE_TRG
+  TRIGGER       AD_WINDOW_TRG
+  TRIGGER       AD_WINDOW_TRL_TRG
+  TRIGGER       C_ACCTSCHEMA_ELEMENT_TRG
+  TRIGGER       C_BANKACCOUNT_TRG
+  TRIGGER       C_BANKSTATEMENTLINE_TRG
+  TRIGGER       C_BANKSTATEMENT_TRG
+  TRIGGER       C_BPARTNER_LOCATION_TRG
+  TRIGGER       C_BPARTNER_TRG
+  TRIGGER       C_BP_GROUP_TRG
+  TRIGGER       C_CASHBOOK_TRG
+  TRIGGER       C_CASHLINE_TRG
+  TRIGGER       C_CASH_TRG
+  TRIGGER       C_CHARGE_TRG
+  TRIGGER       C_COMMISSIONAMT_TRG
+  TRIGGER       C_COMMISSIONDETAIL_TRG
+  TRIGGER       C_CONVERSION_RATE_TRG
+  TRIGGER       C_DOCTYPE_TRG
+  TRIGGER       C_ELEMENTVALUE_TRG
+  TRIGGER       C_GREETING_TRG
+  TRIGGER       C_INVOICELINE_TRG
+  TRIGGER       C_INVOICETAX_TRG
+  TRIGGER       C_ORDERLINE_TRG
+  TRIGGER       C_ORDERTAX_TRG
+  TRIGGER       C_ORDER_TRG
+  TRIGGER       C_PAYMENTTERM_TRG
+  TRIGGER       C_PERIOD_TRG
+  TRIGGER       C_PERIOD_TRG2
+  TRIGGER       C_PROJECTLINE_TRG
+  TRIGGER       C_PROJECTLINE_TRG3
+  TRIGGER       C_PROJECT_TRG
+  TRIGGER       C_SALESREGION_TRG
+  TRIGGER       C_TAXCATEGORY_TRG
+  TRIGGER       C_TAX_TRG
+  TRIGGER       C_UOM_TRG
+  TRIGGER       C_VALIDCOMBINATION_TRG
+  TRIGGER       C_WITHHOLDING_TRG
+  TRIGGER       GL_JOURNALLINE_TRG
+  TRIGGER       GL_JOURNAL_TRG
+  TRIGGER       M_INOUTLINE_TRG
+  TRIGGER       M_INVENTORYLINE_TRG
+  TRIGGER       M_MATCHPO_TRG
+  TRIGGER       M_MOVEMENTLINE_TRG
+  TRIGGER       M_PRODUCT_BOM_TRG
+  TRIGGER       M_PRODUCT_CATEGORY_TRG
+  TRIGGER       M_PRODUCTIONLINE_TRG
+  TRIGGER       M_PRODUCTIONPLAN_TRG
+  TRIGGER       M_PRODUCT_TRG
+  TRIGGER       M_WAREHOUSE_TRG
+  TRIGGER       S_EXPENSETYPE_TRG
+  TRIGGER       S_RESOURCEASSIGNMENT_TRG
+  TRIGGER       S_RESOURCE_TRG
+  TRIGGER       S_RESOURCETYPE_TRG
+  TRIGGER       S_RESOURCEUNAVAILABLE_TRG
+
+
+Database Tables
+---------------
+The following database tables and views were originally designed by Compiere
+Inc. and distributed in Compiere ERP & CRM v.2.5.0c.
+Openbravo modified them in order to satisfy its own functional and technical
+requirements. Whenever the name was change, the table is listed with its new
+name and the original Compiere name is reported in brackets:
+
+  A_ASSET
+  A_ASSET_GROUP
+  AD_ALERT
+  AD_ALERTRECIPIENT
+  AD_ALERTRULE
+  AD_CLIENT
+  AD_CLIENTINFO
+  AD_COLUMN
+  AD_ELEMENT
+  AD_ELEMENT_TRL
+  AD_FIELD
+  AD_FIELD_TRL
+  AD_FIELDGROUP
+  AD_FIELDGROUP_TRL
+  AD_FORM
+  AD_FORM_ACCESS
+  AD_FORM_TRL
+  AD_IMAGE
+  AD_LANGUAGE
+  AD_MENU
+  AD_MENU_TRL
+  AD_MESSAGE
+  AD_MESSAGE_TRL
+  AD_ORG
+  AD_ORGINFO
+  AD_PINSTANCE
+  AD_PINSTANCE_PARA
+  AD_PREFERENCE
+  AD_PROCESS
+  AD_PROCESS_ACCESS
+  AD_PROCESS_PARA
+  AD_PROCESS_PARA_TRL
+  AD_PROCESS_TRL
+  AD_REF_LIST
+  AD_REF_LIST_TRL
+  AD_REF_TABLE
+  AD_REFERENCE
+  AD_REFERENCE_TRL
+  AD_ROLE
+  AD_ROLE_ORGACCESS
+  AD_SEQUENCE
+  AD_SESSION
+  AD_SYSTEM
+  AD_TAB
+  AD_TAB_TRL
+  AD_TABLE
+  AD_TABLE_ACCESS
+  AD_TREE
+  AD_TREENODE
+  AD_USER
+  AD_USER_ROLES
+  AD_VAL_RULE
+  AD_WINDOW
+  AD_WINDOW_ACCESS
+  AD_WINDOW_TRL
+  C_ACCTSCHEMA
+  C_ACCTSCHEMA_DEFAULT
+  C_ACCTSCHEMA_ELEMENT
+  C_ACCTSCHEMA_GL
+  C_ACTIVITY
+  C_BANK
+  C_BANKACCOUNT
+  C_BANKACCOUNT_ACCT
+  C_BANKSTATEMENT
+  C_BANKSTATEMENTLINE
+  C_BP_BANKACCOUNT
+  C_BP_CUSTOMER_ACCT
+  C_BP_EMPLOYEE_ACCT
+  C_BP_GROUP
+  C_BP_GROUP_ACCT
+  C_BP_VENDOR_ACCT
+  C_BP_WITHHOLDING
+  C_BPARTNER
+  C_BPARTNER_LOCATION
+  C_CALENDAR
+  C_CAMPAIGN
+  C_CASH
+  C_CASHBOOK
+  C_CASHBOOK_ACCT
+  C_CASHLINE
+  C_CHANNEL
+  C_CHARGE
+  C_CHARGE_ACCT
+  C_INVOICE_V2 (original name: RV_C_INVOICE)
+  C_INVOICELINE (original name: RV_C_INVOICELINE)
+  C_CITY
+  C_COMMISSION
+  C_COMMISSIONAMT
+  C_COMMISSIONDETAIL
+  C_COMMISSIONLINE
+  C_COMMISSIONRUN
+  C_CONVERSION_RATE
+  C_COUNTRY
+  C_COUNTRY_TRL
+  C_CURRENCY
+  C_CURRENCY_TRL
+  C_DEBT_PAYMENT_V
+  C_DOCTYPE
+  C_DOCTYPE_TRL
+  C_ELEMENT
+  C_ELEMENTVALUE
+  C_ELEMENTVALUE_TRL
+  C_GREETING
+  C_GREETING_TRL
+  C_INVOICE
+  C_INVOICELINE
+  C_INVOICESCHEDULE
+  C_INVOICETAX
+  C_LOCATION
+  C_NONBUSINESSDAY
+  C_ORDER
+  C_ORDERLINE
+  C_ORDERTAX
+  C_PAYMENTTERM
+  C_PAYMENTTERM_TRL
+  C_PERIOD
+  C_PERIODCONTROL
+  C_PHASE
+  C_PROJECT
+  C_PROJECT_ACCT
+  C_PROJECTLINE
+  C_PROJECTPHASE
+  C_PROJECTTASK
+  C_PROJECTTYPE
+  C_REGION
+  C_SALESREGION
+  C_TASK
+  C_TAX
+  C_TAX_ACCT
+  C_TAX_TRL
+  C_TAXCATEGORY
+  C_TAXCATEGORY_TRL
+  C_UOM
+  C_UOM_CONVERSION
+  C_UOM_TRL
+  C_VALIDCOMBINATION
+  C_WITHHOLDING
+  C_WITHHOLDING_ACCT
+  C_YEAR
+  FACT_ACCT
+  GL_CATEGORY
+  GL_JOURNAL
+  GL_JOURNALBATCH
+  GL_JOURNALLINE
+  M_ATTRIBUTE
+  M_ATTRIBUTEINSTANCE
+  M_ATTRIBUTESET
+  M_ATTRIBUTESETINSTANCE
+  M_ATTRIBUTEUSE
+  M_ATTRIBUTEVALUE
+  M_DISCOUNTSCHEMA
+  M_DISCOUNTSCHEMALINE
+  M_FREIGHT
+  M_FREIGHTCATEGORY
+  M_INOUT
+  M_INOUTLINE
+  M_INVENTORY
+  M_INVENTORYLINE
+  M_LOCATOR
+  M_LOT
+  M_LOTCTL
+  M_MATCHINV
+  M_MATCHPO
+  M_MOVEMENT
+  M_MOVEMENTLINE
+  M_PRICELIST
+  M_PRICELIST_VERSION
+  M_PRODUCT
+  M_PRODUCT_ACCT
+  M_PRODUCT_BOM
+  M_PRODUCT_CATEGORY
+  M_PRODUCT_CATEGORY_ACCT
+  M_PRODUCT_PO
+  M_PRODUCT_TRL
+  M_PRODUCTION
+  M_PRODUCTIONLINE
+  M_PRODUCTIONPLAN
+  M_PRODUCTPRICE
+  M_SERNOCTL
+  M_SHIPPER
+  M_SUBSTITUTE
+  M_TRANSACTION
+  M_TRANSACTION_V (original name: RV_M_TRANSACTION)
+  M_WAREHOUSE
+  M_WAREHOUSE_ACCT
+  S_EXPENSETYPE
+  S_RESOURCE
+  S_RESOURCEASSIGNMENT
+  S_RESOURCETYPE
+  S_RESOURCEUNAVAILABLE
+  S_TIMEEXPENSE
+  S_TIMEEXPENSELINE
+  S_TIMETYPE
+
+These tables and views are currently distributed by Openbravo using XML files
+stored in the /src-db/database folder and named after the tables themselves.
+
+Database Records
+----------------
+The following database tables contain records that have been originally 
+defined by Compiere Inc. and distributed in Compiere ERP & CRM v.2.5.0c.
+Openbravo modified them in order to satisfy its own functional and
+technical requirements:
+
+  AD_CLIENT
+  AD_CLIENTINFO
+  AD_COLUMN
+  AD_ELEMENT
+  AD_FIELD
+  AD_FIELDGROUP
+  AD_FORM
+  AD_LANGUAGE
+  AD_MENU
+  AD_MESSAGE
+  AD_ORG
+  AD_ORGINFO
+  AD_PREFERENCE
+  AD_PROCESS
+  AD_PROCESS_PARA
+  AD_REFERENCE
+  AD_REF_LIST
+  AD_REF_TABLE
+  AD_ROLE
+  AD_ROLE_ORGACCESS
+  AD_TAB
+  AD_TABLE
+  AD_TREE
+  AD_TREENODE
+  AD_USER
+  AD_USER_ROLES
+  AD_VAL_RULE
+  AD_WINDOW
+
+These tables also contain additional records that have been autonomously 
+defined by Openbravo. The  records derived by Compiere can be identified by
+their ID range:
+        - Records identified by an ID lower than 100000 are based upon
+          Compiere
+        - Records identified by an ID higher or equal to 100000 have been 
+          added by Openbravo
+The content of these tables is currently distributed by Openbravo using XML
+files stored in the /src-db/database folder and named after the tables
+themselves.
+

@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CreateFromBankData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT B.*,
+          (CASE Ad_Column_Identifier(to_char('C_Debt_Payment'), to_char(C_DEBT_Payment_ID), to_char(?))
+             WHEN '**' THEN to_char(description)
+             ELSE to_char(Ad_Column_Identifier(to_char('C_Debt_Payment'), to_char(C_DEBT_Payment_ID), to_char(?)))
+           END) AS DEBT_PAYMENT,
+          Ad_Column_Identifier(to_char('C_Invoice'), to_char(C_INVOICE_ID), to_char(?)) AS INVOICE,
+          Ad_Column_Identifier(to_char('C_BankAccount'), to_char(C_BankAccount_ID), to_char(?)) AS BANK,
+          (CASE IsReceipt WHEN 'Y' THEN (p_amount - p_woamount) ELSE (p_amount - p_woamount)*(-1) END) AS AMOUNT,
+	  (p_amount - p_woamount) AS AMOUNT2,
+          C_Currency_Convert((CASE IsReceipt WHEN 'Y' THEN (p_amount) ELSE (p_amount) END),b.C_Currency_ID,
+          	(select c_currency_id from c_bankaccount c where c.c_bankaccount_id = b.c_bankaccount_id),
+          	to_date(?),to_char(null),AD_Client_ID,AD_Org_ID
+          ) AS CONVERTED
+
+        FROM ( SELECT '0' AS RN1, A.* FROM (
+        SELECT p.DatePlanned, p.C_DEBT_Payment_ID,
+        p.description, p.c_invoice_id, p.c_bankaccount_id, p.ad_client_id, p.ad_org_id,
+        p.Amount as p_amount, p.WriteOffAmt as p_woamount,
+        p.C_Currency_ID,c.ISO_Code AS CURRENCY,
+        o.Name AS Org,
+        p.IsReceipt AS IsReceipt,
+        p.IsManual AS IsManual
+        FROM C_DEBT_Payment_v p,
+         C_Currency c,  AD_Org o
+        where p.C_Currency_ID=c.C_Currency_ID
+        AND p.IsActive = 'Y'
+        AND p.status != 'RT'
+        AND p.AD_Org_ID = o.AD_Org_ID
+        AND p.AD_CLIENT_ID IN ('1')
+        AND p.AD_ORG_ID IN ('1')
+        AND CASE
+              WHEN (p.ISVALID = 'N') THEN 'I'
+              WHEN (p.C_CASHLINE_ID IS NOT NULL OR p.C_BANKSTATEMENTLINE_ID IS NOT NULL) THEN 'C'
+              WHEN (p.CANCEL_PROCESSED = 'Y' AND p.ISPAID = 'N') THEN 'W'
+              WHEN (p.CANCEL_PROCESSED = 'Y' OR(p.C_Settlement_Cancel_ID IS NULL AND p.GENERATE_PROCESSED = 'Y' AND p.ISPAID = 'Y')) THEN 'A'
+              ELSE 'P'
+            END IN ('P', 'A')
+        AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)
+        ORDER BY p.DATEPLANNED DESC
+        ) A ) B
+        WHERE 1=1
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="statementdate"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="userClient" optional="true" type="replace" after="AND p.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="userOrg" optional="true" type="replace" after="AND p.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="cBPartnerId" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.C_BPARTNER_ID = ? "/>
+    <Parameter name="paymentrule" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.PAYMENTRULE = ? "/>
+    <Parameter name="planneddateFrom" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)"><![CDATA[ AND p.DATEPLANNED >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="planneddateTo" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)"><![CDATA[ AND p.DATEPLANNED <= TO_DATE(?) ]]></Parameter>
+    <Parameter name="amountFrom" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)"><![CDATA[ AND p.AMOUNT >= TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="amountTo" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)"><![CDATA[ AND p.AMOUNT <= TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="isreceipt" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.ISRECEIPT = ? "/>
+    <Parameter name="cBankaccountId" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.C_BankAccount_ID = ? "/>
+    <Parameter name="adOrgId" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.AD_ORG_ID = ? "/>
+    <Parameter name="ischarge" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.ISPAID = ? "/>
+    <Parameter name="invoice" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND EXISTS (SELECT 1 FROM C_INVOICE WHERE p.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID AND DOCUMENTNO LIKE TO_CHAR(?))"/>
+    <Parameter name="StatusPayment" optional="true" after="AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)" text=" AND p.STATUS = TO_CHAR(?) "/>
+    <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 <= ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="countRows" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*) AS COUNT
+        FROM C_DEBT_Payment_v p
+        where
+            p.IsActive = 'Y'
+        AND p.AD_CLIENT_ID IN ('1')
+        AND p.AD_ORG_ID IN ('1')
+        AND CASE
+              WHEN (p.ISVALID = 'N') THEN 'I'
+              WHEN (p.C_CASHLINE_ID IS NOT NULL OR p.C_BANKSTATEMENTLINE_ID IS NOT NULL) THEN 'C'
+              WHEN (p.CANCEL_PROCESSED = 'Y' AND p.ISPAID = 'N') THEN 'W'
+              WHEN (p.CANCEL_PROCESSED = 'Y' OR(p.C_Settlement_Cancel_ID IS NULL AND p.GENERATE_PROCESSED = 'Y' AND p.ISPAID = 'Y')) THEN 'A'
+              ELSE 'P'
+            END in ('P', 'A')
+        AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)
+        AND 1=1
+      ]]>
+    </Sql>
+    <Parameter name="userClient" optional="true" type="replace" after="AND p.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="userOrg" optional="true" type="replace" after="AND p.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="cBPartnerId" optional="true" after="AND 1=1" text=" AND p.C_BPARTNER_ID = ? "/>
+    <Parameter name="paymentrule" optional="true" after="AND 1=1" text=" AND p.PAYMENTRULE = ? "/>
+    <Parameter name="planneddateFrom" optional="true" after="AND 1=1"><![CDATA[ AND p.DATEPLANNED >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="planneddateTo" optional="true" after="AND 1=1"><![CDATA[ AND p.DATEPLANNED <= TO_DATE(?) ]]></Parameter>
+    <Parameter name="amountFrom" optional="true" after="AND 1=1"><![CDATA[ AND p.AMOUNT >= TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="amountTo" optional="true" after="AND 1=1"><![CDATA[ AND p.AMOUNT <= TO_NUMBER(?) ]]></Parameter>
+    <Parameter name="isreceipt" optional="true" after="AND 1=1" text=" AND p.ISRECEIPT = ? "/>
+    <Parameter name="cBankaccountId" optional="true" after="AND 1=1" text=" AND p.C_BankAccount_ID = ? "/>
+    <Parameter name="adOrgId" optional="true" after="AND 1=1" text=" AND p.AD_ORG_ID = ? "/>
+    <Parameter name="ischarge" optional="true" after="AND 1=1" text=" AND p.ISPAID = ? "/>
+    <Parameter name="invoice" optional="true" after="AND 1=1" text=" AND EXISTS (SELECT 1 FROM C_INVOICE WHERE p.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID AND DOCUMENTNO LIKE TO_CHAR(?))"/>
+    <Parameter name="StatusPayment" optional="true" after="AND 1=1" text=" AND p.STATUS = ? "/>
+  </SqlMethod>
+
+  <SqlMethod name="NotIsReconcilied" type="preparedStatement" connection="true" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*) AS COUNT
+        FROM C_DEBT_Payment_v p
+        WHERE p.C_Debt_Payment_ID = ?
+        AND CASE
+              WHEN (p.ISVALID = 'N') THEN 'I'
+              WHEN (p.C_CASHLINE_ID IS NOT NULL OR p.C_BANKSTATEMENTLINE_ID IS NOT NULL) THEN 'C'
+              WHEN (p.CANCEL_PROCESSED = 'Y' AND p.ISPAID = 'N') THEN 'W'
+              WHEN (p.CANCEL_PROCESSED = 'Y' OR(p.C_Settlement_Cancel_ID IS NULL AND p.GENERATE_PROCESSED = 'Y' AND p.ISPAID = 'Y')) THEN 'A'
+              ELSE 'P'
+            END IN ('P', 'A')
+        AND NOT EXISTS (SELECT * FROM C_BankStatementLine l WHERE p.C_DEBT_Payment_ID=l.C_DEBT_PAYMENT_ID)
+      ]]>
+    </Sql>
+    <Parameter name="cDebtPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="bpartner" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="insert" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_BankStatementLine
+            (C_BankStatementLine_ID, AD_Client_ID,AD_Org_ID,
+            IsActive,Created,CreatedBy,
+            Updated,UpdatedBy, C_BankStatement_ID,
+            DateAcct,ValutaDate, Line,
+            C_Debt_Payment_ID, Description,
+            TrxAmt,
+            ChargeAmt,
+            C_Currency_ID,
+            StmtAmt)
+        SELECT ?,?,p.AD_ORG_ID,
+               'Y', now(), ?,
+               now(), ?, ?,
+               TO_DATE(?), TO_DATE(?), (SELECT (COALESCE(Max(Line),0))+10 FROM C_BankStatementLine WHERE C_BankStatement_ID = ?),
+               p.C_Debt_Payment_ID, Description,
+               C_Currency_Convert(p.Amount-coalesce(p.writeoffamt,0),p.C_Currency_ID, (SELECT A.C_CURRENCY_ID
+                                                              FROM C_BANKSTATEMENT S, C_BANKACCOUNT A
+                                                              WHERE S.C_BANKACCOUNT_ID = A.C_BANKACCOUNT_ID
+                                                              AND S.C_BankStatement_ID = ?),TO_DATE(?),null,p.AD_Client_ID,p.AD_Org_ID),
+               TO_NUMBER(?),
+               (SELECT A.C_CURRENCY_ID
+                  FROM C_BANKSTATEMENT S, C_BANKACCOUNT A
+                  WHERE S.C_BANKACCOUNT_ID = A.C_BANKACCOUNT_ID
+                  AND S.C_BankStatement_ID = ?),
+               C_Currency_Convert(p.Amount-coalesce(p.writeoffamt,0),p.C_Currency_ID, (SELECT A.C_CURRENCY_ID
+                                                                              FROM C_BANKSTATEMENT S, C_BANKACCOUNT A
+                                                                              WHERE S.C_BANKACCOUNT_ID = A.C_BANKACCOUNT_ID
+                                                                              AND S.C_BankStatement_ID = ?),TO_DATE(?),null,p.AD_Client_ID,p.AD_Org_ID)- TO_NUMBER(?)
+        FROM C_Debt_Payment_v p
+        WHERE p.C_Debt_Payment_ID=?
+      ]]>
+    </Sql>
+    <Parameter name="cBankstatementlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="cBankstatementId"/>
+    <Parameter name="statementdate"/>
+    <Parameter name="statementdate"/>
+    <Parameter name="cBankstatementId"/>
+
+    <Parameter name="cBankstatementId"/>
+    <Parameter name="statementdate"/>
+
+    <Parameter name="cChargeAmt"/>
+
+
+    <Parameter name="cBankstatementId"/>
+
+
+    <Parameter name="cBankstatementId"/>
+    <Parameter name="statementdate"/>
+    <Parameter name="cChargeAmt"/>
+
+    <Parameter name="cPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="insertSettlement" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    INSERT
+    INTO C_SETTLEMENT
+      (
+        C_SETTLEMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        DOCUMENTNO, DATETRX, DATEACCT, SETTLEMENTTYPE,
+        C_DOCTYPE_ID, PROCESSING, PROCESSED, POSTED,
+        C_CURRENCY_ID, Description, ISGENERATED
+      )
+        select ?, C_DEBT_PAYMENT.AD_CLIENT_ID, C_DEBT_PAYMENT.AD_Org_ID, 'Y',
+        now(), ?, now(), ?,
+        '*DPS*'||?, TO_DATE(?), TO_DATE(?), 'C',
+        (SELECT MIN(C_DOCTYPE_ID) FROM C_DOCTYPE
+        WHERE DOCBASETYPE = 'STT' AND C_DOCTYPE.AD_CLIENT_ID = C_DEBT_PAYMENT.AD_CLIENT_ID
+        AND AD_ORG_ID = '0'), 'N', 'N', 'N',
+        C_DEBT_PAYMENT.C_CURRENCY_ID, COALESCE(C_DEBT_PAYMENT.DESCRIPTION, '(Splited) Nº ' || C_INVOICE.DOCUMENTNO), 'Y'
+        FROM C_DEBT_PAYMENT LEFT JOIN C_INVOICE ON C_DEBT_PAYMENT.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+        WHERE C_DEBT_PAYMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cSettlementId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="documentNo"/>
+    <Parameter name="date"/>
+    <Parameter name="date"/>
+    <!-- Parameter name="cDoctypeId"/ -->
+    <Parameter name="cPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="insertPayment" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    INSERT
+    INTO C_DEBT_PAYMENT
+      (
+        C_DEBT_PAYMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        ISRECEIPT, C_SETTLEMENT_GENERATE_ID, DESCRIPTION, C_INVOICE_ID,
+        C_BPARTNER_ID, C_CURRENCY_ID,
+        PAYMENTRULE, ISPAID, AMOUNT, WRITEOFFAMT, DATEPLANNED,
+        ISMANUAL, ISVALID,
+        CHANGESETTLEMENTCANCEL, CANCEL_PROCESSED, GENERATE_PROCESSED, STATUS_INITIAL, C_WITHHOLDING_ID, WITHHOLDINGAMOUNT
+      )
+      SELECT ?, C_DEBT_PAYMENT.AD_CLIENT_ID, C_DEBT_PAYMENT.AD_ORG_ID, C_DEBT_PAYMENT.ISACTIVE,
+        NOW(), ?, NOW(), ?,
+        C_DEBT_PAYMENT.ISRECEIPT, ?, COALESCE(C_DEBT_PAYMENT.DESCRIPTION, '(Splited) Nº ' || C_INVOICE.DOCUMENTNO), NULL,
+        C_DEBT_PAYMENT.C_BPARTNER_ID, C_DEBT_PAYMENT.C_CURRENCY_ID,
+        C_DEBT_PAYMENT.PAYMENTRULE, C_DEBT_PAYMENT.ISPAID, TO_NUMBER(?), C_DEBT_PAYMENT.WRITEOFFAMT, C_DEBT_PAYMENT.DATEPLANNED,
+        'N', 'N',
+        'N', 'N', 'N', STATUS, C_DEBT_PAYMENT.C_WITHHOLDING_ID, C_DEBT_PAYMENT.WITHHOLDINGAMOUNT*TO_NUMBER(?)/C_DEBT_PAYMENT.AMOUNT
+        FROM C_DEBT_PAYMENT LEFT JOIN C_INVOICE ON C_DEBT_PAYMENT.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+        WHERE C_DEBT_PAYMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cDebtPaymentId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="cSettlementId"/>
+    <Parameter name="amount"/>
+    <Parameter name="amount"/>
+    <Parameter name="cPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="insertSecondPayment" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    INSERT
+    INTO C_DEBT_PAYMENT
+      (
+        C_DEBT_PAYMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        ISRECEIPT, C_SETTLEMENT_GENERATE_ID, DESCRIPTION, C_INVOICE_ID,
+        C_BPARTNER_ID, C_CURRENCY_ID,
+        PAYMENTRULE, ISPAID, AMOUNT, WRITEOFFAMT, DATEPLANNED,
+        ISMANUAL, ISVALID,
+        CHANGESETTLEMENTCANCEL, CANCEL_PROCESSED, GENERATE_PROCESSED, STATUS_INITIAL, C_WITHHOLDING_ID, WITHHOLDINGAMOUNT
+      )
+      SELECT get_uuid(), C_DEBT_PAYMENT.AD_CLIENT_ID, C_DEBT_PAYMENT.AD_ORG_ID, C_DEBT_PAYMENT.ISACTIVE,
+        NOW(), ?, NOW(), ?,
+        C_DEBT_PAYMENT.ISRECEIPT, ?, COALESCE(C_DEBT_PAYMENT.DESCRIPTION, '(Splited) Nº ' || C_INVOICE.DOCUMENTNO), NULL,
+        C_DEBT_PAYMENT.C_BPARTNER_ID, C_DEBT_PAYMENT.C_CURRENCY_ID,
+        C_DEBT_PAYMENT.PAYMENTRULE, C_DEBT_PAYMENT.ISPAID, C_DEBT_PAYMENT.AMOUNT-TO_NUMBER(?), C_DEBT_PAYMENT.WRITEOFFAMT, C_DEBT_PAYMENT.DATEPLANNED,
+        'N', 'N',
+        'N', 'N', 'N', C_DEBT_PAYMENT.STATUS, C_DEBT_PAYMENT.C_WITHHOLDING_ID, C_DEBT_PAYMENT.WITHHOLDINGAMOUNT*(C_DEBT_PAYMENT.AMOUNT-TO_NUMBER(?))/C_DEBT_PAYMENT.AMOUNT
+        FROM C_DEBT_PAYMENT LEFT JOIN C_INVOICE ON C_DEBT_PAYMENT.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+        WHERE C_DEBT_PAYMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="cSettlementId"/>
+    <Parameter name="amount"/>
+    <Parameter name="amount"/>
+    <Parameter name="cPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="cancelOriginalPayment" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_DEBT_PAYMENT SET C_SETTLEMENT_CANCEL_ID = ?, ISVALID = 'Y'
+        WHERE C_DEBT_PAYMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cSettlementId"/>
+    <Parameter name="cDebtPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="selectPaymentFinalAmount" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AMOUNT-COALESCE(WRITEOFFAMT,0) as FINALAMOUNT FROM C_DEBT_PAYMENT
+        WHERE C_DEBT_PAYMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cDebtPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="processSettlement" connection="true" type="callableStatement"  return="object" object="CreateFromBankData">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        CALL C_SETTLEMENT_POST(NULL,?)
+      ]]>
+    </Sql>
+    <Parameter name="cSettlementId"/>
+  </SqlMethod>
+</SqlClass>

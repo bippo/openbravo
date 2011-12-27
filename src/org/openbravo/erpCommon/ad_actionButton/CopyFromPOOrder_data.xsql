@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="CopyFromPOOrderData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Principal select</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT O.C_BPARTNER_ID, O.C_BPARTNER_LOCATION_ID, O.M_WAREHOUSE_ID, O.C_CURRENCY_ID, O.C_PROJECT_ID,
+        O.M_PRICELIST_ID, COALESCE(MAX(OL.LINE),0) AS LINE, O.AD_ORG_ID, O.AD_CLIENT_ID, '' AS C_UOM_ID, '' AS M_PRODUCT_ID,
+        '' AS QTYORDERED, '' AS QUANTITYORDER, '' AS M_PRODUCT_UOM_ID,
+        '' as stdprecision, '' as priceprecision, '' as enforcepricelimit, '' as pricelist, '' as pricelimit, '' as validfrom,
+        '' AS DESCRIPTION, '' AS PRICESTD, '' AS M_OFFER_ID, '' as orderline, O.DATEPROMISED AS DATEPROMISED, O.DATEORDERED AS DATEORDERED,
+        O.ISSOTRX AS ISSOTRX, '' AS M_ATTRIBUTESETINSTANCE_ID 
+        FROM C_ORDER O LEFT JOIN C_ORDERLINE OL ON O.C_ORDER_ID = OL.C_ORDER_ID
+        WHERE O.C_ORDER_ID = ?
+        GROUP BY O.C_BPARTNER_ID, O.C_BPARTNER_LOCATION_ID, O.M_WAREHOUSE_ID, O.C_CURRENCY_ID, O.C_PROJECT_ID,
+        O.M_PRICELIST_ID, O.AD_ORG_ID, O.AD_CLIENT_ID, O.DATEPROMISED, O.DATEORDERED, O.ISSOTRX
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="selectLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment>select de las lineas</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_ORDERLINE_ID as orderline, C_UOM_ID, M_PRODUCT_ID, QTYORDERED, QUANTITYORDER,
+        M_PRODUCT_UOM_ID, DESCRIPTION, C_CURRENCY_ID, M_ATTRIBUTESETINSTANCE_ID
+        FROM C_ORDERLINE
+        WHERE C_ORDER_ID = ?
+        ORDER BY LINE ASC
+      ]]>
+    </Sql>
+    <Parameter name="cOrderLineId"/>
+  </SqlMethod>
+  <SqlMethod name="insertCOrderline" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment>Principal select</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_ORDERLINE 
+          (C_ORDERLINE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ORDER_ID, LINE, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, 
+        DATEORDERED, DATEPROMISED, DESCRIPTION, M_PRODUCT_ID, 
+        M_WAREHOUSE_ID, C_UOM_ID, QTYORDERED, QUANTITYORDER, QTYINVOICED, QTYDELIVERED, QTYRESERVED, 
+        C_CURRENCY_ID, PRICELIST, PRICEACTUAL, 
+        PRICELIMIT, C_TAX_ID, DISCOUNT, M_PRODUCT_UOM_ID, PRICESTD, M_OFFER_ID, REF_ORDERLINE_ID, M_ATTRIBUTESETINSTANCE_ID) 
+        VALUES 
+          (?,?,?,TO_DATE(NOW()),?,TO_DATE(NOW()),?,
+           ?,TO_NUMBER(?),?,?,
+           TO_DATE(?),TO_DATE(?),?,?,
+           ?,?,TO_NUMBER(?),TO_NUMBER(?),0,0,0,
+           ?,TO_NUMBER(?),M_GET_OFFERS_PRICE(TO_DATE(now()), ?, ?, TO_NUMBER(?), TO_NUMBER(?), ?),
+           TO_NUMBER(?),?,TO_NUMBER(?),?,TO_NUMBER(?),M_GET_OFFER(TO_DATE(now()), ?, ?),?,?)
+      ]]>
+    </Sql>
+    <Parameter name="cOrderlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="cOrderId"/>
+    <Parameter name="line"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cBpartnerLocationId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="datepromised"/>
+    <Parameter name="description"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="cUomId"/>
+    <Parameter name="qtyordered"/>
+    <Parameter name="quantityorder"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="priceactual"/>
+    <Parameter name="qtyordered"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="pricelimit"/>
+    <Parameter name="cTaxId"/>
+    <Parameter name="discount"/>
+    <Parameter name="mProductUomId"/>
+    <Parameter name="priceactual"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="refOrdeline"/>
+    <Parameter name="mAttributeSetInstanceId"/>
+  </SqlMethod>
+  <SqlMethod name="cBPartnerLocationId" type="preparedStatement" return="string">
+    <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) AS C_BPARTNER_LOCATION_ID 
+        FROM C_BPARTNER_LOCATION
+        WHERE C_BPARTNER_ID = ?
+        AND C_BPartner_Location.IsActive='Y'
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="defaultPriceList" type="preparedStatement" return="string">
+    <SqlMethodComment>priceList por defecto</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_PRICELIST_ID FROM M_PRICELIST
+        WHERE ISDEFAULT = 'Y'
+        AND ISSOPRICELIST = 'N'
+      ]]>
+    </Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectOrderPricelist" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_Currency.StdPrecision, C_Currency.PricePrecision, M_PriceList.EnforcePriceLimit, M_PriceList.M_PriceList_ID 
+      FROM C_Order, M_PriceList, C_Currency 
+      WHERE C_Order.M_PriceList_ID = M_PriceList.M_PriceList_ID
+      AND M_PriceList.C_Currency_ID = C_Currency.C_Currency_ID
+      AND C_Order.C_Order_ID = ?
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectPriceForProduct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_BOM_PriceStd(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceStd,
+        M_BOM_PriceList(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceList,
+        M_BOM_PriceLimit(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceLimit,
+        p.C_UOM_ID,pv.ValidFrom,pl.C_Currency_ID 
+        FROM M_Product p, M_ProductPrice pp, M_Pricelist pl, M_PriceList_Version pv 
+        WHERE p.M_Product_ID=pp.M_Product_ID
+        AND pp.M_PriceList_Version_ID=pv.M_PriceList_Version_ID
+        AND pv.M_PriceList_ID=pl.M_PriceList_ID
+        AND pv.IsActive='Y'
+        AND p.M_Product_ID = ?
+        AND pl.M_PriceList_ID = ?
+        ORDER BY pv.ValidFrom DESC
+      ]]>
+    </Sql>
+    <Parameter name="MProductID"/>
+    <Parameter name="MPriceListID"/>
+  </SqlMethod>
+  <SqlMethod name="copyAttributes" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+     INSERT INTO M_ATTRIBUTESETINSTANCE 
+       (M_ATTRIBUTESETINSTANCE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+       CREATED, CREATEDBY, UPDATED, UPDATEDBY, M_ATTRIBUTESET_ID, SERNO, 
+       LOT, GUARANTEEDATE, DESCRIPTION, M_LOT_ID, ISLOCKED, LOCK_DESCRIPTION) 
+     SELECT ?, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, NOW(), ?, NOW(), 
+       ?, M_ATTRIBUTESET_ID, SERNO, LOT, GUARANTEEDATE, DESCRIPTION, 
+       M_LOT_ID, ISLOCKED, LOCK_DESCRIPTION FROM M_ATTRIBUTESETINSTANCE 
+       WHERE M_ATTRIBUTESETINSTANCE_ID = ?
+    </Sql>
+    <Parameter name="mAttributesetinstanceIdNew"/>
+    <Parameter name="createdBy"/>
+    <Parameter name="updatedBy"/>
+    <Parameter name="mAttributesetinstanceIdOld"/>
+  </SqlMethod>
+  <SqlMethod name="copyInstances" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+     INSERT INTO M_ATTRIBUTEINSTANCE
+       (M_ATTRIBUTEINSTANCE_ID, M_ATTRIBUTESETINSTANCE_ID, M_ATTRIBUTE_ID,
+       AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+       M_ATTRIBUTEVALUE_ID, VALUE)
+     SELECT GET_UUID(), ?, M_ATTRIBUTE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, 
+       NOW(), ?, NOW(), ?, M_ATTRIBUTEVALUE_ID, VALUE FROM 
+       M_ATTRIBUTEINSTANCE WHERE M_ATTRIBUTESETINSTANCE_ID = ?
+   </Sql>
+    <Parameter name="mAttributesetinstanceIdNew"/>
+    <Parameter name="createdBy"/>
+    <Parameter name="updatedBy"/>
+    <Parameter name="mAttributesetinstanceIdOld"/>
+  </SqlMethod>
+  <SqlMethod name="getIsInstanceValue" type="preparedStatement" connection="true" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+		SELECT CASE WHEN M_ATTRIBUTESET.ISLOT = 'Y'
+		    OR M_ATTRIBUTESET.ISSERNO = 'Y'
+		    OR M_ATTRIBUTESET.ISGUARANTEEDATE = 'Y'
+		    OR (SELECT COUNT(*) FROM M_ATTRIBUTE, M_ATTRIBUTEINSTANCE
+		          WHERE M_ATTRIBUTEINSTANCE.M_ATTRIBUTE_ID = M_ATTRIBUTE.M_ATTRIBUTE_ID
+		          AND M_ATTRIBUTE.ISINSTANCEATTRIBUTE='Y'
+		          AND M_ATTRIBUTEINSTANCE.M_ATTRIBUTESETINSTANCE_ID = ?) > 0
+		    THEN 'Y' ELSE 'N' END AS ISINSTANCEATTRIBUTE
+		FROM M_ATTRIBUTESETINSTANCE, M_ATTRIBUTESET
+		WHERE M_ATTRIBUTESETINSTANCE.M_ATTRIBUTESET_ID = M_ATTRIBUTESET.M_ATTRIBUTESET_ID
+		AND  M_ATTRIBUTESETINSTANCE.M_ATTRIBUTESETINSTANCE_ID = ?
+   </Sql>
+    <Parameter name="mAttributesetinstanceId"/>
+    <Parameter name="mAttributesetinstanceId"/>
+  </SqlMethod>
+</SqlClass>

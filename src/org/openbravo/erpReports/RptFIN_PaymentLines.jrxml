@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="RptFIN_PaymentLines" pageWidth="483" pageHeight="802" columnWidth="483" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="18" isBold="true">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<parameter name="FIN_PAYMENT_ID" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[SELECT LINE_DOCUMENTTYPE, LINE_DOCUMENTNO, LINE_DATE, LINE_CURRENCY ,SUM(A.LINE_AMOUNT) AS AMOUNT
+FROM
+  (SELECT
+     case when psd.fin_payment_schedule_order is not null and psd.fin_payment_schedule_invoice is null then 'O'
+          when psd.fin_payment_schedule_invoice is not null and psd.fin_payment_schedule_order is null then 'I'
+          when psd.fin_payment_schedule_invoice is not null and psd.fin_payment_schedule_order is not null then 'I'
+          when pd.c_glitem_id is not null then 'GL'
+           else 'U'
+     end as LINE_DOCUMENTTYPE,
+     coalesce(to_char(inv.documentno), to_char(ord.documentno), to_char('')) as LINE_DOCUMENTNO,
+     coalesce(to_char(inv.dateinvoiced), to_char(ord.dateordered), to_char('')) as LINE_DATE,
+     coalesce(psd.amount, pd.amount) as LINE_AMOUNT,
+     cur.cursymbol as LINE_CURRENCY
+   FROM fin_payment p join fin_payment_detail pd on (p.fin_payment_id=pd.fin_payment_id)
+        join fin_payment_scheduledetail psd on (pd.fin_payment_detail_id=psd.fin_payment_detail_id)
+        left outer join fin_payment_schedule ps on (psd.fin_payment_schedule_invoice=ps.fin_payment_schedule_id)
+        left outer join c_invoice inv on (ps.c_invoice_id = inv.c_invoice_id)
+        left outer join fin_payment_schedule ps2 on (psd.fin_payment_schedule_order=ps2.fin_payment_schedule_id)
+        left outer join c_order ord on (ps2.c_order_id = ord.c_order_id)
+        left outer join c_glitem gl on (pd.c_glitem_id = gl.c_glitem_id)
+        left outer join c_currency cur on (p.c_currency_id = cur.c_currency_id)
+   WHERE p.fin_payment_id=$P{FIN_PAYMENT_ID}) A
+GROUP BY LINE_DOCUMENTTYPE, LINE_DOCUMENTNO, LINE_DATE, LINE_CURRENCY
+ORDER BY LINE_DOCUMENTTYPE,LINE_DATE, LINE_DOCUMENTNO]]>
+	</queryString>
+	<field name="LINE_DOCUMENTTYPE" class="java.lang.String"/>
+	<field name="LINE_DOCUMENTNO" class="java.lang.String"/>
+	<field name="LINE_DATE" class="java.lang.String"/>
+	<field name="LINE_CURRENCY" class="java.lang.String"/>
+	<field name="AMOUNT" class="java.math.BigDecimal"/>
+	<variable name="SUM_LINEAMT" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{AMOUNT}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band splitType="Stretch"/>
+	</title>
+	<pageHeader>
+		<band splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band height="15" splitType="Stretch">
+			<staticText>
+				<reportElement key="staticText-1" style="GroupHeader_DarkGray" x="0" y="0" width="346" height="15"/>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement>
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Justification]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="staticText-2" style="GroupHeader_DarkGray" x="346" y="0" width="137" height="15"/>
+				<box rightPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Amount]]></text>
+			</staticText>
+			<line>
+				<reportElement key="line-8" x="483" y="0" width="1" height="15"/>
+			</line>
+			<line>
+				<reportElement key="line-9" x="0" y="0" width="1" height="15"/>
+			</line>
+			<line>
+				<reportElement key="line-11" x="0" y="14" width="483" height="1"/>
+			</line>
+			<line>
+				<reportElement key="line-12" x="346" y="0" width="1" height="15"/>
+			</line>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="13" splitType="Stretch">
+			<line>
+				<reportElement key="line-1" x="0" y="12" width="483" height="1"/>
+			</line>
+			<line>
+				<reportElement key="line-2" x="0" y="0" width="1" height="13"/>
+			</line>
+			<line>
+				<reportElement key="line-3" x="483" y="0" width="1" height="13"/>
+			</line>
+			<line>
+				<reportElement key="line-4" x="346" y="0" width="1" height="13"/>
+			</line>
+			<textField isBlankWhenNull="false">
+				<reportElement key="invoice" x="1" y="0" width="346" height="12">
+					<printWhenExpression><![CDATA[new Boolean($F{LINE_DOCUMENTTYPE}.equalsIgnoreCase("I"))]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Invoice" + "   " + (($F{LINE_DOCUMENTNO}!=null) ? $F{LINE_DOCUMENTNO} : new String("")) + "   " + (($F{LINE_DATE}!=null) ? $F{LINE_DATE} : new String(""))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement key="order" x="1" y="0" width="346" height="12">
+					<printWhenExpression><![CDATA[new Boolean($F{LINE_DOCUMENTTYPE}.equalsIgnoreCase("O"))]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Order" + "   " + (($F{LINE_DOCUMENTNO}!=null) ? $F{LINE_DOCUMENTNO} : new String("")) + "   " + (($F{LINE_DATE}!=null) ? $F{LINE_DATE} : new String(""))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement key="others" x="1" y="0" width="346" height="12">
+					<printWhenExpression><![CDATA[new Boolean($F{LINE_DOCUMENTTYPE}.equalsIgnoreCase("GL"))]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Others" + "   " + (($F{LINE_DOCUMENTNO}!=null) ? $F{LINE_DOCUMENTNO} : new String("")) + "   " + (($F{LINE_DATE}!=null) ? $F{LINE_DATE} : new String(""))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement key="unapplied" x="-1" y="0" width="346" height="12">
+					<printWhenExpression><![CDATA[new Boolean($F{LINE_DOCUMENTTYPE}.equalsIgnoreCase("U"))]]></printWhenExpression>
+				</reportElement>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA["Unapplied" + "   " + (($F{LINE_DOCUMENTNO}!=null) ? $F{LINE_DOCUMENTNO} : new String("")) + "   " + (($F{LINE_DATE}!=null) ? $F{LINE_DATE} : new String(""))]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement key="textField-2" x="347" y="0" width="136" height="13"/>
+				<box rightPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{AMOUNT}!=null) ? $P{NUMBERFORMAT}.format($F{AMOUNT}).toString() : new String(" ")]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<summary>
+		<band height="28" splitType="Stretch">
+			<line>
+				<reportElement key="line-5" x="346" y="-1" width="1" height="29"/>
+			</line>
+			<line>
+				<reportElement key="line-6" x="483" y="0" width="1" height="28"/>
+			</line>
+			<line>
+				<reportElement key="line-7" x="347" y="27" width="136" height="1"/>
+			</line>
+			<textField evaluationTime="Report" isBlankWhenNull="false">
+				<reportElement key="textField-3" style="Gray" x="347" y="0" width="136" height="27"/>
+				<box rightPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{SUM_LINEAMT}!=null) ? $P{NUMBERFORMAT}.format($V{SUM_LINEAMT}).toString() : new String(" ")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="false">
+				<reportElement key="textField-4" x="200" y="0" width="145" height="28"/>
+				<box rightPadding="2">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true" pdfFontName="Helvetica-Bold"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[" TOTAL (" + $F{LINE_CURRENCY}.toString() + "): "]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptCBpartnerSalesData" package="org.openbravo.erpReports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT VALUE, SUM(ACTUALYEAR) AS ACTUALYEAR, SUM(AMOUNT) AS AMOUNT, SUM(REFYEAR) AS REFYEAR, SUM(AMOUNTREF) AS AMOUNTREF, '' AS PERIOD, '' AS YEAR, '' AS CLASSDESIGN, 'datawarehouseclose' AS CLASS_TREE, '' AS TOTALACTUAL, '' AS TOTALREF, '' AS VALUEREF, '' AS NAME_UOM,
+        '' AS ORDERNO, '' AS INVOICENO, '' AS DUEDATE, '' AS PAYMENTMETHOD, '' AS EXPECTED, '' AS PAID, '' AS OUTSTANDING, '' AS EXPECTEDHEAD, '' AS PAIDHEAD, '' AS OUTSTANDINGHEAD, '' AS INV_PAYMPLAN_ID,
+        '' AS ISSOTRX, '' AS FIN_PAYMENT_SCHED_INV_V_ID FROM (
+        SELECT 'INVOICE' AS VALUE, TO_NUMBER(TO_CHAR(now(),'YYYY'))AS ACTUALYEAR, 0 AS REFYEAR, SUM(IL.LINENETAMT) AS AMOUNT, 0 AS AMOUNTREF
+        FROM C_INVOICE I, C_INVOICELINE IL
+        WHERE I.C_INVOICE_ID = IL.C_INVOICE_ID
+        AND I.DATEINVOICED< TRUNC(now())+1
+        AND I.DATEINVOICED >= TRUNC(now(), TO_CHAR('YEAR')) 
+        AND I.ISSOTRX='Y'
+        AND 1=1
+        UNION ALL
+        SELECT 'INVOICE' AS VALUE, 0 AS ACTUALYEAR, TO_NUMBER(TO_CHAR(now() -365,'YYYY')) AS REFYEAR, 0 AS AMOUNT,  SUM(IL.LINENETAMT) AS AMOUNTREF
+        FROM C_INVOICE I, C_INVOICELINE IL
+        WHERE I.C_INVOICE_ID = IL.C_INVOICE_ID
+        AND I.DATEINVOICED<TRUNC(now())-364
+        AND I.DATEINVOICED >= TRUNC(now()-365, TO_CHAR('YEAR')) 
+        AND I.ISSOTRX='Y'
+        AND 2=2) AA
+        GROUP BY VALUE
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]>
+        </Parameter>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectOrder" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT VALUE, SUM(ACTUALYEAR) AS ACTUALYEAR, SUM(AMOUNT) AS AMOUNT, SUM(REFYEAR) AS REFYEAR, SUM(AMOUNTREF) AS AMOUNTREF, 'datawarehouseclose' AS CLASS_TREE FROM (
+        SELECT 'ORDER' AS VALUE, TO_NUMBER(TO_CHAR(now(),'YYYY'))AS ACTUALYEAR, 0 AS REFYEAR, SUM(IL.LINENETAMT) AS AMOUNT, 0 AS AMOUNTREF
+        FROM C_ORDER I, C_ORDERLINE IL
+        WHERE I.C_ORDER_ID = IL.C_ORDER_ID
+        AND I.DATEORDERED< TRUNC(now())+1
+        AND I.DATEORDERED >= TRUNC(now(), TO_CHAR('YEAR')) 
+        AND I.ISSOTRX='Y'
+        AND 1=1
+        UNION ALL
+        SELECT 'ORDER' AS VALUE, 0 AS ACTUALYEAR, TO_NUMBER(TO_CHAR(now() -365,'YYYY')) AS REFYEAR, 0 AS AMOUNT,  SUM(IL.LINENETAMT) AS AMOUNTREF
+        FROM C_ORDER I, C_ORDERLINE IL
+        WHERE I.C_ORDER_ID = IL.C_ORDER_ID
+        AND I.DATEORDERED<TRUNC(now())-364
+        AND I.DATEORDERED >= TRUNC(now()-365, TO_CHAR('YEAR')) 
+        AND I.ISSOTRX='Y'
+        AND 2=2) AA
+        GROUP BY VALUE
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]>
+        </Parameter>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectinout" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT VALUE, SUM(ACTUALYEAR) AS ACTUALYEAR, SUM(AMOUNT) AS AMOUNT, SUM(REFYEAR) AS REFYEAR, SUM(AMOUNTREF) AS AMOUNTREF, 'datawarehouseclose' AS CLASS_TREE FROM (
+        SELECT 'INOUT' AS VALUE, TO_NUMBER(TO_CHAR(now(),'YYYY'))AS ACTUALYEAR, 0 AS REFYEAR, SUM(COALESCE(IOL.MOVEMENTQTY*IL.PRICEACTUAL,NULL)) AS AMOUNT, 0 AS AMOUNTREF
+        FROM M_INOUT I, M_INOUTLINE IOL left join C_ORDERLINE IL on IOL.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+        WHERE I.M_INOUT_ID = IOL.M_INOUT_ID
+		AND I.MOVEMENTDATE< TRUNC(now())+1
+        AND I.MOVEMENTDATE >= TRUNC(now(), TO_CHAR('YEAR')) 
+        AND I.ISSOTRX='Y'
+        AND 1=1
+        UNION ALL
+        SELECT 'INOUT' AS VALUE, 0 AS ACTUALYEAR, TO_NUMBER(TO_CHAR(now() -365,'YYYY')) AS REFYEAR, 0 AS AMOUNT,  SUM(COALESCE(IOL.MOVEMENTQTY*IL.PRICEACTUAL,NULL)) AS AMOUNTREF
+        FROM M_INOUT I, M_INOUTLINE IOL left join C_ORDERLINE IL on IOL.C_ORDERLINE_ID = IL.C_ORDERLINE_ID
+        WHERE I.M_INOUT_ID = IOL.M_INOUT_ID
+		AND I.MOVEMENTDATE<TRUNC(now())-364
+        AND I.MOVEMENTDATE >= TRUNC(now()-365, TO_CHAR('YEAR')) 
+        AND I.ISSOTRX='Y'
+        AND 2=2) AA
+        GROUP BY VALUE
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]>
+        </Parameter>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectperiod" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT VALUE AS PERIOD FROM AD_MONTH
+     ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectOrderperiod" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT YEAR, AMOUNT, (CASE YEAR WHEN TO_CHAR(now(),'YYYY') THEN 'BordesVerdeClaro' ELSE 'BordesRojoClaro' END) AS CLASSDESIGN, PERIOD FROM (
+        SELECT YEAR, SUM(AMOUNT) AS AMOUNT, PERIOD
+        FROM (
+            SELECT TO_CHAR(now(),'YYYY') AS YEAR,  SUM(IL.LINENETAMT) AS AMOUNT, TO_CHAR(I.DATEORDERED,'MM') AS PERIOD
+            FROM C_ORDER I, C_ORDERLINE IL
+            WHERE I.C_ORDER_ID = IL.C_ORDER_ID
+            AND TO_CHAR(I.DATEORDERED,'YYYY') = TO_CHAR(now(),'YYYY')
+            AND I.ISSOTRX='Y'
+            AND 1=1
+            GROUP BY TO_CHAR(I.DATEORDERED,'MM')
+            UNION
+            SELECT TO_CHAR(now(), 'YYYY') AS YEAR, 0 AS AMOUNT, (CASE LENGTH(TO_CHAR(VALUE)) WHEN 2 THEN TO_CHAR(VALUE) ELSE '0' || TO_CHAR(VALUE) END) AS PERIOD 
+            FROM AD_INTEGER
+            WHERE VALUE<=12
+        ) AAA
+        GROUP BY YEAR, PERIOD
+        UNION ALL
+        SELECT YEAR, SUM(AMOUNT) AS AMOUNT, PERIOD
+        FROM (
+            SELECT TO_CHAR(now()-365,'YYYY') AS YEAR,  SUM(IL.LINENETAMT)AS AMOUNT, TO_CHAR(I.DATEORDERED,'MM') AS PERIOD
+            FROM C_ORDER I, C_ORDERLINE IL
+            WHERE I.C_ORDER_ID = IL.C_ORDER_ID
+            AND TO_CHAR(I.DATEORDERED,'YYYY') = TO_CHAR(now()-365,'YYYY')
+            AND I.ISSOTRX='Y'
+            AND 2=2
+            GROUP BY TO_CHAR(I.DATEORDERED,'MM')
+            UNION
+            SELECT TO_CHAR(now()-365, 'YYYY') AS YEAR, 0 AS AMOUNT, (CASE LENGTH(TO_CHAR(VALUE)) WHEN 2 THEN TO_CHAR(VALUE) ELSE '0' || TO_CHAR(VALUE) END) AS PERIOD 
+            FROM AD_INTEGER
+            WHERE VALUE<=12
+        ) AAAA
+        GROUP BY YEAR, PERIOD
+        ) AA
+        ORDER BY YEAR DESC, PERIOD
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="cBpartnerId" optional="true" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID = ? ]]>
+        </Parameter>
+        <Parameter name="cBpartnerId" optional="true" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID = ? ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectInvoiceperiod" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT YEAR, AMOUNT, (CASE YEAR WHEN TO_CHAR(now(),'YYYY') THEN 'BordesVerdeClaro' ELSE 'BordesRojoClaro' END) AS CLASSDESIGN, PERIOD FROM (
+        SELECT YEAR, SUM(AMOUNT) AS AMOUNT, PERIOD
+        FROM (
+            SELECT TO_CHAR(now(),'YYYY') AS YEAR,  SUM(IL.LINENETAMT) AS AMOUNT, TO_CHAR(I.DATEINVOICED,'MM') AS PERIOD
+            FROM C_INVOICE I, C_INVOICELINE IL
+            WHERE I.C_INVOICE_ID = IL.C_INVOICE_ID
+            AND TO_CHAR(I.DATEINVOICED,'YYYY') = TO_CHAR(now(),'YYYY')
+            AND I.ISSOTRX='Y'
+            AND 1=1
+            GROUP BY TO_CHAR(I.DATEINVOICED,'MM')
+            UNION
+            SELECT TO_CHAR(now(), 'YYYY') AS YEAR, 0 AS AMOUNT, (CASE LENGTH(TO_CHAR(VALUE)) WHEN 2 THEN TO_CHAR(VALUE) ELSE '0' || TO_CHAR(VALUE) END) AS PERIOD 
+            FROM AD_INTEGER
+            WHERE VALUE<=12
+        ) AAA
+        GROUP BY YEAR, PERIOD
+        UNION ALL
+        SELECT YEAR, SUM(AMOUNT) AS AMOUNT, PERIOD
+        FROM (
+            SELECT TO_CHAR(now()-365,'YYYY') AS YEAR,  SUM(IL.LINENETAMT)AS AMOUNT, TO_CHAR(I.DATEINVOICED,'MM') AS PERIOD
+            FROM C_INVOICE I, C_INVOICELINE IL
+            WHERE I.C_INVOICE_ID = IL.C_INVOICE_ID
+            AND TO_CHAR(I.DATEINVOICED,'YYYY') = TO_CHAR(now()-365,'YYYY')
+            AND I.ISSOTRX='Y'
+            AND 2=2
+            GROUP BY TO_CHAR(I.DATEINVOICED,'MM')
+            UNION
+            SELECT TO_CHAR(now()-365, 'YYYY') AS YEAR, 0 AS AMOUNT, (CASE LENGTH(TO_CHAR(VALUE)) WHEN 2 THEN TO_CHAR(VALUE) ELSE '0' || TO_CHAR(VALUE) END) AS PERIOD 
+            FROM AD_INTEGER
+            WHERE VALUE<=12
+        ) BB
+        GROUP BY YEAR, PERIOD
+        ) AA
+        ORDER BY YEAR DESC, PERIOD
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="cBpartnerId" optional="true" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID = ? ]]>
+        </Parameter>
+        <Parameter name="cBpartnerId" optional="true" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID = ? ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectInoutperiod" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT YEAR, AMOUNT, (CASE YEAR WHEN TO_CHAR(now(),'YYYY') THEN 'BordesVerdeClaro' ELSE 'BordesRojoClaro' END) AS CLASSDESIGN, PERIOD FROM (
+        SELECT YEAR, SUM(AMOUNT) AS AMOUNT, PERIOD
+        FROM (
+            SELECT TO_CHAR(now(),'YYYY') AS YEAR,  SUM(IL.MOVEMENTQTY*C_ORDERLINE.PRICEACTUAL) AS AMOUNT, TO_CHAR(I.MOVEMENTDATE,'MM') AS PERIOD
+            FROM M_INOUT I, M_INOUTLINE IL left join C_ORDERLINE on IL.C_ORDERLINE_ID = C_ORDERLINE.C_ORDERLINE_ID
+            WHERE I.M_INOUT_ID = IL.M_INOUT_ID
+            AND TO_CHAR(I.MOVEMENTDATE,'YYYY') = TO_CHAR(now(),'YYYY')
+            AND I.ISSOTRX='Y'
+            AND 1=1
+            GROUP BY TO_CHAR(I.MOVEMENTDATE,'MM')
+            UNION
+            SELECT TO_CHAR(now(), 'YYYY') AS YEAR, 0 AS AMOUNT, (CASE LENGTH(TO_CHAR(VALUE)) WHEN 2 THEN TO_CHAR(VALUE) ELSE '0' || TO_CHAR(VALUE) END) AS PERIOD 
+            FROM AD_INTEGER
+            WHERE VALUE<=12
+        ) AAA
+        GROUP BY YEAR, PERIOD
+        UNION ALL
+        SELECT YEAR, SUM(AMOUNT) AS AMOUNT, PERIOD
+        FROM (
+            SELECT TO_CHAR(now()-365,'YYYY') AS YEAR,  SUM(IL.MOVEMENTQTY*C_ORDERLINE.PRICEACTUAL)AS AMOUNT, TO_CHAR(I.MOVEMENTDATE,'MM') AS PERIOD
+            FROM M_INOUT I, M_INOUTLINE IL left join C_ORDERLINE on  IL.C_ORDERLINE_ID = C_ORDERLINE.C_ORDERLINE_ID 
+            WHERE I.M_INOUT_ID = IL.M_INOUT_ID
+            AND TO_CHAR(I.MOVEMENTDATE,'YYYY') = TO_CHAR(now()-365,'YYYY')
+            AND I.ISSOTRX='Y'
+            AND 2=2
+            GROUP BY TO_CHAR(I.MOVEMENTDATE,'MM')
+            UNION
+            SELECT TO_CHAR(now()-365, 'YYYY') AS YEAR, 0 AS AMOUNT, (CASE LENGTH(TO_CHAR(VALUE)) WHEN 2 THEN TO_CHAR(VALUE) ELSE '0' || TO_CHAR(VALUE) END) AS PERIOD 
+            FROM AD_INTEGER
+            WHERE VALUE<=12
+        ) BBB
+        GROUP BY YEAR, PERIOD
+        ) AA
+        ORDER BY YEAR DESC, PERIOD
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="cBpartnerId" optional="true" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID = ? ]]>
+        </Parameter>
+        <Parameter name="cBpartnerId" optional="true" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID = ? ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectABC" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT 'ABC' AS VALUE, 'ABCREF' AS VALUEREF, COALESCE(SUM(AMOUNT),0) AS AMOUNT, ? AS ACTUALYEAR, COALESCE(SUM(TOTALACTUAL),0) AS TOTALACTUAL, COALESCE(SUM(AMOUNTREF),0) AS AMOUNTREF,
+        ? AS REFYEAR, COALESCE(SUM(TOTALREF),0) AS TOTALREF, 'datawarehouseclose' AS CLASS_TREE
+        FROM (
+        SELECT P.NAME, SUM(IO.LINENETAMT) AS AMOUNT, 1 AS TOTALACTUAL, TO_NUMBER(TO_CHAR(now(),'YYYY'))AS ACTUALYEAR, 0 AS REFYEAR, 
+        0 AS AMOUNTREF, 0 AS TOTALREF
+        FROM M_PRODUCT P, C_INVOICELINE IO, C_INVOICE I
+        WHERE I.C_INVOICE_ID = IO.C_INVOICE_ID
+        AND P.M_PRODUCT_ID=IO.M_PRODUCT_ID
+        AND TO_CHAR(I.DATEINVOICED,'YYYY') = ?
+        AND I.ISSOTRX='Y'
+        AND 1=1
+        GROUP BY P.NAME
+        UNION ALL
+        SELECT P.NAME, 0 AS AMOUNT, 0 AS TOTALACTUAL, 0 AS ACTUALYEAR, TO_NUMBER(TO_CHAR(now() -365,'YYYY')) AS REFYEAR, 
+        SUM(IO.LINENETAMT) AS AMOUNTREF, 1 AS TOTALREF
+        FROM M_PRODUCT P, C_INVOICELINE IO, C_INVOICE I
+        WHERE I.C_INVOICE_ID=IO.C_INVOICE_ID
+        AND IO.M_PRODUCT_ID = P.M_PRODUCT_ID
+        AND TO_CHAR(I.DATEINVOICED,'YYYY') = ?
+        AND I.ISSOTRX='Y'
+        AND 2=2
+        GROUP BY P.NAME) AA
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="actualYear"/>
+        <Parameter name="refYear"/>
+        <Parameter name="actualYear"/>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]></Parameter>
+        <Parameter name="refYear"/>
+        <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 2=2">
+        <![CDATA[ AND I.C_BPARTNER_ID IN ]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectABCactualdetail" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT VALUE, COALESCE(SUM(QTYINVOICED),0) AS TOTALACTUAL, COALESCE(SUM(AMOUNT),0) AS AMOUNT, NAME_UOM FROM (
+        SELECT P.NAME AS VALUE, IO.QTYINVOICED AS QTYINVOICED , IO.LINENETAMT AS AMOUNT, U.UOMSYMBOL AS NAME_UOM
+        FROM M_PRODUCT P, C_INVOICELINE IO, C_INVOICE I, C_UOM U
+        WHERE I.C_INVOICE_ID=IO.C_INVOICE_ID
+        AND P.M_PRODUCT_ID=IO.M_PRODUCT_ID
+        AND P.C_UOM_ID = U.C_UOM_ID
+        AND TO_CHAR(I.DATEINVOICED,'YYYY') = ?
+        AND I.ISSOTRX='Y'
+        AND I.C_BPARTNER_ID = ?) AA
+        GROUP BY VALUE, NAME_UOM
+        ORDER BY AMOUNT DESC
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="actualYear"/>
+        <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectABCrefdetail" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT VALUE, COALESCE(SUM(QTYINVOICED),0) AS TOTALACTUAL, COALESCE(SUM(AMOUNT),0) AS AMOUNT, NAME_UOM FROM (
+        SELECT P.NAME AS VALUE, IO.QTYINVOICED AS QTYINVOICED , IO.LINENETAMT AS AMOUNT, U.UOMSYMBOL AS NAME_UOM
+        FROM M_PRODUCT P, C_INVOICELINE IO, C_INVOICE I, C_UOM U
+        WHERE I.C_INVOICE_ID=IO.C_INVOICE_ID
+        AND P.M_PRODUCT_ID=IO.M_PRODUCT_ID
+        AND P.C_UOM_ID = U.C_UOM_ID
+        AND TO_CHAR(I.DATEINVOICED,'YYYY') = ?
+        AND I.ISSOTRX='Y'
+        AND I.C_BPARTNER_ID = ?) AA
+        GROUP BY VALUE, NAME_UOM
+        ORDER BY AMOUNT DESC
+     ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="refYear"/>
+        <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectPaymentsdetail" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[ 
+        SELECT I.DOCUMENTNO AS INVOICENO, AD_COLUMN_IDENTIFIER('FIN_PAYMENTMETHOD',PS.FIN_PAYMENTMETHOD_ID, ?) AS PAYMENTMETHOD, 
+        C_CURRENCY_CONVERT(PS.EXPECTED, I.C_CURRENCY_ID, ?, I.DATEINVOICED, NULL) AS EXPECTED,
+        C_CURRENCY_CONVERT(PS.RECEIVED, I.C_CURRENCY_ID, ?, I.DATEINVOICED, NULL) AS PAID,
+        C_CURRENCY_CONVERT(PS.OUTSTANDING, I.C_CURRENCY_ID, ?, I.DATEINVOICED, NULL) AS OUTSTANDING,
+        PS.FIN_PAYMENT_SCHED_INV_V_ID AS INV_PAYMPLAN_ID, ? AS ISSOTRX,
+        PS.DUEDATE AS DUEDATE
+        FROM FIN_PAYMENT_SCHED_INV_V PS, C_INVOICE I
+        WHERE PS.C_INVOICE_ID = I.C_INVOICE_ID
+        AND I.ISSOTRX = ?
+        AND I.C_BPARTNER_ID = ?
+        AND PS.OUTSTANDING <> 0   
+     ]]></Sql>
+    <Field name="position" value="count"/>
+    <Parameter name="lang"/>
+    <Parameter name="curTo"/>
+    <Parameter name="curTo"/>
+    <Parameter name="curTo"/>
+    <Parameter name="issotrx"/>
+    <Parameter name="issotrx"/>
+    <Parameter name="bPartner"/>
+  </SqlMethod>
+  <SqlMethod name="selectPayments" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT TO_CHAR(?) AS VALUE, 
+        SUM(C_CURRENCY_CONVERT(PS.EXPECTED, I.C_CURRENCY_ID, ?, I.DATEINVOICED, NULL)) AS EXPECTEDHEAD,
+        SUM(C_CURRENCY_CONVERT(PS.RECEIVED, I.C_CURRENCY_ID, ?, I.DATEINVOICED, NULL)) AS PAIDHEAD,
+        SUM(C_CURRENCY_CONVERT(PS.OUTSTANDING, I.C_CURRENCY_ID, ?, I.DATEINVOICED, NULL)) AS OUTSTANDINGHEAD,
+        TO_CHAR('datawarehouseclose') AS CLASS_TREE
+        FROM FIN_PAYMENT_SCHED_INV_V PS, C_INVOICE I
+        WHERE PS.C_INVOICE_ID = I.C_INVOICE_ID
+        AND I.ISSOTRX = ?
+        AND I.C_BPARTNER_ID IN ('x')
+        AND PS.OUTSTANDING <> 0
+        GROUP BY TO_CHAR(?), TO_CHAR('datawarehouseclose')
+     ]]></Sql>
+    <Field name="position" value="count"/>
+    <Parameter name="typeDoc"/>
+    <Parameter name="curTo"/>
+    <Parameter name="curTo"/>
+    <Parameter name="curTo"/>
+    <Parameter name="issotrx"/>
+    <Parameter name="bPartner" optional="true" type="replace" after="I.C_BPARTNER_ID IN " text="('x')"/>
+    <Parameter name="typeDoc"/>
+  </SqlMethod>
+</SqlClass>

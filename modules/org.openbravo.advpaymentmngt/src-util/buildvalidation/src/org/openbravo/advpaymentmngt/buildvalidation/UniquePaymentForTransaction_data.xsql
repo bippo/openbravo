@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="UniquePaymentForTransactionData" package="org.openbravo.advpaymentmngt.buildvalidation">
+  <SqlMethod name="dummy" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT '' AS documentno, '' AS fin_payment_id, '' AS isreceipt, '' AS ad_client_id,
+             '' AS ad_org_id, '' AS ad_role_id
+      FROM DUAL
+    ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectDuplicatePaymentsForTransaction" type="preparedStatement" return="multiple">
+    <SqlMethodComment>This query returns payments that are wrongly linked to more than one transaction</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT ad_column_identifier('fin_payment', t.fin_payment_id, 'en_US') as documentno, t.fin_payment_id, p.isreceipt, p.ad_client_id, p.ad_org_id
+      FROM fin_finacc_transaction t join fin_payment p on (t.fin_payment_id=p.fin_payment_id)
+      GROUP BY t.fin_payment_id, p.isreceipt, p.ad_client_id, p.ad_org_id
+      HAVING count(t.fin_finacc_transaction_id) > 1
+    ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="getAlertRuleId" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT MAX(ad_alertrule_id) AS name
+       FROM AD_ALERTRULE
+       WHERE NAME = ?
+         AND ISACTIVE = 'Y'
+         AND AD_CLIENT_ID = ?
+      ]]></Sql>
+    <Parameter name="name"/>
+    <Parameter name="client"/>
+  </SqlMethod>
+    <SqlMethod name="existsAlert" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT COUNT(*) AS EXISTING
+       FROM AD_ALERT
+       WHERE AD_ALERTRULE_ID = ?
+       AND REFERENCEKEY_ID = ?
+       AND ISFIXED = 'N'
+      ]]>
+    </Sql>
+    <Parameter name="alertRule"/>
+    <Parameter name="payment"/>
+  </SqlMethod>
+  <SqlMethod name="existsAlertRule" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT COUNT(*) AS EXISTING
+       FROM AD_ALERTRULE
+       WHERE NAME = ?
+         AND ISACTIVE = 'Y'
+         AND AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="alertRule"/>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="insertAlertRule" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      INSERT INTO AD_ALERTRULE (
+        AD_ALERTRULE_ID, AD_CLIENT_ID, AD_ORG_ID,ISACTIVE,
+        CREATED, CREATEDBY,  UPDATED, UPDATEDBY,
+        NAME, AD_TAB_ID, FILTERCLAUSE, TYPE,
+        SQL
+      ) VALUES (
+        get_uuid(), ?, ?, 'Y',
+        now(), '100', now(), '100',
+        ?, ?, '', 'D',
+        ?
+      )
+    ]]></Sql>
+    <Parameter name="clientId"/>
+    <Parameter name="orgId"/>
+    <Parameter name="name"/>
+    <Parameter name="tabId"/>
+    <Parameter name="sql"/>
+  </SqlMethod>
+  <SqlMethod name="insertAlert" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      INSERT INTO AD_Alert (
+        AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated, UpdatedBy,
+        Description, AD_AlertRule_ID, Record_Id, Referencekey_ID
+      ) VALUES (
+        get_uuid(), ?, '0', 'Y',
+        NOW(), '0', NOW(), '0',
+        ?, ?, ?, ?)
+      ]]>
+    </Sql>
+    <Parameter name="client"/>
+    <Parameter name="description" />
+    <Parameter name="adAlertRuleId" />
+    <Parameter name="recordId" />
+    <Parameter name="referencekey_id" />
+  </SqlMethod>
+  <SqlMethod name="getRoleId" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT distinct r.ad_role_id
+       FROM ad_window_access wa join ad_role r on (wa.ad_role_id=r.ad_role_id)
+       WHERE wa.ad_window_id = ?
+             AND wa.ad_client_id = ?
+             AND wa.isactive = 'Y'
+             AND r.ismanual = 'Y'
+      ]]></Sql>
+    <Parameter name="window"/>
+    <Parameter name="clientId"/>
+  </SqlMethod>
+  <SqlMethod name="insertAlertRecipient" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+    INSERT INTO ad_alertrecipient(
+            ad_user_id, ad_client_id, ad_org_id, isactive, created, createdby, 
+            updated, updatedby, ad_alertrecipient_id, ad_alertrule_id, ad_role_id, 
+            sendemail)
+    VALUES (null, ?, ?, 'Y', now(), '100', 
+            now(), '100', get_uuid(), ?, ?, 
+            'N')
+      ]]>
+    </Sql>
+    <Parameter name="client"/>
+    <Parameter name="org"/>
+    <Parameter name="adAlertRuleId" />
+    <Parameter name="role" />
+  </SqlMethod>
+  <SqlMethod name="existAPRMbasetables" type="preparedStatement" return="boolean">
+    <SqlMethodComment>Check if the FIN_Finacc_Transaction table exist</SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT count(*) AS EXISTING
+       FROM ad_table
+       WHERE ad_table_id = '4D8C3B3C31D1410DA046140C9F024D17'
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

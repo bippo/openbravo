@@ -1,0 +1,191 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_DEBT_PAYMENT_BALANCING_REP">
+    <function name="C_DEBT_PAYMENT_BALANCING_REP" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    Cur_DebtPaymentBalancing RECORD;
+    v_C_Debt_Payment_ID VARCHAR2(32) ;
+    v_C_Debt_Payment_Balancing VARCHAR2(32) ;
+    v_AmountCredit NUMBER(10) ;
+    v_AmountDebit NUMBER(10) ;
+    v_Amount NUMBER(10) ;
+    v_IsDirectPosting CHAR(1) ;
+    v_Posted VARCHAR2(60) ;
+    v_IsReceipt CHAR(1) ;
+    v_Processed VARCHAR2(60) ;
+    FINISH_PROCESS BOOLEAN:=false;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    SELECT i.Record_ID,
+      i.AD_User_ID
+    INTO v_Record_ID,
+      v_AD_User_ID
+    FROM AD_PINSTANCE i
+    WHERE i.AD_PInstance_ID=p_PInstance_ID;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    SELECT C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID,
+      SUM(C_DEBT_PAYMENT_BAL_REPLACE.AMOUNTDEBIT),
+      SUM(C_DEBT_PAYMENT_BAL_REPLACE.AMOUNTCREDIT),
+      C_DEBT_PAYMENT.ISRECEIPT
+    INTO v_C_Debt_Payment_ID,
+      v_AmountDebit,
+      v_AmountCredit,
+      v_IsReceipt
+    FROM C_DEBT_PAYMENT_BAL_REPLACE,
+      C_DEBT_PAYMENT
+    WHERE C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID=C_DEBT_PAYMENT_BAL_REPLACE.C_DEBT_PAYMENT_ID
+     and C_DEBT_PAYMENT.C_DEBT_PAYMENT_id = (select c_debt_payment_id
+                                               from C_DEBT_PAYMENT_BAL_REPLACE
+                                              where C_DEBT_PAYMENT_BAL_REPLACE_ID=v_Record_ID)
+    GROUP BY C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID,
+      C_DEBT_PAYMENT.ISRECEIPT;
+    SELECT POSTED,
+      PROCESSED
+    INTO v_Posted,
+      v_Processed
+    FROM C_SETTLEMENT
+    WHERE C_SETTLEMENT_ID=
+      (SELECT C_SETTLEMENT_GENERATE_ID
+      FROM C_DEBT_PAYMENT
+      WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID
+      )
+      ;
+    IF(v_Posted='Y') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@SettlementDocumentPosted@') ;
+    ELSE
+      SELECT ISDIRECTPOSTING
+      INTO v_IsDirectPosting
+      FROM C_DEBT_PAYMENT
+      WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID;
+      IF(v_IsDirectPosting='N') THEN
+        SELECT COALESCE(MAX(POSTED), 'N')
+        INTO v_Posted
+        FROM C_SETTLEMENT
+        WHERE C_SETTLEMENT_ID=
+          ( SELECT C_SETTLEMENT_CANCEL_ID
+          FROM C_DEBT_PAYMENT
+          WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID
+          )
+          ;
+        IF(v_Posted='Y') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SettlementCancelPosted@') ;
+        END IF;
+      END IF;
+    END IF;
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsReceipt='N') THEN
+        v_Amount:=v_AmountDebit - v_AmountCredit;
+      ELSE
+        v_Amount:=v_AmountCredit - v_AmountDebit;
+      END IF;
+      SELECT AMOUNT
+      INTO v_AmountDebit
+      FROM C_DEBT_PAYMENT
+      WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID;
+      v_Amount:=v_Amount - v_AmountDebit;
+      IF(v_Amount=0) THEN
+        IF(v_Processed='Y') THEN
+          UPDATE C_SETTLEMENT
+            SET PROCESSED='N'
+          WHERE C_SETTLEMENT_ID=
+            (SELECT C_SETTLEMENT_GENERATE_ID
+            FROM C_DEBT_PAYMENT
+            WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID
+            )
+            ;
+        END IF;
+        DELETE
+        FROM C_DEBT_PAYMENT_BALANCING
+        WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID;
+        FOR Cur_DebtPaymentBalancing in
+          (SELECT AMOUNTDEBIT,
+            AMOUNTCREDIT,
+            C_DEBT_PAYMENT_ID,
+            C_GLITEM_ID,
+            ISACTIVE,
+            CREATEDBY,
+            UPDATEDBY,
+            AD_CLIENT_ID,
+            AD_ORG_ID
+          FROM C_DEBT_PAYMENT_BAL_REPLACE
+          WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID
+          )
+        LOOP
+          Ad_Sequence_Next('C_Debt_Payment_Balancing', v_C_Debt_Payment_ID, v_C_Debt_Payment_Balancing) ;
+          INSERT
+          INTO C_DEBT_PAYMENT_BALANCING
+            (
+              C_DEBT_PAYMENT_BALANCING_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+              CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              AMOUNTDEBIT, AMOUNTCREDIT, C_GLITEM_ID, C_DEBT_PAYMENT_ID
+            )
+            VALUES
+            (
+              v_C_Debt_Payment_Balancing, Cur_DebtPaymentBalancing.AD_CLIENT_ID, Cur_DebtPaymentBalancing.AD_ORG_ID, Cur_DebtPaymentBalancing.ISACTIVE,
+              now(), Cur_DebtPaymentBalancing.CREATEDBY, now(), Cur_DebtPaymentBalancing.UPDATEDBY,
+              Cur_DebtPaymentBalancing.AMOUNTDEBIT, Cur_DebtPaymentBalancing.AMOUNTCREDIT, Cur_DebtPaymentBalancing.C_GLITEM_ID, Cur_DebtPaymentBalancing.C_DEBT_PAYMENT_ID
+            )
+            ;
+        END LOOP;
+        DELETE
+        FROM C_DEBT_PAYMENT_BAL_REPLACE
+        WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID;
+        IF(v_Processed='Y') THEN
+          UPDATE C_SETTLEMENT
+            SET PROCESSED='Y'
+          WHERE C_SETTLEMENT_ID=
+            (SELECT C_SETTLEMENT_GENERATE_ID
+            FROM C_DEBT_PAYMENT
+            WHERE C_DEBT_PAYMENT_ID=v_C_Debt_Payment_ID
+            )
+            ;
+        END IF;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ProcessFailed@') ;
+      END IF;
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_DEBT_PAYMENT_BALANCING_REP
+]]></body>
+    </function>
+  </database>

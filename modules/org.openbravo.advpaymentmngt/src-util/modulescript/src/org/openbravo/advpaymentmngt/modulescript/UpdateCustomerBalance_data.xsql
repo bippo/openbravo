@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ************************************************************************************
+ * Copyright (C) 2011 Openbravo S.L.U.
+ * Licensed under the Openbravo Commercial License version 1.0
+ * You may obtain a copy of the License at http://www.openbravo.com/legal/obcl.html
+ * or in the legal folder of this module distribution.
+ ************************************************************************************
+-->
+<SqlClass name="UpdateCustomerBalanceData" package="org.openbravo.advpaymentmngt.modulescript">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' as c_bpartner_id, '' as customercredit, '' as existpreference FROM DUAL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="isCustomerBalanceFixed" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(*) as existpreference
+        FROM ad_preference
+        WHERE attribute = 'IsCustomerBalanceRestored'
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="resetCustomerCredit" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE c_bpartner SET so_creditused = 0, updatedby='0', updated=now()
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="calculateCustomerCredit" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT A.c_bpartner_id, SUM(A.amount) as customercredit
+        FROM (SELECT c_bpartner_id, COALESCE(SUM(ps.amount * (CASE WHEN inv.issotrx = 'Y' THEN 1 ELSE -1 END)), 0) as amount
+              FROM fin_payment_schedule ps join c_invoice inv on (ps.c_invoice_id = inv.c_invoice_id)
+              WHERE ps.outstandingamt <> 0
+              GROUP BY c_bpartner_id
+              UNION ALL
+              SELECT p.c_bpartner_id, COALESCE(SUM((p.generated_credit - p.used_credit) * (CASE WHEN p.isreceipt = 'Y' THEN 1 ELSE -1 END)), 0) as amount
+              FROM FIN_PAYMENT p
+              WHERE p.c_bpartner_id is not null
+                    AND (p.generated_credit - p.used_credit) <> 0
+                    AND p.generated_credit <> 0
+                    AND p.processed = 'Y'
+              GROUP BY p.c_bpartner_id) A
+        GROUP BY A.c_bpartner_id
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateCustomerCredit" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE c_bpartner SET so_creditused = TO_NUMBER(?), updatedby='0', updated=now() WHERE c_bpartner_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="cumstomeCredit"/>
+    <Parameter name="businessPartnerId"/>
+  </SqlMethod>
+</SqlClass>

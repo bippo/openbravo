@@ -1,0 +1,221 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_COMMISSIONRUN_PROCESS">
+    <function name="C_COMMISSIONRUN_PROCESS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/******************************************************************************
+  * The contents of this file are subject to the   Compiere License  Version 1.1
+  * ("License"); You may not use this file except in compliance with the License
+  * You may obtain a copy of the License at http://www.compiere.org/license.html
+  * Software distributed under the License is distributed on an  "AS IS"  basis,
+  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+  * the specific language governing rights and limitations under the License.
+  * The Original Code is                  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2009 Openbravo S.L.U.
+  ******************************************************************************/
+ -- Logistice
+ v_ResultStr     VARCHAR2(2000) := '';
+ v_Message     VARCHAR2(2000) := '';
+ v_Record_ID      varchar2(32);
+ v_Result      NUMBER(10) := 1; -- Success
+ -- Parameter
+TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+ -- Parameter Variables
+
+  CUR_ComRun RECORD;
+ --
+ v_C_DocType_ID     varchar2(32);
+ v_C_Invoice_ID     varchar2(32);
+ v_NextNo      VARCHAR2(32);
+ v_DocumentNo     VARCHAR2(40);
+ v_SalesRep_ID     varchar2(32);
+ --
+ v_C_BPartner_ID     varchar2(32);
+ v_C_BPartner_Location_ID  varchar2(32);
+ v_partnername VARCHAR2(100);
+ v_C_PaymentTerm_ID    varchar2(32);
+ v_C_Currency_ID     varchar2(32);
+ v_PaymentRule     VARCHAR(60);
+ v_M_PriceList_ID    varchar2(32);
+ v_POReference     varchar2(20);
+ v_Product_ID     varchar2(32);
+ v_Tax_ID      varchar2(32);
+ v_UOM_ID      varchar2(32);
+ v_IsDiscountPrinted    CHAR(1);
+ v_CommissionName VARCHAR(60);
+  FINISH_PROCESS BOOLEAN := false;
+BEGIN
+    --  Update AD_PInstance
+ DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID);
+ v_ResultStr := 'PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL);
+ BEGIN --BODY
+ -- Get Parameters
+ v_ResultStr := 'ReadingParameters';
+ FOR Cur_Parameter IN (SELECT i.Record_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date
+  FROM AD_PINSTANCE i LEFT JOIN AD_PINSTANCE_PARA p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+  WHERE i.AD_PInstance_ID=p_PInstance_ID
+  ORDER BY p.SeqNo) LOOP
+  v_Record_ID := Cur_Parameter.Record_ID;
+ -- IF (Cur_Parameter.ParameterName = 'xx') THEN
+  --  xx := Cur_Parameter.P_String;
+ --  DBMS_OUTPUT.PUT_LINE('  xx=' || xx);
+ -- ELSE
+ --  DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName);
+ --  END IF;
+ END LOOP; -- Get Parameter
+ DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID);
+
+
+ FOR CUR_ComRun IN (SELECT *
+  FROM C_COMMISSIONRUN
+  WHERE C_CommissionRun_ID = v_Record_ID) LOOP
+  /**
+   * Create Header
+   */
+   v_ResultStr := 'GetDocTypeInfo';
+  v_C_DocType_ID := Ad_Get_DocType(CUR_ComRun.AD_Client_ID,CUR_ComRun.AD_Org_ID, 'API');
+
+    DECLARE
+      Cur_Data RECORD;
+      BEGIN
+        FOR Cur_Data IN (SELECT com.Name, com.C_Currency_ID, com.C_BPartner_ID, pl.C_BPartner_Location_ID,
+            PaymentRulePO, PO_PaymentTerm_ID, PO_PriceList_ID,
+          POReference, IsDiscountPrinted, p.SalesRep_ID, com.M_Product_ID, C_UOM_ID, p.name as bpartnername
+         FROM  C_BPARTNER p, C_COMMISSION com LEFT JOIN C_BPARTNER_LOCATION pl ON com.C_BPartner_ID = pl.C_BPartner_ID
+                                              LEFT JOIN M_Product prd ON com.M_Product_ID = prd.M_Product_ID
+         WHERE com.C_Commission_ID = CUR_ComRun.C_Commission_ID
+           AND com.C_BPartner_ID = p.C_BPartner_ID) LOOP
+          v_CommissionName:=Cur_Data.Name;
+          v_C_Currency_ID:=Cur_Data.C_Currency_ID;
+          v_C_BPartner_ID:=Cur_Data.C_BPartner_ID;
+          v_C_BPartner_Location_ID:=Cur_Data.C_BPartner_Location_ID;
+          v_PaymentRule:=Cur_Data.PaymentRulePO;
+          v_C_PaymentTerm_ID:=Cur_Data.PO_PaymentTerm_ID;
+          v_M_PriceList_ID:=Cur_Data.PO_PriceList_ID;
+          v_POReference:=Cur_Data.POReference;
+          v_IsDiscountPrinted:=Cur_Data.IsDiscountPrinted;
+          v_SalesRep_ID:=Cur_Data.SalesRep_ID;
+          v_Product_ID:=Cur_Data.M_Product_ID;
+          v_UOM_ID:=Cur_Data.C_UOM_ID;
+          v_partnername:=Cur_Data.bpartnername;
+          EXIT;
+        END LOOP;
+      END;
+  --
+  IF (v_PaymentRule IS NULL) THEN
+   v_PaymentRule := 'P';
+  END IF;
+  IF (v_IsDiscountPrinted IS NULL) THEN
+   v_IsDiscountPrinted := 'N';
+  END IF;
+  IF (v_Product_ID IS NULL) THEN
+  	 RAISE_APPLICATION_ERROR(-20000, '@Commission@ '||v_CommissionName||' @InvoicedProductNotdefined@');
+  END IF;
+  IF (v_C_BPartner_Location_ID IS NULL) THEN
+  	 RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@ '||v_partnername||' @ShiptoNotdefined@');
+  END IF;
+  IF (v_C_PaymentTerm_ID IS NULL) THEN
+  	 RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@ '||v_partnername||' @PaymenttermNotdefined@');
+  END IF;
+  IF (v_M_PriceList_ID IS NULL) THEN
+   RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@ '||v_partnername||' @PricelistNotdefined@');
+  END IF;
+    IF (NOT FINISH_PROCESS) THEN
+  --
+  v_ResultStr := 'GetDocSequenceInfo';
+  Ad_Sequence_Next('C_Invoice', CUR_ComRun.AD_Client_ID, v_C_Invoice_ID);
+   Ad_Sequence_Doctype(v_C_DocType_ID, CUR_ComRun.AD_Client_ID, 'Y', v_DocumentNo);
+   IF (v_DocumentNo IS NULL) THEN
+      Ad_Sequence_Doc('DocumentNo_C_Invoice', CUR_ComRun.AD_Client_ID, 'Y', v_DocumentNo);
+   END IF;
+  IF (v_DocumentNo IS NULL) THEN
+   v_DocumentNo := CUR_ComRun.DocumentNo;
+     END IF;
+  --
+  DBMS_OUTPUT.PUT_LINE('  Invoice_ID=' || v_C_Invoice_ID || ' DocumentNo=' || v_DocumentNo);
+  --
+  v_ResultStr := 'InsertInvoice ' || v_C_Invoice_ID;
+  INSERT INTO C_INVOICE
+   (C_Invoice_ID, C_Order_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+   IsSOTrx, DocumentNo, DocStatus, DocAction, Processing, Processed,
+   C_DocType_ID, C_DocTypeTarget_ID, Description,
+   SalesRep_ID,
+   DateInvoiced, DatePrinted, IsPrinted, DateAcct, TaxDate,
+   C_PaymentTerm_ID, C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID,
+   POReference, DateOrdered, IsDiscountPrinted,
+   C_Currency_ID, PaymentRule, C_Charge_ID, ChargeAmt,
+   TotalLines, GrandTotal,
+   M_PriceList_ID, C_Campaign_ID, C_Project_ID, C_Activity_ID)
+  VALUES
+   (v_C_Invoice_ID, NULL,
+   CUR_ComRun.AD_Client_ID, CUR_ComRun.AD_Org_ID, 'Y', now(), '0', now(), '0',
+   'N', v_DocumentNo, 'DR', 'CO', 'N', 'N',
+   v_C_DocType_ID, v_C_DocType_ID, CUR_ComRun.Description,
+   v_SalesRep_ID,
+   CUR_ComRun.Updated, NULL, 'N', CUR_ComRun.Updated, CUR_ComRun.Updated, -- DateInvoiced=DateAcct
+   v_C_PaymentTerm_ID, v_C_BPartner_ID, v_C_BPartner_Location_ID, NULL,
+   v_POReference, CUR_ComRun.Updated, v_IsDiscountPrinted,
+   v_C_Currency_ID, v_PaymentRule, NULL, 0,
+   0, 0,
+   v_M_PriceList_ID, NULL, NULL, NULL);
+
+  -- One line with Total (TODO: Tax, UOM)
+  v_Tax_ID := C_Gettax (v_Product_ID,CUR_ComRun.Updated,CUR_ComRun.AD_Org_ID,NULL,v_C_BPartner_Location_ID,v_C_BPartner_Location_ID,NULL,'N');
+
+  v_ResultStr := 'InsertLine';
+  Ad_Sequence_Next('C_InvoiceLine', CUR_ComRun.AD_Client_ID, v_NextNo);
+  INSERT INTO C_INVOICELINE
+   (C_InvoiceLine_ID,
+   AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+   C_Invoice_ID, C_OrderLine_ID, M_InOutLine_ID,
+   Line, Description,
+   M_Product_ID, QtyInvoiced, PriceList, PriceActual, PriceLimit, LineNetAmt,
+   C_Charge_ID, ChargeAmt, C_UOM_ID, C_Tax_ID
+   --MODIFIED BY F.IRIAZABAL
+   , QUANTITYORDER, M_PRODUCT_UOM_ID,
+   PriceStd, M_Offer_ID)
+  VALUES
+   (v_NextNo,
+   CUR_ComRun.AD_Client_ID, CUR_ComRun.AD_Org_ID, 'Y', now(), '0', now(), '0',
+   v_C_Invoice_ID, NULL, NULL,
+   10, NULL,
+   v_Product_ID, 1, CUR_ComRun.GrandTotal, CUR_ComRun.GrandTotal, CUR_ComRun.GrandTotal, CUR_ComRun.GrandTotal,
+   NULL, 0, v_UOM_ID, v_Tax_ID
+   --MODIFIED BY F.IRIAZABAL
+   , NULL, NULL,
+   CUR_ComRun.GrandTotal, NULL);
+
+  UPDATE C_CommissionRun
+  SET C_Invoice_ID = v_C_Invoice_ID
+  WHERE C_CommissionRun_ID = v_Record_ID;
+ END IF;--FINISH_PROCESS
+ v_Message := '@InvoiceDocumentno@ ' || v_DocumentNo;
+ END LOOP;--FINISH_PROCESS
+
+
+--<<FINISH_PROCESS>>
+ --  Update AD_PInstance
+ DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message);
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message);
+    RETURN;
+
+ END; --BODY
+EXCEPTION
+    WHEN  OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr);
+  ROLLBACK;
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr);
+        RETURN;
+END C_COMMISSIONRUN_PROCESS
+]]></body>
+    </function>
+  </database>

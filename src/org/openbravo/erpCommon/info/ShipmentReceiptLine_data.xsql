@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ShipmentReceiptLineData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+				SELECT * FROM ( SELECT '0' AS RN1, A.* FROM (  
+          SELECT ml.M_INOUTLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY AS QTY, l.VALUE AS LOCATOR_NAME, a.DESCRIPTION AS ATTRIBUTE_NAME, 
+          (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) AS LINE_TEXT,
+					ml.M_INOUTLINE_ID || '@_##_@' || (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) as rowkey
+          FROM M_INOUTLINE ml left join M_ATTRIBUTESETINSTANCE a on ml.M_ATTRIBUTESETINSTANCE_ID = a.M_ATTRIBUTESETINSTANCE_ID
+                              left join M_LOCATOR l on ml.M_LOCATOR_ID = l.M_LOCATOR_ID,
+               M_INOUT m,  M_PRODUCT p, C_BPARTNER b
+          WHERE m.M_INOUT_ID = ml.M_INOUT_ID 
+          AND m.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ml.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND m.AD_CLIENT_ID IN ('1') 
+          AND m.AD_ORG_ID IN ('1') 
+          AND m.IsActive='Y' 
+          AND m.ISSOTRX = 'Y' 
+          AND ml.ISINVOICED = ?
+          ORDER BY ml.M_INOUTLINE_ID
+				) A ) B
+				WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+				<Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="m.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(ml.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.C_BPartner_ID=? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate < to_date(?) ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND ml.M_Product_ID=? ]]></Parameter>
+        <Parameter name="isinvoiced"/>
+				<Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="ml.M_INOUTLINE_ID" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+                SELECT COUNT(*) AS VALUE FROM ( SELECT '0' AS RN1, B.* FROM (  
+          SELECT ml.M_INOUTLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY AS QTY, l.VALUE AS LOCATOR_NAME, a.DESCRIPTION AS ATTRIBUTE_NAME, 
+          (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) AS LINE_TEXT,
+                    ml.M_INOUTLINE_ID || '@_##_@' || (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) as rowkey
+          FROM M_INOUTLINE ml left join M_ATTRIBUTESETINSTANCE a on ml.M_ATTRIBUTESETINSTANCE_ID = a.M_ATTRIBUTESETINSTANCE_ID
+                              left join M_LOCATOR l on ml.M_LOCATOR_ID = l.M_LOCATOR_ID,
+               M_INOUT m,  M_PRODUCT p, C_BPARTNER b
+          WHERE m.M_INOUT_ID = ml.M_INOUT_ID 
+          AND m.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ml.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND m.AD_CLIENT_ID IN ('1') 
+          AND m.AD_ORG_ID IN ('1') 
+          AND m.IsActive='Y' 
+          AND m.ISSOTRX = 'Y' 
+          AND ml.ISINVOICED = ?
+          AND 1=1
+                ) B) A 
+               
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+                <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="m.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(ml.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.C_BPartner_ID = ? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate < to_date(?) ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND ml.M_Product_ID = ? ]]></Parameter>
+        <Parameter name="isinvoiced"/>
+        <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="countRowsSO" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+          SELECT COUNT(*) AS VALUESO FROM ( SELECT '0' AS RN1, B.* FROM (  
+          SELECT 1 FROM  M_INOUTLINE ml left join  M_ATTRIBUTESETINSTANCE a on ml.M_ATTRIBUTESETINSTANCE_ID = a.M_ATTRIBUTESETINSTANCE_ID
+                               left join M_LOCATOR l on ml.M_LOCATOR_ID = l.M_LOCATOR_ID
+                               left join M_MATCHINV mi on  ml.M_INOUTLINE_ID = mi.M_INOUTLINE_ID,
+                               M_INOUT m, M_PRODUCT p, C_BPARTNER b 
+          WHERE m.M_INOUT_ID = ml.M_INOUT_ID 
+          AND m.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ml.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND m.AD_CLIENT_ID IN ('1') 
+          AND m.AD_ORG_ID IN ('1') 
+          AND m.IsActive='Y' 
+          GROUP BY ml.M_INOUTLINE_ID, b.NAME, p.NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY, l.VALUE, a.DESCRIPTION, ml.LINE
+          HAVING (ml.MOVEMENTQTY - COALESCE(SUM(mi.QTY),0)) = 0 
+               ) B ) A 
+        ]]>
+        </Sql>
+                <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Field name="position" value="count"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="m.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(ml.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.C_BPartner_ID = ? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate < to_date(?) ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND ml.M_Product_ID = ? ]]></Parameter>
+        <Parameter name="isinvoiced" optional="true" type="replace" after="(ml.MOVEMENTQTY - COALESCE(SUM(mi.QTY),0)) " text="="/>
+        <Parameter name="pgLimit" type="argument" optional="true" after=" = 0 "><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B "><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="selectSOTrx" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+				SELECT * FROM ( SELECT '0' AS RN1, A.* FROM (  
+          SELECT ml.M_INOUTLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY AS QTY, l.VALUE AS LOCATOR_NAME, a.DESCRIPTION AS ATTRIBUTE_NAME, 
+          (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) AS LINE_TEXT,
+					ml.M_INOUTLINE_ID || '@_##_@' || (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) as rowkey
+          FROM  M_INOUTLINE ml left join  M_ATTRIBUTESETINSTANCE a on ml.M_ATTRIBUTESETINSTANCE_ID = a.M_ATTRIBUTESETINSTANCE_ID
+                               left join M_LOCATOR l on ml.M_LOCATOR_ID = l.M_LOCATOR_ID
+                               left join M_MATCHINV mi on  ml.M_INOUTLINE_ID = mi.M_INOUTLINE_ID,
+                M_INOUT m, M_PRODUCT p, C_BPARTNER b 
+          WHERE m.M_INOUT_ID = ml.M_INOUT_ID 
+          AND m.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ml.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND m.AD_CLIENT_ID IN ('1') 
+          AND m.AD_ORG_ID IN ('1') 
+          AND m.IsActive='Y' 
+          GROUP BY ml.M_INOUTLINE_ID, b.NAME, p.NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY, l.VALUE, a.DESCRIPTION, ml.LINE
+          HAVING (ml.MOVEMENTQTY - COALESCE(SUM(mi.QTY),0)) = 0
+          ORDER BY ml.M_INOUTLINE_ID
+				) A ) B
+				WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+				<Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="m.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(ml.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND UPPER(m.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.C_BPartner_ID=? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND m.MovementDate < to_date(?) ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND m.IsActive='Y'"><![CDATA[ AND ml.M_Product_ID=? ]]></Parameter>
+        <Parameter name="isinvoiced" optional="true" type="replace" after="(ml.MOVEMENTQTY - COALESCE(SUM(mi.QTY),0)) " text="="/>
+				<Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="ml.M_INOUTLINE_ID" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="selectKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT ml.M_INOUTLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY AS QTY, l.VALUE AS LOCATOR_NAME, a.DESCRIPTION AS ATTRIBUTE_NAME, 
+          (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) AS LINE_TEXT
+          FROM M_INOUTLINE ml left join  M_ATTRIBUTESETINSTANCE a on ml.M_ATTRIBUTESETINSTANCE_ID = a.M_ATTRIBUTESETINSTANCE_ID,
+          M_INOUT m,  M_PRODUCT p, C_BPARTNER b, M_LOCATOR l
+          WHERE m.M_INOUT_ID = ml.M_INOUT_ID 
+          AND m.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ml.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND ml.M_LOCATOR_ID = l.M_LOCATOR_ID 
+          AND m.AD_CLIENT_ID IN ('1') 
+          AND m.AD_ORG_ID IN ('1') 
+          AND m.IsActive='Y' 
+          AND UPPER(m.DOCUMENTNO) LIKE UPPER(?) 
+          AND m.ISSOTRX = 'Y' 
+          AND ml.ISINVOICED = 'N'
+          ORDER BY b.NAME, m.MOVEMENTDATE, m.DOCUMENTNO, ml.LINE
+      ]]>
+      </Sql>
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="m.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="key"/>
+   </SqlMethod>
+   <SqlMethod name="selectKeySOTrx" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT ml.M_INOUTLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY AS QTY, l.VALUE AS LOCATOR_NAME, a.DESCRIPTION AS ATTRIBUTE_NAME, 
+          (ml.LINE || ' - ' || ml.MOVEMENTQTY || ' - ' || m.DOCUMENTNO || ' - ' || m.MOVEMENTDATE || 
+          ' - ' || p.NAME) AS LINE_TEXT
+          FROM  M_INOUTLINE ml left join M_ATTRIBUTESETINSTANCE a on ml.M_ATTRIBUTESETINSTANCE_ID = a.M_ATTRIBUTESETINSTANCE_ID
+                               left join  M_MATCHINV mi on ml.M_INOUTLINE_ID = mi.M_INOUTLINE_ID,
+          M_INOUT m,  M_PRODUCT p, C_BPARTNER b,  M_LOCATOR l
+          WHERE m.M_INOUT_ID = ml.M_INOUT_ID 
+          AND m.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ml.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND ml.M_LOCATOR_ID = l.M_LOCATOR_ID 
+          AND m.AD_CLIENT_ID IN ('1') 
+          AND m.AD_ORG_ID IN ('1') 
+          AND m.IsActive='Y' 
+          AND UPPER(m.DOCUMENTNO) LIKE UPPER(?) 
+          AND m.ISSOTRX = 'N' 
+          GROUP BY ml.M_INOUTLINE_ID, b.NAME, p.NAME, m.MOVEMENTDATE, m.DOCUMENTNO, 
+          m.ISSOTRX, ml.MOVEMENTQTY, l.VALUE, a.DESCRIPTION, ml.LINE
+          HAVING (ml.MOVEMENTQTY - COALESCE(SUM(mi.QTY),0)) > 0
+          ORDER BY b.NAME, m.MOVEMENTDATE, m.DOCUMENTNO, ml.LINE
+      ]]>
+      </Sql>
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="m.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="key"/>
+   </SqlMethod>
+   <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+      ]]>
+      </Sql>
+        <Parameter name="cBpartnerId"/>
+   </SqlMethod>
+   <SqlMethod name="selectProduct" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT NAME FROM M_PRODUCT WHERE M_PRODUCT_ID=?
+      ]]>
+      </Sql>
+        <Parameter name="mProductId"/>
+   </SqlMethod>
+   <SqlMethod name="getProductID" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT M_PRODUCT_ID FROM M_PRODUCT WHERE UPPER(NAME)=UPPER(?)
+      ]]>
+      </Sql>
+        <Parameter name="name"/>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass id="class" name="Almacen" package="org.openbravo.wad.Window">
+  <SqlClassComment>Clase AlmacenData</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>&#60;&#33;[CDATA[
+        SELECT <PARAMETER_TMP id="key">key</PARAMETER_TMP> AS ID, 
+        <PARAMETER_TMP id="fields">field</PARAMETER_TMP> AS NAME, <PARAMETER_TMP id="key">key</PARAMETER_TMP>, '' AS SHOWN, 
+        '' AS seqno_Param, '' AS TOTAL, '' AS ISINDEVELOPMENT,
+        <PARAMETER_TMP id="parent">        <PARENT_TMP id="keyParent">Almacen</PARENT_TMP>, </PARAMETER_TMP>
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.Created, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.CreatedBy, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.Updated, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.UpdatedBy, ? AS LANGUAGE 
+        FROM <PARAMETER_TMP id="table">table</PARAMETER_TMP><PARAMETER_TMP id="tables">tables</PARAMETER_TMP>
+        WHERE 2=2 
+        <PARAMETER_TMP id="where">tablesWhere</PARAMETER_TMP>
+        AND <PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Client_ID IN ('1') 
+<PARAMETER_TMP id="org">        AND <PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Org_ID IN ('1') </PARAMETER_TMP>
+<PARAMETER_TMP id="parent">        AND <PARENT_TMP id="keyParent">Almacen</PARENT_TMP> = ?</PARAMETER_TMP>
+        AND <PARAMETER_TMP id="table">table</PARAMETER_TMP>.<PARAMETER_TMP id="SortConditionField">table</PARAMETER_TMP> = 'Y' 
+        <PARAMETER_TMP id="order">tablesOrder</PARAMETER_TMP>
+    ]]&#62;</Sql>
+    <Parameter name="paramLanguage"/>
+    <PARAMETER_TMP id="parameters">xx</PARAMETER_TMP>
+    &#60;Parameter name="adUserClient" type="replace" optional="true" after="<PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Client_ID IN (" text="'1'"/&#62;
+<PARAMETER_TMP id="org">    &#60;Parameter name="adOrgClient" type="replace" optional="true" after="<PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Org_ID IN (" text="'1'"/&#62;</PARAMETER_TMP>
+<PARAMETER_TMP id="parent">    <Parameter name="param1"/></PARAMETER_TMP>
+  </SqlMethod>
+
+  <SqlMethod name="selectNotShown" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>&#60;&#33;[CDATA[
+        SELECT <PARAMETER_TMP id="key">key</PARAMETER_TMP> AS ID, 
+        <PARAMETER_TMP id="fields">field</PARAMETER_TMP> AS NAME, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.Created, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.CreatedBy, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.Updated, 
+        <PARAMETER_TMP id="table">table</PARAMETER_TMP>.UpdatedBy, ? AS LANGUAGE 
+        FROM <PARAMETER_TMP id="table">table</PARAMETER_TMP><PARAMETER_TMP id="tables">tables</PARAMETER_TMP>
+        WHERE 2=2 
+        <PARAMETER_TMP id="where">tablesWhere</PARAMETER_TMP>
+        AND <PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Client_ID IN ('1') 
+<PARAMETER_TMP id="org">        AND <PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Org_ID IN ('1') </PARAMETER_TMP>
+<PARAMETER_TMP id="parent">        AND <PARENT_TMP id="keyParent">Almacen</PARENT_TMP> = ?</PARAMETER_TMP>
+        AND <PARAMETER_TMP id="table">table</PARAMETER_TMP>.<PARAMETER_TMP id="SortConditionField">table</PARAMETER_TMP> = 'N' 
+        <PARAMETER_TMP id="order">tablesOrder</PARAMETER_TMP>
+    ]]&#62;</Sql>
+    <Parameter name="paramLanguage"/>
+    <PARAMETER_TMP id="parameters">xx</PARAMETER_TMP>
+    &#60;Parameter name="adUserClient" type="replace" optional="true" after="<PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Client_ID IN (" text="'1'"/&#62;
+<PARAMETER_TMP id="org">    &#60;Parameter name="adOrgClient" type="replace" optional="true" after="<PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_Org_ID IN (" text="'1'"/&#62;</PARAMETER_TMP>
+<PARAMETER_TMP id="parent">    <Parameter name="param1"/></PARAMETER_TMP>
+  </SqlMethod>
+  
+  <SqlMethod name="selectInDevelopmentModule" type="preparedStatement" return="string">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>&#60;&#33;[CDATA[
+        SELECT ISINDEVELOPMENT  
+        FROM <PARAMETER_TMP id="table">table</PARAMETER_TMP>, AD_MODULE M
+        WHERE M.AD_MODULE_ID = <PARAMETER_TMP id="table">table</PARAMETER_TMP>.AD_MODULE_ID
+         AND <PARAMETER_TMP id="key">table</PARAMETER_TMP> = ? 
+    ]]&#62;</Sql>
+    <Parameter id="paramKey" name="param1"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSeqNo" type="preparedStatement" return="string">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>&#60;&#33;[CDATA[
+        SELECT <FIELD_TMP id="SortField">column_a</FIELD_TMP>
+        FROM <PARAMETER_TMP id="table">table</PARAMETER_TMP>
+        WHERE <PARAMETER_TMP id="key">table</PARAMETER_TMP> = ? 
+    ]]&#62;</Sql>
+    <Parameter id="paramKey" name="param1"/>
+  </SqlMethod>
+
+<PARAMETER_TMP id="parent"><FIELDS_TMP id="sectionParent">
+   &#60;SqlMethod name="selectParent" type="preparedStatement" return="String" default=""&#62;
+    &#60;SqlMethodComment&#62;Select for parent field&#60;/SqlMethodComment&#62;
+    &#60;Sql&#62;&#60;&#33;[CDATA[
+        <PARAMETER_TMP id="SelectParent">select</PARAMETER_TMP> 
+    ]]&#62;&#60;/Sql&#62;
+<PARAMETER_TMP id="paramsParent">  f</PARAMETER_TMP>
+  &#60;/SqlMethod&#62;
+</FIELDS_TMP>
+
+<FIELDS_TMP id="sectionParentTrl">
+   &#60;SqlMethod name="selectParentTrl" type="preparedStatement" return="String" default=""&#62;
+    &#60;SqlMethodComment&#62;Select for parent field&#60;/SqlMethodComment&#62;
+    &#60;Sql&#62;&#60;&#33;[CDATA[
+        <PARAMETER_TMP id="SelectParentTrl">select</PARAMETER_TMP> 
+    ]]&#62;&#60;/Sql&#62;
+<PARAMETER_TMP id="paramsParentTrl">  f</PARAMETER_TMP>
+  &#60;/SqlMethod&#62;
+</FIELDS_TMP></PARAMETER_TMP>
+
+  <SqlMethod name="updateY" type="preparedStatement" connection="true" return="rowCount" static="false">
+    <Sql>&#60;&#33;[CDATA[
+        UPDATE <PARAMETER_TMP id="table">table</PARAMETER_TMP>
+        SET <FIELD_TMP id="SortConditionField">fieldSort</FIELD_TMP>='Y', <FIELD_TMP id="SortField">column_a</FIELD_TMP> = TO_NUMBER(?), updated = now(), updatedby = ? 
+        WHERE <PARAMETER_TMP id="key">table</PARAMETER_TMP> = ? 
+        <PARAMETER_TMP id="parent">         AND <PARAMETER_TMP id="keyParent">xx</PARAMETER_TMP> = ? </PARAMETER_TMP>
+    ]]&#62;</Sql>
+    <Parameter name="seqnoParam"/>
+    <Parameter name="updatedby"/>
+    <Parameter id="paramKey" name="param1"/>
+    <PARAMETER_TMP id="parent">    <Parameter name="param1" id="paramKeyParent"/></PARAMETER_TMP>
+  </SqlMethod>
+
+  <SqlMethod name="updateN" type="preparedStatement" connection="true" return="rowCount" static="false">
+    <Sql>&#60;&#33;[CDATA[
+        UPDATE <PARAMETER_TMP id="table">table</PARAMETER_TMP>
+        SET <FIELD_TMP id="SortConditionField">fieldSort</FIELD_TMP>='N',
+        updated = now(), updatedby = ?
+        WHERE 1=1 <PARAMETER_TMP id="parent">         AND <PARAMETER_TMP id="keyParent">xx</PARAMETER_TMP> = ? </PARAMETER_TMP>
+    ]]&#62;</Sql>
+    <Parameter name="updatedby"/>
+    <PARAMETER_TMP id="parent">    <Parameter name="param1" id="paramKeyParent"/></PARAMETER_TMP>
+    &#60;Parameter name="shown" optional="true" type="argument" after="WHERE 1=1 " text=" AND <PARAMETER_TMP id="key">table</PARAMETER_TMP> NOT IN "/&#62;
+  </SqlMethod>
+  
+   <SqlMethod name="isTemplateInDev" type="preparedStatement" return="boolean">
+    <Sql>&#60;&#33;[CDATA[
+        SELECT COUNT(*)
+          FROM AD_MODULE
+         WHERE TYPE='T'
+           AND ISINDEVELOPMENT='Y'
+    ]]&#62;</Sql>
+  </SqlMethod>
+</SqlClass>

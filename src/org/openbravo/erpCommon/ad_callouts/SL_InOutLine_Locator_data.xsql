@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="SLInOutLineLocatorData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT * FROM DUAL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="locator" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT COALESCE(SUM(QTYONHAND),0) AS QTYONHAND FROM M_STORAGE_DETAIL
+      WHERE M_LOCATOR_ID = ?
+    </Sql>
+    <Parameter name="mLocatorId"/>
+  </SqlMethod>
+  <SqlMethod name="qtyonhandProduct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>select to get the m_Locator_ID</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COALESCE(SUM(QTYONHAND),0) AS QTYONHAND FROM M_STORAGE_DETAIL
+      WHERE M_LOCATOR_ID = ?
+      AND M_PRODUCT_ID <> ?
+      ]]>
+    </Sql>
+    <Parameter name="mLocatorId"/>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+  <SqlMethod name="filledLocator" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>   
+      SELECT COALESCE(MAX(M_INOUTLINE.M_INOUTLINE_ID),'0') AS FILLEDLOCATOR FROM M_INOUT, M_INOUTLINE
+      WHERE M_INOUT.M_INOUT_ID = M_INOUTLINE.M_INOUT_ID
+      AND M_INOUT.M_INOUT_ID = ?
+      AND M_INOUTLINE.M_LOCATOR_ID = ?
+    </Sql>  
+    <Parameter name="mInoutId"/>
+    <Parameter name="mLocatorId"/>
+  </SqlMethod>
+</SqlClass>

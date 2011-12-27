@@ -1,0 +1,648 @@
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html 
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License. 
+* The Original Code is Openbravo ERP. 
+* The Initial Developer of the Original Code is Openbravo SLU 
+* All portions are Copyright (C) 2001-2010 Openbravo SLU 
+* All Rights Reserved. 
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Role information</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+  var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+
+window.onunload = reloadOpener; // reloads opener on closing
+ 
+
+function validate() {
+  var frm = document.frmMain;
+  if (frm.inpClaveOld.value==null || frm.inpClaveOld.value=="") {
+    setWindowElementFocus(frm.inpClaveOld);
+    showJSMessage(7);
+    return false;
+    } else if (frm.inpClaveNew.value==null || frm.inpClaveNew.value=="") {
+    setWindowElementFocus(frm.inpClaveNew);
+    showJSMessage(7);
+    return false;
+    } else if (frm.inpClaveNew2.value==null || frm.inpClaveNew2.value=="") {
+    setWindowElementFocus(frm.inpClaveNew2);
+    showJSMessage(7);
+    return false;
+    } else if (frm.inpClaveNew.value != frm.inpClaveNew2.value) {
+    setWindowElementFocus(frm.inpClaveNew);
+    showJSMessage(20);
+    return false;
+  }
+  return true;
+}
+function onloadFunctions() {
+
+  // init combos
+  document.frmMain.language.value = document.frmInput.inputLanguage.value;
+  document.frmMain.role.value = document.frmInput.inputRole.value;
+  loadSelectorsClientOrg();
+  document.frmMain.client.value = document.frmInput.inputEntity.value;
+  document.frmMain.organization.value = document.frmInput.inputOrg.value;
+  loadSelectorWarehouse(function() {
+    document.frmMain.warehouse.value = document.frmInput.inputWarehouse.value;
+  });
+
+  if (document.frmInput.saveok.value == "true") {
+    getFrame('main').document.location.href="../security/Menu.html";
+  }
+    // Refresh menu
+//    getFrame('main').document.getElementById("paramFrameMenu").src = "../utility/VerticalMenu.html";
+    // Refresh main window
+//    getFrame('main').document.getElementById("paramFrame1").src = "../utility/Home.html";
+//  }
+
+}
+
+function loadSelectorsClientOrg() {
+  var cmbRole = document.frmMain.role;
+  var cmbEntidad = document.frmMain.client;
+  var cmbOrg = document.frmMain.organization;
+  changeComboData(cmbEntidad, arrClientes, cmbRole.options[cmbRole.selectedIndex].value, false);
+  changeComboData(cmbOrg, arrOrgs, cmbRole.options[cmbRole.selectedIndex].value, false);
+}
+function loadSelectorWarehouse(updatefunc) {
+    var cmbRole = document.frmMain.role;
+    var cmbEntidad = document.frmMain.client;
+    var warehouse = document.frmMain.warehouse;
+    if (warehouse.options.length!=null) {
+        for (var i = warehouse.options.length; i >= 0; i--) {
+          warehouse.options[i] = null;
+        }
+    }
+    submitXmlHttpRequest(function (paramXMLParticular, XMLHttpRequestObj) {
+      if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+        if (XMLHttpRequestObj.responseText) {
+          var warehouselist = eval("(" + XMLHttpRequestObj.responseText.toString() + ")");;
+          changeComboData(document.frmMain.warehouse, warehouselist, cmbRole.options[cmbRole.selectedIndex].value + "-" + cmbEntidad.options[cmbEntidad.selectedIndex].value, false);
+          if (updatefunc != undefined) {
+            updatefunc();
+          }
+        }
+      }
+    }, null, "WAREHOUSES", "Role.html", false, "&role=" + cmbRole.options[cmbRole.selectedIndex].value + "&client=" + cmbEntidad.options[cmbEntidad.selectedIndex].value, null);
+}
+function refreshRole() {
+  loadSelectorsClientOrg();
+  loadSelectorWarehouse();
+  return true;
+}
+function refreshEntity() {
+  loadSelectorWarehouse();
+  return true;
+}
+
+function saveOptions() {
+  if (document.frmMain.TextDirection.value=="RTL") {
+    getFrame('main').isRTL=true;
+  } else {
+    getFrame('main').isRTL=false;
+  }
+  submitCommandForm("SAVE", false);
+  getFrame('frameMenu').setMenuLoading(true);
+  return false;
+}
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramArrayClientes">
+var arrClientes=null;
+</script>
+<script language="JavaScript" type="text/javascript" id="paramArrayOrganizaciones">
+var arrOrgs=null;
+</script>
+  <script language="JavaScript" type="text/javascript">
+  var gUnfolded = "sessionOptions";
+  var gUnfolded_MenuItem = gUnfolded + "_MenuItem";
+   function unfold(id, reset) {
+     if (reset==null) reset=true;
+     if (gUnfolded) document.getElementById(gUnfolded).style.display = "none";
+     if (gUnfolded_MenuItem) document.getElementById(gUnfolded_MenuItem).className = "Popup_Client_UserOps_LabelLink";
+     if (reset==true) initialize_MessageBox("messageBoxID");
+     gUnfolded = id;
+     gUnfolded_MenuItem = id + "_MenuItem";
+     document.getElementById(gUnfolded).style.display = "";
+     document.getElementById(gUnfolded_MenuItem).className = "Popup_Client_UserOps_LabelLink_Selected";
+   }
+  </script>
+
+
+
+  <script>
+    function submitPassword() {
+      if (!validate()) return false
+      try {
+        var paramXMLReq = null;
+        return submitXmlHttpRequest(callback, frmMain, "CHANGE", "Role.html", false, null, paramXMLReq);
+      }
+      catch (e) {
+      }
+    }
+
+    function callback(paramXMLParticular, XMLHttpRequestObj) {
+      var strText;
+      if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+        try {
+          if (XMLHttpRequestObj.responseXML) strText = XMLHttpRequestObj.responseXML;
+        } catch (e) {
+          initialize_MessageBox('messageBoxID');
+          setValues_MessageBox('messageBoxID','ERROR','ERROR',e);
+        }
+        if (strText != null) {
+          var node = strText.getElementsByTagName("xml-structure");
+          node = node[0].getElementsByTagName("status");
+          var type = node[0].getElementsByTagName("type");
+          var title = node[0].getElementsByTagName("title");
+          var description = node[0].getElementsByTagName("description");
+          initialize_MessageBox('messageBoxID');
+          setValues_MessageBox('messageBoxID',getChildText(type[0]),getChildText(title[0]),getChildText(description[0]));
+          if (getChildText(type[0]) == 'Success') document.frmMain.reset();
+        }
+      }
+      return true;
+    }
+  </script>
+
+	<script language="JavaScript" type="text/javascript">
+	function onLoadDo(){
+    if (document.getElementById('messageBoxID').className.indexOf('MessageBoxError') != -1) {
+      getFrame('frameMenu').setMenuLoading(false);
+    }
+		this.windowTables = new Array(
+		  new windowTableId('clientIndex'),
+		  new windowTableId('sessionOptions', 'buttonOK'),
+		  new windowTableId('changePassword', 'buttonChange')
+		  
+		);
+		setWindowTableParentElement();
+		enableShortcuts('popup');
+		setBrowserAutoComplete(false);
+		
+		unfold(gUnfolded, false);
+		resizeAreaUserOps();
+		try {
+		  onloadFunctions();
+		} catch (e) {}
+
+		setWindowElementFocus('firstElement');
+	}
+
+	function onResizeDo(){
+		resizeAreaUserOps();
+	}
+	</script>
+</head>
+
+<body  leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+
+<div class="Popup_ContentPane_CircleLogo">
+  <div class="Popup_WindowLogo">
+    <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_userContact" src="../../../../../web/images/blank.gif" border=0/></img>
+  </div>
+</div>
+
+
+
+<form action="Role.html" method="post" name="frmMain">
+<input type="hidden" name="Command" value="">
+<input type="hidden" name="IsPopUpCall" value="1">
+<input type="hidden" id="TextDirection" name="TextDirection" value="XX">
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td id="tdNavigation">
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span>User options: <i id="fieldUser">xxOpenbravo</i></a></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td id="tdSeparator">
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+    <tr valign="top">
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;">
+
+
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableUserOps">
+
+            <tr>
+
+              <td>
+                <div class="Popup_Client_UserOps_SubMenu" style="overflow: auto; display: none;" id="clientIndex">
+                  <table class="Popup_Client_TableUserOps_SubMenu" cellpadding="0" cellspacing="0" border="0">
+
+                    <tr>
+                      <td>
+                        <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                          <tr class="FieldGroup_TopMargin"></tr>
+                          <tr>
+                            <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                            <td class="FieldGroupTitle">Options</td>
+                            <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                            <td class="FieldGroupContent_Empty"></td>
+                          </tr>
+                          <tr class="FieldGroup_BottomMargin"></tr>
+                        </table>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td class="TitleCell" style="text-align:left;"><span class="LabelText"><a class="Popup_Client_UserOps_LabelLink_Selected" href="#" onmouseover="window.status='Session options';return true;" onmouseout="window.status='';return true;" onclick="unfold('sessionOptions');setTimeout('isInsideWindowTable(document.getElementById(\'sectionRol\')); setWindowElementFocus(\'sectionRol\',\'id\');',50);return false;" id="sessionOptions_MenuItem">Session options</a></span></td>
+                    </tr>
+                  
+                    <tr>
+                      <td class="TitleCell" style="text-align:left;"><span class="LabelText"><a class="Popup_Client_UserOps_LabelLink" href="#" onmouseover="window.status='Change password';return true;" onmouseout="window.status='';return true;" onclick="unfold('changePassword');setTimeout('isInsideWindowTable(document.getElementById(\'sectionActual\')); setWindowElementFocus(\'sectionActual\',\'id\');',50);return false;" id="changePassword_MenuItem">Change password</a></span></td>
+                    </tr>
+
+                  </table>
+                </div>
+              </td>
+              <td class="Popup_Client_UserOps_VertSeparator" id="tdVerSeparator"></td>
+              <td valign="top">
+
+                <div class="Popup_Client_UserOps_SubClient" style="overflow: auto; display: none;" id="client">
+
+          <!-- START MessageBox -->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                        <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                              <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                <tbody>
+                                <tr>
+                                  <td class="MessageBox_Icon_ContentCell">
+                                    <div class="MessageBox_Icon"></div>
+                                  </td>
+                                  <td style="vertical-align: top;" id="messageBoxIDContent">
+                                    <span>
+                                      <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                        xxInfo: AccessTableWithNoView
+                                      </div>
+                                      <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                        xxThe current information is empty.
+                                      </div>
+                                      <div class="MessageBox_TextSeparator"></div>
+                                    </span>
+                                  </td>
+                                </tr>
+                                </tbody>
+                              </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            </tbody>
+          </table>
+          <!-- END MessageBox -->
+
+
+                  <div style="display: none;" id="sessionOptions">
+                    
+                    <table cellspacing="0" cellpadding="0" class="Popup_Client_TablePopup">
+                      <tr>
+                        <td class="TableEdition_OneCell_width"></td>
+                        <td class="TableEdition_OneCell_width"></td>
+                        <td class="TableEdition_OneCell_width"></td>
+                        <td class="TableEdition_OneCell_width"></td>
+                      </tr>
+                      <tr>
+                        <td colspan="4">
+                          <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                          <tr class="FieldGroup_TopMargin"></tr>
+                          <tr>
+                          <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                          <td class="FieldGroupTitle">Session options</td>
+                          <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                          <td class="FieldGroupContent"></td>
+
+                          </tr>
+                          <tr class="FieldGroup_BottomMargin"></tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td class="TitleCell"><span class="LabelText">Role</span></td>
+                        <td class="Combo_ContentCell">
+                          <select name="role" id="sectionRol" onchange="return refreshRole();" class="Combo Combo_OneCell_width">
+                            <option value="es" id="fieldClaveRol">xxrol1</option>
+                          </select>
+                        </td>
+                          <td class="TitleCell"><span class="LabelText">Language</span></td>
+                          <td class="Combo_ContentCell">
+                            <select name="language" id="sectionLang" class="Combo Combo_OneCell_width">
+                              <option value="es" id="fieldClaveLanguage"></option>
+                            </select>
+                         </td>
+                      </tr>
+                      <tr>
+                        <td></td>
+
+                      <td></td>
+                      </tr>
+                      <tr>
+                        <td class="TitleCell"><span class="LabelText">Entity</span></td>
+                        <td class="Combo_ContentCell">
+                          <select name="client" id="sectionCliente" onchange="return refreshEntity()" class="Combo Combo_OneCell_width">
+                            <option value="es" id="fieldClaveCliente">xxCustomer1</option>
+                          </select>
+                        </td>
+                        <td class="TitleCell"><span class="LabelText">Organization</span></td>
+                        <td class="Combo_ContentCell">
+                          <select name="organization" id="sectionOrganizacion" class="Combo Combo_OneCell_width">
+                            <option value="es" id="fieldClaveOrganizacion">xxOrganization1</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td></td>
+
+                        <td></td>
+                      </tr>
+                      <tr> 
+                        <td class="TitleCell"><span class="LabelText">Warehouse</span></td>
+                        <td class="Combo_ContentCell">
+                          <select name="warehouse" id="sectionAlmacen" class="Combo Combo_OneCell_width">
+                            <option value="es" id="fieldClaveAlmacen">xxWarehouse1</option>
+                          </select>
+                        </td>
+                        <td class="TitleCell"><span class="LabelText">Set as default</span></td>
+                        <td class="Radio_Check_ContentCell">
+                            <span class="Checkbox_container_NOT_Focused"><input type="checkbox" name="setasdefault" value="Y"></input></span>
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr><td height="10px"></td></td>
+                      <tr>
+                        <td></td>
+                        <td class="Button_CenterAlign_ContentCell">
+                          <div>
+                            <button type="button" 
+                              id="buttonOK" 
+                              class="ButtonLink" 
+                              onclick="return saveOptions();" 
+                              onfocus="buttonEvent('onfocus', this); window.status='Accept'; return true;" 
+                              onblur="buttonEvent('onblur', this);" 
+                              onkeyup="buttonEvent('onkeyup', this);" 
+                              onkeydown="buttonEvent('onkeydown', this);" 
+                              onkeypress="buttonEvent('onkeypress', this);" 
+                              onmouseup="buttonEvent('onmouseup', this);" 
+                              onmousedown="buttonEvent('onmousedown', this);" 
+                              onmouseover="buttonEvent('onmouseover', this); window.status='Accept'; return true;" 
+                              onmouseout="buttonEvent('onmouseout', this);">
+                              <table class="Button">
+                                <tr>
+                                  <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Accept" title="Accept" src="../../../../../web/images/blank.gif" border="0" /></td>
+                                  <td class="Button_text Button_width">OK</td>
+                                  <td class="Button_right"></td>
+                                </tr>
+                              </table>
+                            </button>
+                          </div>
+                        </td>
+                        <td></td>
+                        <td></td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <div style="display: none;" id="changePassword">
+                    <table cellspacing="0" cellpadding="0" class="Popup_Client_TablePopup">
+                      <tr>
+                        <td colspan=4>
+                          <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                          <tr class="FieldGroup_TopMargin"></tr>
+                          <tr>
+                          <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                          <td class="FieldGroupTitle">Change password</td>
+                          <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                          <td class="FieldGroupContent"></td>
+
+                          </tr>
+                          <tr class="FieldGroup_BottomMargin"></tr>
+                          </table>
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td></td>
+                        <td class="TitleCell"><span class="LabelText">Current password</span></td>
+                        <td class="TextBox_ContentCell">
+                          <input class="dojoValidateValid TextBox_TwoCells_width" type="password" name="inpClaveOld" size="40" maxlength="40" value="" id="sectionActual"></input>
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr><td height="10px"></td></tr>
+                      <tr>
+                        <td></td>
+                        <td class="TitleCell"><span class="LabelText">New password</span></td>
+                        <td class="TextBox_ContentCell">
+                          <input class="dojoValidateValid TextBox_TwoCells_width" type="password" name="inpClaveNew" size="40" maxlength="40" value=""></input>
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr>
+
+                        <td></td>
+                        <td class="TitleCell"><span class="LabelText">Retype new password</span></td>
+                        <td class="TextBox_ContentCell">
+                          <input class="dojoValidateValid TextBox_TwoCells_width" type="password" name="inpClaveNew2" size="40" maxlength="40" value=""></input>
+                        </td>
+                        <td></td>
+                      </tr>
+
+                      <tr><td height="20px"></td></tr>
+
+                      <tr>
+                        <td></td>
+                        <td class="Button_RightAlign_ContentCell">
+                          <div>
+                            <button type="button" 
+                              id="buttonChange" 
+                              class="ButtonLink" 
+                              onclick="submitPassword();return false;" 
+                              onfocus="buttonEvent('onfocus', this); window.status='Change'; return true;" 
+                              onblur="buttonEvent('onblur', this);" 
+                              onkeyup="buttonEvent('onkeyup', this);" 
+                              onkeydown="buttonEvent('onkeydown', this);" 
+                              onkeypress="buttonEvent('onkeypress', this);" 
+                              onmouseup="buttonEvent('onmouseup', this);" 
+                              onmousedown="buttonEvent('onmousedown', this);" 
+                              onmouseover="buttonEvent('onmouseover', this); window.status='Change'; return true;" 
+                              onmouseout="buttonEvent('onmouseout', this);">
+                              <table class="Button">
+                                <tr>
+                                  <td class="Button_left"><img class="Button_Icon Button_Icon_password" alt="Change" title="Change" src="../../../../../web/images/blank.gif" border="0" /></td>
+                                  <td class="Button_text Button_width">Change</td>
+                                  <td class="Button_right"></td>
+                                </tr>
+                              </table>
+                            </button>
+                          </div>
+                        </td>
+
+                        <td class="Button_LeftAlign_ContentCell">
+                          <div>
+                            <button type="button" 
+                              class="ButtonLink" 
+                              onclick="document.frmMain.reset();return false;" 
+                              onfocus="buttonEvent('onfocus', this); window.status='Clear'; return true;" 
+                              onblur="buttonEvent('onblur', this);" 
+                              onkeyup="buttonEvent('onkeyup', this);" 
+                              onkeydown="buttonEvent('onkeydown', this);" 
+                              onkeypress="buttonEvent('onkeypress', this);" 
+                              onmouseup="buttonEvent('onmouseup', this);" 
+                              onmousedown="buttonEvent('onmousedown', this);" 
+                              onmouseover="buttonEvent('onmouseover', this); window.status='Clear'; return true;" 
+                              onmouseout="buttonEvent('onmouseout', this);">
+                              <table class="Button">
+                                <tr>
+                                  <td class="Button_left"><img class="Button_Icon Button_Icon_clear" alt="Clear" title="Clear" src="../../../../../web/images/blank.gif" border="0" /></td>
+                                  <td class="Button_text Button_width">Clear</td>
+                                  <td class="Button_right"></td>
+                                </tr>
+                              </table>
+                            </button>
+                          </div>
+                        </td>
+                        <td></td>
+                      </tr>
+
+                    </table>
+                  </div>
+
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+</form>
+
+<form name="frmInput">
+  <input type="hidden" name="saveok" id="saveok" value=""></input>
+
+  <input type="hidden" name="inputLanguage" id="inputLanguage" value=""></input>
+  <input type="hidden" name="inputRole" id="inputRole" value=""></input>
+  <input type="hidden" name="inputEntity" id="inputEntity" value=""></input>
+  <input type="hidden" name="inputOrg" id="inputOrg" value=""></input>
+  <input type="hidden" name="inputWarehouse" id="inputWarehouse" value=""></input>
+</form>
+
+</body>
+</html>

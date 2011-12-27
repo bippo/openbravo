@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_INVOICE_TRG2">
+    <trigger name="C_INVOICE_TRG2" table="C_INVOICE" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+   TYPE RECORD IS REF CURSOR;
+  Cur_Discounts RECORD;
+  v_Key VARCHAR2(32) ;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  FOR Cur_Discounts IN
+    (
+    SELECT BPD.C_DISCOUNT_ID,
+      BPD.LINE,
+      BPD.CASCADE
+    FROM C_BPARTNER_DISCOUNT BPD, C_DISCOUNT D
+    WHERE BPD.C_BPARTNER_ID=:NEW.C_BPARTNER_ID
+      AND D.C_DISCOUNT_ID = BPD.C_DISCOUNT_ID
+      AND BPD.ISACTIVE='Y'
+      AND D.ISACTIVE='Y'
+      AND(BPD.ISCUSTOMER=:NEW.ISSOTRX
+      OR BPD.ISVENDOR <> :NEW.ISSOTRX)
+      AND BPD.APPLYINORDER='N'
+    ORDER BY BPD.LINE
+    )
+  LOOP
+    Ad_Sequence_Next('C_Invoice_Discount', :NEW.AD_Client_ID, v_Key) ;
+    INSERT
+    INTO C_INVOICE_DISCOUNT
+      (
+        C_INVOICE_DISCOUNT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY,
+        UPDATED, UPDATEDBY, C_INVOICE_ID,
+        C_DISCOUNT_ID, LINE, CASCADE
+      )
+      VALUES
+      (
+        v_Key, :NEW.AD_Client_ID, :NEW.AD_Org_ID,
+         'Y', now(),  :NEW.CREATEDBY,
+        now(), :NEW.UPDATEDBY, :NEW.C_INVOICE_ID,
+        Cur_Discounts.C_DISCOUNT_ID, Cur_Discounts.LINE, Cur_Discounts.CASCADE
+      )
+      ;
+  END LOOP;
+END C_INVOICE_TRG2
+]]></body>
+    </trigger>
+  </database>

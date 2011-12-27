@@ -1,0 +1,649 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ *************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Match using imported Bank Statement Lines</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+  var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  var defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.userinterface.selector/js/classic-skin-variable.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/../org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/calculator.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+<script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.advpaymentmngt/FIN_Utilities.js" type="text/javascript"></script>
+<script type="text/javascript">
+  window.onunload = reloadOpener; // reloads opener on closing
+</script>
+<script type="text/javascript" id="fieldjsDateFormat">
+var sc_JsDateFormat = null;
+</script>
+<script language="JavaScript" type="text/javascript">
+function transactionFind(selected) {
+  var depositAmt = returnCalcToFormatted(selected.depositAmount, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
+  var paymentAmt = returnCalcToFormatted(selected.paymentAmount, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
+  var selectedAmt = subtract(depositAmt, paymentAmt);
+  var gridAmount = document.getElementById("inpBSAmount_" + sc_FIN_FinAcc_Transaction_ID.bslId).value;
+  
+  if (compare(subtract(selectedAmt, gridAmount), '!=', '0')) {
+    if (confirm(document.frmMain.inpTrlSplitConfirmText.value)) {
+      document.frmMain.inpSelectedFindTransactionId.value = selected.id;
+      splitRow();
+      return false;
+    } else {
+      showJSMessage('APRM_LinesAmountMismatch');
+      return false;
+    }
+  }
+  
+  document.getElementById("inpFinancialTransactionId_" + sc_FIN_FinAcc_Transaction_ID.bslId).value = selected.id;
+  document.getElementById("inpTransactionDate_" + sc_FIN_FinAcc_Transaction_ID.bslId).innerHTML = OB.Utilities.Date.JSToOB(selected.transactionDate, sc_JsDateFormat);
+  document.getElementById("inpMatchedDocument_" + sc_FIN_FinAcc_Transaction_ID.bslId).innerHTML = document.getElementById("paraMatchedAgainstTransaction").value;
+  document.getElementById("inpBPartner_" + sc_FIN_FinAcc_Transaction_ID.bslId).innerHTML = selected["finPayment.businessPartner._identifier"]==undefined?'':selected["finPayment.businessPartner._identifier"];
+  document.getElementById("inpReferenceNo_" + sc_FIN_FinAcc_Transaction_ID.bslId).innerHTML = selected["finPayment.referenceNo"]==undefined?'':selected["finPayment.referenceNo"];
+  document.getElementById("inpAmount_" + sc_FIN_FinAcc_Transaction_ID.bslId).innerHTML = subtract(depositAmt, paymentAmt);
+  document.getElementById("inpMatchingType_" + sc_FIN_FinAcc_Transaction_ID.bslId).value = "MA";
+  document.getElementById("inpCheckBox_" + sc_FIN_FinAcc_Transaction_ID.bslId).checked = true;
+  document.getElementById("inpCheckBox_" + sc_FIN_FinAcc_Transaction_ID.bslId).disabled = false;
+}
+
+function openSelector(bslId) {
+  document.frmMain.inpFinBankStatementLineId.value = bslId;
+  if(bslId) {
+      sc_FIN_FinAcc_Transaction_ID.bslId = bslId;
+  } else {
+      sc_FIN_FinAcc_Transaction_ID.bslId = '';
+  }
+
+  sc_FIN_FinAcc_Transaction_ID.selectorWindow.show();
+  sc_FIN_FinAcc_Transaction_ID.selectorGrid.fetchData();
+}
+
+isc.OBSelectorLinkWidget.addProperties({
+  onValueChanged: function(selected) {
+    transactionFind(selected);
+    this.openbravoField.value = '';
+  },
+
+  bslId: ''
+ });
+
+function unMatchLine(bankStatementLineId, isChecked) {
+  if (!isChecked) {
+    document.frmMain.inpFinBankStatementLineId.value = bankStatementLineId;
+    document.getElementById("inpMatchedDocument_" + bankStatementLineId).innerHTML = "";
+    document.getElementById("inpTransactionDate_" + bankStatementLineId).innerHTML = "";
+    document.getElementById("inpBPartner_" + bankStatementLineId).innerHTML = "";
+    document.getElementById("inpReferenceNo_" + bankStatementLineId).innerHTML = "";
+    document.getElementById("inpAmount_" + bankStatementLineId).innerHTML = "";
+    document.getElementById("inpFinancialTransactionId_" + bankStatementLineId).value = "";
+    document.getElementById("inpMatchStyle_" + bankStatementLineId).style.backgroundColor = "white";
+    document.getElementById("inpMatchingType_" + bankStatementLineId).value = "";
+    sendActionToServer("UNMATCH");
+  }
+  return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+function closeThisPage() {
+    closePage();
+    return true;
+}
+function submitThisPage(strCommand) {
+  if (validate(strCommand)) {
+    submitCommandForm(strCommand, false, null, 'MatchTransaction.html', '_self');
+    return true;
+  }
+  return true;
+}
+function openAddTransaction(bankStatementLineId){
+  document.frmMain.inpFinBankStatementLineId.value = bankStatementLineId;
+  openServletNewWindow('DEFAULT', false, '../org.openbravo.advpaymentmngt.ad_actionbutton/AddTransaction.html', 'ADDTRANSACTION', '2EED9BC16DB34D2B80BA40A21564BECF', false,600, 900, null, null, false, true, true);
+  return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+    function loadGrid() {
+      try {
+        var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/MatchTransaction.html";
+        var paramXMLReq = null;
+        return submitXmlHttpRequest(callBackGrid, document.frmMain, "GRID", url, false, null, paramXMLReq);
+      } catch (e) {
+        alert(e);
+      }
+    }
+
+    function callBackGrid(paramXMLParticular, XMLHttpRequestObj) {
+     var strText = "";
+      if (getReadyStateHandler(XMLHttpRequestObj)) {
+        try {
+          if (XMLHttpRequestObj.responseText) {
+            strText = XMLHttpRequestObj.responseText;
+            var data = eval(strText);
+            var grid = data.grid;
+            var showJSMessage = data.showJSMessage;
+            var aux = grid.substring(24, grid.length-6);
+            var tableBody = document.getElementById('sectionGrid');
+            var browserName = getBrowserInfo('name');
+            if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') != -1) {
+              var temp = document.createElement("span");
+              temp.id = 'temp';
+              temp.style.display = 'none';
+              var newRows = '<table><tbody id=\"sectionGrid\">'+ aux;
+              temp.innerHTML = newRows;
+              tableBody.parentNode.replaceChild(temp.firstChild.firstChild, tableBody);
+              temp.parentNode.removeChild(temp);
+            }
+            tableBody.innerHTML = aux;
+            if (document.frmMain.isFirstLoad.value=="true"){
+              document.frmMain.isFirstLoad.value="false";
+            }
+            if (showJSMessage === "Y") {
+              displayMessageBox('APRM_TransactionLinesAmountNotMatch');
+            }else{
+              initialize_MessageBox('messageBoxID');
+            }
+            showWarning();
+          } else {
+            document.getElementById('sectionGrid').innerHTML = '';
+          }
+        } catch (e) {
+        }
+      }
+      return true;
+    }
+    
+    function displayMessageBox(messageValue) {
+      showJSMessage(messageValue);
+    }
+
+    function sendActionToServer(action) {
+        try {
+          var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/MatchTransaction.html";
+          var paramXMLReq = null;
+          return submitXmlHttpRequest(dummyCallBack, document.frmMain, action, url, false, null, paramXMLReq);
+        } catch (e) {
+          alert(e);
+        }
+     }
+
+function dummyCallBack(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+        var data = eval(strText);
+        if (data.forceLoadGrid) {
+          loadGrid();
+        }
+      }
+    } catch (e) {
+    }
+  }
+  return true;
+}
+
+function splitRow() {
+  try {
+    var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/MatchTransaction.html";
+    var paramXMLReq = null;
+    return submitXmlHttpRequest(splitCallback, document.frmMain, "SPLIT", url, false, null, paramXMLReq);
+  } catch (e) {
+    alert(e);
+  }
+}
+
+function splitCallback(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+    if (getReadyStateHandler(XMLHttpRequestObj)) {
+      try {
+        if (XMLHttpRequestObj.responseText) {
+          strText = XMLHttpRequestObj.responseText;
+          var data = eval(strText);
+          if (data.showJSMessage) {
+            showJSMessage(data.showJSMessage);
+          } else {
+            loadGrid();
+          }
+        }
+      } catch (e) {
+      }
+    }
+  return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+  function showWarning(){
+      if(!document.frmMain.inphideDate.checked){
+        showJSMessage('APRM_DateWillBeUpdated');
+      } else initialize_MessageBox('messageBoxID');
+  }
+  function onLoadDo(){
+    this.windowTables = new Array(
+              new windowTableId('client_top_popup', 'buttonProcess'),
+              new windowTableId('client_middle', 'buttonProcess'),
+              new windowTableId('client_botton', 'buttonProcess')
+            );
+    setWindowTableParentElement();
+    enableShortcuts('popup');
+    setBrowserAutoComplete(false);
+
+    initFIN_Utilities(document.frmMain);
+    try {
+      onloadFunctions();
+    } catch (e) {}
+    loadGrid();
+    resizeAreaCreateFrom();
+  }
+  function validate(action) {
+    var frm = document.frmMain;
+    return true;
+  }
+  function onResizeDo(){
+    resizeAreaCreateFrom(true);
+  }
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form name="frmMain" method="post" action="MatchTransaction.html">
+  <input type="hidden" name="Command" />
+  <input type="hidden" name="IsPopUpCall" value="1" />
+  <input type="hidden" name="paraMatchedAgainstTransaction" value="xxTransaction" id="paraMatchedAgainstTransaction"/>
+  <input type="hidden" name="inpadOrgId" value="" id="fieldOrg"/>
+  <input type="hidden" name="inpwindowId" value="MBS" id="fieldWindowId"/>
+  <input type="hidden" name="inpTabId" value="" id="fieldTabId"/>
+  <input type="hidden" name="inpfinFinancialAccountId" value="" id="fieldfinFinancialAccountId"/>
+  <input type="hidden" name="inpfinReconciliationId" value="" id="fieldfinReconciliationId"/>
+  <input type="hidden" name="inpdateto" value="" id="fieldDateTo"/>
+  <input type="hidden" name="inpFinBankStatementLineId" value=""/>
+  <input type="hidden" name="inpSelectedFindTransactionId" value=""/>
+  <input type="hidden" name="isFirstLoad" value="true"/>
+  <input type="hidden" name="buttonRefresh" value="" id="buttonRefresh" onclick="loadGrid();return true;"></input>
+  <input type="hidden" name="isReceipt" value="dummyField" id="fieldReceipt"/>
+  <input type="hidden" name="inpTrlSplitConfirmText" id="paramTrlSplitConfirmText" value=""/>
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../../../../../web/images/blank.gif" border=0/></img>
+    </div>
+  </div>
+  <table cellspacing="0" cellpadding="0" width="100%" id="table_header">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span>Match using imported Bank Statement Lines</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+  </table>
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_messagebox">
+
+          <!-- MessageBox -->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                            <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_Icon_ContentCell">
+                                  <div class="MessageBox_Icon"></div>
+                                </td>
+                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                  <span>
+                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                      xxInfo: AccessTableWithNoView
+                                    </div>
+                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                      xxThe current information is empty.
+                                    </div>
+                                    <div class="MessageBox_TextSeparator"></div>
+                                  </span>
+                                </td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+                <td class="MessageBox_RightMargin"></td>
+              </tr>
+            </tbody>
+          </table>
+        <!-- MessageBox END -->
+        </div>
+      </td>
+    </tr>
+  </table>
+  <!-- Selector Link -->
+      <TABLE style="display:none">
+        <TR>
+          <TD style="padding-top: 0px;">
+            <SCRIPT>var sc_FIN_FinAcc_Transaction_ID = null;</SCRIPT>
+            <INPUT type="hidden" name="inpfinFinaccTransactionId" id="FIN_FinAcc_Transaction_ID" value="" onreset="sc_FIN_FinAcc_Transaction_ID.resetSelector();" onchange="OB.Utilities.updateSmartClientComponentValue(this, sc_FIN_FinAcc_Transaction_ID.selectorField);"></INPUT>
+            <SCRIPT id="selectorLink" src="../org.openbravo.client.kernel/OBUISEL_Selector/6643B422022B41698FEFD6C7FAD7AC4B?columnName=FIN_FinAcc_Transaction_ID&disabled=false&CssSize=TwoCells&DisplayLength=45.0&required=true&filterClass=org.openbravo.userinterface.selector.SelectorDataSourceFilter&_selectorDefinitionId=6643B422022B41698FEFD6C7FAD7AC4B"></SCRIPT>
+          </TD>
+        </TR>
+      </TABLE>
+
+  <SPAN class="TextBox_MsgContainer_span" style="display: none;" id="C_Bpartner_One_IDinvalidSpan">
+    <TABLE class="TextBox_MsgContainer_table">
+      <TR class="TextBox_MsgContainer_tr">
+        <TD class="TextBox_MsgContainer_td"><DIV class="TextBox_MsgContainer_div"></DIV></TD><TD></TD>
+      </TR>
+      <TR>
+        <TD colspan="2" class="invalid"><DIV class="TextBox_MsgContainer_div2" id="C_Bpartner_One_IDinvalidSpanText" name="invalidText">xx</DIV></TD>
+      </TR>
+
+    </TABLE>
+  </SPAN>
+  <SPAN class="TextBox_MsgContainer_span" style="display: none;" id="C_Bpartner_One_IDmissingSpan">
+    <TABLE class="TextBox_MsgContainer_table">
+      <TR class="TextBox_MsgContainer_tr">
+        <TD class="TextBox_MsgContainer_td"><DIV class="TextBox_MsgContainer_div"></DIV></TD><TD></TD>
+      </TR>
+      <TR>
+        <TD colspan="2" class="missing"><DIV class="TextBox_MsgContainer_div2" id="C_Bpartner_One_IDmissingSpanText" name="missingText">xx</DIV></TD>
+
+      </TR>
+    </TABLE>
+  </SPAN>
+      </TD>
+    </TR>
+  </TABLE>
+  <!-- Selector Link -->
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+
+    <tr>
+      <td>
+        <!-- Hidden Process Payment Div  -->
+        <div class="Popup_ContentPane_Client" style="display: none;" id="client_top_popup">
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_InfoBar">
+           <tr>
+             <td class="Popup_InfoBar_Icon_cell"><img src="../web/images/blank.gif" class="Popup_InfoBar_Icon_info" border="0"></td>
+             <td class="Popup_InfoBar_text_table">
+               <table>
+                 <tr><td class="Popup_InfoBar_text" id="processHelp">&nbsp;<br/></td></tr>
+                 </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_middle">
+          <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+            <tr>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_LeftMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdleftSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_LeftMargin"></td></tr>
+                </table>
+              </td>
+              <td valign="top">
+                <div id="client" style="overflow: auto;"><br/>
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;">
+                    <thead>
+                      <tr>
+                        <td colspan="5" style="text-align: center; font-weight: bold;">Imported Bank Statement Lines</td>
+                        <td style="text-align: center;"></td>
+                        <td colspan="5" style="text-align: center; font-weight: bold;">Transactions in Openbravo</td>
+                      </tr>
+                      <tr style="border-top: thin solid gray;">
+                        <td colspan="5" style="border-right: thin solid gray;"><span class="LabelText">Show</span><span><select name="inpPaymentTypeFilter" class="ComboKey Combo_TwoCells_width required" id="inpPaymentTypeFilter" onchange="loadGrid(); return true;"><option value="" class="discard">Deposits and payments</option></select></span>&nbsp;&nbsp;<span>Cleared</span><span><input type="checkbox" name="inpShowCleared" id="inpShowCleared" value="Y" onclick="loadGrid(); return true;" /></span></td>
+                        <td style="text-align: center;"></td>
+                        <td colspan="5" style="border-left: thin solid gray;"></span>&nbsp;&nbsp;<span>Hide transactions after statement date</span>&nbsp;&nbsp;<span><input type="checkbox" name="inphideDate" id="fieldhideDate" value="Y" onClick="loadGrid(); return true;"/></span>&nbsp;&nbsp;<span>Ending Date</span>&nbsp;&nbsp;<span type="LabelText" id="paramDateTo"></span></td>
+                      </tr>
+                      <tr class="DataGrid_Body_Row">
+                        <th class="DataGrid_Header_LineNoCell DataGrid_Body_Cell_CheckBox" width="25">
+                        </th>
+                        <th class="DataGrid_Header_Cell" width="70">Date</th>
+                        <th class="DataGrid_Header_Cell" width="100">Sender</th>
+                        <th class="DataGrid_Header_Cell" width="100">Reference</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Amount</th>
+                        <th class="DataGrid_Header_Cell" style="text-align: center;" width="100">Match</th>
+                        <th class="DataGrid_Header_Cell" width="70">Matched Document</th>
+                        <th class="DataGrid_Header_Cell" width="70">Date</th>
+                        <th class="DataGrid_Header_Cell" width="100">Bus. Partner</th>
+                        <th class="DataGrid_Header_Cell" width="100">Reference</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Amount</th>
+                      </tr>
+                    </thead>
+                  <tbody id="sectionGrid">
+                    </tbody>
+                  </table>
+                </div>
+              </td>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_RightMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdrightSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_RightMargin"></td></tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+        </div>
+        <div class="Popup_ContentPane_Client" style="overflow: auto; padding-bottom: 5px;" id="client_bottom">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonProcess"
+                    class="ButtonLink"
+                    onclick="submitThisPage('SAVE');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Save'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Save'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_save" alt="Save" title="Save" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Save</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonReconcile"
+                    class="ButtonLink"
+                    onclick="submitThisPage('RECONCILE');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Reconcile'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Reconcile'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Reconcile" title="Reconcile" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Reconcile</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button"
+                    id="buttonCancel"
+                    class="ButtonLink"
+                    onclick="submitThisPage('CANCEL');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

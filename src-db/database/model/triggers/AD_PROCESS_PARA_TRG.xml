@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_PROCESS_PARA_TRG">
+    <trigger name="AD_PROCESS_PARA_TRG" table="AD_PROCESS_PARA" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: AD_Process_Para_Trg.sql,v 1.3 2002/10/21 04:49:47 jjanke Exp $
+***
+* Title: Parameter Trigger
+* Description:
+*   Translation
+************************************************************************/
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Insert AD_Process_Para Trigger
+  --  for Translation
+  IF (INSERTING)
+  THEN
+    --  Create Translation Row
+    INSERT INTO AD_Process_Para_Trl
+                (AD_Process_Para_Trl_ID, AD_Process_Para_ID, AD_Language, AD_Client_ID, AD_Org_ID,
+                 IsActive, Created, CreatedBy, Updated, UpdatedBy, NAME,
+                 Description, HELP, IsTranslated)
+      SELECT get_uuid(), :NEW.AD_Process_Para_ID, AD_Language.AD_Language, :NEW.AD_Client_ID,
+             :NEW.AD_Org_ID, :NEW.IsActive, :NEW.Created, :NEW.CreatedBy,
+             :NEW.Updated, :NEW.UpdatedBy, :NEW.NAME, :NEW.Description,
+             :NEW.HELP, 'N'
+        FROM AD_Language, ad_module m, ad_process p
+       WHERE AD_Language.IsActive = 'Y' AND IsSystemLanguage = 'Y'
+       AND M.AD_Module_ID = p.AD_Module_ID
+       and p.ad_process_id = :new.ad_process_id
+    AND M.AD_Language != AD_Language.AD_Language;
+  END IF;
+
+-- Inserting
+-- AD_Process_Para update trigger
+--  synchronize name,...
+  IF (UPDATING)
+  THEN
+    IF (   COALESCE (:OLD.NAME, '.') <> COALESCE (:NEW.NAME, '.')
+        OR COALESCE (:OLD.Description, '.') <>
+                                              COALESCE (:NEW.Description, '.')
+        OR COALESCE (:OLD.HELP, '.') <> COALESCE (:NEW.HELP, '.')
+       )
+    THEN
+      UPDATE AD_Process_Para_Trl
+         SET IsTranslated = 'N',
+             Updated = now()
+       WHERE AD_Process_Para_ID = :NEW.AD_Process_Para_ID;
+    END IF;
+  END IF;
+-- Updating
+END AD_PROCESS_PARA_TRG
+]]></body>
+    </trigger>
+  </database>

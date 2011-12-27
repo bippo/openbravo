@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="SystemInfoData" package="org.openbravo.erpCommon.utility">
+   <SqlMethod name="selectSystemProperties" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	SELECT System_Identifier, Isheartbeatactive, Isproxyrequired, Proxy_Server, Proxy_Port, 
+      	Servlet_Container, Servlet_Container_Version, Webserver, Webserver_Version, 
+      	Ant_Version, OB_Version, OB_InstallMode, Code_Revision, Postpone_Date
+      	FROM AD_System_Info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectSystemIdentifier" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select System_Identifier from ad_system_info
+    ]]></Sql>
+   </SqlMethod> 
+   <SqlMethod name="selectOracleVersion" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	SELECT banner AS version
+		  FROM v$version 
+		 WHERE banner LIKE '%Database%'
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectPostregresVersion" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	SELECT banner AS version
+		  FROM v$version
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectProxyServer" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Proxy_Server from ad_system_info
+    ]]></Sql>
+   </SqlMethod> 
+   <SqlMethod name="selectProxyPort" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Proxy_Port from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectServletContainer" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Servlet_Container from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectServletContainerVersion" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Servlet_Container_Version from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectWebserver" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Webserver from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectWebserverVersion" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Webserver_Version from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectAntVersion" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Ant_Version from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectObInstallMode" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select OB_InstallMode from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectCodeRevision" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+   select coalesce(version_id, '') as code_revision
+     from ad_module
+    where ad_module_id = '0'
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectIsheartbeatactive" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select isheartbeatactive from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectIsproxyrequired" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select Isproxyrequired from ad_system_info
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectNumRegisteredUsers" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	select count(distinct u.ad_user_id) AS count
+      	from ad_user_roles ur, ad_user u
+      	where ur.ad_user_id = u.ad_user_id
+      	and ur.isActive = 'Y'
+      	and u.isActive = 'Y'
+      	and u.password is not null
+    ]]></Sql>
+   </SqlMethod>
+   <SqlMethod name="updateSystemIdentifier" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        update AD_SYSTEM_INFO set SYSTEM_IDENTIFIER = ?
+     ]]>
+     </Sql>
+     <Parameter name="systemIdentifier"/>
+   </SqlMethod>
+</SqlClass>

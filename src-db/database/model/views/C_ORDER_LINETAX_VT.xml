@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_ORDER_LINETAX_VT">
+    <view name="C_ORDER_LINETAX_VT"><![CDATA[((SELECT ol.ad_client_id, ol.ad_org_id, ol.isactive, ol.created, ol.createdby, ol.updated, ol.updatedby, uom.ad_language, ol.c_order_id, ol.c_orderline_id, ol.c_tax_id, ol.line, ol.qtyordered, uom.uomsymbol, COALESCE(COALESCE(pt.name, p.name), ol.description) AS name, 
+CASE
+WHEN COALESCE(pt.name, p.name) IS NOT NULL THEN ol.description
+ELSE NULL
+END AS description, COALESCE(pt.documentnote, p.documentnote) AS documentnote, p.upc, p.sku, p.value AS productvalue, ra.description AS resourcedescription, 
+CASE
+WHEN i.isdiscountprinted = 'Y' THEN ol.pricelist
+ELSE NULL
+END AS pricelist, 
+CASE
+WHEN i.isdiscountprinted = 'Y' AND ol.pricelist > ol.priceactual THEN (ol.pricelist - ol.priceactual) / ol.pricelist * 100
+ELSE NULL
+END AS discount, ol.priceactual, ol.linenetamt
+FROM c_orderline ol
+JOIN c_uom_trl uom ON ol.c_uom_id = uom.c_uom_id
+JOIN c_order i ON ol.c_order_id = i.c_order_id
+LEFT JOIN m_product p ON ol.m_product_id = p.m_product_id
+LEFT JOIN m_product_trl pt ON ol.m_product_id = pt.m_product_id AND uom.ad_language = pt.ad_language
+LEFT JOIN s_resourceassignment ra ON ol.s_resourceassignment_id = ra.s_resourceassignment_id
+UNION 
+SELECT ol.ad_client_id, ol.ad_org_id, ol.isactive, ol.created, ol.createdby, ol.updated, ol.updatedby, uom.ad_language, ol.c_order_id, ol.c_orderline_id, ol.c_tax_id, ol.line + b.line / 100 AS line, ol.qtyordered * b.bomqty AS qtyordered, uom.uomsymbol, COALESCE(pt.name, p.name) AS name, b.description, COALESCE(pt.documentnote, p.documentnote) AS documentnote, p.upc, p.sku, p.value AS productvalue, NULL AS resourcedescription, NULL AS pricelist, NULL AS discount, NULL AS priceactual, NULL AS linenetamt
+FROM m_product_bom b
+JOIN c_orderline ol ON b.m_product_id = ol.m_product_id
+JOIN m_product bp ON bp.m_product_id = ol.m_product_id AND bp.isbom = 'Y' AND bp.isverified = 'Y' AND bp.isinvoiceprintdetails = 'Y'
+JOIN m_product p ON b.m_productbom_id = p.m_product_id
+JOIN c_uom_trl uom ON p.c_uom_id = uom.c_uom_id
+JOIN m_product_trl pt ON b.m_productbom_id = pt.m_product_id AND uom.ad_language = pt.ad_language)
+UNION 
+SELECT o.ad_client_id, o.ad_org_id, o.isactive, o.created, o.createdby, o.updated, o.updatedby, l.ad_language, o.c_order_id, NULL AS c_orderline_id, NULL AS c_tax_id, NULL AS line, NULL AS qtyordered, NULL AS uomsymbol, NULL AS name, NULL AS description, NULL AS documentnote, NULL AS upc, NULL AS sku, NULL AS productvalue, NULL AS resourcedescription, NULL AS pricelist, NULL AS discount, NULL AS priceactual, NULL AS linenetamt
+FROM c_order o, ad_language l
+WHERE l.isbaselanguage = 'N' AND l.issystemlanguage = 'Y')
+UNION 
+SELECT ot.ad_client_id, ot.ad_org_id, ot.isactive, ot.created, ot.createdby, ot.updated, ot.updatedby, l.ad_language, ot.c_order_id, NULL AS c_orderline_id, ot.c_tax_id, NULL AS line, NULL AS qtyordered, NULL AS uomsymbol, t.name, NULL AS description, NULL AS documentnote, NULL AS upc, NULL AS sku, NULL AS productvalue, NULL AS resourcedescription, NULL AS pricelist, NULL AS discount, ot.taxbaseamt AS priceactual, ot.taxamt AS linenetamt
+FROM c_ordertax ot
+JOIN c_tax t ON ot.c_tax_id = t.c_tax_id, ad_language l
+WHERE l.isbaselanguage = 'N' AND l.issystemlanguage = 'Y']]></view>
+  </database>

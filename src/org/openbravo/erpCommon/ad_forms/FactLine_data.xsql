@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="FactLineData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_Location_ID as location, '' AS ORG, '' AS SALESREGION, '' AS UNEARNEDREVENUE, '' AS ACCOUNT, '' as value,
+        '' AS DESCRIPTION
+        FROM AD_OrgInfo WHERE AD_Org_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="AD_Org_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_Org_ID as org FROM M_Locator WHERE M_Locator_ID=? AND AD_Client_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="M_Locator_ID"/>
+     <Parameter name="AD_Client_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectLocation" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_Location_ID as location FROM C_BPartner_Location WHERE C_BPartner_Location_ID=?
+        ]]>
+     </Sql>
+     <Parameter name="C_BPartner_Location_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectSalesRegion" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_SalesRegion_ID as salesregion FROM C_BPartner_Location WHERE C_BPartner_Location_ID=?
+        ]]>
+     </Sql>
+     <Parameter name="C_BPartner_Location_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectUnearnedRevenue" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ga.UnearnedRevenue_Acct as unearnedrevenue, vc.Account_ID as account
+        FROM C_BP_Group_Acct ga, C_BPartner p, C_ValidCombination vc
+        WHERE ga.C_BP_Group_ID=p.C_BP_Group_ID
+        AND ga.UnearnedRevenue_Acct=vc.C_ValidCombination_ID
+        AND ga.C_AcctSchema_ID = ?
+        AND p.C_BPartner_ID = ?
+        ]]>
+     </Sql>
+     <Parameter name="C_AcctSchema_ID"/>
+     <Parameter name="C_BPartner_ID"/>
+   </SqlMethod>
+
+  <SqlMethod name="insertFactAct" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO Fact_Acct
+          (Fact_Acct_ID,AD_Client_ID,AD_Org_ID,IsActive,Created,CreatedBy,Updated,UpdatedBy,
+        C_AcctSchema_ID,Account_ID, AcctValue, AcctDescription,DateTrx,DateAcct,
+        C_Period_ID,AD_Table_ID,Record_ID,Line_ID,
+        GL_Category_ID,C_Tax_ID,PostingType,C_Currency_ID,
+        AmtSourceDR,AmtSourceCR,AmtAcctDR,AmtAcctCR,
+        C_UOM_ID,Qty,M_Locator_ID,M_Product_ID,C_BPartner_ID,AD_OrgTrx_ID,C_LocFrom_ID,C_LocTo_ID,C_SalesRegion_ID,
+        C_Project_ID,C_Campaign_ID,C_Activity_ID,User1_ID,User2_ID,Description, Fact_Acct_Group_ID, SeqNo, DocBaseType,
+        Record_ID2, A_ASSET_ID, C_WithHolding_ID, C_DocType_ID)
+        VALUES
+          (?, ?, ?,'Y',now(),?,now(),?,
+           ?, ?, ?, ?, TO_DATE(?), TO_DATE(?),
+           ?, ?, ?, ?,
+           ?, ?, ?, ?,
+           TO_NUMBER(?), TO_NUMBER(?), TO_NUMBER(?), TO_NUMBER(?),
+           ?, TO_NUMBER(?), ?,?, ?, ?,?, ?, ?,?, ?, ?,?, ?, ?, ?, TO_NUMBER(?), ?,
+           ?, ?, ?, ?)
+     ]]>
+     </Sql>
+     <Parameter name="m_Fact_Acct_ID"/>
+     <Parameter name="AD_Client_ID"/>
+     <Parameter name="AD_Org_ID"/>
+     <Parameter name="AD_User_ID"/>
+     <Parameter name="AD_User_ID"/>
+     <Parameter name="m_C_AcctSchema_ID"/>
+     <Parameter name="Account_ID"/>
+     <Parameter name="AccountValue"/>
+     <Parameter name="AccountDescription"/>
+     <Parameter name="DateDoc"/>
+     <Parameter name="DateAcct"/>
+     <Parameter name="C_Period_ID"/>
+     <Parameter name="m_AD_Table_ID"/>
+     <Parameter name="m_Record_ID"/>
+     <Parameter name="m_Line_ID"/>
+     <Parameter name="m_GL_Category_ID"/>
+     <Parameter name="C_Tax_ID"/>
+     <Parameter name="m_PostingType"/>
+     <Parameter name="m_C_Currency_ID"/>
+     <Parameter name="m_AmtSourceDr"/>
+     <Parameter name="m_AmtSourceCr"/>
+     <Parameter name="m_AmtAcctDr"/>
+     <Parameter name="m_AmtAcctCr"/>
+     <Parameter name="C_UOM_ID"/>
+     <Parameter name="Qty"/>
+     <Parameter name="m_M_Locator_ID"/>
+     <Parameter name="M_Product_ID"/>
+     <Parameter name="C_BPartner_ID"/>
+     <Parameter name="AD_OrgTrx_ID"/>
+     <Parameter name="C_LocFrom_ID"/>
+     <Parameter name="C_LocTo_ID"/>
+     <Parameter name="C_SalesRegion_ID"/>
+     <Parameter name="C_Project_ID"/>
+     <Parameter name="C_Campaign_ID"/>
+     <Parameter name="C_Activity_ID"/>
+     <Parameter name="User1_ID"/>
+     <Parameter name="User2_ID"/>
+     <Parameter name="description"/>
+     <Parameter name="m_Fact_Acct_Group_ID"/>
+     <Parameter name="seqNo"/>
+     <Parameter name="DocBaseType"/>
+     <Parameter name="Record_ID2"/>
+     <Parameter name="aAssetId"/>
+     <Parameter name="cWithholdingId"/>
+     <Parameter name="cDocTypeId"/>
+   </SqlMethod>
+  <SqlMethod name="updateFactAcct" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE Fact_Acct SET FACTACCTTYPE = 'O'
+        WHERE AD_TABLE_ID = ?
+        AND RECORD_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="table"/>
+     <Parameter name="record"/>
+   </SqlMethod>
+  <SqlMethod name="selectLocationFromLocator" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT w.C_Location_ID as location FROM M_Warehouse w, M_Locator l
+        WHERE w.M_Warehouse_ID=l.M_Warehouse_ID AND l.M_Locator_ID=?
+        ]]>
+     </Sql>
+     <Parameter name="M_Locator_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectAccountValue" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select value, name as description from c_elementvalue where c_elementvalue_id =?
+        ]]>
+     </Sql>
+     <Parameter name="cElementvalueId"/>
+   </SqlMethod>
+   </SqlClass>

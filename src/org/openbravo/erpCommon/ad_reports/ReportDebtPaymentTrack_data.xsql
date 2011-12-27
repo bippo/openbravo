@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportDebtPaymentTrackData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+     SELECT * FROM (
+      SELECT *
+      FROM ( SELECT '0' AS RN1, C1.* FROM (
+      select A.tipo, A.DocType, A.documentno, A.name, A.datetrx, replace(replace(A.description,chr(10),'|'),chr(13),'|') as description,
+      A.amount, A.dateplanned,replace(replace(A.obs,chr(10),'|'),chr(13),'|') as obs,
+      COALESCE(B.initialamount,0) as bp_amt, COALESCE(C.initialamount,0) as ppa_amt , A.amt_doc_bp, A.amt_doc_ppa, A.URL, A.ID
+      from
+        (select AD_MESSAGE_GET2('PTR_INVOICE', ?) as tipo, 'I' as DocType, i.documentno, bp.c_bpartner_id, bp.name, i.dateinvoiced as dateTrx, max(dp.description) as description, 
+        sum((CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END)) as amount, max(dp.dateplanned) as dateplanned, 
+        to_char(i.description) as obs, sum((CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END)) as amt_doc_bp, 0 as amt_doc_ppa,
+        (CASE i.issotrx WHEN 'N' THEN '../PurchaseInvoice/Header_Relation.html?Command=DIRECT' ELSE '../SalesInvoice/Header_Relation.html?Command=DIRECT' END) as URL, 'inpcInvoiceId=' || i.c_invoice_id as id
+        from c_debt_payment dp, c_invoice i, c_bpartner bp
+        where dp.c_invoice_id = i.c_invoice_id
+        AND DP.AD_Client_ID IN ('1') 
+        AND DP.AD_Org_ID IN ('1') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and 1=1
+        group by i.documentno, bp.c_bpartner_id, bp.name, i.dateinvoiced, to_char(i.description), i.issotrx, i.c_invoice_id
+      union all
+        select AD_MESSAGE_GET2('PTR_MANUAL', ?), 'M' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_bp, 0 as amt_doc_ppa,
+        '../ManualSettlement/CreatePayment_Relation.html?Command=DIRECT' AS URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        AND DP.AD_Client_iD IN ('2') 
+        AND DP.AD_Org_iD IN ('2')
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.ismanual='Y'
+        and dp.isValid='Y'
+        and 2=2
+      union all
+        select AD_MESSAGE_GET2('PTR_CP_UNPAID', ?), 'C' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_bp, 0 as amt_doc_ppa,
+        '../Settlement/CancelledPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        AND dP.AD_Client_ID IN ('3') 
+        AND dP.AD_Org_ID IN ('3') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='N'
+        and 3=3
+      union all
+        select AD_MESSAGE_GET2('PTR_CP_PAID', ?), 'A' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_ppa,
+        '../Settlement/CancelledPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        AND Dp.AD_Client_ID IN ('4') 
+        AND Dp.AD_Org_ID IN ('4') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='Y'
+        and 4=4
+      union all
+        select AD_MESSAGE_GET2('PTR_GP_UNPAID',?), 'G' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_bp, 0 as amt_doc_ppa,
+        '../Settlement/CreatedPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        AND DP.aD_Client_ID IN ('5') 
+        AND DP.aD_Org_ID IN ('5') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.generate_processed='Y'
+        and ismanual='N'
+        and (dp.isPaid='N' or dp.c_settlement_cancel_id is not null)
+        and 5=5	
+      union all
+        select AD_MESSAGE_GET2('PTR_GP_PAID', ?), 'J' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, 0 as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_ppa,
+        '../Settlement/CreatedPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        AND DP.Ad_Client_ID IN ('6') 
+        AND DP.Ad_Org_ID IN ('6')
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.generate_processed='Y'
+        and dp.isPaid='Y' and dp.c_settlement_cancel_id is null
+        and 6=6
+      union all
+        select AD_MESSAGE_GET2('PTR_RP_CASH', ?), 'K' as DocType, c.name as documentno, bp.c_bpartner_id, bp.name, c.dateacct as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        to_char(c.description) as obs, 0 as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_ppa,
+        '../CashJournal/Lines_Relation.html?Command=DIRECT' as URL, 'inpcCashlineId=' || cl.C_CASHLINE_ID as id
+        from c_debt_payment dp, c_cash c, c_cashline cl, c_bpartner bp
+        where dp.c_cashline_id = cl.c_cashline_id
+        AND DP.AD_client_ID IN ('7') 
+        AND DP.AD_org_ID IN ('7')
+        and cl.c_cash_id = c.c_cash_id
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and c.processed='Y'
+        and 7=7
+      union all
+        select AD_MESSAGE_GET2('PTR_RP_BANK', ?), 'B' as DocType, b.name as documentno, bp.c_bpartner_id, bp.name, bl.dateacct as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        to_char(b.description) as obs, 0 as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_ppa,
+        '../BankStatement/Lines_Relation.html?Command=DIRECT' as URL, 'inpcBankstatementlineId=' || bl.C_BANKSTATEMENTLINE_ID as id
+        from c_debt_payment dp, c_bankstatement b, c_bankstatementline bl, c_bpartner bp
+        where dp.c_bankstatementline_id = bl.c_bankstatementline_id
+        AND DP.AD_CLient_ID IN ('8') 
+        AND DP.AD_ORg_ID IN ('8')
+        and bl.c_bankstatement_id = b.c_bankstatement_id
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and b.processed='Y'
+        and 8=8) A left join
+(select c_bpartner_id, sum(amount) as initialamount from
+        (select i.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_invoice i
+        where dp.c_invoice_id = i.c_invoice_id
+        and i.dateacct < TO_DATE(?)
+        AND DP.AD_ClIent_ID IN ('9') 
+        AND DP.AD_OrG_ID IN ('9')
+      union all
+        select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        and dp.ismanual='Y'
+        and dp.isValid='Y'
+        and s.dateacct < TO_DATE(?)
+        AND DP.AD_CLIENT_ID IN ('10') 
+        AND DP.AD_ORG_ID IN ('10')
+      union all
+        select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        and dp.generate_processed='Y'
+        and ismanual='N'
+        and (dp.isPaid='N' or dp.c_settlement_cancel_id is not null)
+        and s.dateacct < TO_DATE(?)
+        AND dP.AD_CLIENT_ID IN ('11') 
+        AND dP.AD_ORG_ID IN ('11')
+      union all	
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='N'
+        and s.dateacct < TO_DATE(?)
+        AND Dp.AD_CLIENT_ID IN ('12') 
+        AND Dp.AD_ORG_ID IN ('12')
+      union all
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='Y'
+        and s.dateacct < TO_DATE(?)
+        AND DP.aD_CLIENT_ID IN ('13') 
+        AND DP.aD_ORG_ID IN ('13')) AAA
+      group by c_bpartner_id) B on A.c_bpartner_id =B.c_bpartner_id
+      left join
+        (select c_bpartner_id, sum(amount) as initialamount from
+        (select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='Y'
+        and s.dateacct < TO_DATE(?)
+        AND DP.Ad_CLIENT_ID IN ('14') 
+        AND DP.Ad_ORG_ID IN ('14')
+      union all
+        select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        and dp.generate_processed='Y'
+        and dp.isPaid='Y' and dp.c_settlement_cancel_id is null
+        and s.dateacct < TO_DATE(?)
+        AND DP.AD_cLIENT_ID IN ('15') 
+        AND DP.AD_oRG_ID IN ('15')
+      union all	
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_cash c, c_cashline cl
+        where dp.c_cashline_id = cl.c_cashline_id
+        and cl.c_cash_id = c.c_cash_id
+        and c.processed='Y'
+        and c.dateacct < TO_DATE(?)
+        AND DP.AD_ClIENT_ID IN ('16') 
+        AND DP.AD_Org_id IN ('16')
+      union all
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_bankstatement b, c_bankstatementline bl
+        where dp.c_bankstatementline_id = bl.c_bankstatementline_id
+        and bl.c_bankstatement_id = b.c_bankstatement_id
+        and b.processed='Y'
+        and bl.dateacct < TO_DATE(?)
+        AND DP.AD_CLiENT_ID IN ('17') 
+        AND DP.AD_ORg_id in ('17')
+        ) BBB
+        group by c_bpartner_id) C on A.c_bpartner_id = C.c_bpartner_id
+      WHERE A.datetrx >= TO_DATE(?)
+      AND 9=9
+      AND A.DocType in ('1')
+      order by A.name, A.datetrx, A.documentno
+     ) C1
+    ) B WHERE 10=10 AND 11=11
+   ) A
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_ID IN (" text="'1'"/>      
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 1=1"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_iD IN (" text="'2'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_iD IN (" text="'2'"/>  
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 2=2"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="dP.AD_Client_ID IN (" text="'3'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="dP.AD_Org_ID IN (" text="'3'"/>  
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 3=3"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="Dp.AD_Client_ID IN (" text="'4'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="Dp.AD_Org_ID IN (" text="'4'"/>  
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 4=4"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.aD_Client_ID IN (" text="'5'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.aD_Org_ID IN (" text="'5'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 5=5"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.Ad_Client_ID IN (" text="'6'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.Ad_Org_ID IN (" text="'6'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 6=6"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_client_ID IN (" text="'7'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_org_ID IN (" text="'7'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 7=7"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_CLient_ID IN (" text="'8'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_ORg_ID IN (" text="'8'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 8=8"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_ClIent_ID IN (" text="'9'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_OrG_ID IN (" text="'9'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_CLIENT_ID IN (" text="'10'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_ORG_ID IN (" text="'10'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="dP.AD_CLIENT_ID IN (" text="'11'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="dP.AD_ORG_ID IN (" text="'11'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="Dp.AD_CLIENT_ID IN (" text="'12'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="Dp.AD_ORG_ID IN (" text="'12'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.aD_CLIENT_ID IN (" text="'13'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.aD_ORG_ID IN (" text="'13'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.Ad_CLIENT_ID IN (" text="'14'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.Ad_ORG_ID IN (" text="'14'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_cLIENT_ID IN (" text="'15'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_oRG_ID IN (" text="'15'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_ClIENT_ID IN (" text="'16'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_id IN (" text="'16'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_CLiENT_ID IN (" text="'17'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_ORg_id in (" text="'17'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="dateTo" optional="true" after="AND 9=9"><![CDATA[ and A.datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="moreThan" optional="true" after="AND 9=9"><![CDATA[ and A.amount > TO_NUMBER(?)]]></Parameter>
+    <Parameter name="lessThan" optional="true" after="AND 9=9"><![CDATA[ and A.amount < TO_NUMBER(?)]]></Parameter>
+    <Parameter name="docTypes" optional="true" type="replace" after="AND A.DocType in (" text="'1'"/>
+    <Parameter name="oraLimit1" type="argument" optional="true" after=") C1"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+    <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 10=10"><![CDATA[ AND RN1 BETWEEN ]]></Parameter>
+    <Parameter name="pgLimit" type="argument" optional="true" after="11=11"><![CDATA[ LIMIT ]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectCount" type="preparedStatement" return="string" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    select COUNT ( A.tipo || A.DocType || A.documentno || A.name || A.datetrx || A.amount || A.dateplanned 
+    || COALESCE(B.initialamount,0) || COALESCE(C.initialamount,0) || A.amt_doc_bp || A.amt_doc_ppa || A.URL || A.ID ) AS COUNT
+      from
+        (select AD_MESSAGE_GET2('PTR_INVOICE', ?) as tipo, 'I' as DocType, i.documentno, bp.c_bpartner_id, bp.name, i.dateinvoiced as dateTrx, max(dp.description) as description, 
+        sum((CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END)) as amount, max(dp.dateplanned) as dateplanned, 
+        to_char(i.description) as obs, sum((CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END)) as amt_doc_bp, 0 as amt_doc_ppa,
+        (CASE i.issotrx WHEN 'N' THEN '../PurchaseInvoice/Header_Relation.html?Command=DIRECT' ELSE '../SalesInvoice/Header_Relation.html?Command=DIRECT' END) as URL, 'inpcInvoiceId=' || i.c_invoice_id as id
+        from c_debt_payment dp, c_invoice i, c_bpartner bp
+        where dp.c_invoice_id = i.c_invoice_id
+        AND DP.AD_Client_ID IN ('1') 
+        AND DP.AD_Org_ID IN ('1') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and 1=1
+        group by i.documentno, bp.c_bpartner_id, bp.name, i.dateinvoiced, to_char(i.description), i.issotrx, i.c_invoice_id
+      union all
+        select AD_MESSAGE_GET2('PTR_MANUAL', ?), 'M' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_bp, 0 as amt_doc_ppa,
+        '../ManualSettlement/CreatePayment_Relation.html?Command=DIRECT' AS URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        AND DP.AD_Client_iD IN ('2') 
+        AND DP.AD_Org_iD IN ('2')
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.ismanual='Y'
+        and dp.isValid='Y'
+        and 2=2
+      union all
+        select AD_MESSAGE_GET2('PTR_CP_UNPAID', ?), 'C' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_bp, 0 as amt_doc_ppa,
+        '../Settlement/CancelledPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        AND dP.AD_Client_ID IN ('3') 
+        AND dP.AD_Org_ID IN ('3') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='N'
+        and 3=3
+      union all
+        select AD_MESSAGE_GET2('PTR_CP_PAID', ?), 'A' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_ppa,
+        '../Settlement/CancelledPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        AND Dp.AD_Client_ID IN ('4') 
+        AND Dp.AD_Org_ID IN ('4') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='Y'
+        and 4=4
+      union all
+        select AD_MESSAGE_GET2('PTR_GP_UNPAID',?), 'G' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_bp, 0 as amt_doc_ppa,
+        '../Settlement/CreatedPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        AND DP.aD_Client_ID IN ('5') 
+        AND DP.aD_Org_ID IN ('5') 
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.generate_processed='Y'
+        and ismanual='N'
+        and (dp.isPaid='N' or dp.c_settlement_cancel_id is not null)
+        and 5=5 
+      union all
+        select AD_MESSAGE_GET2('PTR_GP_PAID', ?), 'J' as DocType, s.documentno, bp.c_bpartner_id, bp.name, s.dateTrx as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        s.description as obs, 0 as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amt_doc_ppa,
+        '../Settlement/CreatedPayments_Relation.html?Command=DIRECT' as URL, 'inpcDebtPaymentId=' || dp.C_DEBT_PAYMENT_ID as id
+        from c_debt_payment dp, c_settlement s, c_bpartner bp
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        AND DP.Ad_Client_ID IN ('6') 
+        AND DP.Ad_Org_ID IN ('6')
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and dp.generate_processed='Y'
+        and dp.isPaid='Y' and dp.c_settlement_cancel_id is null
+        and 6=6
+      union all
+        select AD_MESSAGE_GET2('PTR_RP_CASH', ?), 'K' as DocType, c.name as documentno, bp.c_bpartner_id, bp.name, c.dateacct as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        to_char(c.description) as obs, 0 as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_ppa,
+        '../CashJournal/Lines_Relation.html?Command=DIRECT' as URL, 'inpcCashlineId=' || cl.C_CASHLINE_ID as id
+        from c_debt_payment dp, c_cash c, c_cashline cl, c_bpartner bp
+        where dp.c_cashline_id = cl.c_cashline_id
+        AND DP.AD_client_ID IN ('7') 
+        AND DP.AD_org_ID IN ('7')
+        and cl.c_cash_id = c.c_cash_id
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and c.processed='Y'
+        and 7=7
+      union all
+        select AD_MESSAGE_GET2('PTR_RP_BANK', ?), 'B' as DocType, b.name as documentno, bp.c_bpartner_id, bp.name, bl.dateacct as dateTrx, dp.description, 
+        (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount, dp.dateplanned,
+        to_char(b.description) as obs, 0 as amt_doc_bp, (CASE dp.isreceipt WHEN 'Y' THEN -dp.amount ELSE dp.amount END) as amt_doc_ppa,
+        '../BankStatement/Lines_Relation.html?Command=DIRECT' as URL, 'inpcBankstatementlineId=' || bl.C_BANKSTATEMENTLINE_ID as id
+        from c_debt_payment dp, c_bankstatement b, c_bankstatementline bl, c_bpartner bp
+        where dp.c_bankstatementline_id = bl.c_bankstatementline_id
+        AND DP.AD_CLient_ID IN ('8') 
+        AND DP.AD_ORg_ID IN ('8')
+        and bl.c_bankstatement_id = b.c_bankstatement_id
+        and dp.c_bpartner_id = bp.c_bpartner_id
+        and b.processed='Y'
+        and 8=8) A left join
+(select c_bpartner_id, sum(amount) as initialamount from
+        (select i.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_invoice i
+        where dp.c_invoice_id = i.c_invoice_id
+        and i.dateacct < TO_DATE(?)
+        AND DP.AD_ClIent_ID IN ('9') 
+        AND DP.AD_OrG_ID IN ('9')
+      union all
+        select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        and dp.ismanual='Y'
+        and dp.isValid='Y'
+        and s.dateacct < TO_DATE(?)
+        AND DP.AD_CLIENT_ID IN ('10') 
+        AND DP.AD_ORG_ID IN ('10')
+      union all
+        select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        and dp.generate_processed='Y'
+        and ismanual='N'
+        and (dp.isPaid='N' or dp.c_settlement_cancel_id is not null)
+        and s.dateacct < TO_DATE(?)
+        AND dP.AD_CLIENT_ID IN ('11') 
+        AND dP.AD_ORG_ID IN ('11')
+      union all 
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='N'
+        and s.dateacct < TO_DATE(?)
+        AND Dp.AD_CLIENT_ID IN ('12') 
+        AND Dp.AD_ORG_ID IN ('12')
+      union all
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='Y'
+        and s.dateacct < TO_DATE(?)
+        AND DP.aD_CLIENT_ID IN ('13') 
+        AND DP.aD_ORG_ID IN ('13')) AAA
+      group by c_bpartner_id) B on A.c_bpartner_id =B.c_bpartner_id
+      left join
+        (select c_bpartner_id, sum(amount) as initialamount from
+        (select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_cancel_id = s.c_settlement_id
+        and dp.cancel_processed='Y'
+        and dp.isPaid='Y'
+        and s.dateacct < TO_DATE(?)
+        AND DP.Ad_CLIENT_ID IN ('14') 
+        AND DP.Ad_ORG_ID IN ('14')
+      union all
+        select dp.c_bpartner_id, (CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_settlement s
+        where dp.c_settlement_generate_id = s.c_settlement_id
+        and dp.generate_processed='Y'
+        and dp.isPaid='Y' and dp.c_settlement_cancel_id is null
+        and s.dateacct < TO_DATE(?)
+        AND DP.AD_cLIENT_ID IN ('15') 
+        AND DP.AD_oRG_ID IN ('15')
+      union all 
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_cash c, c_cashline cl
+        where dp.c_cashline_id = cl.c_cashline_id
+        and cl.c_cash_id = c.c_cash_id
+        and c.processed='Y'
+        and c.dateacct < TO_DATE(?)
+        AND DP.AD_ClIENT_ID IN ('16') 
+        AND DP.AD_Org_id IN ('16')
+      union all
+        select dp.c_bpartner_id, -(CASE dp.isreceipt WHEN 'Y' THEN dp.amount ELSE -dp.amount END) as amount
+        from c_debt_payment dp, c_bankstatement b, c_bankstatementline bl
+        where dp.c_bankstatementline_id = bl.c_bankstatementline_id
+        and bl.c_bankstatement_id = b.c_bankstatement_id
+        and b.processed='Y'
+        and bl.dateacct < TO_DATE(?)
+        AND DP.AD_CLiENT_ID IN ('17') 
+        AND DP.AD_ORg_id in ('17')
+        ) BBB
+        group by c_bpartner_id) C on A.c_bpartner_id = C.c_bpartner_id
+      WHERE A.datetrx >= TO_DATE(?)
+      AND 9=9
+      AND A.DocType in ('1')
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adLanguage" />
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_ID IN (" text="'1'"/>      
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 1=1"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_iD IN (" text="'2'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_iD IN (" text="'2'"/>  
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 2=2"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="dP.AD_Client_ID IN (" text="'3'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="dP.AD_Org_ID IN (" text="'3'"/>  
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 3=3"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="Dp.AD_Client_ID IN (" text="'4'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="Dp.AD_Org_ID IN (" text="'4'"/>  
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 4=4"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.aD_Client_ID IN (" text="'5'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.aD_Org_ID IN (" text="'5'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 5=5"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.Ad_Client_ID IN (" text="'6'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.Ad_Org_ID IN (" text="'6'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 6=6"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_client_ID IN (" text="'7'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_org_ID IN (" text="'7'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 7=7"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_CLient_ID IN (" text="'8'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_ORg_ID IN (" text="'8'"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="and 8=8"><![CDATA[ and bp.c_bpartner_id in]]></Parameter>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_ClIent_ID IN (" text="'9'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_OrG_ID IN (" text="'9'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_CLIENT_ID IN (" text="'10'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_ORG_ID IN (" text="'10'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="dP.AD_CLIENT_ID IN (" text="'11'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="dP.AD_ORG_ID IN (" text="'11'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="Dp.AD_CLIENT_ID IN (" text="'12'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="Dp.AD_ORG_ID IN (" text="'12'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.aD_CLIENT_ID IN (" text="'13'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.aD_ORG_ID IN (" text="'13'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.Ad_CLIENT_ID IN (" text="'14'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.Ad_ORG_ID IN (" text="'14'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_cLIENT_ID IN (" text="'15'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_oRG_ID IN (" text="'15'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_ClIENT_ID IN (" text="'16'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_id IN (" text="'16'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_CLiENT_ID IN (" text="'17'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_ORg_id in (" text="'17'"/>
+    <Parameter name="dateFrom"/>
+    <Parameter name="dateTo" optional="true" after="AND 9=9"><![CDATA[ and A.datetrx < TO_DATE(?)]]></Parameter>
+    <Parameter name="moreThan" optional="true" after="AND 9=9"><![CDATA[ and A.amount > TO_NUMBER(?)]]></Parameter>
+    <Parameter name="lessThan" optional="true" after="AND 9=9"><![CDATA[ and A.amount < TO_NUMBER(?)]]></Parameter>
+    <Parameter name="docTypes" optional="true" type="replace" after="AND A.DocType in (" text="'1'"/>
+  </SqlMethod>
+</SqlClass>

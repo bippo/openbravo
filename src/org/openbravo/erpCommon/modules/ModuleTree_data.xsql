@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="ModuleTreeData" package="org.openbravo.erpCommon.modules" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+         SELECT COALESCE(MI.Type, M.Type) as Type, COALESCE(MI.AD_Module_ID, M.AD_Module_ID) as Node_ID, 
+                (CASE WHEN MI.AD_Module_ID IS NOT NULL 
+                         THEN AD_Column_Identifier('AD_Module_Install',MI.AD_Module_Install_ID, ?)
+                         ELSE AD_Column_Identifier('AD_Module',M.AD_Module_ID, ?) END) as Name, 
+                 (SELECT CASE WHEN COUNT(*)>0 THEN 'block' ELSE 'none' END
+                    FROM AD_Module M2
+                    WHERE M2.AD_Module_ID = M.AD_Module_ID
+                    AND EXISTS
+                    (SELECT 1
+                            FROM AD_Module_Dependency
+                           WHERE AD_Module_ID = M2.AD_Module_ID
+                             AND IsIncluded = 'Y'
+                           UNION
+                           SELECT 1
+                            FROM AD_Module_Dependency_Inst
+                           WHERE AD_Module_ID = M2.AD_Module_ID
+                             AND IsIncluded = 'Y'))                as display,
+                     '' as linkClick,
+                     '' as linkName,
+                     '' as linkClick1,
+                     '' as linkName1,
+                     '' as Description,
+                     COALESCE(MI.version, M.version) as Version,
+                     '' as Status_Name,
+                     M.Status,
+                     M.Update_Available,
+                     COALESCE(MI.help, M.help) as help,
+                     COALESCE(MI.author, M.author) as author,
+                     COALESCE(MI.url, M.url) as url,
+                     '' as levelno,
+                     '' as leveltree,
+                     '' as icon,
+                     '' as icon2,
+                     '' as endline,
+                     '' as updateversion,
+                     '' as updatedescription,
+                     '' as position,
+                     '' as UPDATE_VER_ID,
+                     '' as style,
+                     coalesce (MI.Seqno, M.SeqNo) as Seqno,
+                     coalesce (mi.name, m.name) as ModuleName,
+                     coalesce (mi.version_label, m.version_label) as version_label,
+                     m.enabled
+           FROM AD_Module M left join AD_Module_Install MI
+                                   on M.AD_Module_ID = MI.AD_Module_ID
+          WHERE NOT EXISTS (SELECT 1 
+                              FROM AD_Module_Dependency
+                             WHERE AD_Dependent_Module_ID = M.AD_Module_ID
+                               AND IsIncluded = 'Y') 
+            AND m.ISACTIVE = 'Y'
+          UNION
+          SELECT Type, AD_Module_ID as Node_ID, 
+                 AD_Column_Identifier('AD_Module_Install',AD_Module_Install_ID, ?) as Name, 
+                 (SELECT CASE WHEN COUNT(*)>0 THEN 'block' ELSE 'none' END
+                    FROM AD_Module_Dependency_Inst
+                   WHERE AD_Module_ID = M.AD_Module_ID
+                     AND IsIncluded = 'Y')                as display,
+                     '' as linkClick,
+                     '' as linkName,
+                     '' as linkClick1,
+                     '' as linkName1,
+                     '' as Description,
+                     m.Version,
+                     '' as Status_Name,
+                     M.Status,
+                     M.Update_Available,
+                     M.help,
+                     M.author,
+                     M.url,
+                     '' as levelno,
+                     '' as leveltree,
+                     '' as icon,
+                     '' as icon2,
+                     '' as endline,
+                     '' as updateversion,
+                     '' as updatedescription,
+                     '' as position,
+                     '' as UPDATE_VER_ID,
+                     '' as style,
+                     Seqno,
+                     m.name as ModuleName,
+                     m.version_label,
+                     'Y' as enabled
+           FROM AD_Module_Install M 
+          WHERE NOT EXISTS (SELECT 1 
+                              FROM AD_Module_Dependency_Inst
+                             WHERE AD_Dependent_Module_ID = M.AD_Module_ID
+                               AND IsIncluded = 'Y') 
+            AND NOT EXISTS (SELECT 1 
+                               FROM AD_MODULE
+                              WHERE AD_Module_ID = M.AD_Module_ID)
+            AND ISACTIVE = 'Y'
+            order by Seqno
+      </Sql>
+      <Parameter name="lang"/>
+      <Parameter name="lang"/>
+      <Parameter name="lang"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectSubTree" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT M.Type, M.AD_Module_ID as Node_ID, 
+                 (CASE WHEN MI.AD_MODULE_ID IS NULL 
+                                      THEN AD_Column_Identifier('AD_Module',m.AD_Module_ID, ?)
+                                      ELSE AD_Column_Identifier('AD_Module_Install',MI.AD_Module_Install_ID, ?) END )as Name, 
+                 (SELECT CASE WHEN COUNT(*)>0 THEN 'block' ELSE 'none' END
+                    FROM AD_Module M2
+                    WHERE M2.AD_Module_ID = M.AD_Module_ID
+                    AND EXISTS
+                    (SELECT 1
+                            FROM AD_Module_Dependency
+                           WHERE AD_Module_ID = M2.AD_Module_ID
+                             AND IsIncluded = 'Y'
+                           UNION
+                           SELECT 1
+                            FROM AD_Module_Dependency_Inst
+                           WHERE AD_Module_ID = M2.AD_Module_ID
+                             AND IsIncluded = 'Y'))                as display,
+                     m.Status,
+                     m.Update_Available,
+                     coalesce(MI.version, M.version) as Version,
+                     coalesce(mi.name, m.name) as moduleName,
+                     coalesce(mi.version_label, m.version_label) as version_label,
+                     m.enabled,
+                     COALESCE(MI.author, M.author) as author
+            FROM AD_MODULE M LEFT JOIN AD_MODULE_INSTALL MI
+                                    ON MI.AD_MODULE_ID = M.AD_MODULE_ID
+           WHERE EXISTS (SELECT 1 
+                           FROM AD_Module_Dependency 
+                          WHERE AD_Module_ID = ?
+                            AND AD_Dependent_Module_ID = M.AD_Module_ID
+                            AND IsIncluded = 'Y'
+                          UNION
+                          SELECT 1 
+                           FROM AD_Module_Dependency_Inst
+                          WHERE AD_Module_ID = ?
+                            AND AD_Dependent_Module_ID = M.AD_Module_ID
+                            AND IsIncluded = 'Y')
+             AND M.ISACTIVE = 'Y'
+            UNION
+             SELECT Type, AD_Module_ID as Node_ID, AD_Column_Identifier('AD_Module_Install',AD_Module_Install_ID, ?) as Name, 
+                 (SELECT CASE WHEN COUNT(*)>0 THEN 'block' ELSE 'none' END
+                    FROM AD_Module_Dependency
+                   WHERE AD_Module_ID = M.AD_Module_ID
+                     AND IsIncluded = 'Y')                as display,
+                     Status,
+                     Update_Available,
+                     m.version,
+                     m.name as moduleName,
+                     m.version_label,
+                     'Y' as enabled,
+                     m.author
+            FROM AD_MODULE_Install M
+           WHERE EXISTS (SELECT 1 
+                           FROM AD_Module_Dependency_Inst 
+                          WHERE AD_Module_ID = ?
+                            AND AD_Dependent_Module_ID = M.AD_Module_ID
+                            AND IsIncluded = 'Y')
+             AND NOT EXISTS (SELECT 1
+                               FROM AD_MODULE
+                              WHERE AD_Module_ID = M.AD_Module_ID)
+             AND ISACTIVE = 'Y'
+     </Sql>
+     <Parameter name="lang"/>
+     <Parameter name="lang"/>
+     <Parameter name="rootNode"/>
+     <Parameter name="rootNode"/>
+     <Parameter name="lang"/>
+     <Parameter name="rootNode"/>
+   </SqlMethod>
+   
+   
+   <SqlMethod name="selectDescription" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT COALESCE(MI.Name, M.Name) as Name,
+                 M.Version || (CASE WHEN MI.Version IS NULL 
+                                            THEN ''
+                                            ELSE ' -> '||MI.Version END) as Version,
+                 COALESCE(MI.Description, T.Description, M.Description) as Description,
+                 COALESCE(MI.help, T.help, M.Help) as Help,
+                 COALESCE(MI.Author, M.author) as author,
+                 COALESCE(MI.url, M.url) as url,
+                 COALESCE(MI.status, M.status) as status,
+                 M.Update_Available,
+                 M.AD_Module_ID as Node_ID,
+                 COALESCE(RT.Name, R.Name) as Status_Name,
+                 COALESCE(T.UpdateInfo, M.UpdateInfo) as UpdateDescription,
+                 M.UPDATE_AVAILABLE as UpdateVersion,
+                 M.UPDATE_VER_ID
+            FROM AD_MODULE M LEFT JOIN AD_MODULE_TRL T 
+                                     ON T.AD_Module_ID = M.AD_Module_ID
+                                    AND T.AD_Language = ?
+                              LEFT JOIN AD_MODULE_INSTALL MI
+                                     ON MI.AD_MODULE_ID = M.AD_MODULE_ID,
+                 AD_REF_LIST R LEFT JOIN AD_REF_LIST_TRL RT
+                                     ON RT.AD_Ref_List_ID = R.AD_Ref_list_ID
+                                     AND RT.AD_Language = ? 
+           WHERE M.AD_Module_ID = ?
+             AND R.AD_REFERENCE_ID = '725CD8C6882C40AFB4D1C27B1AEF8BB4'
+             AND R.Value = M.Status
+           UNION
+           SELECT M.Name as Name,
+                 M.Version ,
+                 M.Description,
+                 M.Help,
+                 M.author,
+                 M.url,
+                 M.status,
+                 M.Update_Available,
+                 M.AD_Module_ID as Node_ID,
+                 COALESCE(RT.Name, R.Name) as Status_Name,
+                 m.UpdateInfo,
+                 M.UPDATE_AVAILABLE as UpdateVersion,
+                 M.UPDATE_VER_ID
+            FROM AD_MODULE_INSTALL M,
+                 AD_REF_LIST R LEFT JOIN AD_REF_LIST_TRL RT
+                                     ON RT.AD_Ref_List_ID = R.AD_Ref_list_ID
+                                     AND RT.AD_Language = ? 
+           WHERE M.AD_Module_ID = ?
+             AND R.AD_REFERENCE_ID = '725CD8C6882C40AFB4D1C27B1AEF8BB4'
+             AND R.Value = M.Status
+     </Sql>
+     <Parameter name="lang"/>
+     <Parameter name="lang"/>
+     <Parameter name="node"/>
+     <Parameter name="lang"/>
+     <Parameter name="node"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectUpdateDescription" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT COALESCE(T.UpdateInfo, M.UpdateInfo) as description,
+                 UPDATE_AVAILABLE as Version,
+                 M.AD_Module_ID as Node_ID
+            FROM AD_MODULE M LEFT JOIN AD_MODULE_TRL T
+                                    ON T.AD_Module_ID = M.AD_Module_ID
+                                   AND T.AD_Language = ?
+           WHERE M.AD_Module_ID = ?
+     </Sql>
+     <Parameter name="lang"/>
+     <Parameter name="node"/>
+   </SqlMethod>
+   
+    <SqlMethod name="selectParent" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT MAX(AD_Module_ID) as Node_ID
+            FROM AD_MODULE_DEPENDENCY
+           WHERE AD_Dependent_Module_ID = ?
+             AND IsIncluded = 'Y'
+           UNION
+          SELECT MAX(AD_Module_ID) as Node_ID
+            FROM AD_MODULE_DEPENDENCY_INST
+           WHERE AD_Dependent_Module_ID = ?
+             AND IsIncluded = 'Y'
+     </Sql>
+     <Parameter name="node"/>
+     <Parameter name="node"/>
+   </SqlMethod>
+</SqlClass>

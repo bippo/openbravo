@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION OBUIAPP_SYNCHRONIZE">
+    <function name="OBUIAPP_SYNCHRONIZE" type="NULL">
+      <parameter name="ep_instance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_TemplateInDev CHAR(1);
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+
+
+BEGIN 
+  SELECT CASE count(*) WHEN 0 THEN 'N' ELSE 'Y' END INTO v_templateindev
+  FROM ad_module 
+  WHERE type = 'T'
+    AND isindevelopment = 'Y';
+
+  -- insert new elements
+  FOR cur_parameter IN (
+      SELECT param.obuiapp_parameter_id, param.columnname, param.name, param.help, param.description, param.ad_module_id
+      FROM obuiapp_parameter param INNER JOIN ad_module m ON param.ad_module_id = m.ad_module_id
+                                                             AND m.isindevelopment = 'Y'
+      WHERE param.ad_element_id IS NULL
+        AND param.iscentrallymaintained = 'Y'
+        AND NOT EXISTS
+          (SELECT 1 FROM ad_element e
+            WHERE UPPER(param.columnname)=UPPER(e.columnname)
+             AND AD_Module_Dependent(e.ad_module_id, param.ad_module_id)='Y')
+    ) LOOP
+    INSERT INTO ad_element (
+        ad_element_id, ad_client_id, ad_org_id, isactive,
+        created, createdby, updated, updatedby,
+        columnname, name, printname, description,
+        help, ad_module_id
+    ) VALUES (
+        get_uuid(), '0', '0', 'Y',
+        now(), '0', now(), '0',
+        cur_parameter.columnname, cur_parameter.name, cur_parameter.name, cur_parameter.description,
+        cur_parameter.help, cur_parameter.ad_module_id);
+    DBMS_OUTPUT.PUT_LINE('  added ' || cur_parameter.columnname);
+  END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE('Adding missing Element Translations') ;
+  INSERT INTO ad_element_trl
+    (
+      ad_element_trl_id, ad_element_id, ad_language, ad_client_id, ad_org_id,
+      isactive, created, createdby, updated,
+      updatedby, name, printname, description,
+      help, istranslated
+    )
+  SELECT get_uuid(), e.ad_element_id, l.ad_language, e.ad_client_id, e.ad_org_id, e.isactive,
+      e.created, e.createdby, e.updated, e.updatedby, e.name, e.printname, e.description, e.help, 'N'
+  FROM ad_element e, ad_language l, ad_module
+  WHERE l.isactive = 'Y'
+    AND l.issystemlanguage = 'Y'
+    AND ad_module.ad_module_id = e.ad_module_id
+    AND ad_module.isindevelopment = 'Y'
+    AND l.ad_language != ad_module.ad_language
+    AND NOT EXISTS (SELECT 1 
+                    FROM ad_element_trl 
+                    WHERE ad_element_id = e.ad_element_id
+                      AND ad_language = l.ad_language);
+
+  -- Set missing ad_element_id to parameters
+  UPDATE obuiapp_parameter
+    SET ad_element_id=(SELECT MAX(ad_element_id)
+                       FROM ad_element e
+                       WHERE UPPER(obuiapp_parameter.columnname)=UPPER(e.columnname)
+                         AND AD_Module_Dependent(e.ad_module_id, obuiapp_parameter.ad_module_id)='Y')
+    WHERE ad_element_id IS NULL
+      AND iscentrallymaintained = 'Y'
+      AND EXISTS (SELECT 1 FROM ad_module m
+                  WHERE (m.ad_module_id = obuiapp_parameter.ad_module_id
+                         AND m.isindevelopment='Y')
+                        OR v_templateindev ='Y');
+
+  -- synchronize parameter
+  UPDATE obuiapp_parameter
+    SET name = 
+            (SELECT COALESCE (etrl.name, e.name)
+             FROM ad_element e INNER JOIN ad_module parammod ON 1=1
+                               LEFT JOIN ad_element_trl etrl ON e.ad_element_id = etrl.ad_element_id
+                                                                AND parammod.ad_language = etrl.ad_language
+             WHERE parammod.ad_module_id = obuiapp_parameter.ad_module_id
+               AND e.ad_element_id = obuiapp_parameter.ad_element_id),
+        Description =
+            (SELECT COALESCE (etrl.description, e.description)
+             FROM ad_element e INNER JOIN ad_module parammod ON 1=1
+                               LEFT JOIN ad_element_trl etrl ON e.ad_element_id = etrl.ad_element_id
+                                                                AND parammod.ad_language = etrl.ad_language
+             WHERE parammod.ad_module_id = obuiapp_parameter.ad_module_id
+               AND e.ad_element_id = obuiapp_parameter.ad_element_id),
+        Help =
+            (SELECT COALESCE (etrl.Help, e.Help)
+             FROM ad_element e INNER JOIN ad_module parammod ON 1=1
+                               LEFT JOIN ad_element_trl etrl ON e.ad_element_id = etrl.ad_element_id
+                                                                AND parammod.ad_language = etrl.ad_language
+             WHERE parammod.ad_module_id = obuiapp_parameter.ad_module_id
+               AND e.ad_element_id = obuiapp_parameter.ad_element_id),
+        Updated=now()
+    WHERE obuiapp_parameter.iscentrallymaintained = 'Y'
+      AND obuiapp_parameter.isactive = 'Y'
+      AND obuiapp_parameter.ad_element_id IS NOT NULL
+      AND EXISTS
+        (SELECT 1
+         FROM ad_element e INNER JOIN ad_module parammod ON 1=1
+                               LEFT JOIN ad_element_trl etrl ON e.ad_element_id = etrl.ad_element_id
+                                                            AND parammod.ad_language = etrl.ad_language
+         WHERE obuiapp_parameter.ad_module_id = parammod.ad_module_id
+           AND e.ad_element_id = obuiapp_parameter.ad_element_id
+           AND (parammod.isindevelopment = 'Y' OR v_templateindev = 'Y')
+           AND (obuiapp_parameter.NAME != COALESCE(etrl.name, e.name)
+                OR COALESCE(TO_CHAR(obuiapp_parameter.description), ' ')<>COALESCE(TO_CHAR(etrl.description), TO_CHAR(e.description), ' ')
+                OR COALESCE(TO_CHAR(obuiapp_parameter.help), ' ')<>COALESCE(TO_CHAR(etrl.help), TO_CHAR(e.help), ' ')));
+
+    DBMS_OUTPUT.PUT_LINE('Synchronize Field Translations');
+    -- Translation managed on 2 steps. Step 1: update taken translations from ad_element_trl table:
+    UPDATE obuiapp_parameter_trl
+      SET name =
+              (SELECT etrl.name
+               FROM obuiapp_parameter param INNER JOIN ad_element_trl etrl ON param.ad_element_id = etrl.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id
+                 AND etrl.ad_language = obuiapp_parameter_trl.ad_language),
+          description =
+              (SELECT etrl.description
+               FROM obuiapp_parameter param INNER JOIN ad_element_trl etrl ON param.ad_element_id = etrl.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id
+                 AND etrl.ad_language = obuiapp_parameter_trl.ad_language),
+          help =
+              (SELECT etrl.help
+               FROM obuiapp_parameter param INNER JOIN ad_element_trl etrl ON param.ad_element_id = etrl.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id
+                 AND etrl.ad_language = obuiapp_parameter_trl.ad_language),
+          istranslated =
+              (SELECT etrl.istranslated
+               FROM obuiapp_parameter param INNER JOIN ad_element_trl etrl ON param.ad_element_id = etrl.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id
+                 AND etrl.ad_language = obuiapp_parameter_trl.ad_language),
+          updated=now()
+    WHERE EXISTS
+      (SELECT 1
+       FROM obuiapp_parameter param INNER JOIN ad_element_trl etrl ON param.ad_element_id = etrl.ad_element_id
+                                    INNER JOIN ad_module m ON param.ad_module_id = param.ad_module_id
+       WHERE param.obuiapp_parameter_id = obuiapp_parameter_trl.obuiapp_parameter_id
+         AND param.iscentrallymaintained = 'Y'
+         AND param.isactive = 'Y'
+         AND etrl.ad_language = obuiapp_parameter_trl.ad_language
+         AND (m.isindevelopment = 'Y' OR v_templateindev ='Y')
+         AND (obuiapp_parameter_trl.name <> etrl.name
+              OR COALESCE(TO_CHAR(obuiapp_parameter_trl.description), ' ') <> COALESCE(TO_CHAR(etrl.description), ' ')
+              OR COALESCE(TO_CHAR(obuiapp_parameter_trl.help), ' ') <> COALESCE(TO_CHAR(etrl.help), ' ')));
+
+    -- Step 2: Take translations from ad_element table.
+    UPDATE obuiapp_parameter_trl
+      SET name =
+              (SELECT e.name
+               FROM ad_element e INNER JOIN obuiapp_parameter param ON e.ad_element_id = param.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id),
+          description =
+              (SELECT e.name
+               FROM ad_element e INNER JOIN obuiapp_parameter param ON e.ad_element_id = param.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id),
+          help =
+              (SELECT e.name
+               FROM ad_element e INNER JOIN obuiapp_parameter param ON e.ad_element_id = param.ad_element_id
+               WHERE param.obuiapp_parameter_id=obuiapp_parameter_trl.obuiapp_parameter_id),
+          istranslated = 'Y',
+          updated = now()
+      WHERE EXISTS
+        (SELECT 1
+         FROM obuiapp_parameter param INNER JOIN ad_element e ON e.ad_element_id = param.ad_element_id
+                                      INNER JOIN ad_module m ON e.ad_module_id = m.ad_module_id
+         WHERE param.obuiapp_parameter_id = obuiapp_parameter_trl.obuiapp_parameter_id
+           AND param.iscentrallymaintained = 'Y' 
+           AND param.isactive='Y'
+           AND m.ad_language = obuiapp_parameter_trl.ad_language
+           AND (m.isindevelopment='Y' or v_templateindev ='Y')
+           AND (obuiapp_parameter_trl.name <> e.name
+                OR COALESCE(TO_CHAR(obuiapp_parameter_trl.description), ' ') <> COALESCE(TO_CHAR(e.description), ' ')
+                OR COALESCE(TO_CHAR(obuiapp_parameter_trl.help), ' ') <> COALESCE(TO_CHAR(e.help), ' ')));
+END OBUIAPP_SYNCHRONIZE
+]]></body>
+    </function>
+  </database>

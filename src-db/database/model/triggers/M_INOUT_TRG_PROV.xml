@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_INOUT_TRG_PROV">
+    <trigger name="M_INOUT_TRG_PROV" table="M_INOUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    /*************************************************************************
+    * Description: Provisional. Added by Ismael Ciordia. Update movement type depending on document type
+    ************************************************************************/
+  v_docType_ID VARCHAR2(32) ;
+  v_movementType VARCHAR(60) ;
+  v_count NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  v_docType_ID:=:NEW.C_DocType_ID;
+  SELECT(
+    CASE isSOTrx
+      WHEN 'N'
+      THEN 'V+'
+      ELSE 'C-'
+    END
+    )
+  INTO v_movementType
+  FROM C_DOCTYPE
+  WHERE C_DocType_ID=v_docType_ID;
+  :NEW.MOVEMENTTYPE:=v_movementType;
+
+  IF UPDATING THEN
+	IF ((COALESCE(:OLD.DATEACCT,  TO_DATE('31-12-9999', 'DD-MM-YYYY')) <> COALESCE(:NEW.DATEACCT, TO_DATE('31-12-9999', 'DD-MM-YYYY'))) AND :new.DOCSTATUS NOT IN ('DR', 'RE')) THEN
+		SELECT COUNT(*) INTO V_COUNT FROM M_MATCHINV M WHERE M.M_INOUTLINE_ID IN (SELECT MI.M_INOUTLINE_ID FROM M_INOUTLINE MI WHERE MI.M_INOUT_ID = :old.M_INOUT_ID)
+							AND M.POSTED = 'Y'; 
+		IF (:old.POSTED = 'Y') THEN
+			RAISE_APPLICATION_ERROR(-20000, '@20501@') ;
+		ELSIF (V_COUNT <> 0) THEN
+			RAISE_APPLICATION_ERROR(-20000, '@20632@') ;
+    ELSE
+      UPDATE M_MATCHINV SET DATETRX = :NEW.DATEACCT WHERE M_INOUTLINE_ID IN (SELECT MI.M_INOUTLINE_ID FROM M_INOUTLINE MI WHERE MI.M_INOUT_ID = :old.M_INOUT_ID);
+		END IF;
+	END IF;
+  END IF;
+
+END M_INOUT_TRG_PROV
+]]></body>
+    </trigger>
+  </database>

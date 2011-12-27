@@ -1,0 +1,164 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Restarting Context</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">var defaultLang = "en_US";</script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+
+<script language="JavaScript" type="text/javascript">
+  var checkUrl="../security/Login_FS.html"
+  var isResponse=null;
+  var isSuccess=null;
+  var successNumber = 0;
+  var maxSuccessNumber = 5;
+
+  function onLoadDo(){
+    setTimeout("checkResponse(isResponse);",1500);
+  }
+
+  function onResizeDo(){
+  }
+</script>
+
+<script language="JavaScript" type="text/javascript">
+  function pingUrl(url) {
+    isResponse=null;
+    if (isSuccess!=true) {
+      doPing(url);
+    } else {
+      isResponse=true;
+    }
+    checkResponse(isResponse);
+  }
+
+  function doPing(url) {
+    try {
+      var paramXMLReq = null;
+      return submitXmlHttpRequest(pingCallback, document.frmMain, "CHECK", url, false, null, paramXMLReq)
+    } catch (e) {
+      alert(e);
+    }
+  }
+
+  function pingCallback(paramXMLParticular, XMLHttpRequestObj) {
+    if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+      try {
+        if (XMLHttpRequestObj.responseText) {
+          if (XMLHttpRequestObj.responseText == 'success') {
+            isResponse=true;
+            isSuccess=true;
+          }
+        }
+      } catch (e) {
+        alert(e);
+      }
+    } else {
+      if (isResponse!=true) {
+        isResponse=false;
+      }
+    }
+    return true;
+  }
+
+  function checkResponse(value) {
+    var retryTime = 1500;
+    if (successNumber < maxSuccessNumber) {
+      if (value == true) {
+        successNumber += 1;
+      }
+      isResponse = null;
+      isSuccess = null;
+      value = null;
+    }
+
+    if (value == true) {
+      parent.location.href=checkUrl;
+    } else {
+      setTimeout('pingUrl(checkUrl);', retryTime);
+    }
+    return true;
+  }
+</script>
+</head>
+
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();" style="background-color: #505050;">
+<form name="frmMain" method="post" action="../security/Login_FS.html">
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons">
+          <table cellpadding="0" cellspacing="0" class="Main_ContentPane_NavBar" id="tdtopNavButtons">
+            <tr class="Main_NavBar_bg">
+              <td width="100%"></td>
+              <td><div class="Main_NavBar_bg_logo_left"></div></td>
+              <td class="Main_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><div class="Main_NavBar_logo" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo"></div></td>
+              <td><div class="Main_NavBar_bg_logo_right"></div></td>
+            </tr>
+          </table>
+        </div>
+        <div class="Login_ContentPane_ToolBar" id="paramToolBar">
+          <table class="Login_ContentPane_ToolBar Login_ToolBar_bg" id="tdToolBar">
+            <tr>
+              <td width="100%"></td>
+            </tr>
+          </table>
+        </div>
+        <div class="Login_ContentPane" style="overflow: auto;" id="client">
+          <div style="width: 600px; height: 100px; margin-top: 15%;">
+            <div style="width: 100px; height: 100px; float: left;" class="Main_Status_Processing_logo"></div>
+            <div style="width: 500px; height: 100px; float: right;
+              font-family: tahoma, arial, helvetica, sans-serif;
+              font-size: 10pt;
+              font-weight: bold;
+              color: #A0A0A0; vertical-align: middle;"><div style="position: relative; top: 25%;" id="messageID">xxReloading the Openbravo ERP application. This can take up to 1 minute.<br />Do not close your browser. You will be taken to the login window afterwards.</div>
+            </div>
+          </div>
+
+
+        </div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></img></td>
+
+          </tr>
+        </table>
+      </td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+
+
+</body></html>

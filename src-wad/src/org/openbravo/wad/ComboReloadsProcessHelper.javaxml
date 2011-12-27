@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2009-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<java_TMP>
+package org.openbravo.erpCommon.ad_callouts;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.erpCommon.utility.ComboTableData;
+import org.openbravo.erpCommon.utility.OBError;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.xmlEngine.XmlDocument;
+
+
+public class ComboReloadsProcessHelper extends CalloutHelper {
+  private static final long serialVersionUID = 1L;
+
+  void printPage(HttpServletResponse response, VariablesSecureApp vars, String strTabId, String windowId) throws IOException, ServletException {
+   String strProcessId = vars.getStringParameter("inpadProcessId");
+   <FIELDS_TMP id="sectionDetail">
+     if (strProcessId.equals("<FIELD_TMP id="fieldProcessId">xx</FIELD_TMP>")) {
+       process<FIELD_TMP id="fieldProcessId"/>(response, vars, strTabId, windowId);
+       return;
+     }
+    </FIELDS_TMP>
+    
+    pageError(response);
+  }
+  
+  <FIELDS_TMP id="sectionDetailProcess">
+    private void process<FIELD_TMP id="fieldProcessMethodId">xx</FIELD_TMP>(HttpServletResponse response, VariablesSecureApp vars, String strTabId, String windowId) throws IOException, ServletException {
+        String resultField;
+        String command = vars.getStringParameter("Command", "DEFAULT");
+        XmlDocument xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/erpCommon/ad_callouts/CallOut").createXmlDocument();
+        
+        StringBuffer resultado = new StringBuffer();
+        boolean isFirst=true;
+        ComboTableData comboTableData = null;
+        resultado.append("var calloutName='ComboReloads<FIELD_TMP id="fieldProcessMethodId">xx</FIELD_TMP>';\n\n");
+        resultado.append("var respuesta = new Array(\n");
+    
+        try {
+          <PARAMETER_TMP id="reportComboReloadsProcess"></PARAMETER_TMP>
+        } catch (ServletException ex) {
+          OBError myError = Utility.translateError(this, vars, vars.getLanguage(), ex.toString());
+          bdErrorHidden(response, myError.getType(), myError.getTitle(), myError.getMessage());
+          return;
+        } catch (Exception ex1) {
+          OBError myError = Utility.translateError(this, vars, vars.getLanguage(), ex1.toString());
+          bdErrorHidden(response, myError.getType(), myError.getTitle(), myError.getMessage());
+          return;
+        }
+    
+        resultado.append("\n);");
+    
+        xmlDocument.setParameter("array", resultado.toString());
+        xmlDocument.setParameter("frameName", "mainframe");
+        xmlDocument.setParameter("frameName1", "mainframe");
+        response.setContentType("text/html; charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        out.println(xmlDocument.print());
+        out.close();
+ 
+       return;
+     }
+    </FIELDS_TMP>
+}
+</java_TMP>

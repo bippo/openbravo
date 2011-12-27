@@ -1,0 +1,251 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2009-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>Image selector</title>
+  <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"/>
+
+  <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+  <script language="JavaScript" type="text/javascript" id="paramLanguage">  defaultLang = "en_US";</script>
+  <script language="JavaScript" type="text/javascript" id="paramDirectory">var baseDirectory = "../../../../../web/";</script>
+  <script language="JavaScript" src="../../../../../web/js/calculator.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+  <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+
+  <script language="JavaScript" type="text/javascript">
+  function validate() {
+    var frm = document.frmSelector;
+    if ((frm.inpName.value==null || frm.inpName.value=="") && (frm.inpURL.value==null || frm.inpURL.value=="")) {
+      setWindowElementFocus(frm.inpName);
+      showJSMessage(7);
+      return false;
+    }
+    return true;
+  }
+
+  </script>
+
+  <script language="JavaScript" type="text/javascript">
+  function validateSelector(action) {
+    var key = radioValue(document.frmSelector.inpKey);
+    var text = document.frmSelector.inpText.value;
+    parent.opener.closeSearch(action, key, text);
+  }
+  </script>
+
+  <script language="JavaScript" type="text/javascript">
+    function loadData(text, position) {
+      document.frmSelector.inpLastKeySelected.value = position;
+      document.frmSelector.inpText.value=text;
+      return true;
+    }
+
+    var selectedRow = "";
+    function selectActual(obj) {
+      if (selectedRow != "") {
+        selectedRow.className = selectedRow.className.replace(' DataGrid_Body_Row_selected', '');
+      }
+      selectedRow = obj;
+      selectedRow.className += " DataGrid_Body_Row_selected";
+      selectedCheck = selectedRow.id.toString().replace('funcEvenOddRow', 'CheckNum');
+      document.getElementById(selectedCheck).checked = true;
+    }
+
+    function HoverCell(cell) {
+      cell.className = cell.className + ' DataGrid_Body_Cell_hover';
+    }
+
+    function unHoverCell(cell) {
+      cell.className = cell.className.replace(' DataGrid_Body_Cell_hover', '');
+    }
+  </script>
+
+  <script language="JavaScript" type="text/javascript">
+  function onLoadDo(){
+    modifyInputFile('editDiscard');
+  }
+
+  function modifyInputFile(id) {
+    var object = document.getElementById(id);
+    if (getBrowserInfo('name').toUpperCase().indexOf('CHROME') !== -1) {
+      object.style.padding = '0px';
+      object.style.margin = '0px';
+      object.style.height = '23px';
+      object.style.background = 'none !important';
+      object.style.border = 'none';
+    }
+    object.style.display = '';
+  }
+
+  function onResizeDo(){
+  }
+  </script>
+</head>
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form name="frmSelector" method="post" action="ImageBLOBInfo.html" enctype="multipart/form-data">
+  <input type="hidden" name="Command"/>
+  <input type="hidden" name="IsPopUpCall" value="1"/>
+  <input type="hidden" name="inpText"/>
+  <input type="hidden" name="inpLastKeySelected"/>
+  <input type="hidden" name="imageId" id="imageId" value="xx"/>
+  <input type="hidden" name="tableId" id="tableId" value="xx"/>
+  <input type="hidden" name="parentObjectId" id="parentObjectId" value="xx"/>
+  <input type="hidden" name="inpColumnName" id="inpColumnName" value="xx"/>
+  <input type="hidden" name="inpOrgId" id="inpOrgId" value="xx"/>
+  
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_image" src="../../../../../web/images/blank.gif" border="0"/>
+    </div>
+  </div>
+
+  <table id="table_header" cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span>Image Selector</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+  
+    <table id="image" >
+    <tr>
+      <td><img src="../utility/ShowImage?id=xx" border=0 alt="xx" id="xx_R" title="xx" name="inpxx_R" class="xx"/></td>
+    <td class="Button_RightAlign_ContentCell">
+              <div id="divDelete">
+                <button type="button" 
+                  id="buttonClose" 
+                  class="ButtonLink" 
+                  onclick="submitCommandForm('DELETE', false, null, 'ImageInfoBLOB?inpNameValue=xx', '_self');return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Search'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text">Delete</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+              </div>
+            </td>
+  </table>
+  
+ 
+          <tr> 
+            <td class="TitleCell"><span class="LabelText">File</span></td>
+            <td class="TextBox_ContentCell" colspan="2">
+              <input type="text" style="font-size: 0pt; margin: 0; padding: 0; border:0; width:0px; height:0px;" onfocus="isInputFile=true;" onblur="isInputFile=false;"></input> 
+              <input type="file" size="50" name="inpFile" value="" class="dojoValidateValid TextBox_TwoCells_width" id="editDiscard" style="display: none;"></input>
+              <input type="text" style="font-size: 0pt; margin: 0; padding: 0; border:0; width:0px; height:0px;" onfocus="isInputFile=true;" onblur="isInputFile=false;"></input> 
+            </td>
+        
+        <td></td>   
+          </tr>
+        
+          <tr><td height="20px"></td></tr>
+
+          <tr>
+            <td></td>
+            <td class="Button_RightAlign_ContentCell">
+              <div>
+                <button type="button" 
+                  id="buttonAdd" 
+                  class="ButtonLink" 
+                  onclick="submitCommandForm('SAVE', false, null, 'ImageInfoBLOB', '_self');return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Save'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Save'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_save" alt="Save" title="Save" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text Button_width">Upload</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+              </div>
+            </td>
+  <td class="Button_RightAlign_ContentCell">
+              <div>
+                <button type="button" 
+                  id="buttonClose" 
+                  class="ButtonLink" 
+                  onclick="window.close();return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Search'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text">Close</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+              </div>
+            </td>
+</form>
+</body>
+</html>

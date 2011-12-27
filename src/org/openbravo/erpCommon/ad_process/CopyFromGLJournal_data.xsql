@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CopyFromGLJournalData" package="org.openbravo.erpCommon.ad_process">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT GL.GL_JOURNAL_ID, GL.C_ACCTSCHEMA_ID, GL.C_DOCTYPE_ID, GL.DOCSTATUS, GL.DOCACTION, GL.ISAPPROVED, GL.ISPRINTED, 
+        GL.DESCRIPTION,
+        GL.POSTINGTYPE, GL.GL_CATEGORY_ID, 
+        (SELECT GL2.C_PERIOD_ID FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS C_PERIOD_ID, 
+        GL.C_CURRENCY_ID, GL.CURRENCYRATETYPE, GL.CURRENCYRATE,
+        GL.CONTROLAMT, '' AS LINE, '' AS ISGENERATED, '' AS AMTSOURCEDR, '' AS AMTSOURCECR, '' AS AMTACCTDR, '' AS AMTACCTCR,
+        '' AS C_UOM_ID, '' AS QTY, '' AS C_VALIDCOMBINATION_ID, '' AS GL_JOURNALBATCH_ID, '' AS DOCUMENTNO, '' AS ISACTIVE,
+        (SELECT GL2.DATEDOC FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS DATEDOC,
+        (SELECT GL2.DATEACCT FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS DATEACCT,
+        '' AS TOTALDR, '' AS TOTALCR, '' AS PROCESSING, '' AS PROCESSED, '' AS POSTED,
+        (SELECT GL2.AD_ORG_ID FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS AD_ORG_ID
+        FROM GL_JOURNAL GL
+        WHERE GL.GL_JOURNALBATCH_ID = ?
+      ]]>
+    </Sql>
+    <Field name="position" value="count"/>
+    <Parameter name="glJournalbatchParentId"/>
+    <Parameter name="glJournalbatchParentId"/>
+    <Parameter name="glJournalbatchParentId"/>
+    <Parameter name="glJournalbatchParentId"/>
+    <Parameter name="gl_journalbatch_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT LINE, ISGENERATED, DESCRIPTION, AMTSOURCEDR, AMTSOURCECR, C_CURRENCY_ID, CURRENCYRATETYPE, CURRENCYRATE,
+        AMTACCTDR, AMTACCTCR, C_UOM_ID, QTY, C_VALIDCOMBINATION_ID
+        FROM GL_JOURNALLINE
+        WHERE GL_JOURNAL_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="gl_journal_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectFrom" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT G.GL_JOURNALBATCH_ID, G.DOCUMENTNO, G.DESCRIPTION, G.ISACTIVE,(SELECT L.NAME 
+                                                                        FROM AD_REF_LIST L 
+                                                                        WHERE L.AD_REFERENCE_ID='125' 
+                                                                        AND L.VALUE=G.POSTINGTYPE) AS POSTINGTYPE, 
+        G.DATEDOC, G.DATEACCT, G.CONTROLAMT, G.TOTALDR, G.TOTALCR 
+        FROM GL_JOURNALBATCH G
+        WHERE G.ISACTIVE='Y' 
+        AND ISTEMPLATE='Y' 
+        AND 1=1
+        AND G.AD_CLIENT_ID IN('1') 
+        AND G.AD_ORG_ID IN('1') 
+        AND EXISTS (SELECT 1 FROM GL_JOURNAL WHERE GL_JOURNALBATCH_ID = G.GL_JOURNALBATCH_ID)
+        ORDER BY 2
+      ]]>
+    </Sql>
+    <Field name="position" value="count"/>
+    <Parameter name="description" optional="true" after="AND 1=1"><![CDATA[ AND UPPER(COALESCE(TO_CHAR(G.DESCRIPTION),' ')) LIKE UPPER(?) ]]></Parameter>
+    <Parameter name="documentNo" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[ AND UPPER(G.DOCUMENTNO) LIKE UPPER(?) ]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="G.AD_CLIENT_ID IN('" text="1"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="G.AD_ORG_ID IN(" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="insertGLJournal" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO GL_JOURNAL (GL_JOURNAL_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, 
+        UPDATED, UPDATEDBY, C_ACCTSCHEMA_ID,C_DOCTYPE_ID, DOCSTATUS,DOCACTION, ISAPPROVED, ISPRINTED, 
+        DESCRIPTION, POSTINGTYPE, GL_CATEGORY_ID, DATEDOC, DATEACCT,C_PERIOD_ID, C_CURRENCY_ID, 
+        CURRENCYRATETYPE,CURRENCYRATE, GL_JOURNALBATCH_ID, CONTROLAMT, DOCUMENTNO, PROCESSING, PROCESSED, POSTED) 
+        VALUES (?,?,?,now(),?,
+        	now(),?,?,?,?,?,?,?,
+        	?,?,?,TO_DATE(?),TO_DATE(?),?,?,
+        	?,TO_NUMBER(?),?,TO_NUMBER(?),?,?,?,?)
+      ]]>
+    </Sql>
+    <Parameter name="gl_journal_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="c_acctschema_id"/>
+    <Parameter name="c_doctype_id"/>
+    <Parameter name="docstatus"/>
+    <Parameter name="docaction"/>
+    <Parameter name="isapproved"/>
+    <Parameter name="isprinted"/>
+    <Parameter name="description"/>
+    <Parameter name="postingtype"/>
+    <Parameter name="gl_category_id"/>
+    <Parameter name="datedoc"/>
+    <Parameter name="dateacct"/>
+    <Parameter name="c_period_id"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="currencyratetype"/>
+    <Parameter name="currencyrate"/>
+    <Parameter name="gl_journalbatch_id"/>
+    <Parameter name="controlamt"/>
+    <Parameter name="documentNo"/>
+    <Parameter name="processing"/>
+    <Parameter name="processed"/>
+    <Parameter name="posted"/>
+  </SqlMethod>
+  <SqlMethod name="insertGLJournalLine" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO GL_JOURNALLINE (GL_JOURNALLINE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, 
+        UPDATED, UPDATEDBY, GL_JOURNAL_ID,LINE, ISGENERATED, DESCRIPTION,AMTSOURCEDR, AMTSOURCECR, C_CURRENCY_ID, 
+        CURRENCYRATETYPE, CURRENCYRATE, DATEACCT,AMTACCTDR, AMTACCTCR, C_UOM_ID,QTY, C_VALIDCOMBINATION_ID) 
+        VALUES (?,?,?,now(),?,now(),?,?,TO_NUMBER(?),?,?,TO_NUMBER(?),TO_NUMBER(?),?,?,TO_NUMBER(?),now(),TO_NUMBER(?),TO_NUMBER(?),?,TO_NUMBER(?),?)
+      ]]>
+    </Sql>
+    <Parameter name="gl_journalline_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="gl_journal_id"/>
+    <Parameter name="line"/>
+    <Parameter name="isgenerated"/>
+    <Parameter name="description"/>
+    <Parameter name="amtsourcedr"/>
+    <Parameter name="amtsourcecr"/>
+    <Parameter name="c_currency_id"/>
+    <Parameter name="currencyratetype"/>
+    <Parameter name="currencyrate"/>
+    <Parameter name="amtacctdr"/>
+    <Parameter name="amtacctcr"/>
+    <Parameter name="c_uom_id"/>
+    <Parameter name="qty"/>
+    <Parameter name="c_validcombination_id"/>
+  </SqlMethod>
+</SqlClass>

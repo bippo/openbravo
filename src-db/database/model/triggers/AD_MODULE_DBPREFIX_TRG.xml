@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_MODULE_DBPREFIX_TRG">
+    <trigger name="AD_MODULE_DBPREFIX_TRG" table="AD_MODULE_DBPREFIX" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  /*************************************************************************
+  * The contents of this file are subject to the Openbravo  Public  License
+  * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+  * Version 1.1  with a permitted attribution clause; you may not  use this
+  * file except in compliance with the License. You  may  obtain  a copy of
+  * the License at http://www.openbravo.com/legal/license.html
+  * Software distributed under the License  is  distributed  on  an "AS IS"
+  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+  * License for the specific  language  governing  rights  and  limitations
+  * under the License.
+  * The Original Code is Openbravo ERP.
+  * The Initial Developer of the Original Code is Openbravo SLU
+  * All portions are Copyright (C) 2008-2009 Openbravo SLU
+  * All Rights Reserved.
+  * Contributor(s):  ______________________________________.
+  ************************************************************************/
+  V_Char char;
+  v_isregistered char(1);
+  v_old_name varchar(60);
+  v_type varchar2(60);
+  startsWithLetter boolean;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+   SELECT IsRegistered, Type
+   INTO v_IsRegistered, v_type
+    FROM AD_MODULE
+   WHERE AD_MODULE_ID = :new.AD_Module_ID;
+
+   IF v_type = 'T' THEN
+     RAISE_APPLICATION_ERROR(-20000, '@DBPrefixNotAllowedInTemplate@');
+   END IF;
+
+   IF (UPDATING) THEN
+     v_old_name := :OLD.NAME;
+   END IF;
+   
+   IF  UPDATING AND v_IsRegistered='Y' AND :NEW.NAME != v_old_name THEN
+    -- Cannot modify registered module
+    RAISE_APPLICATION_ERROR(-20000, '@20534@');
+   END IF;
+   --Check DB_Prefix
+   IF INSERTING OR UPDATING THEN
+     startsWithLetter := false;
+     FOR I IN 1..LENGTH(:new.name) LOOP
+       v_char := substr(:new.name,i,1);
+       IF NOT ((ascii(v_char) between ascii('A') and ascii('Z')) 
+               or (ascii(v_char) between ascii('0') and ascii('9')))  THEN
+        RAISE_APPLICATION_ERROR(-20531, '@20531@') ;
+       END IF;
+     END LOOP;
+     -- DB_Prefix should start with a letter
+     IF NOT (ascii(substr(:new.name,1,1)) between ascii('A') and ascii('Z')) THEN
+         RAISE_APPLICATION_ERROR(-20531, '@20531@') ;
+     END IF;
+   END IF;
+END AD_MODULE_DBPREFIX_TRG
+]]></body>
+    </trigger>
+  </database>

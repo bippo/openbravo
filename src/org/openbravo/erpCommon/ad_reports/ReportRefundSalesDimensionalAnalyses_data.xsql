@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportRefundSalesDimensionalAnalysesData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, 
+	  SUM(LINENETAMT) AS LINENETAMT, SUM(REFUNDAMT) AS REFUNDAMT, 
+	  C_DIVIDE(SUM(REFUNDAMT), (SUM(LINENETAMT)+SUM(REFUNDAMT)))*100 AS RATIO, 
+	  SUM(QTYINVOICED) AS QTYINVOICED, SUM(REFUNDQTY) AS REFUNDQTY, 
+	  SUM(LINENETREF) AS LINENETREF, SUM(REFUNDAMTREF) AS REFUNDAMTREF,
+	  C_DIVIDE(SUM(REFUNDAMTREF), (SUM(LINENETREF)+SUM(REFUNDAMTREF)))*100 AS RATIOREF, 
+	  SUM(QTYINVOICEDREF) AS QTYINVOICEDREF, SUM(REFUNDQTYREF) AS REFUNDQTYREF,
+	  C_CURRENCY_SYMBOL(?, 0, 'Y') AS CONVSYM,	  	  
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM,
+	  '' AS ID, '' AS NAME, '' AS TRANSCURRENCYID, '' AS TRANSDATE, '' AS TRANSCLIENTID, '' AS TRANSORGID 
+	  FROM (SELECT NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, 
+      C_CURRENCY_CONVERT(SUM(LINENETAMT), TRCURRENCYID, ?, TO_DATE(TRDATE), NULL, TRCLIENTID, TRORGID) AS LINENETAMT, 
+	  C_CURRENCY_CONVERT(SUM(REFUNDAMT), TRCURRENCYID, ?, TO_DATE(TRDATE), NULL, TRCLIENTID, TRORGID) AS REFUNDAMT,  
+      SUM(QTYINVOICED) AS QTYINVOICED, SUM(REFUNDQTY) AS REFUNDQTY, 
+      C_CURRENCY_CONVERT(SUM(LINENETREF), TRCURRENCYID, ?, TO_DATE(TRDATE), NULL, TRCLIENTID, TRORGID) AS LINENETREF, 
+	  C_CURRENCY_CONVERT(SUM(REFUNDAMTREF), TRCURRENCYID, ?, TO_DATE(TRDATE), NULL, TRCLIENTID, TRORGID) AS REFUNDAMTREF,  
+      SUM(QTYINVOICEDREF) AS QTYINVOICEDREF, SUM(REFUNDQTYREF) AS REFUNDQTYREF, 
+      TRCURRENCYID, TRDATE, TRCLIENTID, TRORGID
+      FROM (SELECT to_char('1') AS NIVEL1, to_char('2') AS NIVEL2, to_char('3') AS NIVEL3, to_char('4') AS NIVEL4, to_char('5') AS NIVEL5, to_char('6') AS NIVEL6, to_char('7') AS NIVEL7,
+      CASE SIGN(C_ORDERLINE.LINENETAMT) WHEN  -1 THEN  0 ELSE  C_ORDERLINE.LINENETAMT END AS LINENETAMT, 
+      CASE SIGN(C_ORDERLINE.LINENETAMT) WHEN  -1 THEN  -1*C_ORDERLINE.LINENETAMT ELSE  0 END AS REFUNDAMT, 
+      CASE SIGN(C_ORDERLINE.QTYORDERED) WHEN  -1 THEN  0 ELSE  C_ORDERLINE.QTYORDERED END AS QTYINVOICED, 
+      CASE SIGN(C_ORDERLINE.QTYORDERED) WHEN  -1 THEN  (-1*C_ORDERLINE.QTYORDERED) ELSE  0 END AS REFUNDQTY, 
+      0 AS LINENETREF, 0 AS REFUNDAMTREF, 0 AS QTYINVOICEDREF, 0 AS REFUNDQTYREF, C_UOM.UOMSYMBOL,
+      COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID) AS TRCURRENCYID,      
+	  TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())) AS TRDATE,      
+      C_ORDERLINE.AD_CLIENT_ID AS TRCLIENTID,      
+      C_ORDERLINE.AD_ORG_ID AS TRORGID
+      FROM C_ORDER left join AD_USER on C_ORDER.SALESREP_ID = AD_USER.AD_USER_ID,
+           C_ORDERLINE left join M_PRODUCT on C_ORDERLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+                       left join M_PRODUCT_CATEGORY on M_PRODUCT.M_PRODUCT_CATEGORY_ID = M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID
+                       left join C_UOM on C_ORDERLINE.C_UOM_ID = C_UOM.C_UOM_ID,
+         C_BPARTNER, C_BP_GROUP, M_WAREHOUSE
+      WHERE C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_BPARTNER.C_BP_GROUP_ID = C_BP_GROUP.C_BP_GROUP_ID
+      AND C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+      AND C_ORDER.M_WAREHOUSE_ID = M_WAREHOUSE.M_WAREHOUSE_ID
+      AND C_ORDER.ISSOTRX = 'Y'
+      AND C_ORDER.PROCESSED = 'Y'
+      AND 0=0 AND C_ORDER.AD_ORG_ID IN ('1')
+      AND C_ORDER.AD_CLIENT_ID IN ('8')
+      AND 1=1
+      UNION ALL SELECT to_char('9') AS NIVEL1 , to_char('10') AS NIVEL2 , to_char('11') AS NIVEL3 , to_char('12') AS NIVEL4 , to_char('13') AS NIVEL5 , to_char('14') AS NIVEL6 , to_char('15') AS NIVEL7 ,
+      0 AS LINENETAMT, 0 AS REFUNDAMT, 0 AS QTYINVOICED, 0 AS REFUNDQTY, 
+      CASE SIGN(C_ORDERLINE.LINENETAMT) WHEN  -1 THEN  0 ELSE  C_ORDERLINE.LINENETAMT END AS LINENETREF, 
+      CASE SIGN(C_ORDERLINE.LINENETAMT) WHEN  -1 THEN  (-1*C_ORDERLINE.LINENETAMT) ELSE  0 END AS REFUNDAMTREF, 
+      CASE SIGN(C_ORDERLINE.QTYORDERED) WHEN  -1 THEN  0 ELSE  C_ORDERLINE.QTYORDERED END AS QTYINVOICEDREF, 
+      CASE SIGN(C_ORDERLINE.QTYORDERED) WHEN  -1 THEN  (-1*C_ORDERLINE.QTYORDERED) ELSE  0 END AS REFUNDQTYREF, C_UOM.UOMSYMBOL,
+      COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID) AS TRCURRENCYID,      
+	  TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())) AS TRDATE,      
+      C_ORDERLINE.AD_CLIENT_ID AS TRCLIENTID,      
+      C_ORDERLINE.AD_ORG_ID AS TRORGID
+      FROM C_ORDER left join AD_USER on C_ORDER.SALESREP_ID = AD_USER.AD_USER_ID,
+           C_ORDERLINE left join M_PRODUCT on C_ORDERLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID 
+                       left join M_PRODUCT_CATEGORY on M_PRODUCT.M_PRODUCT_CATEGORY_ID = M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID
+                       left join C_UOM on C_ORDERLINE.C_UOM_ID = C_UOM.C_UOM_ID,
+           C_BPARTNER, C_BP_GROUP, M_WAREHOUSE
+      WHERE C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_BPARTNER.C_BP_GROUP_ID = C_BP_GROUP.C_BP_GROUP_ID
+      AND C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+      AND C_ORDER.M_WAREHOUSE_ID = M_WAREHOUSE.M_WAREHOUSE_ID
+      AND C_ORDER.ISSOTRX = 'Y'
+      AND C_ORDER.PROCESSED = 'Y'
+      AND 3=3 AND C_ORDER.AD_ORG_ID IN ('1')
+      AND C_ORDER.AD_CLIENT_ID IN('16')
+      AND 2=2) AA
+      WHERE LINENETAMT <> 0
+      OR REFUNDAMT <> 0
+      OR LINENETREF <> 0
+      OR REFUNDAMTREF <> 0
+      GROUP BY NIVEL1,  NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, TRCURRENCYID, TRDATE, TRCLIENTID, TRORGID) ZZ      
+	  GROUP BY NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, 1
+     ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="nivel1" type="replace" optional="true" after="FROM (SELECT to_char(" text="'1'"/>
+    <Parameter name="nivel2" type="replace" optional="true" after="AS NIVEL1, to_char(" text="'2'"/>
+    <Parameter name="nivel3" type="replace" optional="true" after="AS NIVEL2, to_char(" text="'3'"/>
+    <Parameter name="nivel4" type="replace" optional="true" after="AS NIVEL3, to_char(" text="'4'"/>
+    <Parameter name="nivel5" type="replace" optional="true" after="AS NIVEL4, to_char(" text="'5'"/>
+    <Parameter name="nivel6" type="replace" optional="true" after="AS NIVEL5, to_char(" text="'6'"/>
+    <Parameter name="nivel7" type="replace" optional="true" after="AS NIVEL6, to_char(" text="'7'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND 0=0 AND C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_ORDER.AD_CLIENT_ID IN (" text="'8'"/>
+    <Parameter name="dateFrom" optional="true" after="AND 1=1"><![CDATA[AND C_ORDER.DATEORDERED >= to_date(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="AND 1=1"><![CDATA[AND C_ORDER.DATEORDERED < to_date(?)]]></Parameter>
+    <Parameter name="cBpartnerGroupId" optional="true" after="AND 1=1"><![CDATA[AND C_BP_GROUP.C_BP_GROUP_ID = ?]]></Parameter>
+    <Parameter name="cBpartner" optional="true" type="argument" after="AND 1=1" text=" AND C_BPARTNER.C_BPARTNER_ID IN"/>
+    <Parameter name="mProductCategoryId" optional="true" after="AND 1=1"><![CDATA[AND M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID = ?]]></Parameter>
+    <Parameter name="mProduct" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="salesrepId" optional="true" after="AND 1=1"><![CDATA[AND C_ORDER.SALESREP_ID = ?]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="AND 1=1"><![CDATA[AND M_WAREHOUSE.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="nivel1" type="replace" optional="true" after="UNION ALL SELECT to_char(" text="'9'"/>
+    <Parameter name="nivel2" type="replace" optional="true" after="AS NIVEL1 , to_char(" text="'10'"/>
+    <Parameter name="nivel3" type="replace" optional="true" after="AS NIVEL2 , to_char(" text="'11'"/>
+    <Parameter name="nivel4" type="replace" optional="true" after="AS NIVEL3 , to_char(" text="'12'"/>
+    <Parameter name="nivel5" type="replace" optional="true" after="AS NIVEL4 , to_char(" text="'13'"/>
+    <Parameter name="nivel6" type="replace" optional="true" after="AS NIVEL5 , to_char(" text="'14'"/>
+    <Parameter name="nivel7" type="replace" optional="true" after="AS NIVEL6 , to_char(" text="'15'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND 3=3 AND C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_ORDER.AD_CLIENT_ID IN(" text="'16'"/>
+    <Parameter name="dateFromRef" optional="true" after="AND 2=2"><![CDATA[AND C_ORDER.DATEORDERED >= to_date(?)]]></Parameter>
+    <Parameter name="dateToRef" optional="true" after="AND 2=2"><![CDATA[AND C_ORDER.DATEORDERED < to_date(?)]]></Parameter>
+    <Parameter name="cBpartnerGroupId" optional="true" after="AND 2=2"><![CDATA[AND C_BP_GROUP.C_BP_GROUP_ID = ?]]></Parameter>
+    <Parameter name="cBpartner" optional="true" type="argument" after="AND 2=2" text=" AND C_BPARTNER.C_BPARTNER_ID IN"/>
+    <Parameter name="mProductCategoryId" optional="true" after="AND 2=2"><![CDATA[AND M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID = ?]]></Parameter>
+    <Parameter name="mProduct" optional="true" type="argument" after="AND 2=2"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="salesrepId" optional="true" after="AND 2=2"><![CDATA[AND C_ORDER.SALESREP_ID = ?]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="AND 2=2"><![CDATA[AND M_WAREHOUSE.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="orderby" type="replace" optional="true" after="GROUP BY NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7" text=", 1"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectNoComparative" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, 
+	  SUM(LINENETAMT) AS LINENETAMT, SUM(REFUNDAMT) AS REFUNDAMT, 
+	  C_DIVIDE(SUM(REFUNDAMT), (SUM(LINENETAMT)+SUM(REFUNDAMT)))*100 AS RATIO, 
+	  SUM(QTYINVOICED) AS QTYINVOICED, SUM(REFUNDQTY) AS REFUNDQTY, 
+	  SUM(LINENETREF) AS LINENETREF, SUM(REFUNDAMTREF) AS REFUNDAMTREF, 
+	  SUM(QTYINVOICEDREF) AS QTYINVOICEDREF, SUM(REFUNDQTYREF) AS REFUNDQTYREF,
+	  C_CURRENCY_SYMBOL(?, 0, 'Y') AS CONVSYM,        
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM
+      FROM (SELECT NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, 
+      C_CURRENCY_CONVERT(SUM(LINENETAMT), TRCURRENCYID, ?, TO_DATE(TRDATE), NULL, TRCLIENTID, TRORGID) AS LINENETAMT, 
+      C_CURRENCY_CONVERT(SUM(REFUNDAMT), TRCURRENCYID, ?, TO_DATE(TRDATE), NULL, TRCLIENTID, TRORGID) AS REFUNDAMT,  
+      SUM(QTYINVOICED) AS QTYINVOICED, SUM(REFUNDQTY) AS REFUNDQTY, 
+      SUM(LINENETREF) AS LINENETREF, SUM(REFUNDAMTREF) AS REFUNDAMTREF, 
+      SUM(QTYINVOICEDREF) AS QTYINVOICEDREF, SUM(REFUNDQTYREF) AS REFUNDQTYREF,
+	  TRCURRENCYID, TRDATE, TRCLIENTID, TRORGID
+      FROM (SELECT to_char('1') AS NIVEL1, to_char('2') AS NIVEL2, to_char('3') AS NIVEL3, to_char('4') AS NIVEL4, to_char('5') AS NIVEL5, to_char('6') AS NIVEL6, to_char('7') AS NIVEL7,
+      CASE SIGN(C_ORDERLINE.LINENETAMT) WHEN  -1 THEN  0 ELSE  C_ORDERLINE.LINENETAMT END AS LINENETAMT, 
+      CASE SIGN(C_ORDERLINE.LINENETAMT) WHEN  -1 THEN  -1*C_ORDERLINE.LINENETAMT ELSE  0 END AS REFUNDAMT, 
+      CASE SIGN(C_ORDERLINE.QTYORDERED) WHEN  -1 THEN  0 ELSE  C_ORDERLINE.QTYORDERED END AS QTYINVOICED, 
+      CASE SIGN(C_ORDERLINE.QTYORDERED) WHEN  -1 THEN  (-1*C_ORDERLINE.QTYORDERED) ELSE  0 END AS REFUNDQTY, 
+      0 AS LINENETREF, 0 AS REFUNDAMTREF, 0 AS QTYINVOICEDREF, 0 AS REFUNDQTYREF, C_UOM.UOMSYMBOL,
+      COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID) AS TRCURRENCYID,      
+	  TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, NOW())) AS TRDATE,      
+	  C_ORDERLINE.AD_CLIENT_ID AS TRCLIENTID,      
+	  C_ORDERLINE.AD_ORG_ID AS TRORGID
+      FROM C_ORDER left join AD_USER on C_ORDER.SALESREP_ID = AD_USER.AD_USER_ID,
+           C_ORDERLINE left join M_PRODUCT on C_ORDERLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+                       left join M_PRODUCT_CATEGORY on M_PRODUCT.M_PRODUCT_CATEGORY_ID = M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID
+                       left join C_UOM on C_ORDERLINE.C_UOM_ID = C_UOM.C_UOM_ID,
+       C_BPARTNER, C_BP_GROUP, M_WAREHOUSE
+      WHERE C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_BPARTNER.C_BP_GROUP_ID = C_BP_GROUP.C_BP_GROUP_ID
+      AND C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+      AND C_ORDER.M_WAREHOUSE_ID = M_WAREHOUSE.M_WAREHOUSE_ID
+      AND C_ORDER.ISSOTRX = 'Y'
+      AND C_ORDER.PROCESSED = 'Y'
+      AND 0=0 AND C_ORDER.AD_ORG_ID IN ('1')
+      AND C_ORDER.AD_CLIENT_ID IN ('8')
+      AND 1=1) AA
+      WHERE LINENETAMT <> 0
+      OR REFUNDAMT <> 0
+      OR LINENETREF <> 0
+      OR REFUNDAMTREF <> 0
+      GROUP BY NIVEL1,  NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, TRCURRENCYID, TRDATE, TRCLIENTID, TRORGID) ZZ
+      GROUP BY NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7, 1 
+     ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="nivel1" type="replace" optional="true" after="FROM (SELECT to_char(" text="'1'"/>
+    <Parameter name="nivel2" type="replace" optional="true" after="AS NIVEL1, to_char(" text="'2'"/>
+    <Parameter name="nivel3" type="replace" optional="true" after="AS NIVEL2, to_char(" text="'3'"/>
+    <Parameter name="nivel4" type="replace" optional="true" after="AS NIVEL3, to_char(" text="'4'"/>
+    <Parameter name="nivel5" type="replace" optional="true" after="AS NIVEL4, to_char(" text="'5'"/>
+    <Parameter name="nivel6" type="replace" optional="true" after="AS NIVEL5, to_char(" text="'6'"/>
+    <Parameter name="nivel7" type="replace" optional="true" after="AS NIVEL6, to_char(" text="'7'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND 0=0 AND C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_ORDER.AD_CLIENT_ID IN (" text="'8'"/>
+    <Parameter name="dateFrom" optional="true" after="AND 1=1"><![CDATA[AND C_ORDER.DATEORDERED >= to_date(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="AND 1=1"><![CDATA[AND C_ORDER.DATEORDERED < to_date(?)]]></Parameter>
+    <Parameter name="cBpartnerGroupId" optional="true" after="AND 1=1"><![CDATA[AND C_BP_GROUP.C_BP_GROUP_ID = ?]]></Parameter>
+    <Parameter name="cBpartner" optional="true" type="argument" after="AND 1=1" text=" AND C_BPARTNER.C_BPARTNER_ID IN"/>
+    <Parameter name="mProductCategoryId" optional="true" after="AND 1=1"><![CDATA[AND M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID = ?]]></Parameter>
+    <Parameter name="mProduct" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="salesrepId" optional="true" after="AND 1=1"><![CDATA[AND C_ORDER.SALESREP_ID = ?]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="AND 1=1"><![CDATA[AND M_WAREHOUSE.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="orderby" type="replace" optional="true" after="GROUP BY NIVEL1, NIVEL2, NIVEL3, NIVEL4, NIVEL5, NIVEL6, NIVEL7" text=", 1"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectBpgroup" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT C_BP_GROUP.NAME
+      FROM C_BP_GROUP
+      WHERE C_BP_GROUP.C_BP_GROUP_ID = ?
+     ]]></Sql>
+    <Parameter name="cBpGroupId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectProductCategory" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_PRODUCT_CATEGORY.NAME
+      FROM M_PRODUCT_CATEGORY
+      WHERE M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID = ?
+     ]]></Sql>
+    <Parameter name="mProductCategoryId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectSalesrep" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT AD_USER.FIRSTNAME||' '||AD_USER.LASTNAME
+      FROM AD_USER
+      WHERE AD_USER.AD_USER_ID = ?
+     ]]></Sql>
+    <Parameter name="salesrepId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectMwarehouse" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_WAREHOUSE.NAME
+      FROM M_WAREHOUSE
+      WHERE M_WAREHOUSE.M_WAREHOUSE_ID = ?
+     ]]></Sql>
+    <Parameter name="mWarehouseId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectNotShown" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ID, NAME
+      FROM (SELECT VALUE AS ID, NAME 
+              FROM AD_REF_LIST 
+             WHERE AD_REFERENCE_ID = '800087'
+             AND AD_REF_LIST.VALUE IN ('1', '2', '3', '4', '5', '6', '7')
+             ORDER BY TO_NUMBER(VALUE)) AA
+      WHERE 1=1 
+     ]]></Sql>
+     <Parameter name="notShown" optional="true" type="argument" after="WHERE 1=1 "><![CDATA[AND ID NOT IN]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectShown" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ID, NAME
+      FROM (SELECT VALUE AS ID, NAME 
+              FROM AD_REF_LIST 
+             WHERE AD_REFERENCE_ID = '800087' 
+             AND AD_REF_LIST.VALUE IN ('1', '2', '3', '4', '5', '6', '7')
+             ORDER BY TO_NUMBER(VALUE)) AA
+      WHERE 1=1 
+     ]]></Sql>
+     <Parameter name="shown" optional="true" type="argument" after="WHERE 1=1 "><![CDATA[AND ID IN]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectNotShownTrl" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ID, NAME
+      FROM (SELECT VALUE AS ID, T.NAME 
+              FROM AD_REF_LIST_trl T,
+                   AD_REF_LIST     L
+             WHERE l.AD_REFERENCE_ID = '800087'
+               AND l.AD_REF_LIST_ID  = t.AD_REF_LIST_ID
+               AND L.VALUE IN ('1', '2', '3', '4', '5', '6', '7')
+               AND t.AD_LANGUAGE = ?
+             ORDER BY TO_NUMBER(VALUE)) AA
+      WHERE 1=1 
+     ]]></Sql>
+     <Parameter name="lang"/> 
+     <Parameter name="notShown" optional="true" type="argument" after="WHERE 1=1 "><![CDATA[AND ID NOT IN]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectShownTrl" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ID, NAME
+      FROM (SELECT VALUE AS ID, T.NAME 
+              FROM AD_REF_LIST_trl T,
+                   AD_REF_LIST     L
+             WHERE l.AD_REFERENCE_ID = '800087'
+               AND l.AD_REF_LIST_ID  = t.AD_REF_LIST_ID
+               AND L.VALUE IN ('1', '2', '3', '4', '5', '6', '7')
+               AND t.AD_LANGUAGE = ?
+             ORDER BY TO_NUMBER(VALUE)) AA
+      WHERE 1=1 
+     ]]></Sql>
+     <Parameter name="lang"/> 
+     <Parameter name="shown" optional="true" type="argument" after="WHERE 1=1 "><![CDATA[AND ID IN]]></Parameter>
+  </SqlMethod>
+</SqlClass>

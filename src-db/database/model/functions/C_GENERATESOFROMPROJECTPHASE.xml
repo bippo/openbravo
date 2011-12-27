@@ -1,0 +1,331 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_GENERATESOFROMPROJECTPHASE">
+    <function name="C_GENERATESOFROMPROJECTPHASE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  v_fin_paymentmethod_id C_BPARTNER.FIN_PAYMENTMETHOD_ID%TYPE;
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    v_C_Order_ID VARCHAR2(32);
+    v_C_OrderLine_ID VARCHAR2(32);
+    v_C_DOCTYPE_ID VARCHAR2(32);
+    v_DocumentNo NVARCHAR2(30) ;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get PARAMETERS
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, i.AD_User_ID, i.AD_Client_ID, i.AD_Org_ID, p.ParameterName,
+        p.P_String, p.P_Number, p.P_Date, p.P_Date_To
+      FROM AD_PINSTANCE i
+      LEFT JOIN AD_PINSTANCE_PARA p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    DECLARE
+      v_Size NUMBER;
+      v_UOM VARCHAR2(32);
+      v_PriceStd NUMBER;
+      v_PriceList NUMBER;
+      v_PriceLimit NUMBER;
+      v_C_UOM_ID VARCHAR2(32);
+      v_C_Currency_ID VARCHAR2(32);
+      v_M_PriceList_ID VARCHAR2(32);
+      v_Billto_ID VARCHAR2(32);
+      v_InvoiceRule CHAR;
+      v_M_PriceList_Version_ID VARCHAR2(32);
+      v_PriceActual NUMBER;
+      v_Discount NUMBER;
+
+    TYPE RECORD IS REF CURSOR;
+      Cur_SO RECORD;
+      Cur_SOLINES RECORD;
+    BEGIN
+      v_ResultStr:='StartLoop';
+      FOR Cur_SO IN
+        (
+        SELECT P.C_BPARTNER_ID, P.C_BPARTNER_LOCATION_ID, P.M_PRICELIST_ID, PL.NAME AS PRICE_LIST_NAME,
+          P.C_CURRENCY_ID, P.PAYMENTRULE, P.C_PAYMENTTERM_ID, P.M_WAREHOUSE_ID, P.SALESREP_ID,
+          P.BILLTO_ID, P.C_CAMPAIGN_ID, P.C_PROJECT_ID, P.AD_USER_ID, P.DESCRIPTION, P.PROJECTSTATUS,
+          PP.NAME AS PHASE_NAME, PP.AD_CLIENT_ID, PP.AD_ORG_ID, OI.C_LOCATION_ID AS ORGLOCATIONID,
+          P.FIN_PAYMENTMETHOD_ID, P.POREFERENCE
+        FROM C_PROJECT P,
+          C_PROJECTPHASE PP,
+          M_PRICELIST PL,
+          AD_ORGINFO OI
+        WHERE P.C_PROJECT_ID=PP.C_PROJECT_ID
+          AND PP.C_PROJECTPHASE_ID=v_Record_ID
+          AND P.M_PRICELIST_ID = PL.M_PRICELIST_ID
+          AND PP.AD_ORG_ID = OI.AD_ORG_ID
+        )
+      LOOP
+        -- Check that we have some restrictions
+        IF (Cur_SO.PROJECTSTATUS IS NULL OR Cur_SO.PROJECTSTATUS <> 'OR') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Invalidprojectstatus@'||'. '||' @ChangeToOrder@'||'.');
+        ELSIF Cur_SO.C_BPARTNER_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NoprojectBusinesspartner@');
+        ELSIF Cur_SO.C_BPARTNER_LOCATION_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @ShiptoNotdefined@'||'.');
+        ELSIF Cur_SO.BILLTO_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @BillToNotdefined@'||'.');
+        ELSIF Cur_SO.C_PAYMENTTERM_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @PaymenttermNotdefined@'||'.');
+        ELSIF Cur_SO.M_PRICELIST_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @PricelistNotdefined@'||'.');
+        ELSIF Cur_SO.C_CURRENCY_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ProjectCurrencyNotFound@'||'.');
+        ELSIF Cur_SO.M_WAREHOUSE_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ProjectWarehouseNotFound@'||'.');
+        ELSIF Cur_SO.SALESREP_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ProjectSalesRepNotFound@'||'.');
+        ELSIF Cur_SO.ORGLOCATIONID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NoLocationNoTaxCalculated@'||'.');
+        END IF;
+
+        -- Get Business Partner Location
+        v_Billto_ID := Cur_SO.BILLTO_ID;
+        IF (v_Billto_ID IS NULL) THEN
+          v_Billto_ID := C_GetBPLocationID(Cur_SO.C_BPartner_ID, 'B') ;
+        END IF;
+
+        SELECT InvoiceRule, FIN_PAYMENTMETHOD_ID INTO v_InvoiceRule, v_fin_paymentmethod_id
+        FROM C_BPARTNER
+        WHERE C_BPartner_ID = Cur_SO.C_BPARTNER_ID;
+        IF (v_InvoiceRule IS NULL) THEN
+           RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @InvoiceRuleNotdefined@'||'.');
+        END IF;
+
+        v_C_DOCTYPE_ID:=Ad_Get_Doctype(Cur_SO.AD_Client_ID, Cur_SO.AD_Org_ID, 'SOO', 'SO') ;
+        v_ResultStr:='C_DOCTYPE_ID - ' || v_C_DOCTYPE_ID;
+        Ad_Sequence_Doctype(v_C_DOCTYPE_ID, Cur_SO.AD_Client_ID, 'Y', v_DocumentNo) ;
+        IF(v_DocumentNo IS NULL) THEN
+          Ad_Sequence_Doc('DocumentNo_C_Order', Cur_SO.AD_Client_ID, 'Y', v_DocumentNo) ;
+        END IF;
+
+        -- Get next C_Order_ID
+        Ad_Sequence_Next('C_Order', Cur_SO.AD_CLIENT_ID, v_C_Order_ID) ;
+        v_ResultStr:='C_ORDER_ID - ' || v_C_Order_ID;
+
+        v_ResultStr:='DocumentNo - ' || v_DocumentNo || ' m_pricelist_id - ' || Cur_SO.M_PriceList_ID;
+        INSERT
+        INTO C_ORDER
+          (
+            C_ORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATEDBY,
+            UPDATEDBY, ISSOTRX, DOCUMENTNO, DOCSTATUS,
+            DOCACTION, C_DOCTYPE_ID, C_DOCTYPETARGET_ID, DATEORDERED,
+            DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, ISDISCOUNTPRINTED,
+            C_CURRENCY_ID, PAYMENTRULE, C_PAYMENTTERM_ID, INVOICERULE,
+            DELIVERYRULE, FREIGHTCOSTRULE, DELIVERYVIARULE, PRIORITYRULE,
+            TOTALLINES, GRANDTOTAL, M_WAREHOUSE_ID, M_PRICELIST_ID,
+            ISTAXINCLUDED, POSTED, PROCESSING, SALESREP_ID,
+            BILLTO_ID, C_CAMPAIGN_ID, C_PROJECT_ID, AD_USER_ID,
+            COPYFROM, DATEPROMISED, DESCRIPTION, FIN_PAYMENTMETHOD_ID, POREFERENCE
+          )
+          VALUES
+          (
+            v_C_Order_ID, Cur_SO.AD_CLIENT_ID, Cur_SO.AD_ORG_ID, v_AD_User_ID,
+            v_AD_User_ID, 'Y', v_DocumentNo, 'DR',
+             'CO', '0', v_C_DOCTYPE_ID, TRUNC(now(), 'DD'),
+            TRUNC(now(), 'DD'), Cur_SO.C_BPARTNER_ID, Cur_SO.C_BPARTNER_LOCATION_ID, 'N',
+            Cur_SO.C_CURRENCY_ID, COALESCE(Cur_SO.PAYMENTRULE, 'P'), Cur_SO.C_PAYMENTTERM_ID, v_InvoiceRule,
+             'A', 'I', 'D', '5',
+            0, 0, Cur_SO.M_WAREHOUSE_ID, Cur_SO.M_PRICELIST_ID,
+             'N', 'N', 'N', Cur_SO.SALESREP_ID,
+            v_Billto_ID, Cur_SO.C_CAMPAIGN_ID, Cur_SO.C_PROJECT_ID, Cur_SO.AD_User_ID,
+             'N', TRUNC(now(), 'DD'), Cur_SO.PHASE_NAME || ' - ' || COALESCE(TO_CHAR(Cur_SO.DESCRIPTION),''), 
+             COALESCE(Cur_SO.FIN_PAYMENTMETHOD_ID, v_fin_paymentmethod_id), Cur_SO.POREFERENCE
+             
+          );
+
+        UPDATE C_PROJECTPHASE
+        SET C_ORDER_ID = v_C_Order_ID
+        WHERE C_PROJECTPHASE_ID = v_Record_ID;
+
+        -- Select the price list version that a applies for the price list of the header
+        SELECT M_Get_Pricelist_Version(Cur_SO.M_PriceList_ID, TRUNC(now(), 'DD'))
+        INTO v_M_PriceList_Version_ID
+        FROM DUAL;
+        IF (v_M_PriceList_Version_ID IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PriceListVersionNotFound@'||'.');
+        ELSE
+         -- Select products, quantities, sequence numbers, descriptions and unit prices of the project phases and tasks
+            -- In both cases, if no unit price has been defined for a product,
+            -- price is taken from the price list of the project.
+            -- And if no price is defined in the price list, price is set to 0.
+          FOR Cur_SOLINES IN
+            (
+            SELECT 'phase' AS PROV, pp.SEQNO, pp.NAME AS LINE_NAME, pp.DESCRIPTION, pr.NAME AS PRODUCT_NAME, pp.M_PRODUCT_ID, pp.QTY, pp.PRICEACTUAL
+            FROM C_PROJECTPHASE pp, M_PRODUCT pr
+            WHERE pp.C_PROJECTPHASE_ID = v_Record_ID
+              AND pp.M_PRODUCT_ID = pr.M_PRODUCT_ID
+              AND pp.M_Product_ID IS NOT NULL
+              AND pp.IsActive = 'Y'
+            UNION
+            SELECT 'task' as PROV, pt.SEQNO, pt.NAME AS LINE_NAME, pt.DESCRIPTION, pr.NAME AS PRODUCT_NAME, pt.M_PRODUCT_ID, pt.QTY, pt.PRICEACTUAL
+            FROM C_PROJECTTASK pt, C_PROJECTPHASE pp, M_PRODUCT pr
+            WHERE pp.C_PROJECTPHASE_ID = v_Record_ID
+              AND pp.C_PROJECTPHASE_ID = pt.C_PROJECTPHASE_ID
+              AND pt.M_PRODUCT_ID = pr.M_PRODUCT_ID
+              AND pt.M_Product_ID IS NOT NULL
+              AND pt.IsActive = 'Y'
+            ORDER BY PROV ASC, SEQNO ASC
+            )
+          LOOP
+
+            -- Take StdPrice, PriceList and PriceLimit from Price List Version
+            SELECT COUNT(*)
+            INTO v_Size
+            FROM M_PRODUCT p,M_PRODUCTPRICE pp,M_PRICELIST_VERSION pv,M_PRICELIST pl
+            WHERE p.M_Product_ID=pp.M_Product_ID
+              AND pp.M_PriceList_Version_ID=pv.M_PriceList_Version_ID
+              AND pv.M_PriceList_ID=pl.M_PriceList_ID
+              AND pv.IsActive='Y'
+              AND p.M_Product_ID=Cur_SOLINES.M_PRODUCT_ID
+              AND pv.M_PriceList_Version_ID=v_M_PriceList_Version_ID
+              AND pl.C_Currency_ID=Cur_SO.C_CURRENCY_ID;
+            IF (v_Size>0) THEN
+              SELECT M_BOM_PriceStd(p.M_Product_ID, pv.M_PriceList_Version_ID) AS PriceStd,
+                M_BOM_PriceList(p.M_Product_ID, pv.M_PriceList_Version_ID) AS PriceList,
+                M_BOM_PriceLimit(p.M_Product_ID, pv.M_PriceList_Version_ID) AS PriceLimit,
+                p.C_UOM_ID
+              INTO v_PriceStd,v_PriceList,
+                v_PriceLimit,v_C_UOM_ID
+              FROM M_PRODUCT p,M_PRODUCTPRICE pp,M_PRICELIST_VERSION pv,M_PRICELIST pl
+              WHERE p.M_Product_ID=pp.M_Product_ID
+                AND pp.M_PriceList_Version_ID=pv.M_PriceList_Version_ID
+                AND pv.M_PriceList_ID=pl.M_PriceList_ID
+                AND pv.IsActive='Y'
+                AND p.M_Product_ID=Cur_SOLINES.M_PRODUCT_ID
+                AND pv.M_PriceList_Version_ID=v_M_PriceList_Version_ID
+                AND pl.C_Currency_ID=Cur_SO.C_CURRENCY_ID;
+            ELSE
+              v_PriceStd := NULL;
+              v_PriceList := NULL;
+              v_PriceLimit := NULL;
+              v_C_UOM_ID := NULL;
+            END IF;
+
+            -- Calculate Price Actual
+            v_PriceActual := COALESCE(Cur_SOLINES.priceactual,M_Get_Offers_Price(now(), Cur_SO.C_BPARTNER_ID, Cur_SOLINES.M_PRODUCT_ID, v_PriceStd, Cur_SOLINES.Qty, Cur_SO.M_PRICELIST_ID),0);
+
+            IF (v_PriceStd IS NULL) THEN
+             v_PriceStd :=  v_PriceActual ;
+            END IF;
+
+            IF (v_PriceList IS NULL) THEN
+              v_PriceList :=  v_PriceActual ;
+            END IF;
+
+             IF (v_PriceLimit IS NULL) THEN
+              v_PriceLimit :=  v_PriceActual ;
+            END IF;
+
+            IF (v_PriceList = 0) THEN
+               v_Discount := 0 ;
+            ELSE
+              -- Calculate rounded discount
+              v_Discount :=ROUND((v_PriceList-v_PriceActual) / v_PriceList*100, 2);
+            END IF;
+
+            IF (v_C_UOM_ID IS NULL) THEN
+              SELECT P.C_UOM_ID
+              INTO v_UOM
+              FROM M_PRODUCT P
+              WHERE P.M_PRODUCT_ID=Cur_SOLINES.M_PRODUCT_ID;
+            ELSE
+              v_UOM := v_C_UOM_ID;
+            END IF;
+
+            -- Get next C_OrderLine_ID
+            Ad_Sequence_Next('C_OrderLine', Cur_SO.AD_CLIENT_ID, v_C_OrderLine_ID) ;
+            v_ResultStr:='C_OrderLine_ID - ' || v_C_OrderLine_ID;
+
+            INSERT
+            INTO C_ORDERLINE
+              (
+                DateOrdered, M_Warehouse_ID, QtyOrdered, QtyDelivered,
+                QtyReserved, M_Shipper_ID, QtyInvoiced,
+                C_Currency_ID, PriceList, DatePromised, DateDelivered,
+                DateInvoiced, Created, IsActive, Line,
+                C_OrderLine_ID, AD_Client_ID, C_Order_ID, Description,
+                M_Product_ID, C_UOM_ID, DirectShip, CreatedBy,
+                UpdatedBy, FreightAmt, C_Charge_ID, ChargeAmt,
+                Updated, AD_Org_ID, S_ResourceAssignment_ID, C_BPartner_ID,
+                PriceActual,
+                C_Tax_ID, C_BPartner_Location_ID,
+                Discount, PriceLimit, Ref_OrderLine_ID, LineNetAmt,
+                M_AttributeSetInstance_ID, IsDescription, PriceStd
+              )
+              VALUES
+              (
+                TRUNC(now(), 'DD'), Cur_SO.M_WAREHOUSE_ID, Cur_SOLINES.Qty, 0,
+                0, NULL, 0,
+                Cur_SO.C_CURRENCY_ID, v_PriceList, TRUNC(now(), 'DD'), NULL,
+                NULL, now(), 'Y', Cur_SOLINES.SEQNO,
+                v_C_OrderLine_ID, Cur_SO.AD_CLIENT_ID, v_C_Order_ID, Cur_SOLINES.LINE_NAME || ' - ' || COALESCE(TO_CHAR(Cur_SOLINES.DESCRIPTION),''),
+                Cur_SOLINES.M_PRODUCT_ID, v_UOM, 'N', v_AD_User_ID,
+                v_AD_User_ID, 0, NULL, 0,
+                now(), Cur_SO.AD_ORG_ID, NULL, Cur_SO.C_BPARTNER_ID,
+                v_PriceActual,
+                C_Gettax(Cur_SOLINES.M_PRODUCT_ID, TRUNC(now(), 'DD'), Cur_SO.AD_ORG_ID, Cur_SO.M_WAREHOUSE_ID, Cur_SO.C_BPARTNER_LOCATION_ID, Cur_SO.C_BPARTNER_LOCATION_ID, Cur_SO.C_PROJECT_ID, 'Y'), Cur_SO.C_BPARTNER_LOCATION_ID,
+                v_Discount, v_PriceLimit, NULL, v_PriceActual * Cur_SOLINES.Qty,
+                NULL, 'N', v_PriceStd
+              )
+              ;
+          END LOOP;
+        END IF;
+        IF NOT(v_Message='') THEN
+          v_Message:=v_Message || ', ';
+        END IF;
+        v_Message:=v_Message || v_DocumentNo;
+      END LOOP;
+      v_Message:='@DocumentNo@: ' || v_Message;
+    END;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_GENERATESOFROMPROJECTPHASE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,359 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<html xmlns:="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Menu</title>
+    <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" title="StyleGrid" id="paramCSS" />
+    <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>    
+    <script language="JavaScript" type="text/javascript" id="paramDirectory">var baseDirectory = "../../../../../web/";</script>
+    <script language="JavaScript" type="text/javascript" id="paramAutosave">var autosave = false;</script>
+    <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../web/js/menuKeyboard.js" type="text/javascript"></script>
+    <script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+    <script language="JavaScript" type="text/javascript" id="paramLanguage">defaultLang = "en_US";</script>
+    <script type="text/javascript">
+      function resizeMenu() {
+        var mnu = document.getElementById("Menu_Client");
+        var mleft = document.getElementById("MenuLeft");
+        var mright = document.getElementById("MenuRight");
+        var mtop = document.getElementById("MenuTop");
+        var mtop2 = document.getElementById("MenuTop2");
+        var mbottom = document.getElementById("MenuBottom");
+        var body = document.getElementsByTagName("BODY");
+        var h = body[0].clientHeight;
+        var w = body[0].clientWidth;
+        var name = window.navigator.appName;
+        var mnuWidth = w - (mleft.clientWidth + mright.clientWidth) - ((name.indexOf("Microsoft")==-1)?2:0);
+        var mnuHeight = h -(mtop.clientHeight + mtop2.clientHeight + mbottom.clientHeight) - ((name.indexOf("Microsoft")==-1)?2:0);
+        if (mnuWidth < 0) { mnuWidth = 0; }
+        if (mnuHeight < 0) { mnuHeight = 0; }
+        mnu.style.width = mnuWidth;
+        mnu.style.height = mnuHeight;
+        mnu.style.display = "";
+      }
+
+      function callback(paramXMLParticular, XMLHttpRequestObj) {
+        var strText = "";
+        if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+          try {
+            if (XMLHttpRequestObj.responseText) strText = XMLHttpRequestObj.responseText;
+          } catch (e) {
+          }
+          //layer("returnText", strText, true, false);
+          document.getElementById("alertCount").innerHTML=strText;
+
+          if (parseFloat(strText) == 0 && document.getElementById("alertImage").className.indexOf("Menu_ToolBar_Button_Icon_alertActive") != -1) {
+            setAlertIcon(false);
+          } else if (parseFloat(strText) != 0 && document.getElementById("alertImage").className.indexOf("Menu_ToolBar_Button_Icon_alertActive") == -1) {
+            setAlertIcon(true);
+          }
+
+          if (strText != "") {
+            if (parseFloat(strText) != strText) {
+              document.getElementById("alertLink").innerHTML="Session expired";
+            }
+          }
+    /*
+          if (strText==0) {
+            document.getElementById("alertNotifier").style.display="none";
+          } else {
+            document.getElementById("alertNotifier").style.display="";
+            document.getElementById("alertCount").innerHTML=strText;
+         }
+    */
+        }
+        return true;
+      }
+      
+      function updateData() {
+        var paramXMLReq = null;
+        return submitXmlHttpRequestWithParams(callback, null, 'ALERT', "VerticalMenu.html", false, "&ignoreForSessionTimeout=1", paramXMLReq);
+      }
+      
+      function updateAlert()
+      {
+          setMDIEnvironment();
+          if(isWindowInMDIContext) {
+            return;
+          }
+
+          updateData();
+          //Frequency of call to update alert is hardcoded to each 50s.
+          //This is used to update the number of active alerts as well as to know whether
+          //browser is still open to control active sessions. 
+          setTimeout("updateAlert()", 50000);
+      }
+
+      function onLoadDo() {
+        try {
+          if (parent.frameMenu) {
+            document.frmMenu.target = "_parent";
+          } else {
+            document.frmMenu.target = "_self";
+          }
+        } catch (e) {
+          document.frmMenu.target = "_self";
+        }
+        if (frames.name.indexOf('appFrame')!=-1) {
+          location.href="../utility/Home.html";
+        }
+        enableShortcuts('menu');
+        setMenuLoading(false);
+        resizeMenu();
+        setMenuElementFocus('firstElement');
+        updateAlert();
+        putFocusOnMenu();
+      }
+  
+      function onResizeDo() {
+        resizeMenu();
+      }
+
+      function onFocusDo() {
+        onFocusMenu();
+        return true;
+      }
+
+      function onBlurDo() {
+        onBlurMenu();
+        return true;
+      }
+
+      function openInstancePurpose() {
+        openPopUp('../ad_forms/InstancePurpose.html', 'InstancePurpose', 500, 600);
+      }
+
+      function openHeartbeat() {
+        openPopUp('../ad_forms/Heartbeat.html', 'Heartbeat', 500, 600);
+      }
+
+      function openRegistration() {
+        openPopUp('../ad_forms/Registration.html', 'Registration', 500, 600);
+      }
+
+      function validate(action, form, value) {
+         var appFrame = getFrame('appFrame');
+
+         try {
+           var isUserChanges = appFrame.isUserChanges;
+         } catch(e1) {
+           if(isDebugEnabled()) {
+             console.error("%o", e1);
+           }
+         }
+
+         if(typeof isUserChanges === 'undefined' || !appFrame.isUserChanges) {
+           return true;
+         }
+
+         try {
+           var loc = appFrame.location.toString();
+         } catch(e2) {
+           if(isDebugEnabled()) {
+             console.error("%o", e2);
+           }
+         }
+
+         if(typeof loc === 'undefined' || loc.indexOf('Home.html') !== -1 || typeof appFrame.depurar_validate_wrapper === 'undefined') {
+           return true;
+         }
+
+         return appFrame.depurar_validate_wrapper(action, form, value);
+      }
+
+      function getAppUrlFromMenu() {
+        var url = window.location.href;
+        var pos = url.lastIndexOf("/utility/VerticalMenu.html");
+        url = url.substring(0, pos);
+        return url;
+      }
+
+      function getForm() {
+         try {
+            var appForm = getFrame('appFrame').document.forms[0];
+         } catch(e1) {
+           if(isDebugEnabled()) {
+             console.error("%o", e1);
+           }
+         }
+
+         try {
+           var loc = getFrame('appFrame').location.toString();
+         } catch(e2) {
+           if(isDebugEnabled()) {
+             console.error("%o", e2);
+           }
+         }
+
+         if(typeof loc === 'undefined' || typeof appForm === 'undefined' || loc.indexOf('Home.html') !== -1) {
+           return null;
+         }
+
+         if(typeof appForm.inpLastFieldChanged === 'undefined' || appForm.inpLastFieldChanged.value === "") {
+           return null;
+         }
+
+         return appForm;
+      }
+    </script>
+  </head>
+
+
+  <body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo(); xx();" onresize="onResizeDo();" onfocus="onFocusDo();" onblur="onBlurDo();" id="paramBody">
+    <table border="0" cellspacing="0" cellpadding="0" summary="" width="100%" height="100%">
+      <tr>
+        <td rowspan="3" valign="top">
+          <table class="Menu_ContentPane_Left" id="MenuLeft">
+            <tr>
+              <td class="Menu_NavBar_bg_left">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="Menu_ToolBar_bg_left">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="Menu_Client_bg_left">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="Menu_Bottom_bg_left">
+              </td>
+            </tr>
+          </table>
+        </td>
+
+        <td valign="top">
+          <table class="Menu_ContentPane_NavBar" id="MenuTop">
+            <tr>
+              <td class="Menu_NavBar_bg">&nbsp;</td>
+
+              <td class="Menu_NavBar_bg_logo_left"></td>
+
+              <td class="Menu_NavBar_bg_logo" width="1"><img class="Menu_NavBar_logo" src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo"/></td>
+
+              <td class="Menu_NavBar_bg_logo_right"></td>
+
+              <td class="Menu_NavBar_bg">&nbsp;</td>
+            </tr>
+          </table>
+
+          <table class="Menu_ContentPane_ToolBar Menu_ToolBar_bg" id="MenuTop2">
+            <tr>
+              <td width="1" class="Menu_ToolBar_textlabel_bg_left">
+                <a class="Menu_ToolBar_Button" href="#" onclick="menuUserOptions(); return false;" onmouseover="window.status='User info';return true;" onmouseout="window.status='';return true;" id="buttonUserOptions"><span><img class="Menu_ToolBar_Button_Icon Menu_ToolBar_Button_Icon_user" src="../../../../../web/images/blank.gif" border="0" alt="User info" title="User info" /></span></a>
+              </td>
+
+              <td colspan="2" class="Menu_ToolBar_textlabel_bg_body"><nobr><a class="Menu_ToolBar_text_username" href="#" onclick="menuUserOptions(); return false;" id="userName"><span id="fieldUserName">xxKain Smitherson</span></a><nobr></td>
+
+              <td width="1" class="Menu_ToolBar_textlabel_bg_right">
+                <a class="Menu_ToolBar_Button" href="#" onclick="menuQuit(); return false;" onmouseover="window.status='Close session';return true;" onmouseout="window.status='';return true;" id="buttonQuit"><img class="Menu_ToolBar_Button_Icon Menu_ToolBar_Button_Icon_logout" src="../../../../../web/images/blank.gif" border="0" alt="Close session" title="Close session" /></a>
+              </td>
+
+              <td class="Menu_ToolBar_Space"></td>
+
+              <td width="1">
+                <a class="Menu_ToolBar_Button" href="#" onclick="setMenuLoading(true); menuExpand(); return false;" onmouseover="window.status='Expand the menu';return true;" onmouseout="window.status='';return true;" id="buttonExpand"><img class="Menu_ToolBar_Button_Icon Menu_ToolBar_Button_Icon_expand" src="../../../../../web/images/blank.gif" border="0" alt="Expand the menu" title="Expand the menu" /></a>
+
+                <a class="Menu_ToolBar_Button" href="#" onclick="setMenuLoading(true); menuCollapse(); return false;" onmouseover="window.status='Contract all the menu';return true;" onmouseout="window.status='';return true;" id="buttonCollapse"><img class="Menu_ToolBar_Button_Icon Menu_ToolBar_Button_Icon_contract" src="../../../../../web/images/blank.gif" border="0" alt="Contract all the menu" title="Contract all the menu" /></a>
+              </td>
+            </tr>
+
+            <tr>
+              <td width="1" class="Menu_ToolBar_textlabel_bg_left">
+                <a class="Menu_ToolBar_Button" href="#" onclick="menuAlerts(); return false;" onmouseover="window.status='Alert Management';return true;" onmouseout="window.status='';return true;" id="buttonAlerts"><span><img src="../../../../../web/images/blank.gif" class="Menu_ToolBar_Button_Icon Menu_ToolBar_Button_Icon_alert" border="0" alt="Alert" title="Alert" id="alertImage"/></span></a>
+              </td>
+
+              <td class="Menu_ToolBar_textlabel_bg_body"><nobr><span id="alertNotifier"><a href="#" onclick="menuAlerts(); return false;" class="Menu_ToolBar_text_alert" id="alertLink"><span class="Menu_ToolBar_text_alert_no" id="alertCount">0</span><span>&nbsp;</span><span>Alerts</span></a></span></nobr></td>
+
+              <td width="1"><img class="Menu_ToolBar_textlabel_bg_right" src="../../../../../web/images/blank.gif" border="0" /></td>
+
+              <td width="1">
+              </td>
+
+              <td class="Menu_ToolBar_Space"></td>
+
+              <td width="1">
+              </td>
+            </tr>
+
+          </table>
+        </td>
+
+        <td rowspan="3" valign="top">
+          <table class="Menu_ContentPane_Right" id="MenuRight">
+            <tr>
+              <td class="Menu_NavBar_bg_right">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="Menu_ToolBar_bg_right">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="Menu_Client_bg_right">
+              </td>
+            </tr>
+
+            <tr>
+              <td class="Menu_Bottom_bg_right">
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td valign="top">
+          <div id="Menu_Client" class="Menu_ContentPane_Client" style="overflow: auto; display: none;">
+            <table cellspacing="0" cellpadding="0" id="paramMenu" class="Menu_Client_bg">
+            </table>
+          </div>
+        </td>
+      </tr>
+
+      <tr>
+        <td valign="top">
+          <table class="Menu_ContentPane_Bottom" id="MenuBottom">
+            <tr>
+              <td class="Menu_Bottom_bg">
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <form name="frmMenu" action="../security/Login_FS.html" method="post" target="_self">
+      <input type="hidden" name="Command" /> <input type="hidden" name="inpSelected" value="" />
+    </form>
+  </body>
+</html>

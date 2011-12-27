@@ -1,0 +1,1040 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Balance Sheet</title>
+    <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+     
+    <script language="JavaScript" type="text/javascript" id="paramDirectory">
+      var baseDirectory = "../../../../../web/";
+      </script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" type="text/javascript" id="paramLanguage">
+        var defaultLang = "en_US";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojoConfig.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/dojo/dojo.js" type="text/javascript"></script>
+      <script type="text/javascript">
+        dojo.hostenv.writeIncludes(); //makes debugging in Venkman possible
+      </script>
+<script language="JavaScript" type="text/javascript">
+
+function imprimir()
+{
+	openPDFFiltered("ReportTrialBalance.html?Command=PDF","PDF");
+	return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+function displayLogic() {
+  if (inputValue(document.frmMain.inpLevel) == 'S') {
+    displayLogicElement('AcctFromTo', true);
+    displayLogicElement('Filter1', true);
+    displayLogicElement('Filter2', true);
+    displayLogicElement('Filter3', true);
+    displayLogicElement('Filter4', true);
+  }else{
+    displayLogicElement('AcctFromTo', false);
+    displayLogicElement('Filter1', false);
+    displayLogicElement('Filter2', false);
+    displayLogicElement('Filter3', false);
+    displayLogicElement('Filter4', false);
+  }
+}
+
+function onloadFunctions() {
+  displayLogic();
+  keyArray[keyArray.length] = new keyArrayItem("ENTER", "openSearch(null, null, '../info/AccountElementValue.html', 'SELECTOR_ACCOUNTELEMENTVALUE', false, 'frmMain', 'inpcElementValueIdFrom', 'inpElementValueIdFrom_DES', document.frmMain.inpElementValueIdFrom_DES.value, 'Command', 'KEY');", "inpElementValueIdFrom_DES", "null");
+  keyArray[keyArray.length] = new keyArrayItem("ENTER", "openSearch(null, null, '../info/AccountElementValue.html', 'SELECTOR_ACCOUNTELEMENTVALUE', false, 'frmMain', 'inpcElementValueIdTo', 'inpElementValueIdTo_DES', document.frmMain.inpElementValueIdTo_DES.value, 'Command', 'KEY');", "inpElementValueIdTo_DES", "null");
+}
+
+function validate() {
+  var frm=document.frmMain;
+    if (inputValue(frm.inpDateFrom)==null || inputValue(frm.inpDateFrom)=="") {
+      setWindowElementFocus(frm.inpDateFrom);
+      showJSMessage(7);
+      return false;
+    }  else if (inputValue(frm.inpDateTo)==null || inputValue(frm.inpDateTo)=="") {
+      setWindowElementFocus(frm.inpDateTo);
+      showJSMessage(7);
+      return false;
+    }  else if (inputValue(frm.inpOrg)==null || inputValue(frm.inpOrg)=="") {
+      setWindowElementFocus(frm.inpOrg);
+      showJSMessage(7);
+      return false;
+    }  else if (inputValue(frm.inpLevel)==null || inputValue(frm.inpLevel)=="") {
+      setWindowElementFocus(frm.inpLevel);
+      showJSMessage(7);
+      return false;
+    }  else if (inputValue(frm.inpcAcctSchemaId)==null || inputValue(frm.inpcAcctSchemaId)=="") {
+      setWindowElementFocus(frm.inpcAcctSchemaId);
+      showJSMessage(7);
+      return false;
+    }
+    markCheckedAllElements(frm.inpcBPartnerId_IN);
+    markCheckedAllElements(frm.inpcProjectId_IN);
+    markCheckedAllElements(frm.inpmProductId_IN);
+  return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+function callback(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  var id = "";
+  var imageId = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) strText = XMLHttpRequestObj.responseText;
+	} catch (e) {
+    }
+	if (paramXMLParticular!=null && paramXMLParticular.length>0) {
+	  id = paramXMLParticular[0];
+	  imageId = paramXMLParticular[1];
+	}
+	addRows(strText,id);
+	showHideLayer(id, imageId);
+  }
+  return true;
+}
+
+function showHideLayer(id, imageId) {
+  var obj = getReference(imageId);
+  if (obj!=null) {
+    if (obj.className == "datawarehouseopen") {
+	  obj.className = "datawarehouseclose";
+	  showHideRows(id, "none");
+	} else {
+	  obj.className = "datawarehouseopen";
+	  showHideRows(id, "");
+	}
+  }
+}
+
+function addRows(htmlText, id) {
+  var jsonTable = eval(htmlText);
+  if (typeof jsonTable != undefined) {
+  for (i=0; i<jsonTable.rows.length; i++) {
+    var node=document.getElementById('funcEvenOddRow1'+id);
+    var elem=document.createElement('TR');
+    node.parentNode.insertBefore(elem,node.nextSibling);
+    elem.id = "funcEvenOddRow2"+ id +"_"+(i+1);
+    var newTD1 = document.createElement('TD');
+    newTD1.innerHTML = jsonTable.rows[i].td1
+    newTD1.className = jsonTable.config.classDefault;
+    newTD1.colSpan = "2";
+    var newTD2 = document.createElement('TD');
+    newTD2.innerHTML = jsonTable.rows[i].td2;
+    newTD2.className = jsonTable.config.classAmount;
+    var newTD3 = document.createElement('TD');
+    newTD3.innerHTML = jsonTable.rows[i].td3;
+    newTD3.className = jsonTable.config.classAmount;
+    var newTD4 = document.createElement('TD');
+    newTD4.innerHTML = jsonTable.rows[i].td4;
+    newTD4.className = jsonTable.config.classAmount;
+    var newTD5 = document.createElement('TD');
+    newTD5.innerHTML = jsonTable.rows[i].td5;
+    newTD5.className = jsonTable.config.classAmount;
+    var newTD6 = document.createElement('TD');
+    newTD6.innerHTML = "";
+    newTD6.className = jsonTable.config.classDefault;
+    elem.appendChild(newTD1);
+    elem.appendChild(newTD2);
+    elem.appendChild(newTD3);
+    elem.appendChild(newTD4);
+    elem.appendChild(newTD5);
+    elem.appendChild(newTD6);
+  }
+  }
+}
+
+function showHideRows(id, showHide) {
+  var fila = document.getElementById('funcEvenOddRow2'+id+'_1');
+  var i = 1;
+  var txt = '';
+  while (fila != undefined) {
+    i++;
+	fila.style.display = showHide;
+	fila = document.getElementById('funcEvenOddRow2'+id+'_'+i);
+  }
+}
+
+function updateData(CommandValue, identifier) {
+  var frm = document.frmMain;
+  frm.inpcAccountId.value = identifier;
+  var obj = getReference("buttonTree" + identifier);
+  if (obj!=null && obj.className == "datawarehouseclose") {
+    var paramXMLReq = new Array(identifier, 'buttonTree' + identifier);
+    return submitXmlHttpRequest(callback, frm, CommandValue, "ReportTrialBalance.html", false, null, paramXMLReq);
+  } else {
+    showHideLayer(identifier, "buttonTree" + identifier);
+  }
+}
+
+function showHideFilters(identifier) {
+  var obj = getReference(identifier);
+  if (obj!=null) {
+    if (obj.className == "datawarehouseopen") {
+      obj.className = "datawarehouseclose";
+      displayLogicElement('Filter2', false);
+      displayLogicElement('Filter3', false);
+      displayLogicElement('Filter4', false);
+    } else {
+      obj.className = "datawarehouseopen";
+      displayLogicElement('Filter2', true);
+      displayLogicElement('Filter3', true);
+      displayLogicElement('Filter4', true);
+    }
+  }
+}
+</script>
+
+<script language="JavaScript" type="text/javascript">
+	function onLoadDo(){
+		this.windowTables = new Array(
+		  new windowTableId('client', 'buttonHTML')
+		);
+		setWindowTableParentElement();
+		this.tabsTables = new Array(
+		  new tabTableId('tdtopTabs')
+		);
+		setTabTableParentElement();
+		enableShortcuts('edition');
+		setBrowserAutoComplete(false);
+
+		var selectedGroupBy = document.getElementById("paramSelectedGroupBy").value;
+	    var groupby = document.getElementById("inpGroupBy");
+	    for (i=0;i<groupby.length;i++){
+	      if (groupby[i].value == selectedGroupBy)
+	        groupby[i].selected = true;
+	    }
+
+	    try {
+	        onloadFunctions();
+	    } catch (e) {}
+		resizeArea();
+		updateMenuIcon('buttonMenu');
+
+		setWindowElementFocus('firstElement');
+	}
+
+	function onResizeDo(){
+		resizeArea();
+	}
+
+	function openTabToGeneralLedgerReport(procId, recordId){
+		var frm = document.frmMain;
+		markCheckedAllElements(frm.inpcBPartnerId_IN);
+		markCheckedAllElements(frm.inpcProjectId_IN);
+		markCheckedAllElements(frm.inpmProductId_IN);
+
+		var myframe = getFrame('LayoutMDI') || top.opener;
+	    if (myframe) {      
+	        myframe.OB.RemoteCallManager.call('org.openbravo.client.application.ComputeTranslatedNameActionHandler', {}, {'processId': procId}, 
+	        function(response, data, request){
+	            myframe.OB.Layout.ViewManager.openView('OBClassicWindow', {
+	                command: 'FIND',
+	                icon: '[SKINIMG]../../org.openbravo.client.application/images/application-menu/iconReport.png',
+	                id: procId,
+	                obManualURL: '/ad_reports/ReportGeneralLedger.html?inpDateFrom=' + frm.inpDateFrom.value 
+	                		+ '&inpDateTo=' + frm.inpDateTo.value + '&inpOrg=' + frm.inpOrg.value + '&inpcAcctSchemaId=' 
+	                		+ frm.inpcAcctSchemaId.value + '&inpcElementValueIdFrom=' + recordId + '&inpcElementValueIdTo=' + frm.inpcElementValueIdTo.value,
+	                processId: procId,
+	                tabTitle: data.processTitle,
+	                type: 'report',
+	                viewId: 'OBClassicWindow'
+	            });                        
+	        });
+	    }
+	}
+	function openTabToReportTrialBalanceDetails(procId, recordId){
+        var frm = document.frmMain;
+        var bPartner = frm.inpcBPartnerId_IN.value, mProduct = frm.inpmProductId_IN.value, c_Project = frm.inpcProjectId_IN.value;
+        markCheckedAllElements(frm.inpcBPartnerId_IN);
+        markCheckedAllElements(frm.inpcProjectId_IN);
+        markCheckedAllElements(frm.inpmProductId_IN);
+        
+        var manualURL = '/ad_reports/ReportTrialBalanceDetail.html?inpDateFrom=' + frm.inpDateFrom.value 
+        + '&inpDateTo=' + frm.inpDateTo.value + '&inpOrg=' + frm.inpOrg.value + '&inpLevel=' + frm.inpLevel.value
+        + '&inpcAccountId=' + recordId + '&inpcAcctSchemaId=' + frm.inpcAcctSchemaId.value;
+        if (bPartner.length == 0){
+        	manualURL.concat('&inpcBPartnerId_IN=' + bPartner);
+        }
+        if (mProduct.length == 0){
+            manualURL.concat('&inpcBPartnerId_IN=' + mProduct);
+        }
+        if (c_Project.length == 0){
+            manualURL.concat('&inpcBPartnerId_IN=' + c_Project);
+        }
+
+        var myframe = getFrame('LayoutMDI') || top.opener;
+        if (myframe) {      
+            myframe.OB.RemoteCallManager.call('org.openbravo.client.application.ComputeTranslatedNameActionHandler', {}, {'processId': procId}, 
+            function(response, data, request){
+                myframe.OB.Layout.ViewManager.openView('OBClassicWindow', {
+                    command: 'DEFAULT',
+                    icon: '[SKINIMG]../../org.openbravo.client.application/images/application-menu/iconReport.png',
+                    id: procId,
+                    obManualURL: manualURL,
+                    processId: procId,
+                    tabTitle: data.processTitle,
+                    type: 'report',
+                    viewId: 'OBClassicWindow'
+                });                        
+            });
+        }
+    }
+	
+</script>
+</head>
+    <body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form method="post" action="ReportTrialBalance.html" name="frmMain"  target="_self">
+  <input type="hidden" name="Command"></input>
+  <input type="hidden" name="inpcAccountId"></input>
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"></tr>
+          <tr id="paramMainTabContainer"></tr>
+          <tr id="paramChildTabContainer"></tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none;" id="client">
+
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                            <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_Icon_ContentCell">
+                                  <div class="MessageBox_Icon"></div>
+                                </td>
+                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                  <span>
+                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                      xxInfo: AccessTableWithNoView
+                                    </div>
+                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                      xxThe current information is empty.
+                                    </div>
+                                    <div class="MessageBox_TextSeparator"></div>
+                                  </span>
+                                </td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            </tbody>
+          </table>
+
+          <!-- USER CONTROLS -->
+          <table class="Main_Client_TableEdition">
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Primary Filters</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="TitleCell"><span class="LabelText">From Date</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <input dojoType="openbravo:DateTextbox" lowerThan="paramDateTo" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width required" required="true" type="text" name="inpDateFrom" id="paramDateFrom" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDateFrom");</script>
+                    </td>
+                    <td class="FieldButton_bg">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDateFrom', document.frmMain.inpDateFrom.value, false);return false;">
+                      <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                          </td>
+                        </tr>
+                      </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+             </td>
+             <td class="TitleCell"></td>            
+              <td class="TitleCell"><span class="LabelText">To Date</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <input dojoType="openbravo:DateTextbox" greaterThan="paramDateFrom" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width required" required="true" type="text" name="inpDateTo" id="paramDateTo" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDateTo");</script>
+                    </td>
+                    <td class="FieldButton_bg">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="showCalendar('frmMain.inpDateTo', document.frmMain.inpDateTo.value, false);return false;" >
+                      <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                          </td>
+                        </tr>
+                      </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"/>
+              <td class="TitleCell"/>
+            </tr>
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Organization</span></td>
+              <td class="Combo_ContentCell">
+                <select  name="inpOrg" id="inpOrg" class="ComboKey Combo_TwoCells_width" required="true">
+                  <option value=""> <div id="reportAD_ORGID"></div></option>
+                </select></td>
+            </tr>
+            <tr>
+              <td class="TitleCell"> <span class="LabelText">Accounting schema</span></td>
+              <td class="Combo_ContentCell" colspan="2"> <select name="inpcAcctSchemaId" id="inpcAcctSchemaId" class="ComboKey Combo_TwoCells_width" required="true">
+                  <option value=""> <div id="reportC_ACCTSCHEMA_ID"></div></option>
+                </select>
+              </td>
+              <td class="TitleCell"><span class="LabelText">Account Level</span></td>
+              <td class="Combo_ContentCell"> 
+                <select  name="inpLevel" id="inpLevel" class="ComboKey Combo_OneCell_width" required="true" onchange="displayLogic(); return true;">
+                  <option value=""> <div id="reportLevel"></div></option>
+                </select></td>
+              <td class="ContentCell"></td>
+            </tr>
+            <tr>
+            <td class="TitleCell"><span class="LabelText">Initial page number</span></td>
+              <td class="TextBox_ContentCell" colspan="2"> <input dojoType="openbravo:Textbox"  class="dojoValidateValid TextBox_OneCell_width" type="text" name="inpPageNo" id="paramPageNo" size="10" maxlength="10" value=""></input><script>djConfig.searchIds.push("paramPageNo");</script>
+              </td>
+            </tr>
+	    <tr>
+              <td class="TitleCell"><span class="LabelText">Opening Entry Amount to Initial Balance</span></td>
+              <td class="Radio_Check_ContentCell"><input name="inpNotInitialBalance" type="checkbox" id="fieldNotInitialBalance" value="Y"></input></td>
+            </tr>
+            <tr id="AcctFromTo">
+              <td class="TitleCell"><span class="LabelText">From Account</span></td>
+              <td class="TextBox_btn_ContentCell" colspan="2">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <input type="hidden" name="inpcElementValueIdFrom" id="paramElementvalueIdFrom" value=""></input>
+                      <input class="dojoValidateValid TextBox_btn_TwoCells_width" type="text"  name="inpElementValueIdFrom_DES" id="inpElementValueIdFrom_DES" maxlength="20" value=""></input>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Account'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="openSearch(null, null, '../info/AccountElementValue.html', 'SELECTOR_ACCOUNTELEMENTVALUE', false, 'frmMain', 'inpcElementValueIdFrom', 'inpElementValueIdFrom_DES', document.frmMain.inpElementValueIdFrom_DES.value, 'inpcAcctSchemaId', document.frmMain.inpcAcctSchemaId.value);return false;">
+                      <table class="FieldButton"  onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Search';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Account" class="FieldButton_Icon FieldButton_Icon_Account" title="Account" src="../../../../../web/images/blank.gif" border="0"></img>
+                          </td>
+                        </tr>
+                      </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"><span class="LabelText">To Account</span></td>
+              <td class="TextBox_btn_ContentCell" colspan="2">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <input type="hidden" name="inpcElementValueIdTo" id="paramElementvalueIdTo" value=""></input>
+                      <input class="dojoValidateValid TextBox_btn_TwoCells_width" type="text"  name="inpElementValueIdTo_DES" id="inpElementValueIdTo_DES" maxlength="20" value=""></input>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Account'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;" onclick="openSearch(null, null, '../info/AccountElementValue.html', 'SELECTOR_ACCOUNTELEMENTVALUE', false, 'frmMain', 'inpcElementValueIdTo', 'inpElementValueIdTo_DES', document.frmMain.inpElementValueIdTo_DES.value, 'inpcAcctSchemaId', document.frmMain.inpcAcctSchemaId.value);return false;">
+                      <table class="FieldButton"  onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Search';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Account" class="FieldButton_Icon FieldButton_Icon_Account" title="Account" src="../../../../../web/images/blank.gif" border="0"></img>
+                          </td>
+                        </tr>
+                      </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+           
+            <tr id="Filter1">
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td>
+                      <a id="expandFilters" onmouseout="window.status='';return true;" onmouseover="window.status='Open';return true;" onclick="showHideFilters('buttonTreeFilters'); return false;" href="#">
+                        <span class="datawarehouseopen" id="buttonTreeFilters"/>
+                      </a>
+                    </td>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Dimensions</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+            
+            <tr id="Filter2">
+              <td class="TitleCell"><span class="LabelText">Business Partner</span></td>
+                <td class="List_ContentCell" colspan="2">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td>
+                        <select class="List_width List_height" name="inpcBPartnerId_IN" multiple="" id="reportCBPartnerId_IN"></select>
+                      </td>
+                      <td class="List_Button_ContentCell">
+                        <table border="0" cellspacing="0" cellpadding="0">
+                          <tr>
+                            <td>
+                              <a class="List_Button_TopLink" href="#"
+                                onclick="openMultiSearch(null, null, '../info/BusinessPartnerMultiple.html', 'SELECTOR_BUSINESS', false, 'frmMain', 'inpcBPartnerId_IN');return false;"
+                                onfocus="setWindowElementFocus(this); window.status='Add'; return true;"
+                                onblur="window.status=''; return true;"
+                                onkeypress="this.className='List_Button_TopLink_active'; return true;"
+                                onkeyup="this.className='List_Button_TopLink_focus'; return true;">
+                              <table class="List_Button_Top"
+                                onmousedown="this.className='List_Button_Top_active'; return true;"
+                                onmouseup="this.className='List_Button_Top'; return true;"
+                                onmouseover="this.className='List_Button_Top_hover'; window.status='Add'; return true;"
+                                onmouseout="this.className='List_Button_Top'; window.status=''; return true;">
+                                <tr>
+                                  <td class="List_Button_Top_bg">
+                                    <img class="List_Button_Icon List_Button_Icon_Add" src="../../../../../web/images/blank.gif" alt="Add" title="Add"/>
+                                  </td>
+                                </tr>
+                              </table>
+                              </a>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td class="List_Button_Separator"></td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <a class="List_Button_MiddleLink" href="#"
+                                onclick="clearSelectedElements(document.frmMain.inpcBPartnerId_IN);return false;"
+                                onfocus="setWindowElementFocus(this); window.status='Delete selected elements'; return true;"
+                                onblur="window.status=''; return true;"
+                                onkeypress="this.className='List_Button_MiddleLink_active'; return true;"
+                                onkeyup="this.className='List_Button_MiddleLink_focus'; return true;">
+                                <table class="List_Button_Middle"
+                                  onmousedown="this.className='List_Button_Middle_active'; return true;"
+                                  onmouseup="this.className='List_Button_Middle'; return true;"
+                                  onmouseover="this.className='List_Button_Middle_hover'; window.status='Delete selected elements'; return true;"
+                                  onmouseout="this.className='List_Button_Middle'; window.status=''; return true;">
+                                  <tr>
+                                    <td class="List_Button_Middle_bg">
+                                      <img class="List_Button_Icon List_Button_Icon_Delete" src="../../../../../web/images/blank.gif" alt="Delete selected elements" title="Delete selected elements"/>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </a>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td class="List_Button_Separator"></td>
+                          </tr>
+                          <tr>
+                            <td>
+                              <a class="List_Button_BottomLink" href="#"
+                                onclick="clearList(document.frmMain.inpcBPartnerId_IN);return false;"
+                                onfocus="setWindowElementFocus(this); window.status='Delete all elements'; return true;"
+                                onblur="window.status=''; return true;"
+                                onkeypress="this.className='List_Button_BottomLink_active'; return true;"
+                                onkeyup="this.className='List_Button_BottomLink_focus'; return true;">
+                                <table class="List_Button_Bottom"
+                                  onmousedown="this.className='List_Button_Bottom_active'; return true;"
+                                  onmouseup="this.className='List_Button_Bottom'; return true;"
+                                  onmouseover="this.className='List_Button_Bottom_hover'; window.status='Delete all elements'; return true;"
+                                  onmouseout="this.className='List_Button_Bottom'; window.status=''; return true;">
+                                  <tr>
+                                    <td class="List_Button_Bottom_bg">
+                                      <img class="List_Button_Icon List_Button_Icon_DeleteAll" src="../../../../../web/images/blank.gif" alt="Delete all elements" title="Delete all elements"/>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+                
+                <!-- Product multiple selector -->
+                <td class="TitleCell"><span class="LabelText">Product</span></td>
+                <td class="List_ContentCell" colspan="2">
+                  <table border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <select class="List_width List_height" name="inpmProductId_IN" multiple="" id="reportMProductId_IN"></select>
+                    </td>
+                    <td class="List_Button_ContentCell">
+                      <table border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td>
+                            <a class="List_Button_TopLink" href="#"
+                            onclick="openMultiSearch(null, null, '../info/ProductMultiple.html', 'SELECTOR_PRODUCT', false, 'frmMain', 'inpmProductId_IN');return false;"
+                            onfocus="setWindowElementFocus(this); window.status='Add'; return true;"
+                            onblur="window.status=''; return true;"
+                            onkeypress="this.className='List_Button_TopLink_active'; return true;"
+                            onkeyup="this.className='List_Button_TopLink_focus'; return true;">
+                            <table class="List_Button_Top"
+                              onmousedown="this.className='List_Button_Top_active'; return true;"
+                              onmouseup="this.className='List_Button_Top'; return true;"
+                              onmouseover="this.className='List_Button_Top_hover'; window.status='Add'; return true;"
+                              onmouseout="this.className='List_Button_Top'; window.status=''; return true;">
+                              <tr>
+                                <td class="List_Button_Top_bg">
+                                  <img class="List_Button_Icon List_Button_Icon_Add" src="../../../../../web/images/blank.gif" alt="Add" title="Add"/>
+                                </td>
+                              </tr>
+                            </table>
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="List_Button_Separator">
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <a class="List_Button_MiddleLink" href="#"
+                              onclick="clearSelectedElements(document.frmMain.inpmProductId_IN);return false;"
+                              onfocus="setWindowElementFocus(this); window.status='Delete selected elements'; return true;"
+                              onblur="window.status=''; return true;"
+                              onkeypress="this.className='List_Button_MiddleLink_active'; return true;"
+                              onkeyup="this.className='List_Button_MiddleLink_focus'; return true;">
+                              <table class="List_Button_Middle"
+                                onmousedown="this.className='List_Button_Middle_active'; return true;"
+                                onmouseup="this.className='List_Button_Middle'; return true;"
+                                onmouseover="this.className='List_Button_Middle_hover'; window.status='Delete selected elements'; return true;"
+                                onmouseout="this.className='List_Button_Middle'; window.status=''; return true;">
+                                <tr>
+                                  <td class="List_Button_Middle_bg">
+                                    <img class="List_Button_Icon List_Button_Icon_Delete" src="../../../../../web/images/blank.gif" alt="Delete selected elements" title="Delete selected elements"/>
+                                  </td>
+                                </tr>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="List_Button_Separator">
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <a class="List_Button_BottomLink" href="#"
+                              onclick="clearList(document.frmMain.inpmProductId_IN);return false;"
+                              onfocus="setWindowElementFocus(this); window.status='Delete all elements'; return true;"
+                              onblur="window.status=''; return true;"
+                              onkeypress="this.className='List_Button_BottomLink_active'; return true;"
+                              onkeyup="this.className='List_Button_BottomLink_focus'; return true;">
+                              <table class="List_Button_Bottom"
+                                onmousedown="this.className='List_Button_Bottom_active'; return true;"
+                                onmouseup="this.className='List_Button_Bottom'; return true;"
+                                onmouseover="this.className='List_Button_Bottom_hover'; window.status='Delete all elements'; return true;"
+                                onmouseout="this.className='List_Button_Bottom'; window.status=''; return true;">
+                                <tr>
+                                  <td class="List_Button_Bottom_bg">
+                                    <img class="List_Button_Icon List_Button_Icon_DeleteAll" src="../../../../../web/images/blank.gif" alt="Delete all elements" title="Delete all elements"/>
+                                  </td>
+                                </tr>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            
+            <!-- Project multiple selector -->
+            <tr id="Filter3">
+              <td class="TitleCell"><span class="LabelText">Project</span></td>
+              <td class="List_ContentCell" colspan="2">
+
+                <table border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <select class="List_width List_height" name="inpcProjectId_IN" multiple="" id="reportCProjectId_IN"></select>
+                    </td>
+                    <td class="List_Button_ContentCell">
+                      <table border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td>
+                            <a class="List_Button_TopLink" href="#"
+                              onclick="openMultiSearch(null, null, '../info/ProjectMultiple.html', 'SELECTOR_PROJECT', false, 'frmMain', 'inpcProjectId_IN');return false;"
+                              onfocus="setWindowElementFocus(this); window.status='Add'; return true;"
+                              onblur="window.status=''; return true;"
+                              onkeypress="this.className='List_Button_TopLink_active'; return true;"
+                              onkeyup="this.className='List_Button_TopLink_focus'; return true;">
+                              <table class="List_Button_Top"
+                                onmousedown="this.className='List_Button_Top_active'; return true;"
+                                onmouseup="this.className='List_Button_Top'; return true;"
+                                onmouseover="this.className='List_Button_Top_hover'; window.status='Add'; return true;"
+                                onmouseout="this.className='List_Button_Top'; window.status=''; return true;">
+                                <tr>
+                                  <td class="List_Button_Top_bg">
+                                    <img class="List_Button_Icon List_Button_Icon_Add" src="../../../../../web/images/blank.gif" alt="Add" title="Add"/>
+                                  </td>
+                                </tr>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="List_Button_Separator">
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <a class="List_Button_MiddleLink" href="#"
+                              onclick="clearSelectedElements(document.frmMain.inpcProjectId_IN);return false;"
+                              onfocus="setWindowElementFocus(this); window.status='Delete selected elements'; return true;"
+                              onblur="window.status=''; return true;"
+                              onkeypress="this.className='List_Button_MiddleLink_active'; return true;"
+                              onkeyup="this.className='List_Button_MiddleLink_focus'; return true;">
+                              <table class="List_Button_Middle"
+                                onmousedown="this.className='List_Button_Middle_active'; return true;"
+                                onmouseup="this.className='List_Button_Middle'; return true;"
+                                onmouseover="this.className='List_Button_Middle_hover'; window.status='Delete selected elements'; return true;"
+                                onmouseout="this.className='List_Button_Middle'; window.status=''; return true;">
+                                <tr>
+                                  <td class="List_Button_Middle_bg">
+                                    <img class="List_Button_Icon List_Button_Icon_Delete" src="../../../../../web/images/blank.gif" alt="Delete selected elements" title="Delete selected elements"/>
+                                  </td>
+                                </tr>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="List_Button_Separator">
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <a class="List_Button_BottomLink" href="#"
+                              onclick="clearList(document.frmMain.inpcProjectId_IN);return false;"
+                              onfocus="setWindowElementFocus(this); window.status='Delete all elements'; return true;"
+                              onblur="window.status=''; return true;"
+                              onkeypress="this.className='List_Button_BottomLink_active'; return true;"
+                              onkeyup="this.className='List_Button_BottomLink_focus'; return true;">
+                              <table class="List_Button_Bottom"
+                                onmousedown="this.className='List_Button_Bottom_active'; return true;"
+                                onmouseup="this.className='List_Button_Bottom'; return true;"
+                                onmouseover="this.className='List_Button_Bottom_hover'; window.status='Delete all elements'; return true;"
+                                onmouseout="this.className='List_Button_Bottom'; window.status=''; return true;">
+                                <tr>
+                                  <td class="List_Button_Bottom_bg">
+                                    <img class="List_Button_Icon List_Button_Icon_DeleteAll" src="../../../../../web/images/blank.gif" alt="Delete all elements" title="Delete all elements"/>
+                                  </td>
+                                </tr>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+              </td> 
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+            </tr>
+            
+            <!-- Group By -->
+            <tr id="Filter4">
+              <td class="TitleCell"><span class="LabelText">Group By</span></td>
+              <td class="Combo_ContentCell"> <select name="inpGroupBy" id="inpGroupBy" class="Combo Combo_OneCell_width">
+                  <option value=""></option>
+                  <option value="BPartner">Business Partner</option>
+                  <option value="Product">Product</option>
+                  <option value="Project">Project</option>
+                </select>
+                <input type="hidden" value="" id="paramSelectedGroupBy"/>
+              </td>
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+            </tr>
+            
+            <tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">View Results</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="TitleCell"></td>
+              <td class="Button_CenterAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonHTML" 
+                    class="ButtonLink" 
+                    onclick="submitCommandForm('FIND', true, frmMain, 'ReportTrialBalance.html', '_self');return false;" 
+                    onfocus="buttonEvent('onfocus', this); window.status='View Results in a New Window'; return true;" 
+                    onblur="buttonEvent('onblur', this);" 
+                    onkeyup="buttonEvent('onkeyup', this);" 
+                    onkeydown="buttonEvent('onkeydown', this);" 
+                    onkeypress="buttonEvent('onkeypress', this);" 
+                    onmouseup="buttonEvent('onmouseup', this);" 
+                    onmousedown="buttonEvent('onmousedown', this);" 
+                    onmouseover="buttonEvent('onmouseover', this); window.status='View Results in a New Window'; return true;" 
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_search" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text">Search</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="ContentCell"></input>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+            </tr>
+
+            <tr>
+          </table>
+          
+          <!-- Results section -->
+          <table class="Main_Client_TableEdition">
+            <tr>
+              <td colspan="6">
+                <div style="height:25px;" />
+                <!-- Section with grid results -->
+                <div id="sectionGridView">
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;">
+                  <tr class="DataGrid_Body_Row"> 
+                      <th height="17" colspan="7" class="DataGrid_Header_Cell">Balance</th> 
+                    </tr>
+                    <tr class="DataGrid_Body_Row">
+                      <th width="90" class="DataGrid_Header_Cell">ACCOUNT CODE</th>
+                      <th width="280" class="DataGrid_Header_Cell">DESCRIPTION</th>
+                      <th width="105" class="DataGrid_Header_Cell">INITIAL BALANCE</th>
+                      <th width="105" class="DataGrid_Header_Cell">DEBIT PERIOD</th>
+                      <th width="105" class="DataGrid_Header_Cell">CREDIT PERIOD</th>
+                      <th width="105" class="DataGrid_Header_Cell">FINAL BALANCE</th>
+                      <th width="70"  class="DataGrid_Header_Cell">DETAIL</th>
+                    </tr>
+                    <div id="sectionDiscard">
+                    <div id="sectionDetail">
+                      <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+                        <td width="90" class="DataGrid_Body_Cell">
+                            <span id="showExpand" style="display: table-cell; display: -moz-inline-box;"><a href="#" onclick="updateData('OPEN', 'hhqq');return false;" onMouseOver="window.status='Open';return true;" onMouseOut="window.status='';return true;" id="expandButton">
+                              <span id="buttonTreemmm" class="datawarehouseclose"></span>
+                            </a></span>
+                            <a href="#" onclick="openTabToGeneralLedgerReport('800001', 'xx');return false;" onmouseover="window.status='General Ledger';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldId1">
+                              <span id="fieldAccount">xx70000</span>
+                            </a>
+                            <span id="fieldDescAccount">xx600</span>
+                        </td>
+                        <td width="280" id="fieldAccountName" class="DataGrid_Body_Cell">xxChecking Unallocated Receipts</td>
+                        <td width="105" id="fieldSaldoInicial" class="DataGrid_Body_Cell_Amount">xx14500.34</td>
+                        <td width="105" id="fieldAmtacctdr" class="DataGrid_Body_Cell_Amount">xx14500.34</td>
+                        <td width="105" id="fieldAmtacctcr" class="DataGrid_Body_Cell_Amount">xx14500.34</td>
+                        <td width="105" id="fieldSaldoFinal" class="DataGrid_Body_Cell_Amount">xx14500.34</td>
+                        <td width="70" class="DataGrid_Body_Cell">
+                          <a href="#" onclick="validate(); openTabToReportTrialBalanceDetails('800091', 'xx');return false;" onmouseover="window.status='General Ledger';return true;" onmouseout="window.status='';return true;" class="LabelLink" id="fieldId2">Detail</a>
+                        </td>
+                      </tr>
+                    </div>
+                    <tr class="DataGrid_Body_Row"> 
+                      <th colspan="2" class="DataGrid_Header_Cell">CARRY FORWARD...</th>
+                      <th width="105" id="fieldTotalSaldoInicial" class="DataGrid_Header_Cell_Amount">xx14500.34</th>
+                      <th width="105" id="fieldTotalAmtacctdr"  class="DataGrid_Header_Cell_Amount">xx14500.34</th>
+                      <th width="105" id="fieldTotalAmtacctcr"  class="DataGrid_Header_Cell_Amount">xx14500.34</th>
+                      <th width="105" id="fieldTotalSaldoFinal" class="DataGrid_Header_Cell_Amount">xx14500.34</th>
+                      <th width="70" class="DataGrid_Header_Cell"></th>
+                    </tr>
+                  </table>
+                  </div>
+                  <br/>
+                </div>
+              </td>
+            </tr>
+          </table>
+                                    <!-- USER CONTROLS -->
+
+        </div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

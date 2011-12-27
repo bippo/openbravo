@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_INDIRECT_COST_CALCULATE">
+    <function name="MA_INDIRECT_COST_CALCULATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************/
+-- Logistice
+v_record_ID VARCHAR2(32);
+v_resultstr VARCHAR2(2000);
+v_result NUMBER:= 1;
+v_message VARCHAR2(2000);
+p_user VARCHAR2(32);
+v_total NUMBER;
+v_cost_type VARCHAR2(60);
+-- FINISH_PROCESS                        BOOLEAN := FALSE;
+-- Parameter
+
+BEGIN
+
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_pinstance_id);
+  AD_UPDATE_PINSTANCE(p_pinstance_id,   NULL,   'Y',   NULL,   NULL);
+
+  BEGIN
+    --BODY
+    --  Get Parameters
+    v_resultstr := 'ReadingParameters';
+    SELECT record_id, ad_user_id, total INTO v_record_id, p_user, v_total
+    FROM ad_pinstance, ma_indirect_cost_value
+    WHERE ad_pinstance_id = p_pinstance_id
+      AND ad_pinstance.record_id = ma_indirect_cost_value.ma_indirect_cost_value_id;
+
+    IF(v_total IS NULL) THEN
+      v_message := 'Total cost not defined';
+      v_result := 0;
+    ELSE
+      v_resultstr := 'Calculating and updating cost';
+
+      SELECT cost_type INTO v_Cost_Type
+      FROM ma_indirect_cost ic, ma_indirect_cost_value icv
+      WHERE ic.ma_indirect_cost_id = icv.ma_indirect_cost_id
+        AND icv.ma_indirect_cost_value_id =  v_Record_ID;
+
+      UPDATE ma_indirect_cost_value
+      SET calculated = 'Y',
+          cost =
+        (SELECT ROUND(total / SUM(CASE cost_uom
+                                WHEN 'K' THEN pl.movementqty * pr.weight
+                                WHEN 'H' THEN pp.ma_costcenteruse
+                                WHEN 'U' THEN pl.MOVEMENTQTY
+                                END),4)
+         FROM m_production p, m_productionplan pp, m_productionline pl, m_product pr
+         WHERE p.m_production_id = pp.m_production_id
+           AND pp.m_productionplan_id = pl.m_productionplan_id
+           AND pl.m_product_id = pr.m_product_id
+           AND p.movementdate < dateto
+           AND p.movementdate > datefrom
+           AND p.ISSOTRX = 'N'
+           AND pl.productiontype = '+'
+           AND(v_Cost_Type <> 'S' OR pr.issold = 'Y'))
+      WHERE ma_indirect_cost_value_id = v_record_id;
+  END IF;
+
+  --<<FINISH_PROCESS>>
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_message);
+  AD_UPDATE_PINSTANCE(p_pinstance_id,   p_user,   'N',   v_result,   v_message);
+  RETURN;
+
+END;
+--BODY
+
+EXCEPTION
+WHEN others THEN
+  ROLLBACK;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_resultstr);
+  AD_UPDATE_PINSTANCE(p_pinstance_id,   NULL,   'N',   0,   v_resultstr);
+  RETURN;
+END MA_INDIRECT_COST_CALCULATE
+]]></body>
+    </function>
+  </database>

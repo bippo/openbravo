@@ -1,0 +1,406 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_TABLE_IMPORT">
+    <function name="AD_TABLE_IMPORT" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_table_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: AD_Table_Import.sql,v 1.8 2003/01/18 05:34:25 jjanke Exp $
+  ***
+  * Title: Import Table Column Definition
+  * Description:
+  *   Create Columns of Table not existing as a Dictionary Column
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32):='0';
+  v_module_table_id varchar2(32);
+  v_module_id varchar2(32);
+  db_prefix varchar2(30);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    --
+    Cur_Column RECORD;
+    Cur_CommonCols RECORD;
+    -- 
+    v_NextNo VARCHAR2(32) ;
+    v_count NUMBER(10):=0;
+    -- Added by Ismael Ciordia
+    v_AD_Reference_ID VARCHAR2(32);
+    v_AD_Reference_Value_ID VARCHAR2(32);
+    v_IsParent CHAR(1):='N';
+    v_IsKey CHAR(1):='N';
+    v_IsIdentifier CHAR(1):='N';
+    v_IsSessionAttr CHAR(1):='N';
+    v_IsUpdateable CHAR(1):='Y';
+    v_DefaultValue NVARCHAR2(2000):='';
+    v_SeqNo NUMBER(10) ;
+    v_columnNameOrg VARCHAR2(40) ;
+    v_columnName VARCHAR2(40) ;
+    v_TableName  VARCHAR2(40) ;
+    v_LastColumnName VARCHAR2(40) ;
+    v_varchar2 VARCHAR2(32767) ;
+    v_FieldLength NUMBER(10) ;
+    v_PInstance_Log_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    v_Aux NUMBER;
+    v_missingColumns boolean;
+    v_CorrectType CHAR(1):='Y';
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date, p.AD_CLIENT_ID
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+        v_Client_ID:=Cur_Parameter.AD_CLIENT_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_AD_Table_ID;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+    IF(v_Record_ID IS NOT NULL) THEN
+      SELECT COALESCE(MAX(SeqNo), 0) + 10
+      INTO v_SeqNo
+      FROM AD_Column
+      WHERE AD_Table_ID=v_Record_ID;
+    ELSE
+      v_SeqNo:=0;
+    END IF;
+    
+          
+      select p.ad_module_id
+        into v_module_table_id
+        from ad_table t, ad_package p
+      where t.ad_table_id = v_Record_ID
+        and t.ad_package_id = p.ad_package_id;
+        
+    FOR Cur_Column IN
+      (SELECT Column_Name, Data_Type, Data_Length, Nullable, AD_Table_ID, -- added by Ismael Ciordia
+        uc.DATA_PRECISION, uc.DATA_SCALE, DATA_DEFAULT, Table_Name, uc.COLUMN_ID
+      FROM User_Tab_Columns uc, AD_Table t
+      WHERE uc.Table_Name=UPPER(t.TableName) AND NOT EXISTS
+        (SELECT *
+        FROM AD_Table t, AD_Column c
+        WHERE t.AD_Table_ID=c.AD_Table_ID  AND uc.Table_Name=UPPER(t.TableName) AND uc.Column_Name=UPPER(c.ColumnName)
+        )
+        AND(v_Record_ID=t.AD_Table_ID OR v_Record_ID IS NULL) -- added by Ismael Ciordia
+      ORDER BY uc.COLUMN_ID
+      )
+    LOOP
+      AD_Sequence_Next('AD_Column', '0', v_NextNo) ; -- get ID
+      -- Added by Ismael Ciordia
+      v_AD_Reference_ID:=NULL;
+      v_AD_Reference_Value_ID:=NULL;
+      v_IsParent:='N';
+      v_IsKey:='N';
+      v_IsIdentifier:='N';
+      v_IsSessionAttr:='N';
+      v_IsUpdateable:='Y';
+      v_varchar2:=Cur_Column.DATA_DEFAULT;
+      v_varchar2:=SUBSTR(v_varchar2, 1, 2000) ;
+      v_CorrectType:='Y';
+      IF(INSTR(v_varchar2, '''')<>0) THEN
+        v_varchar2:=SUBSTR(SUBSTR(v_varchar2, 2, 1999), 1, INSTR(SUBSTR(v_varchar2, 2, 1999), '''') -1) ;
+      ELSE
+        v_varchar2:=TRIM(REPLACE(REPLACE(v_varchar2, REPLACE('now ()',' ',''), '@#Date@'), CHR(10), '')) ;
+      END IF;
+      v_DefaultValue:=v_varchar2;
+      IF(UPPER(Cur_Column.Column_Name)=UPPER(Cur_Column.Table_Name) ||'_ID') THEN --ID column
+        v_AD_Reference_ID:=13;
+        v_IsKey:='Y';
+        v_IsUpdateable:='N';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('AD_CLIENT_ID', 'AD_ORG_ID')) THEN
+        v_AD_Reference_ID:=19;
+        v_DefaultValue:='@'||Cur_Column.Column_Name||'@';
+        v_IsUpdateable:='N';
+        v_IsSessionAttr:='Y';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('UPDATED', 'CREATED')) THEN
+        v_AD_Reference_ID:='16';
+        v_IsUpdateable:='N';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('UPDATEDBY', 'CREATEDBY')) THEN
+        v_AD_Reference_ID:='30';
+        v_IsUpdateable:='N';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('NAME')) THEN
+        v_IsIdentifier:='Y';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('M_PRODUCT_ID')) THEN
+        v_AD_Reference_ID:='30';
+        v_AD_Reference_Value_ID:='800060';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN ('C_BPARTNER_ID')) THEN 
+        v_AD_Reference_ID:='30';
+        v_AD_Reference_Value_ID:='800057';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('M_ATTRIBUTESETINSTANCE_ID')) THEN
+        v_AD_Reference_ID:='35';
+      ELSIF(UPPER(Cur_Column.Column_Name) LIKE '%_LOCATION_ID') THEN
+        v_AD_Reference_ID:='30';
+        v_AD_Reference_Value_ID:='21';
+      ELSIF(UPPER(Cur_Column.Column_Name) LIKE '%_LOCATOR%_ID') THEN
+        v_AD_Reference_ID:='30';
+        v_AD_Reference_Value_ID:='31';
+      ELSIF(UPPER(Cur_Column.Column_Name) LIKE '%_ACCT') THEN
+        v_AD_Reference_ID:='30';
+        v_AD_Reference_Value_ID:='25';
+      ELSIF(UPPER(Cur_Column.Column_Name) LIKE '%_ID') THEN
+        v_AD_Reference_ID:='19';
+      ELSIF(UPPER(Cur_Column.Column_Name) IN('LINE', 'SEQNO')) THEN
+        v_DefaultValue:='@SQL=SELECT COALESCE(MAX('||Cur_Column.Column_Name||'),0)+10 AS DefaultValue FROM '||Cur_Column.Table_Name||' WHERE xxParentColumn=@xxParentColumn@';
+      END IF;
+      IF(UPPER(v_LastColumnName)='UPDATEDBY' AND UPPER(Cur_Column.Column_Name) LIKE '%_ID') THEN
+        v_IsParent:='Y';
+        v_IsUpdateable:='N';
+      END IF;
+      --added by Pablo Sarobe
+      IF(Cur_Column.Data_Type IN('VARCHAR2', 'CHAR')) THEN
+        v_FieldLength:=Cur_Column.Data_Length;
+      ELSIF(Cur_Column.Data_Type IN('NVARCHAR2', 'NCHAR')) THEN
+        v_FieldLength:=Cur_Column.Data_Length/2;
+      ELSIF(Cur_Column.Data_Type IN('DATE', 'TIMESTAMP')) THEN
+        v_FieldLength:=19;
+      ELSIF(Cur_Column.Data_Type IN('NUMBER')) THEN
+        v_FieldLength:=COALESCE(Cur_Column.Data_Precision, 10) +2;
+      ELSIF(Cur_Column.Data_Type IN ('BYTEA', 'BLOB')) THEN
+        v_FieldLength:=4000;
+      ELSIF(Cur_Column.Data_Type IN ('TEXT', 'CLOB')) THEN
+        v_FieldLength:=1000000;
+      ELSE
+        v_FieldLength:=Cur_Column.Data_Length;
+      END IF;
+      IF(v_AD_Reference_ID IS NULL) THEN
+        IF(Cur_Column.Data_Type IN('CHAR','BPCHAR') AND Cur_Column.Data_Length=1) THEN
+          v_AD_Reference_ID:='20';
+        ELSIF(Cur_Column.Data_Type IN('VARCHAR', 'VARCHAR2', 'NVARCHAR2', 'CHAR', 'NCHAR') AND Cur_Column.Data_Length=4000) THEN
+          v_AD_Reference_ID:='14';
+        ELSIF(Cur_Column.Data_Type IN('VARCHAR', 'VARCHAR2', 'NVARCHAR2', 'CHAR', 'NCHAR')) THEN
+          v_AD_Reference_ID:='10';
+        ELSIF(Cur_Column.Data_Type='NUMBER' AND Cur_Column.DATA_SCALE=0) THEN
+          v_AD_Reference_ID:='11';
+        ELSIF(Cur_Column.Data_Type='NUMBER' AND UPPER(Cur_Column.Column_Name) LIKE '%AMT%') THEN
+          v_AD_Reference_ID:='12';
+        ELSIF(Cur_Column.Data_Type='NUMBER' AND UPPER(Cur_Column.Column_Name) LIKE '%QTY%') THEN
+          v_AD_Reference_ID:='29';
+        ELSIF(Cur_Column.Data_Type='NUMBER') THEN
+          v_AD_Reference_ID:='22';
+        ELSIF(Cur_Column.Data_Type IN ('DATE', 'TIMESTAMP')) THEN
+          v_AD_Reference_ID:='15';
+	ELSIF(Cur_Column.Data_Type IN ('BYTEA', 'BLOB')) THEN
+	  v_AD_Reference_ID:='23';
+	ELSIF(Cur_Column.Data_Type IN ('TEXT', 'CLOB')) THEN
+	  v_AD_Reference_ID:='14';
+        ELSE
+          v_AD_Reference_ID:='10'; -- if not found, use String
+          v_CorrectType:='N';
+        END IF;
+      END IF;
+      v_columnName:=InitCap(Cur_Column.Column_Name) ;
+      IF(INSTR(v_columnName, '_')<>0 AND INSTR(v_columnName, '_')<5) THEN
+        v_columnName:=UPPER(SUBSTR(v_columnName, 1, INSTR(v_columnName, '_'))) ||SUBSTR(v_columnName, INSTR(v_columnName, '_') +1, 40) ;
+      END IF;
+      IF(v_columnName LIKE '%_Id') THEN
+        v_columnName:=SUBSTR(v_columnName, 1, LENGTH(v_columnName) -3) ||'_ID';
+      END IF;
+      -- Some columns need to have specific names for DAL to work correctly:
+      v_columnNameOrg:=v_columnName;
+      IF(v_columnName = 'AD_Org_ID') THEN
+        v_columnName:='Organization';
+      END IF;
+      IF(v_columnName = 'AD_Client_ID') THEN
+        v_columnName:='Client';
+      END IF;
+      IF(v_columnName = 'Created') THEN
+        v_columnName:='Creation Date';
+      END IF;
+      IF(v_columnName = 'Createdby') THEN
+        v_columnName:='Created By';
+      END IF;
+      IF(v_columnName = 'Updated') THEN
+        v_columnName:='Updated';
+      END IF;
+      IF(v_columnName = 'Updatedby') THEN
+        v_columnName:='Updated By';
+      END IF;
+      IF(v_columnName = 'Isactive') THEN
+        v_columnName:='Active';
+      END IF;
+      IF substr(upper(v_columnName),1,3)='EM_' then
+        db_prefix := substr(v_columnName,4,instr(v_columnName,'_',1,2)-4);
+        DBMS_OUTPUT.PUT_LINE('Prefix:'||db_prefix);
+        select max(ad_module_id)
+          into v_module_id
+          from ad_module_dbprefix
+         where upper(name) = upper(db_prefix);
+          
+        if v_module_id is null then
+          v_module_id := v_module_table_id;
+        end if;
+      else
+        v_module_id := v_module_table_id;
+      end if;
+      
+       --Check if it is necessary to recalculate positions
+      SELECT count(*)
+        INTO v_Aux
+        FROM AD_COLUMN
+       WHERE POSITION = Cur_Column.COLUMN_ID;
+       
+      IF v_Aux!=0 THEN
+        UPDATE AD_COLUMN C
+           SET POSITION = (SELECT COLUMN_ID
+                             FROM USER_TAB_COLUMNS U,
+                                  AD_TABLE T
+                            WHERE C.AD_TABLE_ID = T.AD_TABLE_ID
+                              AND U.TABLE_NAME = UPPER(T.TABLENAME)
+                              AND U.COLUMN_NAME = UPPER(C.COLUMNNAME))
+         WHERE AD_TABLE_ID = Cur_Column.AD_Table_ID
+          AND exists (select 1 
+                        from ad_module m 
+                       where m.ad_module_id = c.ad_module_id
+                         and isindevelopment ='Y');
+      END IF;
+      
+      IF (v_CorrectType='Y') THEN
+        DBMS_OUTPUT.PUT_LINE('Inserting Column:'||v_columnName||' to module:'||v_module_id);
+      
+        INSERT
+        INTO AD_COLUMN
+          (
+            AD_COLUMN_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            NAME, COLUMNNAME, AD_TABLE_ID,
+            AD_REFERENCE_ID, FIELDLENGTH, ISKEY, ISPARENT,
+            ISMANDATORY, ISIDENTIFIER, SEQNO, ISTRANSLATED,
+            ISENCRYPTED, ISUPDATEABLE, AD_REFERENCE_VALUE_ID,
+            AD_VAL_RULE_ID, DEFAULTVALUE, ISSESSIONATTR, 
+            POSITION, aD_module_id
+          )
+          VALUES
+          (v_NextNo, '0', '0', 'Y',
+          now(), '0', now(), '0',
+           v_columnName,v_columnNameOrg, Cur_Column.AD_Table_ID,
+          v_AD_Reference_ID, v_FieldLength, v_IsKey, v_IsParent,
+         (CASE Cur_Column.Nullable WHEN 'Y' THEN 'N' ELSE 'Y' END),
+          v_IsIdentifier, v_SeqNo, 'N', 'N', v_IsUpdateable, v_AD_Reference_Value_ID, 
+          null, v_DefaultValue, v_IsSessionAttr,
+          Cur_Column.COLUMN_ID, v_module_id);
+          --
+	  v_count:=v_count + 1;
+      ELSE
+        v_Result :=0;
+	v_Message:=v_Message || '@WrongColumnType@: ' ||v_columnName||'. ';
+      END IF;
+      -- Added by Ismael Ciordia
+      v_SeqNo:=v_SeqNo + 10;
+      v_LastColumnName:=Cur_Column.Column_Name;
+      -- Falta: insert de AD_Element
+       DBMS_OUTPUT.PUT_LINE('adding Table ' || InitCap(Cur_Column.Table_Name) || ' Column ' || InitCap(Cur_Column.Column_Name)) ;
+      
+    END LOOP; --  All new columns
+    -- Summary info
+    v_Message:=v_Message || '@Created@ = ' || v_count;
+    
+    
+    --Check common columns
+    IF (v_Record_ID is not null) THEN
+      v_missingColumns := false;
+      FOR Cur_CommonCols IN (select columnname
+                              from ad_column c
+                             where c.ad_table_id = '100'
+                               and lower(c.columnname) in ('ad_client_id','ad_org_id','isactive','created','updated','createdby','updatedby')
+                               and not exists (select 1 
+                                                 from ad_column c1
+                                                where c1.ad_table_id = v_Record_ID
+                                                 and lower(c1.columnname) = lower(c.columnname))) LOOP
+        v_missingColumns := true;
+        v_Message := '@MissingCommonColumn@: '||Cur_CommonCols.columnname||'<br/>'||v_Message;
+      END LOOP;
+      
+      select count(*)
+        into v_count
+        from ad_column c, ad_table t
+       where lower(columnname) = lower(t.tablename)||'_id'
+         and t.ad_table_id = c.ad_table_id
+         and t.ad_table_id = v_Record_ID;
+         
+        IF v_Count = 0 THEN
+          select tablename
+            into v_TableName
+            from ad_table
+            where ad_table_id = v_record_ID;
+            
+          v_missingColumns := true;
+          v_Message := '@MissingPrimaryKeyColumn@: '||v_tablename||'_ID<br/>'||v_Message;
+        END IF;
+        
+        IF (v_MissingColumns) THEN
+          v_Result :=0;
+          v_Message := '@MissingRequiredColumns@<br/>'|| v_message;
+        END IF;
+    END IF;
+    
+    
+    --<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Finished ' || v_Message) ;
+    END IF;
+    -- Commented by cromero 19102006 COMMIT;
+    RETURN;
+    
+    
+    
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+--  RETURN;
+END AD_TABLE_IMPORT
+]]></body>
+    </function>
+  </database>

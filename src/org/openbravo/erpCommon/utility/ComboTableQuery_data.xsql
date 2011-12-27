@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ComboTableQueryData" package="org.openbravo.erpCommon.utility" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectRefTable" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT ad_ref_table.ad_reference_id as referenceId, ad_table.tablename as tableName, c1.columnname as keyName, c2.columnname as displayName, isvaluedisplayed, c2.columnname as columnname, 
+        whereclause, orderbyclause, '' as clause,
+        c2.columnname as name, c2.ad_reference_id as reference, 'Y' as required, c2.AD_REFERENCE_VALUE_ID as referenceValue
+       FROM ad_ref_table, ad_table, ad_column c1, ad_column c2
+        WHERE ad_ref_table.ad_table_id = ad_table.ad_table_id
+          AND ad_ref_table.ad_key = c1.ad_column_id
+          AND ad_ref_table.ad_display = c2.ad_column_id
+          AND ad_ref_table.ad_reference_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="reference"/>
+  </SqlMethod>
+  
+   <SqlMethod name="isValueDisplayed" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT count(*) as isvaluedisplayed
+         FROM ad_reference
+        WHERE ad_reference_id = ?
+          AND isvaluedisplayed = 'Y'
+      ]]>
+    </Sql>
+    <Parameter name="reference"/>
+  </SqlMethod>
+  
+  <SqlMethod name="identifierColumns" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT ad_column.columnname as name, ad_reference_id as reference, ismandatory as required, 
+        REPLACE(replace(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname, ad_reference_value_id as referencevalue, ad_table.tablename AS tablename 
+        FROM ad_column left join ad_element on ad_column.ad_element_id = ad_element.ad_element_id, 
+             ad_table 
+        WHERE UPPER(ad_table.tablename) = UPPER(?)
+          AND ad_column.ad_table_id = ad_table.ad_table_id
+          AND isidentifier = 'Y'
+        ORDER BY ad_column.SeqNo
+      </Sql>
+      <Parameter name="tableName"/>
+  </SqlMethod>
+  <SqlMethod name="getValidation" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CODE
+        FROM AD_VAL_RULE 
+        WHERE AD_VAL_RULE_ID = ?
+      </Sql>
+      <Parameter name="adValRuleId"/>
+  </SqlMethod>
+  <SqlMethod name="selectTranslatedColumn" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT T_TRL.TABLENAME AS TABLENAME, C_TRL.COLUMNNAME AS COLUMNNAME, C_ID.COLUMNNAME AS REFERENCE
+        FROM AD_COLUMN C, AD_TABLE T, AD_TABLE T_TRL, AD_COLUMN C_TRL, 
+        AD_COLUMN C_ID
+        WHERE T.AD_TABLE_ID = C.AD_TABLE_ID 
+        AND UPPER(T.TABLENAME) = UPPER(?)
+        AND C.ISTRANSLATED = 'Y'
+        AND UPPER(C.COLUMNNAME) = UPPER(?)
+        AND (UPPER(T.TABLENAME) || '_TRL') = UPPER(T_TRL.TABLENAME) 
+        AND T_TRL.AD_TABLE_ID = C_TRL.AD_TABLE_ID 
+        AND UPPER(C.COLUMNNAME) = UPPER(C_TRL.COLUMNNAME)
+        AND T.AD_TABLE_ID = C_ID.AD_TABLE_ID 
+        AND (C_ID.ISSECONDARYKEY = 'Y' OR C_ID.ISKEY = 'Y')
+        AND UPPER(C_ID.COLUMNNAME) <> 'AD_LANGUAGE'
+      ]]>
+    </Sql>
+    <Parameter name="tablename"/>
+    <Parameter name="columnname"/>
+  </SqlMethod>
+  <SqlMethod name="getReferenceID" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT AD_REFERENCE_ID
+        FROM AD_REFERENCE 
+        WHERE UPPER(NAME) = UPPER(?) 
+        AND PARENTREFERENCE_ID = ?
+        AND AD_MODULE_ID = '0'
+      </Sql>
+      <Parameter name="value"/>
+      <Parameter name="validationtype"/>
+  </SqlMethod>
+  <SqlMethod name="getBaseReferenceID" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT AD_REFERENCE_ID
+        FROM AD_REFERENCE 
+        WHERE UPPER(NAME) = UPPER(?) 
+        AND isBaseReference = 'Y'
+      </Sql>
+      <Parameter name="value"/>
+  </SqlMethod>
+  <SqlMethod name="getValidationID" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT AD_VAL_RULE_ID
+        FROM AD_VAL_RULE 
+        WHERE UPPER(NAME) = UPPER(?)
+      </Sql>
+      <Parameter name="value"/>
+  </SqlMethod>
+</SqlClass>

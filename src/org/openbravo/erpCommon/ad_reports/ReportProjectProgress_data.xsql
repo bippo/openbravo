@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportProjectProgressData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT
+		PR.C_PROJECT_ID AS PROJECTID, PR.NAME AS PROJECTNAME, PR.DESCRIPTION AS PROJECTDESCRIPTION, PR.NOTE AS PROJECTCOMMENTS,
+		REFLISTV.NAME AS PROJECTSTATUS, BPCUSTOMER.NAME AS CUSTOMERNAME, BPRESPONSIBLE.NAME AS PERSONINCHARGE,
+		PR.STARTDATE AS STARTINGDATE, PR.DATECONTRACT AS CONTRACTDATE, PR.DATEFINISH AS ENDINGDATE,
+		'' AS  DAYSELAPSED, '' AS PROJECTCONTRACTDURATION, '' AS DAYSDELAYED,
+		'' AS TIMEBURNED, ''AS COMPLETIONPERC, '' AS CUMDAYSDELAYED,
+		
+		PRP.C_PROJECTPHASE_ID AS PHASEID, PRP.NAME AS PHASENAME, PRP.STARTDATE AS PHASESTARTINGDATE, PRP.DATECONTRACT AS PHASECONTRACTDATE, '' AS PHASECONTRACTDURATION, 
+		AD_MESSAGE_GET2(PRP.ISCOMPLETE,?) AS PHASECOMPLETE, PRP.ISCOMPLETE AS PHASECOMP, PRP.ENDDATE AS PHASEENDINGDATE, '' AS PHASEDAYSDELAYED,
+		
+		PRT.C_PROJECTTASK_ID AS TASKID, PRT.NAME AS TASKNAME, PRT.STARTDATE AS TASKSTARTINGDATE, PRT.DATECONTRACT AS TASKCONTRACTDATE, '' AS TASKCONTRACTDURATION,
+		AD_MESSAGE_GET2(PRT.ISCOMPLETE,?) AS TASKCOMPLETE, PRT.ISCOMPLETE AS TASKCOMP, PRT.ENDDATE AS TASKENDINGDATE, '' AS TASKDAYSDELAYED
+	  
+	  FROM AD_REF_LIST_V REFLISTV, C_BPARTNER BPCUSTOMER, C_PROJECT PR
+		LEFT JOIN C_BPARTNER BPRESPONSIBLE ON PR.RESPONSIBLE_ID = BPRESPONSIBLE.C_BPARTNER_ID
+	  	LEFT JOIN C_PROJECTPHASE PRP ON PR.C_PROJECT_ID = PRP.C_PROJECT_ID
+	  	LEFT JOIN C_PROJECTTASK PRT ON PRP.C_PROJECTPHASE_ID = PRT.C_PROJECTPHASE_ID
+	  
+	  WHERE PR.C_BPARTNER_ID = BPCUSTOMER.C_BPARTNER_ID
+	  	AND REFLISTV.AD_REFERENCE_ID = '800002'
+	    AND REFLISTV.AD_LANGUAGE = ?
+	    AND REFLISTV.VALUE = PR.PROJECTSTATUS
+	    AND PR.AD_CLIENT_ID IN ('1')
+	    AND PR.AD_ORG_ID IN ('1')
+	    AND 1=1
+
+      ORDER BY PR.NAME, 1
+     ]]></Sql>  
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>  
+    <Parameter name="adLanguage"/>  
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND PR.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND PR.AD_ORG_ID IN (" text="'1'"/>    
+    <Parameter name="dateStartFrom" optional="true" after="AND 1=1"><![CDATA[ AND PR.STARTDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateStartTo" optional="true" after="AND 1=1"><![CDATA[ AND PR.STARTDATE < TO_DATE(?)]]></Parameter>
+    <Parameter name="dateContractFrom" optional="true" after="AND 1=1"><![CDATA[ AND PR.DATECONTRACT >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateContractTo" optional="true" after="AND 1=1"><![CDATA[ AND PR.DATECONTRACT < TO_DATE(?)]]></Parameter>
+    <Parameter name="dateEndingFrom" optional="true" after="AND 1=1"><![CDATA[ AND PR.DATEFINISH >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateEndingTo" optional="true" after="AND 1=1"><![CDATA[ AND PR.DATEFINISH < TO_DATE(?)]]></Parameter>
+    <Parameter name="cProjectId" optional="true" after="AND 1=1"><![CDATA[ AND PR.C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="cProjectStatus" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND PR.PROJECTSTATUS IN]]></Parameter>
+    <Parameter name="cBPartnerId" optional="true" after="AND 1=1"><![CDATA[ AND PR.C_BPARTNER_ID = ?]]></Parameter>
+    <Parameter name="projectResponsible" optional="true" after="AND 1=1"><![CDATA[ AND PR.RESPONSIBLE_ID = ?]]></Parameter>
+    <Parameter name="olderFirst" type="replace" optional="true" after="ORDER BY PR.NAME" text=", 1"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

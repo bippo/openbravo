@@ -1,0 +1,483 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_PRICELIST_CREATE">
+    <function name="M_PRICELIST_CREATE" type="NULL">
+      <parameter name="pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_PriceList_Create.sql,v 1.7 2003/06/16 14:40:03 jjanke Exp $
+  ***
+  * Title: Create Pricelist
+  * Description:
+  *  Create PriceList by copying purchase prices (M_Product_PO)
+  *  and applying product category discounts (M_CategoryDiscount)
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    v_PriceList_Version_ID VARCHAR2(32);
+    v_DeleteOld CHAR(1):='N';
+    --
+    v_Currency_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    v_Org_ID VARCHAR2(32);
+    v_UpdatedBy VARCHAR2(32);
+    v_StdPrecision NUMBER;
+    v_DiscountSchema_ID VARCHAR2(32);
+    v_PriceList_Version_Base_ID VARCHAR2(32);
+    v_temp VARCHAR2(32);
+    --
+    -- Get PL Parameter
+    Cur_DiscountLine RECORD;
+    rowcount NUMBER;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing') ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_PriceList_Version_ID:=Cur_Parameter.Record_ID;
+	  
+	  SELECT M_PriceList_Version_Base_ID
+      INTO v_PriceList_Version_Base_ID
+      FROM M_PriceList p,
+        M_PriceList_Version v,
+        C_Currency c
+      WHERE p.M_PriceList_ID=v.M_PriceList_ID
+        AND p.C_Currency_ID=c.C_Currency_ID
+        AND v.M_PriceList_Version_ID=v_PriceList_Version_ID;
+      IF (v_PriceList_Version_Base_ID IS NULL OR v_PriceList_Version_Base_ID='') THEN
+	    RAISE_APPLICATION_ERROR(-20102, 'Base Pricelist Version required to complete Create PriceList process.');
+      END IF;
+	
+      IF(Cur_Parameter.ParameterName='DeleteOld') THEN
+        v_DeleteOld:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  DeleteOld=' || v_DeleteOld) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    --Create temporary tables 
+    v_temp:=C_CREATE_TEMPORARY_TABLES();
+    DBMS_OUTPUT.PUT_LINE('  PriceList_Version_ID=' || v_PriceList_Version_ID) ;
+    -- Checking Prerequisites
+    -- -- PO Prices must exists
+    v_ResultStr:='CorrectingProductPO';
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    UPDATE M_Product_PO  SET PriceList=0  WHERE PriceList IS NULL;
+    UPDATE M_Product_PO  SET PriceLastPO=0  WHERE PriceLastPO IS NULL;
+    UPDATE M_Product_PO
+      SET PricePO=PriceLastPO
+    WHERE(PricePO IS NULL
+      OR PricePO=0)
+      AND PriceLastPO<>0;
+    UPDATE M_Product_PO  SET PricePO=0  WHERE PricePO IS NULL;
+    -- Set default current vendor
+    UPDATE M_Product_PO
+      SET IsCurrentVendor='Y'
+    WHERE IsCurrentVendor='N'
+      AND NOT EXISTS
+      (SELECT pp.M_Product_ID
+      FROM M_Product_PO pp
+      WHERE pp.M_Product_ID=M_Product_PO.M_Product_ID
+      GROUP BY pp.M_Product_ID
+      HAVING COUNT(*)>1
+      )
+      ;
+    -- Commented by cromero 19102006 COMMIT;
+    /**
+    * Make sure that we have only one active product
+    */
+    v_ResultStr:='CorrectingDuplicates';
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    DECLARE
+      -- All duplicate products
+      Cur_Duplicates RECORD;
+      -- All vendors of Product - expensive first
+      CURSOR Cur_Vendors (Product_ID VARCHAR) IS
+        SELECT M_Product_ID,
+          C_BPartner_ID
+        FROM M_Product_PO
+        WHERE IsCurrentVendor='Y'
+          AND IsActive='Y'
+          AND M_Product_ID=Product_ID
+        ORDER BY PriceList DESC;
+        --
+        Product_ID VARCHAR2(32);
+        BPartner_ID VARCHAR2(32);
+      BEGIN
+        FOR Cur_Duplicates IN
+          (SELECT DISTINCT M_Product_ID
+          FROM M_Product_PO po
+          WHERE IsCurrentVendor='Y'
+            AND IsActive='Y'
+            AND EXISTS
+            (SELECT M_Product_ID
+            FROM M_Product_PO x
+            WHERE x.M_Product_ID=po.M_Product_ID
+            GROUP BY M_Product_ID
+            HAVING COUNT(*)>1
+            )
+          ORDER BY 1
+          )
+        LOOP
+          OPEN Cur_Vendors(Cur_Duplicates.M_Product_ID) ;
+          FETCH Cur_Vendors INTO Product_ID,
+          BPartner_ID; -- Leave First
+          LOOP
+            FETCH Cur_Vendors INTO Product_ID,
+            BPartner_ID; -- Get Record ID
+            EXIT WHEN Cur_Vendors%NOTFOUND;
+            --
+            DBMS_OUTPUT.PUT_LINE('  Record: ' || Product_ID || ' / ' || BPartner_ID) ;
+            UPDATE M_Product_PO
+              SET IsCurrentVendor='N'
+            WHERE M_Product_ID=Product_ID
+              AND C_BPartner_ID=BPartner_ID;
+          END LOOP;
+          CLOSE Cur_Vendors;
+        END LOOP;
+        -- Commented by cromero 19102006 COMMIT;
+      END;
+      /** Delete Old Data */
+      v_ResultStr:='DeletingOld';
+      IF(v_DeleteOld='Y') THEN
+        DELETE
+        FROM M_ProductPrice
+        WHERE M_PriceList_Version_ID=v_PriceList_Version_ID;
+        rowcount:=SQL%ROWCOUNT;
+        v_Message:='@Deleted@=' || rowcount || ' - ';
+        DBMS_OUTPUT.PUT_LINE(v_Message) ;
+      END IF;
+      -- Get PriceList Info
+      v_ResultStr:='GetPLInfo';
+      DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+      SELECT p.C_Currency_ID,
+        c.priceprecision,
+        v.AD_Client_ID,
+        v.AD_Org_ID,
+        v.UpdatedBy,
+        v.M_DiscountSchema_ID,
+        M_PriceList_Version_Base_ID
+      INTO v_Currency_ID,
+        v_StdPrecision,
+        v_Client_ID,
+        v_Org_ID,
+        v_UpdatedBy,
+        v_DiscountSchema_ID,
+        v_PriceList_Version_Base_ID
+      FROM M_PriceList p,
+        M_PriceList_Version v,
+        C_Currency c
+      WHERE p.M_PriceList_ID=v.M_PriceList_ID
+        AND p.C_Currency_ID=c.C_Currency_ID
+        AND v.M_PriceList_Version_ID=v_PriceList_Version_ID;
+      /**
+      * For All Discount Lines in Sequence
+      */
+      FOR Cur_DiscountLine IN
+        (SELECT *
+        FROM M_DiscountSchemaLine
+        WHERE M_DiscountSchema_ID=v_DiscountSchema_ID
+          AND IsActive='Y'
+        ORDER BY SeqNo
+        )
+      LOOP
+        v_ResultStr:='Parameter Seq=' || Cur_DiscountLine.SeqNo;
+        -- DBMS_OUTPUT.PUT_LINE(v_ResultStr);
+        -- Clear Temporary Table
+        DELETE FROM C_TEMP_Selection;
+        -- -----------------------------------
+        -- Create Selection in temporary table
+        -- -----------------------------------
+        IF(v_PriceList_Version_Base_ID IS NULL) THEN
+          -- Create Selection from M_Product_PO
+          INSERT
+          INTO C_TEMP_Selection
+            (
+              C_TEMP_Selection_ID
+            )
+          SELECT DISTINCT po.M_Product_ID
+          FROM M_Product p,
+            M_Product_PO po
+          WHERE p.M_Product_ID=po.M_Product_ID
+            AND(p.AD_Client_ID=v_Client_ID
+            OR p.AD_Client_ID='0')
+            AND p.IsActive='Y'
+            AND po.IsActive='Y'
+            AND po.IsCurrentVendor='Y'  -- Optional Restrictions
+            AND(Cur_DiscountLine.M_Product_Category_ID IS NULL
+            OR p.M_Product_Category_ID=Cur_DiscountLine.M_Product_Category_ID)
+            AND(Cur_DiscountLine.C_BPartner_ID IS NULL
+            OR po.C_BPartner_ID=Cur_DiscountLine.C_BPartner_ID)
+            AND(Cur_DiscountLine.M_Product_ID IS NULL
+            OR p.M_Product_ID=Cur_DiscountLine.M_Product_ID) ;
+        ELSE
+          -- Create Selection from existing PriceList
+          INSERT
+          INTO C_TEMP_Selection
+            (
+              C_TEMP_Selection_ID
+            )
+          SELECT DISTINCT p.M_Product_ID
+          FROM M_Product p,
+            M_ProductPrice pp
+          WHERE p.M_Product_ID=pp.M_Product_ID
+            AND pp.M_PriceList_Version_ID=v_PriceList_Version_Base_ID
+            AND p.IsActive='Y'
+            AND pp.IsActive='Y'  -- Optional Restrictions
+            AND(Cur_DiscountLine.M_Product_Category_ID IS NULL
+            OR p.M_Product_Category_ID=Cur_DiscountLine.M_Product_Category_ID)
+            AND(Cur_DiscountLine.C_BPartner_ID IS NULL
+            OR EXISTS
+            (SELECT *
+            FROM M_Product_PO po
+            WHERE po.M_Product_ID=p.M_Product_ID
+              AND po.C_BPartner_ID=Cur_DiscountLine.C_BPartner_ID
+            ))
+            AND(Cur_DiscountLine.M_Product_ID IS NULL
+            OR p.M_Product_ID=Cur_DiscountLine.M_Product_ID) ;
+        END IF;
+        rowcount:=SQL%ROWCOUNT;
+        v_Message:=v_Message || '@Selected@=' || rowcount;
+        -- DBMS_OUTPUT.PUT_LINE(v_Message);
+        -- Delete Prices in Selection, so that we can insert
+        IF(v_PriceList_Version_Base_ID IS NULL  OR v_PriceList_Version_Base_ID<>v_PriceList_Version_ID) THEN
+          v_ResultStr:=v_ResultStr || ', Delete';
+          DELETE
+          FROM M_ProductPrice
+          WHERE M_ProductPrice.M_PriceList_Version_ID=v_PriceList_Version_ID
+            AND EXISTS
+            (SELECT *
+            FROM C_TEMP_Selection s
+            WHERE M_ProductPrice.M_Product_ID=s.C_TEMP_Selection_ID
+            )
+            ;
+          rowcount:=SQL%ROWCOUNT;
+          v_Message:=', @Deleted@=' || rowcount;
+        END IF;
+        -- --------------------
+        -- Copy (Insert) Prices
+        -- --------------------
+        IF(v_PriceList_Version_Base_ID=v_PriceList_Version_ID) THEN
+          -- We have Prices already
+          NULL;
+        ELSIF(v_PriceList_Version_Base_ID IS NULL) THEN
+          -- Copy and Convert from Product_PO
+          v_ResultStr:=v_ResultStr || ',Copy_PO';
+          INSERT
+          INTO M_ProductPrice
+            (
+              M_ProductPrice_ID, M_PriceList_Version_ID, M_Product_ID, AD_Client_ID, AD_Org_ID,
+              IsActive, Created, CreatedBy, Updated,
+              UpdatedBy,
+              PriceList,
+              PriceStd,
+              PriceLimit
+            )
+          SELECT  get_uuid(), v_PriceList_Version_ID,
+            po.M_Product_ID, v_Client_ID, v_Org_ID, 'Y',
+            now(), v_UpdatedBy, now(), v_UpdatedBy,
+            -- Price List
+            COALESCE(C_Currency_Convert(po.PriceList, po.C_Currency_ID, v_Currency_ID, Cur_DiscountLine.ConversionDate, Cur_DiscountLine.ConversionRateType, v_Client_ID, v_Org_ID), 0),
+            -- Price Std
+            COALESCE(C_Currency_Convert(po.PriceList, po.C_Currency_ID, v_Currency_ID, Cur_DiscountLine.ConversionDate, Cur_DiscountLine.ConversionRateType, v_Client_ID, v_Org_ID), 0),
+            -- Price Limit
+            COALESCE(C_Currency_Convert(po.PricePO, po.C_Currency_ID, v_Currency_ID, Cur_DiscountLine.ConversionDate, Cur_DiscountLine.ConversionRateType, v_Client_ID, v_Org_ID), 0)
+          FROM M_Product_PO po
+          WHERE EXISTS
+            (SELECT * FROM C_TEMP_Selection s WHERE po.M_Product_ID=s.C_TEMP_Selection_ID)
+            AND po.IsCurrentVendor='Y'
+            AND po.IsActive='Y';
+        ELSE
+          -- Copy and Convert from other PriceList_Version
+          v_ResultStr:=v_ResultStr || ',Copy_PL';
+          INSERT
+          INTO M_ProductPrice
+            (
+              M_ProductPrice_ID, M_PriceList_Version_ID, M_Product_ID, AD_Client_ID, AD_Org_ID,
+              IsActive, Created, CreatedBy, Updated,
+              UpdatedBy,
+              PriceList,
+              PriceStd,
+              PriceLimit
+            )
+          SELECT  get_uuid(), v_PriceList_Version_ID,
+            pp.M_Product_ID, v_Client_ID, v_Org_ID, 'Y',
+            now(), v_UpdatedBy, now(), v_UpdatedBy,
+            -- Price List
+            COALESCE(C_Currency_Convert(pp.PriceList, pl.C_Currency_ID, v_Currency_ID, Cur_DiscountLine.ConversionDate, Cur_DiscountLine.ConversionRateType, v_Client_ID, v_Org_ID), 0),
+            -- Price Std
+            COALESCE(C_Currency_Convert(pp.PriceStd, pl.C_Currency_ID, v_Currency_ID, Cur_DiscountLine.ConversionDate, Cur_DiscountLine.ConversionRateType, v_Client_ID, v_Org_ID), 0),
+            -- Price Limit
+            COALESCE(C_Currency_Convert(pp.PriceLimit, pl.C_Currency_ID, v_Currency_ID, Cur_DiscountLine.ConversionDate, Cur_DiscountLine.ConversionRateType, v_Client_ID, v_Org_ID), 0)
+          FROM M_ProductPrice pp
+          INNER JOIN M_PriceList_Version plv
+            ON(pp.M_PriceList_Version_ID=plv.M_PriceList_Version_ID)
+          INNER JOIN M_PriceList pl
+            ON(plv.M_PriceList_ID=pl.M_PriceList_ID)
+          WHERE pp.M_PriceList_Version_ID=v_PriceList_Version_Base_ID
+            AND EXISTS
+            (SELECT * FROM C_TEMP_Selection s WHERE pp.M_Product_ID=s.C_TEMP_Selection_ID)
+            AND pp.IsActive='Y';
+        END IF;
+        rowcount:=SQL%ROWCOUNT;
+        v_Message:=v_Message || ', @Inserted@=' || rowcount;
+        -- -----------
+        -- Calculation
+        -- -----------
+        v_ResultStr:=v_ResultStr || ',Calc';
+        UPDATE M_ProductPrice
+          SET PriceList=((
+          CASE Cur_DiscountLine.List_Base WHEN 'S' THEN PriceStd WHEN 'X' THEN PriceLimit ELSE PriceList
+          END
+          ) + Cur_DiscountLine.List_AddAmt) *(1 - Cur_DiscountLine.List_Discount/100),
+          PriceStd=((
+          CASE Cur_DiscountLine.Std_Base WHEN 'L' THEN PriceList WHEN 'X' THEN PriceLimit ELSE PriceStd
+          END
+          ) + Cur_DiscountLine.Std_AddAmt) *(1 - Cur_DiscountLine.Std_Discount/100),
+          PriceLimit=((
+          CASE Cur_DiscountLine.Limit_Base WHEN 'L' THEN PriceList WHEN 'S' THEN PriceStd ELSE PriceLimit
+          END
+          ) + Cur_DiscountLine.Limit_AddAmt) *(1 - Cur_DiscountLine.Limit_Discount/100)
+        WHERE M_PriceList_Version_ID=v_PriceList_Version_ID
+          AND EXISTS
+          (SELECT *
+          FROM C_TEMP_Selection s
+          WHERE s.C_TEMP_Selection_ID=M_ProductPrice.M_Product_ID
+          )
+          ;
+        -- --------
+        --  Rounding (AD_Reference_ID='155')
+        -- --------
+        v_ResultStr:=v_ResultStr || ',Round';
+        UPDATE M_ProductPrice
+          SET PriceList=(
+          CASE Cur_DiscountLine.List_Rounding  WHEN 'N' THEN PriceList  WHEN '0' THEN ROUND(PriceList, 0) -- Even .00
+                                               WHEN 'D' THEN ROUND(PriceList, 1) -- Dime .10
+                                               WHEN 'D' THEN ROUND(PriceList, 1) -- Dime .10
+                                               WHEN '2' THEN ROUND(PriceList, 2) -- 2 Deci
+                                               WHEN '3' THEN ROUND(PriceList, 3) -- 3 Deci
+                                               WHEN '4' THEN ROUND(PriceList, 4) -- 4 Deci
+                                               WHEN 'T' THEN ROUND(PriceList, -1) -- Ten 10.00
+                                               WHEN '5' THEN ROUND(PriceList*20, 0) /20 -- Nickle .05
+                                               WHEN 'Q' THEN ROUND(PriceList*4, 0) /4 -- Quarter .25
+                                               ELSE ROUND(PriceList, v_StdPrecision)
+          END
+          ), -- Currency
+          PriceStd=(
+          CASE Cur_DiscountLine.Std_Rounding  WHEN 'N' THEN PriceStd  WHEN '0' THEN ROUND(PriceStd, 0) -- Even .00
+                                              WHEN 'D' THEN ROUND(PriceStd, 1) -- Dime .10
+                                              WHEN '2' THEN ROUND(PriceStd, 2) -- 2 Deci
+                                              WHEN '3' THEN ROUND(PriceStd, 3) -- 3 Deci
+                                              WHEN '4' THEN ROUND(PriceStd, 4) -- 4 Deci
+                                              WHEN 'T' THEN ROUND(PriceStd, -1) -- Ten 10.00
+                                              WHEN '5' THEN ROUND(PriceStd*20, 0) /20 -- Nickle .05
+                                              WHEN 'Q' THEN ROUND(PriceStd*4, 0) /4 -- Quarter .25
+                                              ELSE ROUND(PriceStd, v_StdPrecision)
+          END
+          ), -- Currency
+          PriceLimit=(
+          CASE Cur_DiscountLine.Limit_Rounding  WHEN 'N' THEN PriceLimit  WHEN '0' THEN ROUND(PriceLimit, 0) -- Even .00
+                                                WHEN 'D' THEN ROUND(PriceLimit, 1) -- Dime .10
+                                                WHEN '2' THEN ROUND(PriceLimit, 2) -- 2 Deci
+                                                WHEN '3' THEN ROUND(PriceLimit, 3) -- 3 Deci
+                                                WHEN '4' THEN ROUND(PriceLimit, 4) -- 4 Deci
+                                                WHEN 'T' THEN ROUND(PriceLimit, -1) -- Ten 10.00
+                                                WHEN '5' THEN ROUND(PriceLimit*20, 0) /20 -- Nickle .05
+                                                WHEN 'Q' THEN ROUND(PriceLimit*4, 0) /4 -- Quarter .25
+                                                ELSE ROUND(PriceLimit, v_StdPrecision)
+          END
+          ) -- Currency
+        WHERE M_PriceList_Version_ID=v_PriceList_Version_ID
+          AND EXISTS
+          (SELECT *
+          FROM C_TEMP_Selection s
+          WHERE s.C_TEMP_Selection_ID=M_ProductPrice.M_Product_ID
+          )
+          ;
+        rowcount:=SQL%ROWCOUNT;
+        v_Message:=v_Message || ', @Updated@=' || rowcount;
+        -- Fixed Price overwrite
+        v_ResultStr:=v_ResultStr || ',Fix';
+        UPDATE M_ProductPrice
+          SET PriceList=(
+          CASE Cur_DiscountLine.List_Base WHEN 'F' THEN Cur_DiscountLine.List_Fixed ELSE PriceList
+          END
+          ),
+          PriceStd=(
+          CASE Cur_DiscountLine.Std_Base WHEN 'F' THEN Cur_DiscountLine.Std_Fixed ELSE PriceStd
+          END
+          ),
+          PriceLimit=(
+          CASE Cur_DiscountLine.Limit_Base WHEN 'F' THEN Cur_DiscountLine.Limit_Fixed ELSE PriceLimit
+          END
+          ),
+	      updated=now()
+        WHERE M_PriceList_Version_ID=v_PriceList_Version_ID
+          AND EXISTS
+          (SELECT *
+          FROM C_TEMP_Selection s
+          WHERE s.C_TEMP_Selection_ID=M_ProductPrice.M_Product_ID
+          )
+          ;
+        --
+        v_Message:='';
+      END LOOP; -- For all DiscountLines
+      -- Delete Temporary Selection
+      DELETE FROM C_TEMP_Selection;
+      --<<FINISH_PROCESS>>
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE(v_Message) ;
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished') ;
+      AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 1, v_Message) ;
+      RETURN;
+    END; --BODY
+EXCEPTION
+  WHEN OTHERS THEN
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+    RETURN;
+END M_PRICELIST_CREATE
+]]></body>
+    </function>
+  </database>

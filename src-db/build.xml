@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+************************************************************************************
+* Copyright (C) 2001-2006 Openbravo S.L.U.
+* Licensed under the Apache Software License version 2.0
+* You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to  in writing,  software  distributed
+* under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+* CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+* specific language governing permissions and limitations under the License.
+************************************************************************************
+-->
+<project default="jar" basedir="." name="dbmanager">
+
+  <property name="build.db.classes" value="${basedir}/build/classes" />
+  <property name="build.db.lib" value="${basedir}/build/lib" />
+  <property name="build.db.docs" value="${basedir}/docs" />
+  <property name="build.db.src" value="${basedir}/src" />
+
+  <path id="db.class.path">
+    <fileset dir="${basedir}/database/lib">
+      <include name="**/*.jar" />
+    </fileset>
+    <fileset dir="${base.lib}">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+  <target name="init">
+    <mkdir dir="${build.db.classes}" />
+    <mkdir dir="${build.db.lib}" />
+    <mkdir dir="${build.db.docs}" />
+  </target>
+
+  <target name="clean">
+    <delete dir="${build.db.classes}" failonerror="false" includeemptydirs="true" />
+    <delete dir="${build.db.lib}" failonerror="false" includeemptydirs="true" />
+    <delete dir="${build.db.docs}" failonerror="false" includeemptydirs="true" />
+  </target>
+
+  <target name="compile" depends="init">
+    <javac srcdir="${build.db.src}" destdir="${build.db.classes}" deprecation="on" encoding="UTF-8" fork="true" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="db.class.path" />
+    </javac>
+    <copy todir="${build.db.classes}">
+      <fileset dir="${build.db.src}" excludes="**/*.java,**/*.form" />
+    </copy>
+  </target>
+
+  <target name="build.jar">
+    <jar destfile="${build.db.lib}/dbmanager.jar">
+      <fileset dir="${build.db.classes}" />
+      <manifest>
+        <attribute name="Built-By" value="Openbravo S.L.U." />
+      </manifest>
+    </jar>
+  </target>
+
+
+  <target name="doc" depends="init" description="Generate api">
+    <javadoc packagenames="com.openbravo.*" sourcepath="${build.db.src}" destdir="${build.db.docs}" author="true" version="true" use="true" docencoding="UTF-8" encoding="UTF-8" failonerror="false" windowtitle="${ant.project.name}">
+      <classpath refid="db.class.path" />
+    </javadoc>
+  </target>
+
+  <target name="jar" depends="compile, build.jar">
+  </target>
+
+  <target name="build" depends="jar, doc">
+  </target>
+
+</project>

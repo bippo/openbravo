@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Pareto Report for Products</title>
+    <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+
+    <script language="JavaScript" type="text/javascript" id="paramDirectory">
+      var baseDirectory = "../../../../../web/";
+      </script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" type="text/javascript" id="paramLanguage">
+        var defaultLang = "en_US";
+      </script>
+      <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+      <script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+      <script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+function validate()
+{
+	var frm=document.frmMain;
+	if (frm.inpCurrencyId.value == null || frm.inpCurrencyId.value == "") {
+    	setWindowElementFocus(frm.inpCurrencyId);
+    	showJSMessage(7);
+    	return false;
+	}
+	return true;
+}
+function onloadFunctions() {
+}
+</script>	  
+
+<script language="JavaScript" type="text/javascript">
+function refreshWarehouses() {
+  var cmbOrganization = document.frmMain.inpadOrgId;  
+  var cmbWarehouse = document.frmMain.inpmWarehouseId;  
+  changeComboData(cmbWarehouse, arrWarehouse, cmbOrganization.options[cmbOrganization.selectedIndex].value, true);  
+  return true;
+}
+</script>
+
+<script language="JavaScript" type="text/javascript" id="paramWarehouseArray">
+var arrWarehouse=null;
+</script>
+
+    <script language="JavaScript" type="text/javascript">
+    function onLoadDo(){
+        this.windowTables = new Array(
+          new windowTableId('client', 'buttonSearch'),
+		  new windowTableId('tdbottomButtons', 'buttonUpdateABC')
+        );
+        setWindowTableParentElement();
+        this.tabsTables = new Array(
+          new tabTableId('tdtopTabs')
+        );
+        setTabTableParentElement();
+        enableShortcuts('edition');
+        setBrowserAutoComplete(false);
+        
+        resizeArea();
+        updateMenuIcon('buttonMenu');
+
+        setWindowElementFocus('firstElement');
+    }
+
+    function onResizeDo(){
+        resizeArea();
+    }
+    </script>
+
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form method="post" action="ReportParetoProduct.html" name="frmMain" id="form">
+  <input type="hidden" name="Command"></input>
+  <input type="hidden" name="IsPopUpCall" value="1"></input>
+  <input type="hidden" name="inpKey" value="" id="paramKey"></input>
+  <input type="hidden" name="inpwindowId" value="" id="window"></input>
+  <input type="hidden" name="inpTabId" value="" id="tab"></input>
+    
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"></tr>
+          <tr id="paramMainTabContainer"></tr>
+          <tr id="paramChildTabContainer"></tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none; border-bottom: 0px none;" id="client">
+
+          <!-- MessageBox BEGIN -->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                            <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_Icon_ContentCell">
+                                  <div class="MessageBox_Icon"></div>
+                                </td>
+                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                  <span>
+                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                      xxInfo: AccessTableWithNoView
+                                    </div>
+                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                      xxThe current information is empty.
+                                    </div>
+                                    <div class="MessageBox_TextSeparator"></div>
+                                  </span>
+                                </td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            </tbody>
+          </table>
+		  <!-- MessageBox END -->
+          <!-- USER CONTROLS BEGIN -->
+          <table class="Main_Client_TableEdition">
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Filter</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+            <tr>
+            <td class="TitleCell"><span class="LabelText">Organization</span></td>		
+              <td class="Combo_ContentCell" colspan="2"> 
+                <select name="inpadOrgId"  id="inpadOrgId" class="Combo Combo_TwoCells_width" onchange="refreshWarehouses();logChanges(this);return true;">
+                  <option value=""> <div id="reportAD_Org_ID"></div></option>
+                </select>
+              </td>
+              <td class="TitleCell"><span class="LabelText">Currency</span></td>
+                  <td class="Combo_ContentCell">
+  		     		<select name="inpCurrencyId" id="inpCurrencyId" class="ComboKey Combo_OneCell_width" required="true">
+     		      	<option value=""><div id="reportC_Currency_ID"></div></option>
+   		     		</select>
+	   		  </td>
+            </tr>
+            <tr>            	   		  
+	      	<td class="TitleCell"> <span class="LabelText">Warehouse</span></td>
+             <td class="Combo_ContentCell" colspan="2">
+                 <select name="inpmWarehouseId" id="inpmWarehouseId" class="Combo Combo_TwoCells_width" onchange="logChanges(this);return true;">
+                  <option value=""> <div id="reportM_Warehouse_ID"></div></option>
+                </select>
+            </td>
+            </tr>
+			<tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">View Results</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="TitleCell"></td>
+              <td class="Button_CenterAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonSearch" 
+                    class="ButtonLink" 
+                    onclick="submitCommandForm('FIND', true, null, 'ReportParetoProduct.html', '_self', null, false);return false;" 
+                    onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
+                    onblur="buttonEvent('onblur', this);" 
+                    onkeyup="buttonEvent('onkeyup', this);" 
+                    onkeydown="buttonEvent('onkeydown', this);" 
+                    onkeypress="buttonEvent('onkeypress', this);" 
+                    onmouseup="buttonEvent('onmouseup', this);" 
+                    onmousedown="buttonEvent('onmousedown', this);" 
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Search'; return true;" 
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_search" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Search</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="ContentCell"></td>
+              <td class="TitleCell"></td>
+              <td class="ContentCell"></td>
+              <td class="ContentCell"></td>
+            </tr>
+
+          </table>
+          <!-- OUTPUT -->
+		  <div id="sectionOrg">
+          <table class="Main_Client_TableEdition">
+            <tr>
+              <td colspan="6">
+                <div style="height:25px;" />
+				 
+                <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="selEliminar">
+				
+                    
+                    <tr class="DataGrid_Body_Row"> 
+                      <th colspan="9" class="DataGrid_Header_Cell"><span>Organization<span>: </span><span id="fieldAdOrg">xxOrganization</span></span></th>
+                    </tr>
+					  <div id="sectionPartner">
+                      <tr class="DataGrid_Body_Row"> 
+                        <th class="DataGrid_Header_Cell">Search Key</th>
+                        <th class="DataGrid_Header_Cell">Name</th>
+                        <th class="DataGrid_Header_Cell">Quantity</th>
+						<th class="DataGrid_Header_Cell">Unit</th>
+						<th class="DataGrid_Header_Cell">Cost</th>
+						<th class="DataGrid_Header_Cell">Value</th>
+						<th class="DataGrid_Header_Cell">Percentage</th>
+						<th class="DataGrid_Header_Cell">Category</th>
+                      </tr>                      					  
+	                  <div id="sectionDetail"> 
+	                    <tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+	                      <td width="10%" class="DataGrid_Body_Cell" id="fieldSearchKey">xxName</td>
+	                      <td width="40%"  class="DataGrid_Body_Cell" id="fieldName">xxY</td>
+						  <td width="10%"  class="DataGrid_Body_Cell" id="fieldQty">xxY</td>
+	                      <td width="10%"  class="DataGrid_Body_Cell" id="fieldUnit">xxY</td>
+	                      <td width="8%"  class="DataGrid_Body_Cell" id="fieldCost">xxY</td>
+						  <td width="8%"  class="DataGrid_Body_Cell" id="fieldValue">xxY</td>
+	                      <td width="7%"  class="DataGrid_Body_Cell" id="fieldPercentage">xxY</td>
+                          <td width="7%"  class="DataGrid_Body_Cell" id="fieldIsabc">xxY</td>
+	                    </tr>
+	                  </div>
+                    </div>						
+                  
+                </table>
+			  				
+                <!-- OUTPUT END -->
+              <!-- USER CONTROLS END -->
+			  
+              </td>
+            </tr>
+          </table>
+		  </div>
+        </div>
+		    <div >
+            <div class="Main_ContentPane_Client" style="overflow: auto; border-top: 0px none;" id="tdbottomButtons">
+              <table class="Main_Client_TableEdition" cellspacing="0" cellpadding="0" style="width: 435px">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+
+                </tr>
+
+                <tr>
+                  <td class="Button_RightAlign_ContentCell" colspan="2">
+                    <div>
+                      <button type="button" 
+                        id="buttonUpdateABC" 
+                        class="ButtonLink" 
+                        onclick="submitCommandForm('GENERATE', true, null, null, null, true, true);return false;" 
+                        onfocus="buttonEvent('onfocus', this); window.status='Update ABC'; return true;" 
+                        onblur="buttonEvent('onblur', this);" 
+                        onkeyup="buttonEvent('onkeyup', this);" 
+                        onkeydown="buttonEvent('onkeydown', this);" 
+                        onkeypress="buttonEvent('onkeypress', this);" 
+                        onmouseup="buttonEvent('onmouseup', this);" 
+                        onmousedown="buttonEvent('onmousedown', this);" 
+                        onmouseover="buttonEvent('onmouseover', this); window.status='Update ABC'; return true;" 
+                        onmouseout="buttonEvent('onmouseout', this);">
+                        <table class="Button">
+                          <tr>
+                            <td class="Button_left"><img class="Button_Icon Button_Icon_process" alt="Update ABC" title="Update ABC" src="../../../../../web/images/blank.gif" border="0" /></td>
+                            <td class="Button_text">Update ABC</td>
+                            <td class="Button_right"></td>
+                          </tr>
+                        </table>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="TitleCell"></td>
+                  <td class="ContentCell"></td>
+                  <td class="TitleCell"></td>
+                  <td class="ContentCell"></td>
+                </tr>
+              </table>
+            </div>
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

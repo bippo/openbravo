@@ -1,0 +1,322 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_INVENTORY_LISTCREATE">
+    <function name="M_INVENTORY_LISTCREATE" type="NULL">
+      <parameter name="pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_Inventory_ListCreate.sql,v 1.6 2003/06/16 14:40:03 jjanke Exp $
+  ***
+  * Title: Create Price Inventory Count
+  * Description:
+  * - get info from Storage.QtyOnHand
+  * - if line exist, update it
+  ************************************************************************/
+  --    Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=0; --    failure
+  v_InProcess CHAR(1) ;
+  v_Done CHAR(1) ;
+  v_NoInserted NUMBER:=0;
+  v_NoUpdated NUMBER:=0;
+  --    Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --    Parameter Variables
+    v_Record_ID VARCHAR2(32);
+    v_User_ID VARCHAR2(32);
+    v_ProductValue VARCHAR2(40) ;
+    v_Locator_ID VARCHAR2(32);
+    v_Product_Category_ID VARCHAR2(32);
+    v_QtyRange VARCHAR2(60) ;
+    v_Regularization VARCHAR2(60) ;
+    v_ABC VARCHAR2(60);
+    --
+    v_Warehouse_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    v_Org_ID VARCHAR2(32);
+    --
+    v_NextNo VARCHAR2(32);
+    v_NextLine NUMBER;
+    --    Selection
+    Cur_Storage RECORD;
+    END_PROCESS BOOLEAN:=false;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing') ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    --    Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date,
+        i.Ad_User_Id
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.Ad_User_Id;
+      IF(Cur_Parameter.ParameterName='QtyRange') THEN
+        v_QtyRange:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  QtyRange=' || v_QtyRange) ;
+      ELSIF(Cur_Parameter.ParameterName='ProductValue') THEN
+        v_ProductValue:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  ProductValue=' || v_ProductValue) ;
+      ELSIF(Cur_Parameter.ParameterName='regularization') THEN
+        v_Regularization:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  Regularization=' || v_Regularization) ;
+      ELSIF(Cur_Parameter.ParameterName='M_Locator_ID') THEN
+        v_Locator_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  M_Locator_ID=' || v_Locator_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='M_Product_Category_ID') THEN
+        v_Product_Category_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  M_Product_Category_ID=' || v_Product_Category_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='ABC') THEN
+        v_ABC:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  ABC=' || v_ABC) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; --    Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    v_ResultStr:='ReadingInventory - (Record not saved)';
+  BEGIN
+    SELECT Processing,
+      Processed,
+      AD_Client_ID,
+      AD_Org_ID,
+      M_Warehouse_ID
+    INTO v_InProcess,
+      v_Done,
+      v_Client_ID,
+      v_Org_ID,
+      v_Warehouse_ID
+    FROM M_Inventory
+    WHERE M_Inventory_ID=v_Record_ID;
+  EXCEPTION
+  WHEN OTHERS THEN
+    v_Message:='@SaveErrorRowNotFound@';
+    END_PROCESS:=true;
+  END;
+  IF(NOT END_PROCESS) THEN
+    IF(v_InProcess='Y') THEN
+      v_Message:='@OtherProcessActive@';
+      END_PROCESS:=true;
+    END IF;
+  END IF;--END_PROCESS
+  IF(NOT END_PROCESS) THEN
+    IF(v_Done='Y') THEN
+      v_Message:='@AlreadyPosted@';
+      END_PROCESS:=true;
+    END IF;
+  END IF;--END_PROCESS
+  IF(NOT END_PROCESS) THEN
+    v_ResultStr:='Setting ProductValue';
+    v_ProductValue:=TRIM(v_ProductValue) ;
+    IF(LENGTH(v_ProductValue)=0) THEN
+      v_ProductValue:=NULL;
+    END IF;
+    IF(v_ProductValue IS NOT NULL AND SUBSTR(v_ProductValue, LENGTH(v_ProductValue), 1)<>'%') THEN
+      v_ProductValue:=v_ProductValue || '%';
+    END IF;
+    IF(v_ProductValue IS NOT NULL) THEN
+      v_ProductValue:=UPPER(v_ProductValue) ;
+    END IF;
+    --  Create 0 Storage Records
+    IF(v_QtyRange='=' AND v_Locator_ID!='0') THEN
+      v_ResultStr:='Creating 0 values';
+      DECLARE
+        Cur_Products RECORD;
+        storagesCount NUMBER:=0;
+        p_Storage_ID VARCHAR2(32);
+      BEGIN
+        FOR Cur_Products IN
+          (SELECT M_Product_ID,
+            C_UOM_ID
+          FROM M_Product p
+          WHERE p.AD_Client_ID=v_Client_ID
+            AND IsStocked='Y'
+            AND NOT EXISTS
+            (SELECT *
+            FROM M_Storage_Detail s
+            WHERE p.M_Product_ID=s.M_Product_ID
+              AND s.M_Locator_ID=v_Locator_ID
+            )
+          )
+        LOOP
+          Ad_Sequence_Next('M_Storage_Detail', v_Client_ID, p_Storage_ID) ;
+          INSERT
+          INTO M_Storage_Detail
+            (
+              M_STORAGE_DETAIL_ID, M_PRODUCT_ID, M_LOCATOR_ID, M_ATTRIBUTESETINSTANCE_ID,
+              C_UOM_ID, M_PRODUCT_UOM_ID, AD_CLIENT_ID, AD_ORG_ID,
+              ISACTIVE, CREATED, CREATEDBY, UPDATED,
+              UPDATEDBY, QTYONHAND, QTYORDERONHAND, PREQTYONHAND,
+              PREQTYORDERONHAND, DATELASTINVENTORY
+            )
+            VALUES
+            (
+              p_Storage_ID, Cur_Products.M_Product_ID, v_Locator_ID, '0',
+              Cur_Products.C_UOM_ID, NULL, v_Client_ID, v_Org_ID,
+               'Y', now(), v_User_ID, now(),
+              v_User_ID, 0, NULL, 0,
+              NULL, NULL
+            )
+            ;
+          storagesCount:=storagesCount + 1;
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('Created 0 Storage Records = '|| storagesCount) ;
+      END;
+    END IF;
+  END IF;--END_PROCESS
+  IF(NOT END_PROCESS) THEN
+    v_ResultStr:='ReadingInventoryLine';
+    SELECT COALESCE(MAX(Line)+10, 10) -- BugFix: [1788358] On Inventory the "create count" may repeat line numbers
+    INTO v_NextLine
+    FROM M_InventoryLine
+    WHERE M_Inventory_ID=v_Record_ID;
+    FOR Cur_Storage IN
+      (SELECT s.M_Product_ID,
+        s.M_Locator_ID,
+        COALESCE(s.QtyOnHand, 0) AS QtyOnHand,
+        (s.QTYORDERONHAND) AS QtyOnHandOrder,
+        s.C_UOM_ID,
+        s.M_Product_UOM_ID,
+        s.M_AttributeSetInstance_ID
+      FROM M_Product p
+      INNER JOIN M_Storage_Detail s
+        ON(s.M_Product_ID=p.M_Product_ID)
+      WHERE p.AD_Client_ID=v_Client_ID  --    only ..
+        AND(v_ProductValue IS NULL
+        OR UPPER(p.Value) LIKE v_ProductValue)
+        AND(v_Locator_ID IS NULL
+        OR s.M_Locator_ID=v_Locator_ID)
+        AND(v_ABC IS NULL OR v_ABC in (select abc from m_product_org po where po.m_product_id = s.m_product_id ))
+        AND(v_Warehouse_ID IS NULL
+        OR s.M_Locator_ID IN
+        (SELECT M_Locator_ID FROM M_Locator WHERE M_Warehouse_ID=v_Warehouse_ID))
+        AND(v_Product_Category_ID IS NULL
+        OR p.M_Product_Category_ID=v_Product_Category_ID)
+        AND NOT EXISTS
+        (SELECT *
+        FROM M_InventoryLine l
+        WHERE l.M_Inventory_ID=v_Record_ID
+          AND l.M_Product_ID=s.M_Product_ID
+          AND l.M_Locator_ID=s.M_Locator_ID
+        )
+      ORDER BY s.M_Locator_ID,
+        p.Value,
+        s.Created
+      )
+    LOOP
+      v_ResultStr:='CheckingInventoryLine';
+      DBMS_OUTPUT.PUT_LINE('  QtyRange=' || v_QtyRange || ', OnHand=' || Cur_Storage.QtyOnHand) ;
+      --
+      IF(v_QtyRange IS NULL --  all
+        OR(v_QtyRange='>' AND Cur_Storage.QtyOnHand>0) OR(v_QtyRange='<' AND Cur_Storage.QtyOnHand<0) OR(v_QtyRange='=' AND Cur_Storage.QtyOnHand=0) OR(v_QtyRange='N' AND Cur_Storage.QtyOnHand<>0)) THEN
+        --    DO we have this record already:1
+        SELECT MAX(QtyBook)
+        INTO v_NextNo
+        FROM M_InventoryLine
+        WHERE M_Inventory_ID=v_Record_ID
+          AND M_Product_ID=Cur_Storage.M_Product_ID
+          AND M_Locator_ID=Cur_Storage.M_Locator_ID
+          AND M_AttributeSetInstance_ID=Cur_Storage.M_AttributeSetInstance_ID
+          AND C_UOM_ID=Cur_Storage.C_UOM_ID
+          AND M_Product_UOM_ID=Cur_Storage.M_Product_UOM_ID;
+        --
+        DBMS_OUTPUT.PUT_LINE('  QtyRange=' || v_QtyRange || ', OnHand=' || Cur_Storage.QtyOnHandOrder || ', v_NextNo=' || v_NextNo) ;
+        IF(v_NextNo IS NULL) THEN
+          v_ResultStr:='InsertLine';
+          AD_Sequence_Next('M_InventoryLine', v_Client_ID, v_NextNo) ;
+          INSERT
+          INTO M_InventoryLine
+            (
+              M_InventoryLine_ID, Line, AD_Client_ID, AD_Org_ID,
+              IsActive, Created, CreatedBy, Updated,
+              UpdatedBy, M_Inventory_ID, M_Locator_ID, M_ATTRIBUTESETINSTANCE_ID,
+              M_Product_ID, QtyBook, QtyCount, C_UOM_ID,
+              QUANTITYORDER, QUANTITYORDERBOOK, M_Product_UOM_ID
+            )
+            VALUES
+            (
+              v_NextNo, v_NextLine, v_Client_ID, v_Org_ID,
+               'Y', now(), v_User_ID, now(),
+              v_User_ID, v_Record_ID, Cur_Storage.M_Locator_ID, Cur_Storage.M_ATTRIBUTESETINSTANCE_ID,
+              Cur_Storage.M_Product_ID, Cur_Storage.QtyOnHand,( CASE v_Regularization WHEN 'Y' THEN 0 ELSE Cur_Storage.QtyOnHand END), Cur_Storage.C_UOM_ID,(CASE WHEN Cur_Storage.QtyOnHandOrder IS NULL THEN NULL ELSE(CASE v_Regularization WHEN 'Y' THEN 0 ELSE Cur_Storage.QtyOnHandOrder END) END), Cur_Storage.QtyOnHandOrder, Cur_Storage.M_Product_UOM_ID
+            )
+            ;
+          v_NextLine:=v_NextLine + 10;
+          v_NoInserted:=v_NoInserted + 1;
+        ELSE
+          v_ResultStr:='UpdateLine';
+          UPDATE M_InventoryLine
+            SET QtyBook=Cur_Storage.QtyOnHand,
+            QtyCount=Cur_Storage.QtyOnHand,
+            C_UOM_ID=Cur_Storage.C_UOM_ID,
+            M_AttributeSetInstance_ID=Cur_Storage.M_AttributeSetInstance_ID,
+            QUANTITYORDER=Cur_Storage.QtyOnHandOrder,
+            QUANTITYORDERBOOK=Cur_Storage.QtyOnHandOrder,
+            M_Product_UOM_ID=Cur_Storage.M_Product_UOM_ID,
+            Updated=now(),
+            UpdatedBy=v_User_ID
+          WHERE M_Inventory_ID=v_Record_ID
+            AND M_Product_ID=Cur_Storage.M_Product_ID
+            AND C_UOM_ID=Cur_Storage.C_UOM_ID
+            AND M_Product_UOM_ID=Cur_Storage.M_Product_UOM_ID
+            AND M_AttributeSetInstance_ID=Cur_Storage.M_AttributeSetInstance_ID
+            AND M_Locator_ID=Cur_Storage.M_Locator_ID;
+          v_NoUpdated:=v_NoUpdated + 1;
+        END IF;
+      END IF; --
+    END LOOP; --    Cur_Storage
+    -- Commented by cromero 19102006 COMMIT;
+    v_Message:='@Inserted@=' || v_NoInserted || ', @Updated@=' || v_NoUpdated;
+    v_Result:=1; --    success
+  END IF;--END_PROCESS
+  --<<END_PROCESS>>
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished') ;
+  DBMS_OUTPUT.PUT_LINE(v_Message) ;
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+  RETURN;
+END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END M_INVENTORY_LISTCREATE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_COLUMN_TRG2">
+    <trigger name="AD_COLUMN_TRG2" table="AD_COLUMN" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  TYPE RECORD IS REF CURSOR;
+  CUR_Clients RECORD;
+  v_TableName VARCHAR2(40);
+  v_NextNo VARCHAR2(32);
+  v_Aux NUMBER;
+      
+BEGIN
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+      SELECT count(*) 
+        INTO v_Aux
+        FROM AD_TABLE T, 
+             AD_PACKAGE M
+       WHERE T.AD_TABLE_ID = :new.AD_Table_ID
+         AND M.AD_PACKAGE_ID = T.AD_PACKAGE_ID
+         AND M.AD_MODULE_ID != :new.AD_Module_ID
+         AND NOT EXISTS (SELECT 1 
+                          FROM AD_MODULE_DBPREFIX P
+                          WHERE P.AD_MODULE_ID = :new.AD_Module_ID 
+                          AND instr(upper(:new.columnname), 'EM_'||upper(P.name)||'_') = 1
+                          AND instr(upper(:new.name), 'EM_'||upper(P.name)||'_') = 1)
+         AND NOT EXISTS( SELECT 1
+                             FROM AD_EXCEPTIONS, ad_table t
+                             WHERE TYPE='COLUMN'
+                             AND t.AD_Table_ID = :new.AD_Table_ID
+                             AND UPPER(NAME2)=UPPER(T.Tablename)
+                             AND UPPER(NAME1)=UPPER(:new.Columnname));
+  
+  IF v_Aux != 0 THEN
+    RAISE_APPLICATION_ERROR(-20000, '@ColumnDBPrefix@') ;
+  END IF;
+  
+  IF AD_IsJavaWord(:new.Name)='Y' THEN
+    RAISE_APPLICATION_ERROR(-20000, '@NotAllowedColumnName@ "'||:new.name||'" @ReservedJavaWord@') ;
+  END IF;
+  
+  /**
+  * Create Sequence for DocumentNo and Value columns
+  */
+  IF (:new.ColumnName = 'DocumentNo' OR :new.ColumnName = 'Value') THEN
+    SELECT TableName INTO v_TableName
+    FROM ad_table
+    WHERE ad_table.ad_table_id = :new.ad_table_id;
+         
+    FOR CUR_Clients IN (
+      SELECT ad_client_id
+      FROM ad_client
+      WHERE NOT EXISTS (SELECT 1 FROM ad_sequence WHERE name = 'DocumentNo_' || v_tablename)
+        AND ad_client_id <> '0'
+    ) LOOP
+      Ad_Sequence_Next('AD_Sequence', CUR_Clients.ad_client_id, v_NextNo) ;
+      INSERT INTO AD_Sequence (
+        AD_Sequence_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+        Created, CreatedBy, Updated, UpdatedBy,
+        Name, Description, 
+        VFormat, IsAutoSequence, IncrementNo, 
+        StartNo, CurrentNext, CurrentNextSys, 
+        IsTableID, Prefix, Suffix, StartNewYear
+      ) VALUES (
+        v_NextNo, CUR_Clients.ad_client_id, '0', 'Y',
+        now(), '0', now(), '0',
+        'DocumentNo_' || v_TableName,  'DocumentNo/Value for Table ' || v_TableName,
+        NULL,  'Y', 1,
+        10000000, 10000000, 10000000,
+        'N', NULL, NULL, 'N'
+      );
+    END LOOP;
+  END IF;
+END AD_COLUMN_TRG2
+]]></body>
+    </trigger>
+  </database>

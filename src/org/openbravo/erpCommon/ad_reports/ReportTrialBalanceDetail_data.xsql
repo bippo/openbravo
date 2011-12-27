@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ReportTrialBalanceDetailData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT Y.YEAR AS YEAR, P.NAME AS PERIODNAME,
+           SUM(F.AMTACCTDR) AS AMTACCTDR, SUM(F.AMTACCTCR) AS AMTACCTCR,
+           ? AS ACCOUNTNAME, ? AS ACCOUNTCODE
+    FROM C_PERIOD P JOIN C_YEAR Y ON (P.C_YEAR_ID=Y.C_YEAR_ID)
+         JOIN C_CALENDAR CAL ON (Y.C_CALENDAR_ID=CAL.C_CALENDAR_ID),
+         C_ELEMENTVALUE EV JOIN FACT_ACCT F ON (EV.C_ELEMENTVALUE_ID=F.ACCOUNT_ID)
+         LEFT JOIN C_BPARTNER ON f.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+         LEFT JOIN M_PRODUCT ON f.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+         LEFT JOIN C_PROJECT ON f.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+    WHERE F.ACCOUNT_ID = EV.C_ELEMENTVALUE_ID
+         AND CAL.C_CALENDAR_ID = 
+            (SELECT C_CALENDAR_ID
+             FROM AD_ORG
+             WHERE AD_ORG_ID = AD_ORG_GETCALENDAROWNER(?))
+         AND f.AD_ORG_ID IN('2')
+         AND F.AD_CLIENT_ID IN ('1')
+         AND F.AD_ORG_ID IN('1')
+         AND F.ACCOUNT_ID IN ('3')
+         AND 1=1
+         AND F.FACTACCTTYPE <> 'R'
+         AND F.FACTACCTTYPE <> 'C'
+         AND F.FACTACCTTYPE <> 'O'
+         AND F.ISACTIVE = 'Y'
+         AND F.DATEACCT >= P.STARTDATE AND F.DATEACCT <= P.ENDDATE
+    GROUP BY Y.YEAR, P.NAME, P.PERIODNO
+    HAVING SUM(F.AMTACCTDR) <> 0 OR SUM(F.AMTACCTCR) <> 0
+    ORDER BY Y.YEAR, P.PERIODNO
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="accountName"/>
+    <Parameter name="accountCode"/>
+    <Parameter name="selectedOrg"/>
+    <Parameter name="orgFamily" type="replace" optional="true" after="f.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="accountSet" type="replace" optional="true" after="AND F.ACCOUNT_ID IN (" text="'3'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[AND DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="acctSchema" optional="true" after="AND 1=1"><![CDATA[ AND F.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND F.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND F.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND F.C_PROJECT_ID IN]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectOrgWithNotCal" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT TO_CHAR(F.DATEACCT, 'YYYY') AS YEAR, MT.NAME AS PERIODNAME,
+           SUM(F.AMTACCTDR) AS AMTACCTDR, SUM(F.AMTACCTCR) AS AMTACCTCR,
+           ? AS ACCOUNTNAME, ? AS ACCOUNTCODE
+    FROM C_ELEMENTVALUE EV JOIN FACT_ACCT F ON (EV.C_ELEMENTVALUE_ID=F.ACCOUNT_ID)
+         LEFT JOIN C_BPARTNER ON f.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+         LEFT JOIN M_PRODUCT ON f.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+         LEFT JOIN C_PROJECT ON f.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+         LEFT JOIN AD_MONTH M ON TO_NUMBER(M.VALUE) = TO_NUMBER(TO_CHAR(F.DATEACCT, 'MM'))
+         LEFT JOIN AD_MONTH_TRL MT ON M.AD_MONTH_ID = MT.AD_MONTH_ID
+    WHERE F.ACCOUNT_ID = EV.C_ELEMENTVALUE_ID
+         AND f.AD_ORG_ID IN('2')
+         AND F.AD_CLIENT_ID IN ('1')
+         AND F.AD_ORG_ID IN('1')
+         AND F.ACCOUNT_ID IN ('3')
+         AND 1=1
+         AND F.FACTACCTTYPE <> 'R'
+         AND F.FACTACCTTYPE <> 'C'
+         AND F.FACTACCTTYPE <> 'O'
+         AND F.ISACTIVE = 'Y'
+         AND MT.AD_LANGUAGE = ?
+    GROUP BY TO_CHAR(F.DATEACCT, 'YYYY'), M.VALUE, MT.NAME
+    HAVING SUM(F.AMTACCTDR) <> 0 OR SUM(F.AMTACCTCR) <> 0
+    ORDER BY TO_CHAR(F.DATEACCT, 'YYYY'), TO_NUMBER(M.VALUE), MT.NAME
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="accountName"/>
+    <Parameter name="accountCode"/>
+    <Parameter name="orgFamily" type="replace" optional="true" after="f.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="F.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="F.AD_ORG_ID IN(" text="'1'"/>
+    <Parameter name="accountSet" type="replace" optional="true" after="AND F.ACCOUNT_ID IN (" text="'3'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[AND DATEACCT >= TO_DATE(?) ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[AND DATEACCT < TO_DATE(?) ]]></Parameter>
+    <Parameter name="acctSchema" optional="true" after="AND 1=1"><![CDATA[ AND F.C_ACCTSCHEMA_ID = ?]]></Parameter>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND F.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="mProductId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND F.M_PRODUCT_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND F.C_PROJECT_ID IN]]></Parameter>
+    <Parameter name="language"/>
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="treeOrg" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT AD_TREE_ORG_ID FROM AD_CLIENTINFO
+        WHERE AD_CLIENT_ID = ?
+    </Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="treeAccount" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT AD_TREE_ID FROM AD_TREE
+        WHERE AD_CLIENT_ID = ?
+        AND TREETYPE = 'EV'
+    </Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectCompany" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT NAME
+        FROM AD_CLIENT
+        WHERE AD_CLIENT_ID = ?
+    </Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectAccountName" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT NAME
+        FROM C_ELEMENTVALUE
+        WHERE C_ELEMENTVALUE_ID = ?
+        AND ISACTIVE = 'Y'
+    </Sql>
+    <Parameter name="id"/>
+  </SqlMethod>
+  <SqlMethod name="selectAccountCode" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT VALUE
+        FROM C_ELEMENTVALUE
+        WHERE C_ELEMENTVALUE_ID = ?
+        AND ISACTIVE = 'Y'
+    </Sql>
+    <Parameter name="id"/>
+  </SqlMethod>
+  <SqlMethod name="getOrganizationCalendarOwner" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT AD_ORG_GETCALENDAROWNER(?)
+        FROM DUAL
+    </Sql>
+    <Parameter name="ad_org_id"/>
+  </SqlMethod>
+</SqlClass>

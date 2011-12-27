@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="TableRelationData" package="org.openbravo.wad" accessModifier="public">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_ref_table.ad_reference_id as referenceId, ad_table.tablename as tableName, c1.columnname as keyName, c2.columnname as displayName, isvaluedisplayed, ad_table.tablename as fromclause, c2.isTranslated, 
+        whereclause, orderbyclause, '' as clause, '' as code, '' as AD_VAL_RULE_ID, '' as parameters,
+        c2.columnname as name, c2.ad_reference_id as reference, 'Y' as required, c2.AD_REFERENCE_VALUE_ID as referenceValue, 
+        '' as referenceKey, '' as referencevalueKey
+       FROM ad_ref_table, ad_table, ad_column c1, ad_column c2
+        WHERE ad_ref_table.ad_table_id = ad_table.ad_table_id
+          AND ad_ref_table.ad_key = c1.ad_column_id
+          AND ad_ref_table.ad_display = c2.ad_column_id
+       ORDER BY AD_REF_TABLE.ad_reference_id
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="selectRefTable" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT ad_ref_table.ad_reference_id as referenceId, ad_table.tablename as tableName, c1.columnname as keyName, c2.columnname as displayName, isvaluedisplayed,
+        whereclause, orderbyclause, '' as clause, c2.isTranslated, 
+        c2.columnname as name, c2.ad_reference_id as reference, 'Y' as required, c2.AD_REFERENCE_VALUE_ID as referenceValue, 
+        c1.ad_reference_id as referenceKey, c1.ad_reference_value_id as referencevalueKey
+       FROM ad_ref_table, ad_table, ad_column c1, ad_column c2
+        WHERE ad_ref_table.ad_table_id = ad_table.ad_table_id
+          AND ad_ref_table.ad_key = c1.ad_column_id
+          AND ad_ref_table.ad_display = c2.ad_column_id
+          AND ad_ref_table.ad_reference_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="reference"/>
+  </SqlMethod>
+
+  <SqlMethod name="existsTableColumn" type="preparedStatement" return="Boolean" default="false">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(t.AD_TABLE_ID) AS TOTAL FROM AD_TABLE t, AD_COLUMN c 
+        WHERE c.ad_table_id = t.ad_table_id 
+        AND UPPER(t.TABLENAME) = UPPER(?) 
+        AND UPPER(c.columnname) = UPPER(?)
+      ]]>
+    </Sql>
+      <Parameter name="tablename"/>
+      <Parameter name="columnname"/>
+  </SqlMethod>
+</SqlClass>

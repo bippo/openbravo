@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="PInstanceProcessData" package="org.openbravo.erpCommon.reference" accessModifier="public">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT P.RESULT, REPLACE(REPLACE(P.ERRORMSG, CHR(10), CHR(92) || CHR(92) || 'n'), CHR(13), CHR(92) || CHR(92) || 'n') AS ERRORMSG, 
+      '' AS P_MSG 
+      FROM AD_PINSTANCE P
+      WHERE P.AD_PINSTANCE_ID = ?
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+  </SqlMethod>
+  <SqlMethod name="selectConnection" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT P.RESULT, REPLACE(REPLACE(P.ERRORMSG, CHR(10), CHR(92) || CHR(92) || 'n'), CHR(13), CHR(92) || CHR(92) || 'n') AS ERRORMSG, 
+      '' AS P_MSG 
+      FROM AD_PINSTANCE P 
+      WHERE P.AD_PINSTANCE_ID = ?
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+  </SqlMethod>
+  <SqlMethod name="insertPInstance" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO AD_PINSTANCE (AD_PINSTANCE_ID, AD_PROCESS_ID, RECORD_ID, ISPROCESSING, CREATED, AD_USER_ID, UPDATED, AD_CLIENT_ID, AD_ORG_ID, CREATEDBY, UPDATEDBY)
+      VALUES(?, ?, ?,?,now(), ?,now(), ?, ?, ?, ?)
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+    <Parameter name="adProcessId"/>
+    <Parameter name="recordId"/>
+    <Parameter name="isprocessing"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="insertPInstance" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO AD_PINSTANCE (AD_PINSTANCE_ID, AD_PROCESS_ID, RECORD_ID, ISPROCESSING, CREATED, AD_USER_ID, UPDATED, AD_CLIENT_ID, AD_ORG_ID, CREATEDBY, UPDATEDBY)
+      VALUES(?,?,?,?,now(),?,now(), ?, ?, ?, ?)
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+    <Parameter name="adProcessId"/>
+    <Parameter name="recordId"/>
+    <Parameter name="isprocessing"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="insertPInstanceParam" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO AD_PINSTANCE_PARA (ad_pinstance_para_id, AD_PINSTANCE_ID, SEQNO, PARAMETERNAME, P_STRING, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY)
+      VALUES(get_uuid(), ?,TO_NUMBER(?),?,?, ?, ?, now(), ?, now(), ?)
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+    <Parameter name="seqno"/>
+    <Parameter name="parametername"/>
+    <Parameter name="pString"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="insertPInstanceParamNumber" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO AD_PINSTANCE_PARA (ad_pinstance_para_id, AD_PINSTANCE_ID, SEQNO, PARAMETERNAME, P_NUMBER, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY)
+      VALUES(get_uuid(), ?,TO_NUMBER(?),?,TO_NUMBER(?), ?, ?, now(), ?, now(), ?)
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+    <Parameter name="seqno"/>
+    <Parameter name="parametername"/>
+    <Parameter name="pNumber"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="insertPInstanceParamDate" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO AD_PINSTANCE_PARA (ad_pinstance_para_id, AD_PINSTANCE_ID, SEQNO, PARAMETERNAME, P_DATE, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY)
+      VALUES(get_uuid(),?,TO_NUMBER(?),?,TO_DATE(?), ?, ?, now(), ?, now(), ?)
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+    <Parameter name="seqno"/>
+    <Parameter name="parametername"/>
+    <Parameter name="pDate"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="insertPInstanceParamTime" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO AD_PINSTANCE_PARA (ad_pinstance_para_id, AD_PINSTANCE_ID, SEQNO, PARAMETERNAME, P_DATE, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY)
+      VALUES(get_uuid(),?,TO_NUMBER(?),?,to_timestamp(?, 'HH24:MI:SS'), ?, ?, now(), ?, now(), ?)
+    </Sql>
+    <Parameter name="adPinstanceId"/>
+    <Parameter name="seqno"/>
+    <Parameter name="parametername"/>
+    <Parameter name="pDate"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+</SqlClass>

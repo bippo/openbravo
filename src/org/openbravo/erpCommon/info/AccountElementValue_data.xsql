@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2009-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="AccountElementValueData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      		SELECT * FROM ( SELECT '0' AS RN1, '' AS ID, A.* FROM (
+	            SELECT C.C_ELEMENTVALUE_ID, C.VALUE as value, C.NAME as name, C.DESCRIPTION,
+	            C.AD_ORG_ID, (O.VALUE || ' - ' || O.NAME) AS AD_ORG_ID_D,
+                C.C_ELEMENTVALUE_ID || '@_##_@' || C.NAME AS rowkey
+	            FROM C_ELEMENTVALUE C,
+	            AD_ORG O
+	            WHERE EXISTS (SELECT 1 FROM C_ACCTSCHEMA_ELEMENT
+	            			  WHERE C_ACCTSCHEMA_ELEMENT.C_ELEMENT_ID = C.C_ELEMENT_ID
+	            			  AND 1=1)
+	            AND 2=2
+                AND C.ELEMENTLEVEL = 'S'
+	            AND C.AD_ORG_ID = O.AD_ORG_ID
+	            AND C.ISACTIVE = 'Y'
+	            AND C.AD_Client_ID IN ('1')
+	            AND C.AD_Org_ID IN ('1')
+	            ORDER BY C.VALUE
+	        	) A ) B
+			WHERE 1=1
+      ]]></Sql>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND C_ACCTSCHEMA_ID = ?]]></Parameter>
+        <Parameter name="value" optional="true" after="AND 2=2"><![CDATA[ AND (C.VALUE IS NULL  OR UPPER(C.VALUE) LIKE UPPER(?)) ]]></Parameter>
+        <Parameter name="name" ignoreValue="%" optional="true" after="AND 2=2"><![CDATA[ AND UPPER(C.NAME) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="organization" optional="true" after="AND 2=2"><![CDATA[ AND C.AD_ORG_ID = ? ]]></Parameter>
+        <Parameter name="elementValue" optional="true" after="AND 2=2"><![CDATA[ AND C.C_ELEMENTVALUE_ID = ? ]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="C.ALIAS" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+      <Parameter name="value"/>
+      <Parameter name="name"/>
+   </SqlMethod>
+
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      		SELECT COUNT(*) AS VALUE FROM ( SELECT '0' AS RN1, B.* FROM ( SELECT 1
+	            FROM C_ELEMENTVALUE C,
+	            AD_ORG O
+	            WHERE EXISTS (SELECT 1 FROM C_ACCTSCHEMA_ELEMENT
+	            			  WHERE C_ACCTSCHEMA_ELEMENT.C_ELEMENT_ID = C.C_ELEMENT_ID
+	            			  AND 1=1)
+	            AND 2=2
+                AND C.ELEMENTLEVEL = 'S'
+	            AND C.AD_ORG_ID = O.AD_ORG_ID
+	            AND C.ISACTIVE = 'Y'
+	            AND C.AD_Client_ID IN ('1')
+	            AND C.AD_Org_ID IN ('1')
+	            AND 3=3
+	            ) B
+	            ) A 
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND C_ACCTSCHEMA_ID = ?]]></Parameter>
+        <Parameter name="value" optional="true" after="AND 2=2"><![CDATA[ AND (C.VALUE IS NULL  OR UPPER(C.VALUE) LIKE UPPER(?)) ]]></Parameter>
+        <Parameter name="name" ignoreValue="%" optional="true" after="AND 2=2"><![CDATA[ AND UPPER(C.NAME) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="organization" optional="true" after="AND 2=2"><![CDATA[ AND C.AD_ORG_ID = ? ]]></Parameter>
+        <Parameter name="elementValue" optional="true" after="AND 2=2"><![CDATA[ AND C.C_ELEMENTVALUE_ID = ? ]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_Org_ID IN (" text="'1'"/>
+         <Parameter name="pgLimit" type="argument" optional="true" after="AND 3=3"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="selectKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT C.C_ELEMENTVALUE_ID, C.VALUE, C.NAME, C.DESCRIPTION,
+            C.AD_ORG_ID, (O.VALUE || ' - ' || O.NAME) AS AD_ORG_ID_D
+            FROM C_ELEMENTVALUE C,
+            AD_ORG O
+            WHERE EXISTS (SELECT 1 FROM C_ACCTSCHEMA_ELEMENT
+            			  WHERE C_ACCTSCHEMA_ELEMENT.C_ELEMENT_ID = C.C_ELEMENT_ID
+            			  AND 1=1)
+            AND C.ELEMENTLEVEL = 'S'
+            AND C.AD_ORG_ID = O.AD_ORG_ID
+            AND C.ISACTIVE = 'Y'
+            AND C.AD_Client_ID IN ('1')
+            AND C.AD_Org_ID IN ('1')
+            AND (C.VALUE IS NULL
+            OR UPPER(C.VALUE) LIKE UPPER(?))
+      ]]></Sql>
+        <Parameter name="acctschema" optional="true" after="AND 1=1"><![CDATA[ AND C_ACCTSCHEMA_ID = ?]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectname" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT NAME FROM C_ELEMENTVALUE WHERE C_ELEMENTVALUE_ID = ?
+      ]]></Sql>
+        <Parameter name="key"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectschemaname" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        select name from c_acctschema where c_acctschema_id=?
+      ]]></Sql>
+        <Parameter name="key"/>
+   </SqlMethod>
+</SqlClass>

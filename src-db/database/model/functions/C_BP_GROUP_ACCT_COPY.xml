@@ -1,0 +1,188 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_BP_GROUP_ACCT_COPY">
+    <function name="C_BP_GROUP_ACCT_COPY" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_bp_group_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_acctschema_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_BP_Group_Acct_Copy.sql,v 1.4 2002/09/27 04:54:37 jjanke Exp $
+  ***
+  * Title: Copy Acct Info
+  * Description:
+  *  Copy Accounting Info to all Business Partner Account Info elements
+  *  (existing entries are overwritten)
+  ************************************************************************/
+  -- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_myResult NUMBER:=1; -- Success
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --
+    v_C_BP_Group_ID VARCHAR2(32);
+    v_C_AcctSchema_ID VARCHAR2(32);
+    -- A Group can only have one client
+    Cur_Acct RECORD;
+    Cur_BPartner RECORD;
+    Cur_BP RECORD;
+    --
+    v_Deleted NUMBER:=0;
+    v_Created NUMBER:=0;
+    rowcount NUMBER;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, p.ParameterName, p.P_String,
+        p.P_Number, P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      IF(Cur_Parameter.ParameterName='C_BP_Group_ID') THEN
+        v_C_BP_Group_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_BP_Group_ID=' || v_C_BP_Group_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='C_AcctSchema_ID') THEN
+        v_C_AcctSchema_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_AcctSchema_ID=' || v_C_AcctSchema_ID) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    -- Direct Call
+    IF(p_BP_Group_ID IS NOT NULL) THEN
+      v_C_BP_Group_ID:=p_BP_Group_ID;
+      DBMS_OUTPUT.PUT_LINE('  C_BP_Group_ID=' || v_C_BP_Group_ID) ;
+    ELSIF(p_C_AcctSchema_ID IS NOT NULL) THEN
+      v_C_AcctSchema_ID:=p_C_AcctSchema_ID;
+      DBMS_OUTPUT.PUT_LINE('  C_AcctSchema_ID=' || v_C_AcctSchema_ID) ;
+    END IF;
+
+   DELETE FROM C_BP_Customer_Acct
+    WHERE EXISTS (SELECT 1
+                    FROM C_BPartner P
+                   WHERE P.C_BPartner_ID = C_BP_Customer_Acct.C_BPartner_ID
+                     AND P.C_BP_Group_ID = v_C_BP_Group_ID)
+	AND (C_BP_Customer_Acct.C_AcctSchema_ID = v_C_AcctSchema_ID OR v_C_AcctSchema_ID IS NULL);
+   rowcount:=SQL%ROWCOUNT;
+   v_Deleted := rowcount;
+
+   DELETE FROM C_BP_Vendor_Acct
+    WHERE EXISTS (SELECT 1
+                    FROM C_BPartner P
+                   WHERE P.C_BPartner_ID = C_BP_Vendor_Acct.C_BPartner_ID
+                     AND P.C_BP_Group_ID = v_C_BP_Group_ID)
+	AND (C_BP_Vendor_Acct.C_AcctSchema_ID = v_C_AcctSchema_ID OR v_C_AcctSchema_ID IS NULL);
+   rowcount:=SQL%ROWCOUNT;
+   v_Deleted := v_Deleted + rowcount;
+
+   FOR Cur_BP IN (SELECT P.C_BPartner_ID, P.AD_Client_ID, A.C_AcctSchema_ID,
+                         P.AD_Org_ID, C_Receivable_Acct, C_PrePayment_Acct, A.Status
+                    FROM C_BPARTNER P,
+                         C_BP_GROUP_ACCT A
+                   WHERE A.C_BP_GROUP_ID = P.C_BP_GROUP_ID
+                     AND P.C_BP_Group_ID = v_C_BP_Group_ID
+		     AND (A.C_AcctSchema_ID = v_C_AcctSchema_ID OR v_C_AcctSchema_ID IS NULL)
+	             AND EXISTS (SELECT 1 FROM AD_Org_AcctSchema oa
+			WHERE a.C_AcctSchema_ID = oa.C_AcctSchema_ID
+			AND (AD_IsOrgIncluded(oa.AD_Org_ID, P.AD_Org_ID, P.AD_Client_ID)<>-1
+			OR AD_IsOrgIncluded(P.AD_Org_ID, oa.AD_Org_ID, P.AD_Client_ID)<>-1))
+		) LOOP
+     INSERT INTO C_BP_Customer_Acct
+           (C_BP_Customer_Acct_ID, C_BPartner_ID, C_AcctSchema_ID, AD_Client_ID,
+            AD_Org_ID, IsActive, Created, CreatedBy,
+            Updated, UpdatedBy, C_Receivable_Acct, C_PrePayment_Acct,
+            Status)
+       VALUES
+           (get_uuid(), Cur_BP.C_BPartner_ID, Cur_BP.C_AcctSchema_ID, Cur_BP.AD_Client_ID,
+            Cur_BP.AD_Org_ID,'Y', now(), '0',
+            now(), '0', Cur_BP.C_Receivable_Acct, Cur_BP.C_PrePayment_Acct,
+            Cur_BP.Status);
+       rowcount:=SQL%ROWCOUNT;
+       v_Created := rowcount;
+   END LOOP;
+
+
+   FOR Cur_BP IN (SELECT P.C_BPartner_ID, P.AD_Client_ID, A.C_AcctSchema_ID,
+                         P.AD_Org_ID, V_Liability_Acct, V_Liability_Services_Acct,
+                         V_PrePayment_Acct, Status
+                    FROM C_BPARTNER P,
+                         C_BP_GROUP_ACCT A
+                   WHERE A.C_BP_GROUP_ID = P.C_BP_GROUP_ID
+                     AND P.C_BP_Group_ID = v_C_BP_Group_ID
+		     AND (A.C_AcctSchema_ID = v_C_AcctSchema_ID OR v_C_AcctSchema_ID IS NULL)
+	             AND EXISTS (SELECT 1 FROM AD_Org_AcctSchema oa
+			WHERE a.C_AcctSchema_ID = oa.C_AcctSchema_ID
+			AND (AD_IsOrgIncluded(oa.AD_Org_ID, P.AD_Org_ID, P.AD_Client_ID)<>-1
+			OR AD_IsOrgIncluded(P.AD_Org_ID, oa.AD_Org_ID, P.AD_Client_ID)<>-1))
+		) LOOP
+     INSERT INTO C_BP_Vendor_Acct
+           (C_BP_Vendor_Acct_ID, C_BPartner_ID, C_AcctSchema_ID, AD_Client_ID,
+            AD_Org_ID, IsActive, Created, CreatedBy,
+            Updated, UpdatedBy, V_Liability_Acct, V_Liability_Services_Acct,
+            V_PrePayment_Acct, Status)
+       VALUES
+           (get_uuid(), Cur_BP.C_BPartner_ID, Cur_BP.C_AcctSchema_ID, Cur_BP.AD_Client_ID,
+            Cur_BP.AD_Org_ID,'Y', now(), '0',
+            now(), '0', Cur_BP.V_Liability_Acct, Cur_BP.V_Liability_Services_Acct,
+            Cur_BP.V_PrePayment_Acct, Cur_BP.Status);
+       rowcount:=SQL%ROWCOUNT;
+       v_Created := v_Created + rowcount;
+   END LOOP;
+
+    v_Message:='@Deleted@=' || v_Deleted || ', @Updated@=' || v_Created;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_myResult, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_BP_GROUP_ACCT_COPY
+]]></body>
+    </function>
+  </database>

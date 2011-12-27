@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_TREENODE_MOD_TRG">
+    <trigger name="AD_TREENODE_MOD_TRG" table="AD_TREENODE" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  cuerrentID  VARCHAR2(32);
+  cuerrentModuleID  VARCHAR2(32);
+  currentTree VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+--Take into account just updates, because insertions and deletions are done
+--by automatic processes
+
+ 
+ 
+  IF currentTree='10' THEN --Check just for menu tree
+    cuerrentID := :new.AD_TreeNode_ID;
+    currentTree := :new.AD_Tree_ID;
+ 
+    SELECT COUNT(*)
+      INTO devTemplate
+      FROM AD_MODULE
+     WHERE IsInDevelopment = 'Y'
+       AND Type = 'T';
+       
+  
+    SELECT M.IsInDevelopment
+      INTO devModule
+      FROM AD_MODULE M, AD_MENU T
+     WHERE M.AD_MODULE_ID = T.AD_MODULE_ID
+       AND T.AD_MENU_ID = cuerrentModuleID;
+       
+    IF (devTemplate=0 AND devModule='N') THEN
+      IF (
+          COALESCE(:NEW.AD_Tree_ID , '.') != COALESCE(:OLD.AD_Tree_ID , '.') OR
+          COALESCE(:NEW.Node_ID , '.') != COALESCE(:OLD.Node_ID , '.') OR
+          COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+          COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+          COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+          COALESCE(:NEW.Parent_ID , '.') != COALESCE(:OLD.Parent_ID , '.') OR
+          COALESCE(:NEW.SeqNo , 0) != COALESCE(:OLD.SeqNo , 0) OR
+          1=2) THEN
+        RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+      END IF;
+    END IF;
+  END IF;
+
+END AD_TREENODE_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

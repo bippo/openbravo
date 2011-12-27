@@ -1,0 +1,537 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass id="class" name="ExpenseAPInvoiceData" package="org.openbravo.erpCommon.ad_process">
+  <SqlClassComment>Clase ExpenseAPInvoiceData</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT  st.AD_Client_ID, st.AD_Org_ID, st.C_BPartner_ID, to_char(st.DateReport) as datereport, bp.name as bpname, stl.C_Project_ID, stl.C_Activity_ID, stl.C_Campaign_ID, stl.M_Product_ID, p.name as prodname, stl.S_ResourceAssignment_ID, stl.C_UOM_ID, stl.Qty, stl.Description, stl.Note, stl.ExpenseAmt, stl.C_Currency_ID, stl.ConvertedAmt, st.DocumentNo, stl.S_TimeExpenseLine_ID, stl.invoiceprice, to_char(stl.DateExpense) as dateexpense, '' AS Pricestd, '' AS Pricelimit, '' AS Pricelist, '' AS C_INVOICELINE_ID, '' AS QTYINVOICED, '' AS C_INVOICELINE_ACCTDIMENSION_ID, '' AS AMT, '' AS STDPRECISION, '' AS PRICEPRECISION
+        FROM S_TimeExpense st, S_TimeExpenseLine stl, C_BPartner bp, M_Product p
+        WHERE st.S_TimeExpense_Id = stl.S_TimeExpense_Id
+        AND st.C_BPartner_ID = bp.C_BPartner_ID
+        AND stl.M_Product_ID = p.M_Product_ID
+        AND st.AD_Client_ID IN ('1')
+        AND st.AD_Org_ID IN ('1')
+        AND COALESCE(stl.DateExpense, st.DateReport) >= TO_DATE(?)
+        AND COALESCE(stl.DateExpense, st.DateReport) < TO_DATE(?)
+        AND stl.ISTIMEREPORT <> 'Y'
+        AND st.PROCESSED = 'Y'
+        AND stl.C_InvoiceLine_ID IS NULL
+        ORDER BY st.C_BPartner_ID, st.S_TimeExpense_ID, stl.line
+        ]]></Sql>
+    <Parameter name="userClient" optional="true" type="replace" after="AND st.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="userOrg" optional="true" type="replace" after="AND st.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="dateReportFrom"/>
+    <Parameter name="dateReportTo"/>
+    <Parameter name="cBpartnerId" optional="true" after="AND stl.C_InvoiceLine_ID IS NULL"><![CDATA[ AND st.C_BPartner_ID = ?]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment>Create a registry</SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectInvoiceHeader" type="preparedStatement" connection="true" return="String" default="">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT MAX(C_INVOICE.C_INVOICE_ID) AS C_INVOICE_ID
+      FROM C_INVOICE
+      WHERE C_INVOICE.AD_CLIENT_ID = ?
+      AND C_INVOICE.AD_ORG_ID = ?
+      AND C_INVOICE.DATEINVOICED = TO_DATE(?)
+      AND C_INVOICE.C_BPARTNER_ID = ?
+      AND C_INVOICE.C_CURRENCY_ID = ?
+      AND C_INVOICE.DOCSTATUS = 'DR'
+      AND C_INVOICE.PROCESSED <> 'Y'
+      AND C_INVOICE.ISACTIVE = 'Y'
+      AND C_INVOICE.ISSOTRX = 'N'
+      ]]></Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="dateinvoiced"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="cProjectId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="cActivityId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_ACTIVITY_ID = ?]]></Parameter>
+    <Parameter name="cCampaignId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_CAMPAIGN_ID = ?]]></Parameter>
+    <Parameter name="cBpartnerLocationId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_BPARTNER_LOCATION_ID = ?]]></Parameter>
+    <Parameter name="paymentrule" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.PAYMENTRULE = ?]]></Parameter>
+    <Parameter name="paymentmethodId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.FIN_PAYMENTMETHOD_ID = ?]]></Parameter>
+    <Parameter name="cPaymentTermId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_PAYMENTTERM_ID = ?]]></Parameter>
+  </SqlMethod>
+  
+  <SqlMethod name="selectInvoiceHeaderNoProject" type="preparedStatement" connection="true" return="String" default="">
+    <SqlMethodComment>Select for relation (when project is null)</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT MAX(C_INVOICE.C_INVOICE_ID) AS C_INVOICE_ID
+      FROM C_INVOICE
+      WHERE C_INVOICE.AD_CLIENT_ID = ?
+      AND C_INVOICE.AD_ORG_ID = ?
+      AND C_INVOICE.DATEINVOICED = TO_DATE(?)
+      AND C_INVOICE.C_BPARTNER_ID = ?
+      AND C_INVOICE.C_CURRENCY_ID = ?
+      AND C_INVOICE.DOCSTATUS = 'DR'
+      AND C_INVOICE.PROCESSED <> 'Y'
+      AND C_INVOICE.ISACTIVE = 'Y'
+      AND C_INVOICE.ISSOTRX = 'N'
+      AND C_INVOICE.C_PROJECT_ID IS NULL
+      ]]></Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="dateinvoiced"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="cActivityId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_ACTIVITY_ID = ?]]></Parameter>
+    <Parameter name="cCampaignId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_CAMPAIGN_ID = ?]]></Parameter>
+    <Parameter name="cBpartnerLocationId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_BPARTNER_LOCATION_ID = ?]]></Parameter>
+    <Parameter name="paymentrule" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.PAYMENTRULE = ?]]></Parameter>
+    <Parameter name="paymentmethodId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.FIN_PAYMENTMETHOD_ID = ?]]></Parameter>
+    <Parameter name="cPaymentTermId" optional="true" after="AND C_INVOICE.ISSOTRX = 'N'"><![CDATA[ AND C_INVOICE.C_PAYMENTTERM_ID = ?]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectInvoiceLine" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT C_INVOICELINE_ID, SUM(QTYINVOICED) AS QTYINVOICED
+      FROM C_INVOICELINE
+      WHERE C_INVOICE_ID = ?
+      AND AD_CLIENT_ID = ?
+      AND AD_ORG_ID = ?
+      AND M_PRODUCT_ID = ?
+      AND C_UOM_ID = ?
+      AND PRICESTD = TO_NUMBER(?)
+      AND PRICELIST = TO_NUMBER(?)
+      AND PRICELIMIT = TO_NUMBER(?)
+      AND C_INVOICELINE.ISACTIVE = 'Y'
+      GROUP BY C_INVOICELINE_ID
+      ]]></Sql>
+    <Parameter name="cInvoiceId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="cUomId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="pricelimit"/>
+    <Parameter name="description" optional="true" after="AND C_INVOICELINE.ISACTIVE = 'Y'"><![CDATA[ AND C_INVOICELINE.DESCRIPTION = ?]]></Parameter>
+    <Parameter name="cTaxId" optional="true" after="AND C_INVOICELINE.ISACTIVE = 'Y'"><![CDATA[ AND C_INVOICELINE.C_TAX_ID = ?]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectAcctdimension" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT C_INVOICELINE_ACCTDIMENSION_ID, SUM(AMT) AS AMT
+      FROM C_INVOICELINE_ACCTDIMENSION
+      WHERE AD_CLIENT_ID = ?
+      AND AD_ORG_ID = ?
+      AND C_INVOICELINE_ID = ?
+      AND ISACTIVE = 'Y'
+      GROUP BY C_INVOICELINE_ACCTDIMENSION_ID
+      ]]></Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="cInvoicelineId"/>
+    <Parameter name="cProjectId" optional="true" after="AND ISACTIVE = 'Y'"><![CDATA[ AND C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="cCampaignId" optional="true" after="AND ISACTIVE = 'Y'"><![CDATA[ AND C_CAMPAIGN_ID = ?]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="selectLine" type="preparedStatement" connection="true" return="String" default="10">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT MAX(LINE) AS LINE
+      FROM C_INVOICELINE
+      WHERE C_INVOICE_ID = ?
+      ]]></Sql>
+    <Parameter name="cInvoiceId"/>
+  </SqlMethod>
+
+  <SqlMethod name="cDoctypeTarget" type="preparedStatement" return="string" default="">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+     <![CDATA[
+     SELECT AD_GET_DOCTYPE_EXPENSES(?,?,'API',NULL) FROM DUAL
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="cDoctypeId" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+     SELECT C_DocTypeInvoice_ID
+     FROM C_DOCTYPE
+     WHERE C_DocType_ID = ?
+    ]]>
+    </Sql>
+  <Parameter name="cDoctypeId"/>
+  </SqlMethod>
+  <SqlMethod name="bPartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+     <Sql>
+     <![CDATA[
+       SELECT NAME FROM C_BPARTNER
+       WHERE C_BPARTNER_ID = ?
+    ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+
+  <SqlMethod name="bPartnerLocation" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) AS ID
+        FROM C_BPARTNER_LOCATION
+        WHERE C_BPARTNER_ID = ?
+        AND ISBILLTO = 'Y'
+      ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="shipto" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) AS ID
+        FROM C_BPARTNER_LOCATION
+        WHERE C_BPARTNER_ID = ?
+        AND ISSHIPTO = 'Y'
+      ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+
+  <SqlMethod name="salesrepId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>nt></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT MAX(AD_USER_ID)
+      FROM AD_USER
+      WHERE C_BPARTNER_ID = ?
+     ]]></Sql>
+      <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+
+  <SqlMethod name="paymentrule" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>nt></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT PaymentrulePO
+      FROM C_BPARTNER
+      WHERE C_BPARTNER_ID = ?
+      ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="paymentmethodId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>nt></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT po_paymentmethod_id
+      FROM C_BPARTNER
+      WHERE C_BPARTNER_ID = ?
+      ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="pricelistId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT PO_PriceList_ID
+      FROM C_BPartner
+      WHERE C_BPartner_ID = ?
+     ]]></Sql>
+      <Parameter name="cBpartnerId"/>
+    </SqlMethod>
+
+  <SqlMethod name="selectPrice" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT Pricelist, Pricestd, Pricelimit
+      FROM M_ProductPrice
+      WHERE M_ProductPrice.M_Product_ID = ?
+      AND M_ProductPrice.M_PriceList_Version_ID = M_Get_Pricelist_Version(?, TO_DATE(?)) 
+      ]]></Sql>
+    <Parameter name="mProductID"/>
+    <Parameter name="mPricelistId"/>
+    <Parameter name="validfrom"/>
+    </SqlMethod>
+
+
+  <SqlMethod name="paymentterm" type="preparedStatement" return="String" default="">
+    <Sql>
+      <![CDATA[
+        SELECT PO_PaymentTerm_ID
+        FROM C_BPARTNER
+        WHERE C_BPARTNER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+
+  <SqlMethod name="mProductUomId" type="preparedStatement" return="String" default="">
+    <Sql>
+      <![CDATA[
+        SELECT M_PRODUCT_UOM_ID
+        FROM M_PRODUCT_UOM
+        WHERE M_PRODUCT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+
+                      
+  <SqlMethod name="insert" type="preparedStatement" connection="true" return="rowCount">
+    <Sql><![CDATA[
+        INSERT INTO C_Invoice
+        (C_Invoice_ID, Processing, DatePrinted, IsPrinted, 
+         Processed, IsSOTrx, IsSelfService, IsTaxIncluded
+         , AD_Client_ID, AD_Org_ID, C_Order_ID, DateOrdered
+         , DocumentNo, POReference, Description, IsActive
+         
+         , C_DocTypeTarget_ID, DateInvoiced, DateAcct, TaxDate
+         , C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID, M_PriceList_ID
+         , C_Currency_ID, SalesRep_ID, IsDiscountPrinted, C_Charge_ID
+         , ChargeAmt, PaymentRule, FIN_PaymentMethod_ID, C_PaymentTerm_ID, CreateFrom
+         
+         , GenerateTo, C_Project_ID, C_Activity_ID, C_Campaign_ID
+         , AD_OrgTrx_ID, User1_ID, User2_ID, TotalLines
+         , GrandTotal, DocStatus, C_DocType_ID, CopyFrom
+         , DocAction, Posted, created, createdby, 
+         updated, updatedBy)
+       VALUES (
+         (?), (?), TO_DATE(?), (?)
+         , (?), (?), (?), (?)
+         , (?), (?), (?), TO_DATE(?)
+         , (?), (?), (?), (?)
+         
+         , (?), TO_DATE(?), TO_DATE(?), TO_DATE(?)
+         , (?), (?), (?), (?)
+         , (?), (?), (?), (?)
+         , TO_NUMBER(?), (?), (?), (?), (?)
+         
+         , (?), (?), (?), (?)
+         , (?), (?), (?), TO_NUMBER(?)
+         , TO_NUMBER(?), (?), (?), (?)
+         , (?), (?), now(), (?), 
+         now(), (?))
+    ]]></Sql>
+    
+<Parameter name="cInvoiceId"/>
+<Parameter name="processing"/>
+<Parameter name="dateprinted"/>
+<Parameter name="isprinted"/>
+<Parameter name="processed"/>
+<Parameter name="issotrx"/>
+<Parameter name="isselfservice"/>
+<Parameter name="istaxincluded"/>
+<Parameter name="adClientId"/>
+<Parameter name="adOrgId"/>
+<Parameter name="cOrderId"/>
+<Parameter name="dateordered"/>
+<Parameter name="documentno"/>
+<Parameter name="poreference"/>
+<Parameter name="description"/>
+<Parameter name="isactive"/>
+<Parameter name="cDoctypetargetId"/>
+<Parameter name="dateinvoiced"/>
+<Parameter name="dateacct"/>
+<Parameter name="dateacct"/>
+<Parameter name="cBpartnerId"/>
+<Parameter name="cBpartnerLocationId"/>
+<Parameter name="adUserId"/>
+<Parameter name="mPricelistId"/>
+<Parameter name="cCurrencyId"/>
+<Parameter name="salesrepId"/>
+<Parameter name="isdiscountprinted"/>
+<Parameter name="cChargeId"/>
+<Parameter name="chargeamt"/>
+<Parameter name="paymentrule"/>
+<Parameter name="paymentmethodId"/>
+<Parameter name="cPaymenttermId"/>
+<Parameter name="createfrom"/>
+<Parameter name="generateto"/>
+<Parameter name="cProjectId"/>
+<Parameter name="cActivityId"/>
+<Parameter name="cCampaignId"/>
+<Parameter name="adOrgtrxId"/>
+<Parameter name="user1Id"/>
+<Parameter name="user2Id"/>
+<Parameter name="totallines"/>
+<Parameter name="grandtotal"/>
+<Parameter name="docstatus"/>
+<Parameter name="cDoctypeId"/>
+<Parameter name="copyfrom"/>
+<Parameter name="docaction"/>
+<Parameter name="posted"/>
+<Parameter name="createdby"/>
+<Parameter name="updatedby"/>
+</SqlMethod>
+
+ <SqlMethod name="insertLine" type="preparedStatement" connection="true" return="rowCount">
+     <Sql><![CDATA[
+        INSERT INTO C_InvoiceLine
+        (
+          AD_Client_ID, AD_Org_ID, C_Invoice_ID, C_OrderLine_ID
+          , Line, M_InOutLine_ID, M_Product_ID, C_Charge_ID
+          , Description, QuantityOrder, M_Product_Uom_Id, QtyInvoiced
+          , C_UOM_ID, PriceActual, PriceList, C_Tax_ID
+          
+          , LineNetAmt, S_ResourceAssignment_ID, PriceStd, PriceLimit
+          , M_Offer_ID, M_AttributeSetInstance_ID, TaxAmt, IsActive
+          , ChargeAmt, C_Projectline_ID, C_Invoice_Discount_ID, C_InvoiceLine_ID
+          , IsDescription, created, createdby, updated, 
+          updatedBy)
+        VALUES (
+          (?),  (?), (?), (?)
+          , TO_NUMBER(?), (?), (?), (?)
+          , (?), TO_NUMBER(?), (?), TO_NUMBER(?)
+          , (?), TO_NUMBER(?), TO_NUMBER(?), (?)
+          
+          , TO_NUMBER(?), (?),  TO_NUMBER(?), TO_NUMBER(?)
+          , (?), (?), TO_NUMBER(?), (?)
+          , TO_NUMBER(?), (?), (?) , (?)
+          , (?), now(), ?, now(), 
+          (?))
+]]></Sql>
+<Parameter name="adClientId"></Parameter>
+<Parameter name="adOrgId"></Parameter>
+<Parameter name="cInvoiceId"></Parameter>
+<Parameter name="cOrderlineId"></Parameter>
+<Parameter name="line"></Parameter>
+<Parameter name="mInoutlineId"></Parameter>
+<Parameter name="mProductId"></Parameter>
+<Parameter name="cChargeId"></Parameter>
+<Parameter name="description"></Parameter>
+<Parameter name="quantityorder"></Parameter>
+<Parameter name="mProductUomId"></Parameter>
+<Parameter name="qtyinvoiced"></Parameter>
+<Parameter name="cUomId"></Parameter>
+<Parameter name="priceactual"></Parameter>
+<Parameter name="pricelist"></Parameter>
+<Parameter name="cTaxId"></Parameter>
+<Parameter name="linenetamt"></Parameter>
+<Parameter name="sResourceassignmentId"></Parameter>
+<Parameter name="pricestd"></Parameter>
+<Parameter name="pricelimit"></Parameter>
+<Parameter name="mOfferId"></Parameter>
+<Parameter name="mAttributesetinstanceId"></Parameter>
+<Parameter name="taxamt"></Parameter>
+<Parameter name="isactive"></Parameter>
+<Parameter name="chargeamt"></Parameter>
+<Parameter name="cProjectlineId"></Parameter>
+<Parameter name="cInvoiceDiscountId"></Parameter>
+<Parameter name="cInvoicelineId"></Parameter>
+<Parameter name="isdescription"></Parameter>
+<Parameter name="createdby"></Parameter>
+<Parameter name="updatedby"></Parameter>
+</SqlMethod>
+
+<SqlMethod name="insertInvoicelineAcctdimension" type="preparedStatement" connection="true" return="rowCount">
+  <Sql>
+    <![CDATA[
+      INSERT INTO C_INVOICELINE_ACCTDIMENSION(
+        C_INVOICELINE_ACCTDIMENSION_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE
+        , CREATED, CREATEDBY, UPDATED, UPDATEDBY
+        , C_INVOICELINE_ID, AMT, C_PROJECT_ID, C_CAMPAIGN_ID
+        , USER1_ID, USER2_ID)
+      VALUES(?, ?, ?, ?
+      , now(), ?, now(), ?
+      , ?, TO_NUMBER(?), ?, ?
+      , ?, ?)
+      ]]>
+    </Sql>
+    <Parameter name="cInvoicelineAcctdimension"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="isactive"/>
+    <Parameter name="createdby"/>
+    <Parameter name="updatedby"/>
+    <Parameter name="cInvoicelineId"/>
+    <Parameter name="amt"/>
+    <Parameter name="cProjectId"/>
+    <Parameter name="cCampaignId"/>
+    <Parameter name="user1Id"/>
+    <Parameter name="user2Id"/>
+  </SqlMethod>
+
+  <SqlMethod name="updateExpense" type="preparedStatement" connection="true" return="rowCount">
+    <Sql><![CDATA[
+        UPDATE S_TimeExpenseLine SET C_InvoiceLine_ID = ?
+        WHERE S_TimeExpenseLine_ID = ?
+    ]]></Sql>
+  <Parameter name="cInvoiceLineId"/>
+  <Parameter name="sTimeExpenseLineId"/>
+</SqlMethod>
+
+ <SqlMethod name="updateInvoiceline" type="preparedStatement" connection="true" return="rowCount">
+   <Sql><![CDATA[
+        UPDATE C_INVOICELINE SET QTYINVOICED = TO_NUMBER(?), LINENETAMT = TO_NUMBER(?)
+        WHERE C_INVOICELINE_ID = ?
+    ]]></Sql>
+  <Parameter name="qtyinvoiced"/>
+  <Parameter name="linenetamt"/>
+  <Parameter name="cInvoicelineId"/>
+</SqlMethod>
+
+<SqlMethod name="updateAcctdimension" type="preparedStatement" connection="true" return="rowCount">
+  <Sql><![CDATA[
+      UPDATE C_INVOICELINE_ACCTDIMENSION SET AMT = TO_NUMBER(?)
+      WHERE C_INVOICELINE_ACCTDIMENSION_ID = ?
+    ]]></Sql>
+  <Parameter name="qtyinvoiced"/>
+  <Parameter name="cInvoicelineId"/>
+</SqlMethod>
+<SqlMethod name="selectCurrency" type="preparedStatement" return="String" default="">
+<SqlMethodComment></SqlMethodComment>
+	<Sql><![CDATA[
+		SELECT C_Currency_ID
+		FROM M_PriceList 
+		WHERE M_PriceList_ID = ? 
+	]]></Sql>
+ 	<Parameter name="mPricelistId"/>
+</SqlMethod>
+<SqlMethod name="selectPrecisions" type="preparedStatement" return="multiple">
+   <SqlMethodComment></SqlMethodComment>
+   <Sql>
+     <![CDATA[
+       SELECT STDPRECISION, PRICEPRECISION 
+       FROM C_CURRENCY 
+       WHERE C_CURRENCY_ID = ?
+     ]]>
+   </Sql>
+   <Parameter name="cCurrencyId"/>
+</SqlMethod>
+<SqlMethod name="selectConvertedAmt" type="preparedStatement" return="String" default="">
+	<SqlMethodComment></SqlMethodComment>
+	<Sql>
+	  <![CDATA[
+	    select c_currency_convert(TO_NUMBER(?),?,?,TO_DATE(?),null, ?,?) from dual
+	  ]]>
+	 </Sql>
+	 <Parameter name="expenseAmount"/>
+	 <Parameter name="currencyFrom"/>
+	 <Parameter name="currencyTo"/>
+	 <Parameter name="dateExpense"/>
+	 <Parameter name="client"/>
+	 <Parameter name="org"/>
+</SqlMethod>
+</SqlClass>

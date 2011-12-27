@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ACTIVITY_TRG">
+    <trigger name="C_ACTIVITY_TRG" table="C_ACTIVITY" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_xTree_ID VARCHAR2(32);
+  v_xParent_ID VARCHAR2(32);
+  v_NextNo     VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Insert AD_Menu Trigger
+  --  for Translation
+  --  and TreeNode
+  IF INSERTING THEN
+    --  get AD_Tree_ID and ParentID
+    SELECT AD_TREE_ID,
+      0
+    INTO v_xTree_ID,
+      v_xParent_ID
+    FROM AD_TREE
+    WHERE treetype='AY'
+      AND AD_Client_ID=:NEW.AD_Client_ID;
+    --  Insert into TreeNode
+    INSERT
+    INTO AD_TREENODE
+      (
+        AD_TreeNode_Id, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated,
+        UpdatedBy, AD_Tree_ID, Node_ID,
+        Parent_ID, SeqNo
+      )
+      VALUES
+      (
+        get_uuid(), :NEW.AD_Client_ID, :NEW.AD_Org_ID, :NEW.IsActive,
+        :NEW.Created, :NEW.CreatedBy, :NEW.Updated,
+        :NEW.UpdatedBy, v_xTree_ID, :NEW.C_ACTIVITY_ID,
+        v_xParent_ID,(
+        CASE :NEW.IsSummary
+          WHEN 'Y'
+          THEN 100
+          ELSE 999
+        END
+        )
+      )
+      ;
+    -- Summary Nodes first
+  END IF;
+  IF UPDATING THEN
+    IF((COALESCE(:OLD.NAME, '.') <> COALESCE(:NEW.NAME, '.')
+   OR COALESCE(:OLD.Description, '.') <> COALESCE(:NEW.Description, '.')
+   OR COALESCE(:OLD.IsActive, '.') <> COALESCE(:NEW.IsActive, '.')))
+  THEN
+      IF(:OLD.IsActive!=:NEW.IsActive) THEN
+        UPDATE AD_TREENODE
+          SET IsActive=:NEW.IsActive
+        WHERE AD_Tree_ID=v_xTree_ID
+          AND Node_ID=:NEW.C_ACTIVITY_ID;
+      END IF;
+    END IF;
+  END IF;
+END C_ACTIVITY_TRG
+]]></body>
+    </trigger>
+  </database>

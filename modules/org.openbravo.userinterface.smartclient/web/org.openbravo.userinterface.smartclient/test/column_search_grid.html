@@ -1,0 +1,66 @@
+<HTML>
+<HEAD>
+<SCRIPT>var isomorphicDir="../../org.openbravo.userinterface.smartclient/isomorphic/";</SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/system/development/ISC_Core.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/system/development/ISC_Foundation.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/system/development/ISC_Containers.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/system/development/ISC_Grids.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/system/development/ISC_Forms.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/system/development/ISC_DataBinding.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/skins/Enterprise/load_skin.js></SCRIPT>
+<SCRIPT SRC=../../org.openbravo.userinterface.smartclient/isomorphic/login/reloginFlow.js></SCRIPT>
+<!-- <SCRIPT SRC=../js/js/DataSource.js></SCRIPT>  -->
+<SCRIPT SRC="../../../org.openbravo.userinterface.smartclient.datasources/ADColumn"></SCRIPT>
+</HEAD>
+<BODY>
+<SCRIPT>
+
+if (false) {
+isc.RestDataSource.create({
+    ID:"columnDS",
+    dataFormat: "json",
+    dataURL:"http://localhost:8080/openbravo/org.openbravo.service.json.jsonrest/ADColumn",
+    recordXPath : "/response/data",
+    fields:[
+        { name : "Name", valueXPath:"name"},
+        { name : "Description", valueXPath:"description"},
+        { name : "Updated", type: "date", valueXPath:"updated"},
+        { name : "Created", type: "date", valueXPath:"creationDate"},
+        { name : "Table", valueXPath:"table/_identifier"},
+        { name : "Table.id", valueXPath:"table/id"}
+    ]
+});
+}
+
+isc.SearchForm.create({
+    ID:"searchForm",
+    left:100,
+    top:40,
+    numCols:3,
+    items : [
+        { name:"query", title:"Query", type:"text", defaultValue:"snowboarding" },
+        { type:"button", title:"Search", click:"fetch()", startRow:false }
+    ]
+});
+
+isc.ListGrid.create({
+    ID:"imageGrid",
+    left:20, top:80,
+    width:"80%",
+    height:500,
+    wrapCells:true,
+    fixedRecordHeights:false,
+    dataPageSize: 50,
+    drawAheadRatio: 4,
+    alternateRecordStyles:true,
+    dataSource:"ADColumn",
+    fields: [{name:'name', valueField: 'name', title:'abc'}, {name:'description', title:'def'}, {name:'updated'}]
+});
+
+function fetch() {
+    imageGrid.fetchData(searchForm.getValuesAsCriteria());
+}
+fetch();
+</SCRIPT>
+</BODY>
+</HTML>

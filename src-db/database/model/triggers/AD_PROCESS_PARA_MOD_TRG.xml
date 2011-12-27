@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_PROCESS_PARA_MOD_TRG">
+    <trigger name="AD_PROCESS_PARA_MOD_TRG" table="AD_PROCESS_PARA" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  cuerrentID  VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  SELECT COUNT(*)
+    INTO devTemplate
+    FROM AD_MODULE
+   WHERE IsInDevelopment = 'Y'
+     AND Type = 'T';
+         
+     
+  IF (UPDATING OR INSERTING) THEN
+    cuerrentID := :new.AD_Process_ID;
+  ELSE
+    cuerrentID := :old.AD_Process_ID;
+  END IF;
+
+  SELECT M.IsInDevelopment
+    INTO devModule
+    FROM AD_MODULE M, AD_PROCESS T
+   WHERE M.AD_MODULE_ID = T.AD_MODULE_ID
+     AND T.AD_PROCESS_ID = cuerrentID;
+     
+  IF (UPDATING AND devTemplate='0' AND devModule='N') THEN
+    IF (
+        COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+        COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+        COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+        COALESCE(:NEW.Name , '.') != COALESCE(:OLD.Name , '.') OR
+        COALESCE(:NEW.Description , '.') != COALESCE(:OLD.Description , '.') OR
+        COALESCE(:NEW.Help , '.') != COALESCE(:OLD.Help , '.') OR
+        COALESCE(:NEW.AD_Process_ID , '.') != COALESCE(:OLD.AD_Process_ID , '.') OR
+        COALESCE(:NEW.SeqNo , 0) != COALESCE(:OLD.SeqNo , 0) OR
+        COALESCE(:NEW.AD_Reference_ID , '.') != COALESCE(:OLD.AD_Reference_ID , '.') OR
+        COALESCE(:NEW.AD_Reference_Value_ID , '.') != COALESCE(:OLD.AD_Reference_Value_ID , '.') OR
+        COALESCE(:NEW.AD_Val_Rule_ID , '.') != COALESCE(:OLD.AD_Val_Rule_ID , '.') OR
+        COALESCE(:NEW.ColumnName , '.') != COALESCE(:OLD.ColumnName , '.') OR
+        COALESCE(:NEW.IsCentrallyMaintained , '.') != COALESCE(:OLD.IsCentrallyMaintained , '.') OR
+        COALESCE(:NEW.FieldLength , 0) != COALESCE(:OLD.FieldLength , 0) OR
+        COALESCE(:NEW.IsMandatory , '.') != COALESCE(:OLD.IsMandatory , '.') OR
+        COALESCE(:NEW.IsRange , '.') != COALESCE(:OLD.IsRange , '.') OR
+        COALESCE(:NEW.DefaultValue , '.') != COALESCE(:OLD.DefaultValue , '.') OR
+        COALESCE(:NEW.DefaultValue2 , '.') != COALESCE(:OLD.DefaultValue2 , '.') OR
+        COALESCE(:NEW.VFormat , '.') != COALESCE(:OLD.VFormat , '.') OR
+        COALESCE(:NEW.ValueMin , '.') != COALESCE(:OLD.ValueMin , '.') OR
+        COALESCE(:NEW.ValueMax , '.') != COALESCE(:OLD.ValueMax , '.') OR
+        COALESCE(:NEW.AD_Element_ID , '.') != COALESCE(:OLD.AD_Element_ID , '.') OR
+        1=2) THEN
+      RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+    END IF;
+  END IF;
+  
+  IF ((DELETING OR INSERTING) AND devModule='N') THEN
+    RAISE_APPLICATION_ERROR(-20533, 'Cannot insert/delete objects in a module not in development.');
+  END IF;
+END AD_PROCESS_PARA_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

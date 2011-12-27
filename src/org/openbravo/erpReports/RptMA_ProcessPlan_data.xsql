@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+<SqlClass name="RptMAProcessPlanData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+          SELECT pp.NAME as processplan, pp.CONVERSIONRATE as ratio, pp.SECONDARYUNIT as secud, v.DATEFROM as desde, 
+              v.DATETO as hasta, s.NAME as secuencia, s.VALUE as sec, s.DESCRIPTION, pr.NAME as proceso,
+              s.SEQNO, AD_MESSAGE_GET2(s.GROUPUSE, to_char(?)) as groupuse, AD_MESSAGE_GET2(s.NOQTY, to_char(?)) as vacio,
+              p.name as producto, sp.PRODUCTIONTYPE as tipo, AD_MESSAGE_GET2(sp.PRODUCTIONTYPE, to_char(?)) as bold,
+              sp.QUANTITY, c.UOMSYMBOL as ud, sp.COMPONENTCOST, sp.DECREASE, sp.REJECTED,
+              pp.MA_ProcessPlan_ID, s.MA_Sequence_ID, AD_MESSAGE_GET2(pp.EXPLODEPHASES, to_char(?)) as explodephases
+          FROM MA_Processplan pp, MA_processplan_version v, ma_sequence s, ma_sequenceproduct sp, 
+              m_product p, ma_process pr, C_UOM c
+          where pp.MA_PROCESSPLAN_ID = v.MA_PROCESSPLAN_ID
+            and v.MA_PROCESSPLAN_VERSION_ID = s.MA_PROCESSPLAN_VERSION_ID
+            and s.MA_SEQUENCE_ID = sp.MA_SEQUENCE_ID
+            and sp.M_PRODUCT_ID = p.M_PRODUCT_ID
+            and sp.C_UOM_ID = c.C_UOM_ID
+            and s.MA_PROCESS_ID = pr.MA_PROCESS_ID
+            and v.DATEFROM <= now()
+            and v.DATETO > now()
+            and 1=1
+          order by pp.ma_processplan_id, pp.NAME, s.seqno, sp.productiontype, p.name
+        ]]>
+      </Sql>
+      <Parameter name="language"/>
+      <Parameter name="language"/>
+      <Parameter name="language"/>
+      <Parameter name="language"/>
+      <Parameter name="maProcessPlanId" optional="true" type="argument" after="and 1=1">
+        <![CDATA[ and pp.ma_processplan_id IN ]]>
+      </Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

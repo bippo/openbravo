@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<java_TMP>
+package org.openbravo.erpWindows.<PARAMETER_TMP id="package">Window</PARAMETER_TMP>;
+
+import org.openbravo.base.exception.OBException;
+import org.openbravo.base.filter.IsIDFilter;
+import org.openbravo.base.secureApp.HttpSecureAppServlet;
+import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.erpCommon.businessUtility.WindowTabs;
+import org.openbravo.erpCommon.utility.*;
+import org.openbravo.xmlEngine.XmlDocument;
+import org.openbravo.exception.*;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.util.StringTokenizer;
+import java.sql.Connection;
+import java.sql.SQLException;
+
+public class <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP> extends HttpSecureAppServlet {
+  private static final long serialVersionUID = 1L;
+  protected static final String windowId = "<PARAMETER_TMP id="windowId">Almacen</PARAMETER_TMP>";
+  protected static final String tabId = "<PARAMETER_TMP id="tabId">Almacen</PARAMETER_TMP>";
+  protected static final double SUBTABS_COL_SIZE = 15;
+  protected static final int accesslevel = <PARAMETER_TMP id="accessLevel">xx</PARAMETER_TMP>;
+  private static final String moduleId = "<PARAMETER_TMP id="moduleId">xx</PARAMETER_TMP>";
+  
+  @Override
+  public void init(ServletConfig config) {
+    setClassInfo("W", tabId, moduleId);
+    super.init(config);
+  }
+
+  public void doPost (HttpServletRequest request, HttpServletResponse response) throws IOException,ServletException {
+    VariablesSecureApp vars = new VariablesSecureApp(request);
+    Boolean saveRequest = (Boolean) request.getAttribute("autosave");
+    if (saveRequest != null &amp;&amp; saveRequest) {
+      boolean editableTab = Utility.canUpdate(this, vars, Utility.getContext(this, vars,
+          "#AD_Client_ID", windowId), Utility.getContext(this, vars, "#AD_Org_ID", windowId),
+          windowId);
+
+      OBError myError = new OBError();
+
+      if (editableTab) {
+        boolean success = saveRecord(vars, myError);
+        if (!myError.isEmpty()) {
+          vars.setMessage(tabId, myError);
+        }
+        if (!success) {
+          throw new OBException(myError.getMessage());
+        }
+
+      }
+      vars.setSessionValue(request.getParameter("mappingName") + "|hash", vars.getPostDataHash());
+      vars.setSessionValue(tabId + "|Header.view", "EDIT");
+
+      return;
+    }
+    
+    vars.removeSessionValue(Utility.getTabURL(tabId, "E", false) + "|hash");
+    vars.setSessionObject(tabId + "|failedAutosave", false);
+    if (vars.commandIn("DEFAULT", "NEW")) {
+<PARAMETER_TMP id="parent">      String strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP> = vars.getGlobalVariable("inp<PARENT_TMP id="keyParentINP">Almacen</PARENT_TMP>", windowId + "|<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>");
+</PARAMETER_TMP>
+      String str<KEY_TMP id="key">PosicionAlmacen</KEY_TMP> = vars.getGlobalVariable("inp<KEY_TMP id="keyData">PosicionAlmacen</KEY_TMP>", windowId + "|<KEY_TMP id="key">PosicionAlmacen</KEY_TMP>", "");
+
+      printPageDataSheet(response, vars<PARAMETER_TMP id="parent">, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>, str<KEY_TMP id="key">PosicionAlmacen</KEY_TMP>);
+    } else if (vars.commandIn("TAB")) {
+<PARAMETER_TMP id="parent">      String strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP> = vars.getGlobalVariable("inp<PARENT_TMP id="keyParentINP">Almacen</PARENT_TMP>", windowId + "|<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>");
+      refreshParentSession(vars, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>);
+</PARAMETER_TMP>
+
+      vars.removeSessionValue(windowId + "|<KEY_TMP id="key">PosicionAlmacen</KEY_TMP>");
+      printPageDataSheet(response, vars<PARAMETER_TMP id="parent">, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>, "");
+    } else if (vars.getCommand().startsWith("SAVE")) {
+      if (!Utility.canUpdate(this, vars, <PARAMETER_TMP id="clientId">data.adClientId</PARAMETER_TMP>, <PARAMETER_TMP id="orgId">data.adOrgId</PARAMETER_TMP>, windowId)) {
+        bdError(request, response, "AccessTableNoUpdate", vars.getLanguage());
+      } else {
+        OBError myError = new OBError();
+        if (saveRecord(vars, myError)) {
+          if (myError.isEmpty()) {
+            myError.setType("Success");
+            myError.setMessage(Utility.messageBD(this, "Success", vars.getLanguage()));
+          }
+        }
+        vars.setMessage(tabId, myError);
+        response.sendRedirect(strDireccion + request.getServletPath());
+      }
+    } else pageError(response);
+  }
+  
+   private boolean saveRecord(VariablesSecureApp vars, OBError myError) throws ServletException,
+      IOException {
+      boolean error = false;
+      <PARAMETER_TMP id="parent">      String strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP> = vars.getGlobalVariable("inp<PARENT_TMP id="keyParentINP">Almacen</PARENT_TMP>", windowId + "|<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>");</PARAMETER_TMP>
+      <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data data = getEditVariables(vars<PARAMETER_TMP id="parent">, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>);
+      
+      
+      Connection conn = null;
+        try {
+          conn = this.getTransactionConnection();
+          data.updateN(conn, this);
+          if (data.shown.startsWith("(")) data.shown = data.shown.substring(1, data.shown.length()-1);
+          if (!data.shown.equals("")) {
+            StringTokenizer st = new StringTokenizer(data.shown, ",", false);
+            
+            int i = 0;
+            int size = st.countTokens();
+            <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data dataShown[] = new <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data[size];
+            
+            while (st.hasMoreTokens()) {
+              dataShown[i] = getEditVariables(vars, strPAD_Tab_ID);
+              dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP> = st.nextToken().trim();
+              if (dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP>.startsWith("'")) dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP> = dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP>.substring(1, dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP>.length()-1);
+              dataShown[i].seqnoParam = <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.selectSeqNo(this, dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP>);
+              dataShown[i].isindevelopment = <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.selectInDevelopmentModule(this, dataShown[i].<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP>);
+              i++;
+            }
+
+            //modify only in case the field's module is in development
+            int start=0;
+            int end=0;
+            int seqno=0;
+            int maxSeqno=0;
+            boolean templateInDev = <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.isTemplateInDev(this);
+            
+            while (end &lt; size) {
+              // start-end define the first and last element to sort
+              start = end;
+    
+              // look for the first non-sorted item, and set it as start
+              boolean sorted = true;
+              while (start &lt; size &amp;&amp; sorted) {
+                if (start &lt; size - 1) {
+                  sorted = !(dataShown[start].seqnoParam.isEmpty() &amp;&amp; !dataShown[start + 1].seqnoParam
+                      .isEmpty());
+                  sorted = sorted
+                      &amp;&amp; !(dataShown[start].seqnoParam.isEmpty() &amp;&amp; dataShown[start + 1].seqnoParam
+                          .isEmpty());
+                  if (sorted &amp;&amp; !dataShown[start].seqnoParam.isEmpty()
+                      &amp;&amp; !dataShown[start + 1].seqnoParam.isEmpty()) {
+                    sorted = Integer.parseInt(dataShown[start].seqnoParam) &lt; Integer
+                        .parseInt(dataShown[start + 1].seqnoParam);
+                  }
+                } else if (start == size - 1) {
+                  // In case a single element, treat it as not sorted
+                  sorted = false;
+                }
+    
+                if (sorted) {
+                  start++;
+                }
+              }
+    
+              // Start now contains the first unsorted element, if it is not in dev, move start forward
+              while (start &lt; size &amp;&amp; !templateInDev &amp;&amp; dataShown[start].isindevelopment.equals("N")) {
+                start++;
+              }
+    
+              // Looking for end. It will be the last unsorted element
+              end = start + 1;
+              if (end &gt; size) {
+                end = size;
+              }
+              if (start &gt; 0 &amp;&amp; !dataShown[start - 1].seqnoParam.isEmpty()) {
+                seqno = new Integer(dataShown[start - 1].seqnoParam).intValue();
+              }
+              while (end &lt; size &amp;&amp; !sorted
+                  &amp;&amp; (templateInDev || dataShown[end].isindevelopment.equals("Y"))) {
+    
+                sorted = dataShown[end].seqnoParam.isEmpty() &amp;&amp; !dataShown[end].seqnoParam.isEmpty();
+                sorted = sorted
+                    || end + 1 &lt; size
+                    &amp;&amp; !(dataShown[end].seqnoParam.isEmpty() || dataShown[end + 1].seqnoParam.isEmpty())
+                    &amp;&amp; Integer.parseInt(dataShown[end].seqnoParam) &lt; Integer
+                        .parseInt(dataShown[end + 1].seqnoParam);
+    
+                if (end + 1 &lt; size &amp;&amp; !dataShown[end].seqnoParam.isEmpty()) {
+                  maxSeqno = new Integer(dataShown[end].seqnoParam).intValue();
+    
+                  if (sorted &amp;&amp; maxSeqno - seqno &lt;= end - start) {
+                    // It is sorted, it should be the end point, but there's no place for sorting, set
+                    // it as unsorted to look for more place if possible.
+                    sorted = false;
+                  }
+                }
+                if (!sorted) {
+                  end++;
+                }
+              }
+    
+              if (maxSeqno == 0 &amp;&amp; end &lt; size) {
+                maxSeqno = new Integer(dataShown[end].seqnoParam).intValue();
+              }
+    
+              log4j.debug("Sorting from position:" + start + " to:" + end + ". Size:" + size);
+    
+              if ((start &gt; 0) &amp;&amp; (end &lt; size) &amp;&amp; (seqno &gt;= maxSeqno) &amp;&amp; !(start == end &amp;&amp; end == size)) {
+                myError.setType("Error");
+                myError.setTitle(Utility.messageBD(this, "Error", vars.getLanguage()));
+                myError.setMessage(Utility.messageBD(this, "CannotReorderNotDevModules", vars
+                    .getLanguage()));
+                releaseRollbackConnection(conn);
+                error = true;
+                break;
+              }
+              if (end == size)
+                maxSeqno = -1; // no limit
+              int add = (maxSeqno == -1) ? 10 : new Float(((maxSeqno - seqno) / (end - start + 1)))
+                  .intValue();
+              for (int j = start; j &lt; end; j++) {
+                if (maxSeqno == -1 || seqno &lt; maxSeqno)
+                  seqno += add;
+                else {
+                  myError.setType("Warning");
+                  myError.setTitle(Utility.messageBD(this, "Warning", vars.getLanguage()));
+                  myError.setMessage(Utility.messageBD(this, "NotAllOrdered", vars.getLanguage()));
+                }
+                dataShown[j].seqnoParam = Integer.toString(seqno);
+              }
+            }
+    
+            for (int j = 0; !error &amp;&amp; j &lt; dataShown.length; j++) {
+              if (j &lt; dataShown.length - 1
+                  &amp;&amp; (dataShown[j].seqnoParam.isEmpty() || dataShown[j + 1].seqnoParam.isEmpty() || Integer
+                      .parseInt(dataShown[j].seqnoParam) &gt; Integer
+                      .parseInt(dataShown[j + 1].seqnoParam))) {
+                myError.setType("Error");
+                myError.setTitle(Utility.messageBD(this, "Error", vars.getLanguage()));
+                myError.setMessage(Utility.messageBD(this, "CannotReorderNotDevModules", vars
+                    .getLanguage()));
+                releaseRollbackConnection(conn);
+                error = true;
+                break;
+              }
+              dataShown[j].updateY(conn, this);
+            }
+          }
+          if (!error) {
+            releaseCommitConnection(conn);
+          }
+          return !error;
+        } catch (NoConnectionAvailableException ex) {
+          myError.setType("Error");
+          myError.setMessage(ex.getMessage());
+          log4j.error("Error saving sequence", ex);
+          return false;
+        } catch (SQLException ex2) {
+          try {
+            releaseRollbackConnection(conn);
+          } catch (Exception ignored) {}
+          ServletException se = new ServletException("@CODE=" + Integer.toString(ex2.getErrorCode()) + "@" + ex2.getMessage());
+          myError.setType("Error");
+          myError.setMessage(Utility.parseTranslation(this, vars, vars.getLanguage(), se.getMessage()));
+          return false;
+        } catch (ServletException e) {
+          try {
+            releaseRollbackConnection(conn);
+          } catch (Exception ignored) {}
+          myError.setType("Error");
+          myError.setMessage(Utility.parseTranslation(this, vars, vars.getLanguage(), e.getMessage()));
+          return false;
+        } catch (Exception exc) {
+          try {
+            releaseRollbackConnection(conn);
+          } catch (Exception ignored) {}
+          throw new ServletException("@CODE=@" + exc.getMessage(), exc);
+        }
+   }
+
+  <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data getEditVariables(VariablesSecureApp vars<PARAMETER_TMP id="parent">, String strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>) throws IOException,ServletException {
+    <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data data = new <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data();
+    data.<FIELD_TMP id="keyData">claveAlmacen</FIELD_TMP> = vars.getInStringParameter("inpShown", IsIDFilter.instance);
+      data.shown = vars.getInStringParameter("inpShown", IsIDFilter.instance);
+      data.createdby = vars.getUser();
+      data.updatedby = vars.getUser();
+
+<PARAMETER_TMP id="parent">      data.<PARENT_TMP id="keyParentINP">Almacen</PARENT_TMP> = vars.getGlobalVariable("inp<PARENT_TMP id="keyParentINP">Almacen</PARENT_TMP>", windowId + "|<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>");
+</PARAMETER_TMP>
+
+    return data;
+  }
+
+  <PARAMETER_TMP id="parent">  void refreshParentSession(VariablesSecureApp vars, String strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>) throws IOException,ServletException {
+      <PARENT_TMP id="parentClass">Almacen</PARENT_TMP>Data[] data = <PARENT_TMP id="parentClass">Almacen</PARENT_TMP>Data.selectEdit(this, vars.getSessionValue("#AD_SqlDateTimeFormat"), vars.getLanguage(), strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP><PARAMETER_TMP id="grandfather">, vars.getSessionValue(windowId + "|<PARAMETER_TMP id="grandfatherName">xx</PARAMETER_TMP>")</PARAMETER_TMP>, Utility.getContext(this, vars, "#User_Client", windowId, accesslevel), Utility.getContext(this, vars, "#AccessibleOrgTree", windowId, accesslevel));
+      if (data==null || data.length==0) return;
+      <FIELDS_TMP id="sectionDetailParentSession">    vars.setSessionValue(windowId + "|<FIELD_TMP id="fieldRealName8">claveAlmacen</FIELD_TMP>", data[0].<FIELD_TMP id="fieldName8">claveAlmacen</FIELD_TMP>);</FIELDS_TMP>
+      <LISTS_TMP id="sectionDetailParentParams">      
+      vars.setSessionValue(windowId + "|<LIST_TMP id="fieldParentNameParam">Almacen</LIST_TMP>", <LIST_TMP id="paramParentCode">dd</LIST_TMP>);
+      </LISTS_TMP>
+    }</PARAMETER_TMP>
+
+
+  void printPageDataSheet(HttpServletResponse response, VariablesSecureApp vars<PARAMETER_TMP id="parent">, String strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>, String str<KEY_TMP id="key">PosicionAlmacen</KEY_TMP>)
+    throws IOException, ServletException {
+    if (log4j.isDebugEnabled()) log4j.debug("Output: dataSheet");
+    XmlDocument xmlDocument=null;
+
+      <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data[] data = <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.select(this, vars.getLanguage(), Utility.getContext(this, vars, "#User_Client", windowId, accesslevel)<PARAMETER_TMP id="org">, Utility.getContext(this, vars, "#AccessibleOrgTree", windowId, accesslevel)</PARAMETER_TMP><PARAMETER_TMP id="parent">, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>);
+
+      <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data[] data2 = <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.selectNotShown(this, vars.getLanguage(), Utility.getContext(this, vars, "#User_Client", windowId, accesslevel)<PARAMETER_TMP id="org">, Utility.getContext(this, vars, "#AccessibleOrgTree", windowId, accesslevel)</PARAMETER_TMP><PARAMETER_TMP id="parent">, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP></PARAMETER_TMP>);
+
+      String[] discard={"isNotTest"};
+      if (vars.getSessionValue("#ShowTest", "N").equals("Y")) discard[0] = new String("isTest");
+      xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/erpWindows/<PARAMETER_TMP id="path">Window</PARAMETER_TMP>/<PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>_Relation", discard).createXmlDocument();
+
+<PARAMETER_TMP id="parent">    xmlDocument.setParameter("keyParent", strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>);</PARAMETER_TMP>
+    xmlDocument.setParameter("showName", Utility.messageBD(this, "<PARAMETER_TMP id="ShowName">SortNo</PARAMETER_TMP>", vars.getLanguage()));
+
+    ToolBar toolbar = new ToolBar(this, vars.getLanguage(), "<PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>", false, "document.frmMain.inp<FIELD_TMP id="keyData">Clave</FIELD_TMP>", "", "<PARAMETER_TMP id="paramReportPDF">xx</PARAMETER_TMP>", "<PARAMETER_TMP id="paramReportDirectPrint">xx</PARAMETER_TMP>".equals("Y"), "<PARAMETER_TMP id="windowName">Window</PARAMETER_TMP>", strReplaceWith, false);
+    toolbar.prepareSortableTemplate(vars.getSessionValue("#ShowTest", "N").equals("Y"));
+    xmlDocument.setParameter("toolbar", toolbar.toString());
+
+    try {
+      WindowTabs tabs = new WindowTabs(this, vars, tabId, windowId, true, true);
+      xmlDocument.setParameter("parentTabContainer", tabs.parentTabs());
+      xmlDocument.setParameter("mainTabContainer", tabs.mainTabs());
+      xmlDocument.setParameter("childTabContainer", tabs.childTabs());
+      NavigationBar nav = new NavigationBar(this, vars.getLanguage(), "<PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>_Relation.html", "<PARAMETER_TMP id="windowName">Window</PARAMETER_TMP>", "W", strReplaceWith, tabs.breadcrumb());
+      xmlDocument.setParameter("navigationBar", nav.toString());
+      xmlDocument.setParameter("theme", vars.getTheme());
+      LeftTabsBar lBar = new LeftTabsBar(this, vars.getLanguage(), "<PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>_Relation.html", strReplaceWith);
+      xmlDocument.setParameter("leftTabs", lBar.manualTemplate());
+    } catch (Exception ex) {
+      throw new ServletException(ex);
+    }
+    try {
+      KeyMap key = new KeyMap(this, tabId, windowId);
+      xmlDocument.setParameter("keyMap", key.getSortTabKeyMaps());
+    } catch (Exception ex) {
+      throw new ServletException(ex);
+    }
+
+    {
+      OBError myMessage = vars.getMessage(tabId);
+      vars.removeMessage(tabId);
+      if (myMessage!=null) {
+        xmlDocument.setParameter("messageType", myMessage.getType());
+        xmlDocument.setParameter("messageTitle", myMessage.getTitle());
+        xmlDocument.setParameter("messageMessage", myMessage.getMessage());
+      }
+    }
+
+    xmlDocument.setParameter("directory", "var baseDirectory = \"" + strReplaceWith + "/\";\n");
+    xmlDocument.setParameter("windowId", windowId);
+    xmlDocument.setParameter("KeyName", "<FIELD_TMP id="keyData">Clave</FIELD_TMP>");
+    xmlDocument.setParameter("language", "defaultLang=\"" + vars.getLanguage() + "\";");
+    xmlDocument.setData("structure1", data2);
+    xmlDocument.setData("structure2", data);
+    final String strMappingName = Utility.getTabURL(tabId, "E", false);
+    xmlDocument.setParameter("mappingName", strMappingName);
+    xmlDocument.setParameter("confirmOnChanges", Utility.getJSConfirmOnChanges(vars, windowId));
+<PARAMETER_TMP id="parent">    if (vars.getLanguage().equals("en_US")) xmlDocument.setParameter("parent", <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.selectParent(this<FIELD_TMP id="language">, vars.getLanguage()</FIELD_TMP>, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>));
+    else xmlDocument.setParameter("parent", <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>Data.selectParentTrl(this<FIELD_TMP id="language">, vars.getLanguage()</FIELD_TMP>, strP<PARENT_TMP id="keyParent">Almacen</PARENT_TMP>));</PARAMETER_TMP>
+
+    response.setContentType("text/html; charset=UTF-8");
+    PrintWriter out = response.getWriter();
+    out.println(xmlDocument.print());
+    out.close();
+  }
+
+  public String getServletInfo() {
+    return "Servlet <PARAMETER_TMP id="class">Almacen</PARAMETER_TMP>. This Servlet was made by Wad constructor";
+  } // fin del método getServletInfo()
+}
+</java_TMP>

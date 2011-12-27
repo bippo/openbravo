@@ -1,0 +1,226 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION APRM_GEN_PAYMENTSCHEDULE_ORD">
+    <function name="APRM_GEN_PAYMENTSCHEDULE_ORD" type="NULL">
+      <parameter name="p_ep_instance" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+p_message VARCHAR(2000);
+p_record_id VARCHAR(60);
+p_docAction VARCHAR(60);
+p_user VARCHAR(60);
+p_result NUMBER;
+
+v_ResultStr VARCHAR2(2000):='';
+v_GrandTotal NUMBER:=0;
+v_OrderDate DATE;
+v_Currency_ID VARCHAR2(32);
+v_Org_ID VARCHAR2(32);
+v_C_Doctype_ID VARCHAR2(32);
+v_client_ID VARCHAR2(32);
+v_paymentmethod_id c_order.fin_paymentmethod_id%TYPE;
+v_bpartner_id c_order.c_bpartner_id%TYPE;
+v_docSubType c_doctype.docsubtypeso%TYPE;
+v_PaymentPriority VARCHAR(32);
+
+TYPE RECORD IS REF CURSOR;
+Cur_Params RECORD;
+
+BEGIN
+
+  FOR Cur_Params IN (
+    SELECT *
+    FROM ad_ep_instance_para
+    WHERE ad_ep_instance_id = p_ep_instance
+    ) LOOP
+    IF (cur_params.parametername LIKE 'DocAction') THEN
+      p_docaction := Cur_Params.p_string;
+    ELSIF (cur_params.parametername LIKE 'Record_ID') THEN
+      p_record_id := cur_params.p_string;
+    ELSIF (cur_params.parametername LIKE 'User') THEN
+      p_user := cur_params.p_string;
+    ELSIF (cur_params.parametername LIKE 'Message') THEN
+      p_message := cur_params.p_text;
+    ELSIF (cur_params.parametername LIKE 'Result') THEN
+      p_result := cur_params.p_number;
+    END IF;
+  END LOOP;
+
+  -- Reading the order
+  v_ResultStr:='ReadingOrder';
+  SELECT ad_client_id, ad_org_id, 
+         grandtotal, dateordered, c_currency_id,
+         fin_paymentmethod_id, c_bpartner_id, c_doctype_id,
+         fin_payment_priority_id
+    INTO v_client_id, v_org_id,
+         v_grandtotal, v_orderdate, v_currency_id,
+         v_paymentmethod_id, v_bpartner_id, v_C_Doctype_ID,
+         v_PaymentPriority
+  FROM c_order
+  WHERE c_order_id = p_record_id;
+
+  SELECT docsubtypeso
+  INTO v_docSubType
+  FROM c_doctype
+  WHERE c_doctype_id = v_C_Doctype_ID;
+  
+  IF(v_docSubType is null or v_docSubType not in ('OB', 'ON')) THEN
+    IF (p_docaction = 'CO') THEN
+    -- Checking Payment Method ID is available
+    IF(v_paymentmethod_id IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@APRM_PAYMENTMETHOD_MISSING@');
+    END IF;
+
+    DECLARE
+      v_payment_schedule_order VARCHAR2(32);
+      v_count NUMBER;
+      v_pendingamount NUMBER;
+      cur_invoicepayments RECORD;
+    BEGIN
+      v_resultstr := 'Insert payment schedule on completion';
+      SELECT count(1) INTO v_count
+      FROM c_debt_payment
+      WHERE c_order_id = p_record_id;
+      IF (v_count > 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@APRM_ORDER_MAN_PAYMENTS@');
+      END IF;
+      v_payment_schedule_order := get_uuid();
+      INSERT INTO fin_payment_schedule
+      (
+        fin_payment_schedule_id, ad_client_id, ad_org_id, isactive,
+        created, createdby, updated, updatedby,
+        c_invoice_id, c_currency_id, c_order_id,
+        fin_paymentmethod_id, amount, duedate,
+        outstandingamt, fin_payment_priority_id
+       )
+      VALUES
+      (
+        v_payment_schedule_order, v_Client_ID, v_Org_ID, 'Y',
+        now(), p_user, now(), p_user,
+        null, v_currency_id, p_record_id,
+        v_paymentmethod_id, v_grandtotal, v_orderdate,
+        v_grandtotal, v_PaymentPriority
+      );
+
+      v_pendingamount := v_grandtotal;
+      --If exist a payment plan for an invoice it will always be an invoice generated completing this order
+      --so we can asume that all fin_payment_scheduledetail records are also related to the order.
+      --With the same asumption if the invoice has some paid amount it will always be by a paymetn for the whole
+      --amount generated on the invoice completion, so we can safely set as paid amount the whole amount of the
+      --payment plan.
+      FOR cur_invoicepayments IN (
+        SELECT distinct psd.fin_payment_scheduledetail_id, ps.paidamt
+        FROM fin_payment_scheduledetail psd, c_orderline ol, c_invoiceline il, fin_payment_schedule ps
+        WHERE ol.c_order_id = p_record_id
+          AND ol.c_orderline_id = il.c_orderline_id
+          AND il.c_invoice_id = ps.c_invoice_id
+          AND psd.fin_payment_schedule_invoice = ps.fin_payment_schedule_id
+        ) LOOP
+        UPDATE fin_payment_scheduledetail
+        SET fin_payment_schedule_order = v_payment_schedule_order
+        WHERE fin_payment_scheduledetail_id = cur_invoicepayments.fin_payment_scheduledetail_id;
+        SELECT v_pendingamount -(amount + coalesce(writeoffamt, 0)) INTO v_pendingamount
+        FROM fin_payment_scheduledetail
+        WHERE fin_payment_scheduledetail_id = cur_invoicepayments.fin_payment_scheduledetail_id;
+        UPDATE fin_payment_schedule
+        SET paidamt = paidamt + cur_invoicepayments.paidamt,
+            outstandingamt = outstandingamt - cur_invoicepayments.paidamt
+        WHERE fin_payment_schedule_id = v_payment_schedule_order;
+      END LOOP;
+  
+      IF (v_pendingamount <> 0) THEN
+        INSERT INTO fin_payment_scheduledetail
+        (
+          fin_payment_scheduledetail_id, ad_client_id, ad_org_id, isactive,
+          created, createdby, updated, updatedby,
+          fin_payment_schedule_order,
+          fin_payment_schedule_invoice, fin_payment_detail_id,
+          amount
+         )
+        VALUES
+        (
+          get_uuid(), v_Client_ID, v_Org_ID, 'Y',
+          now(), p_user, now(), p_user,
+          v_payment_schedule_order,
+          null, null,
+          v_pendingamount
+        );
+      END IF;
+    END;
+  ELSIF (p_docaction = 'RE') THEN
+    -- check there is not any paid payment
+    DECLARE
+      v_count NUMBER;
+      Cur_PaymentScheduleDetail RECORD;
+    BEGIN
+      SELECT count(*) INTO v_count
+      FROM fin_payment_schedule
+      WHERE c_order_id = p_record_id
+        AND paidamt <> 0;
+      IF (v_count <> 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@APRM_OrderWithPayments@');
+      END IF;
+      v_resultstr:='Update/Delete scheduled payments details';
+      FOR Cur_PaymentScheduleDetail IN (
+        SELECT psd.*
+        FROM fin_payment_scheduledetail psd, fin_payment_schedule ps
+        WHERE psd.fin_payment_schedule_order = ps.fin_payment_schedule_id
+          AND ps.c_order_id = p_record_id
+        ) LOOP
+        IF (cur_paymentscheduledetail.fin_payment_schedule_invoice IS NOT NULL) THEN
+          UPDATE fin_payment_scheduledetail
+          SET fin_payment_schedule_order = null
+          WHERE fin_payment_scheduledetail_id = cur_paymentscheduledetail.fin_payment_scheduledetail_id;
+        ELSE
+          DELETE FROM fin_payment_scheduledetail
+          WHERE fin_payment_scheduledetail_id = cur_paymentscheduledetail.fin_payment_scheduledetail_id;
+        END IF;
+      END LOOP;
+
+      v_resultstr:='Delete scheduled payments';
+      DELETE FROM fin_payment_schedule
+      WHERE c_order_id = p_record_id;
+    END;
+  ELSIF (p_docaction = 'CL') THEN
+    DECLARE
+      v_difference NUMBER;
+    BEGIN
+      SELECT sum(amount) - v_grandtotal INTO v_difference
+      FROM fin_payment_schedule
+      WHERE c_order_id = p_record_id;
+      IF (v_difference <> 0) THEN
+        UPDATE fin_payment_schedule
+        SET amount = amount - v_difference,
+        outstandingamt = outstandingamt - v_difference,
+        updated = now(),
+        updatedby = p_user
+        WHERE c_order_id = p_record_id
+          AND outstandingamt > v_difference;
+      END IF;
+    END;
+  END IF;
+  END IF;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('APRM_GENERATE_PAYMENT_SCHEDULE exception: '|| v_ResultStr);
+  RAISE;
+END APRM_GEN_PAYMENTSCHEDULE_ORD
+]]></body>
+    </function>
+  </database>

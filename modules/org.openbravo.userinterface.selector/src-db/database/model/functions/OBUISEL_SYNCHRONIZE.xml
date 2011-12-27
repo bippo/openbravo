@@ -1,0 +1,226 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION OBUISEL_SYNCHRONIZE">
+    <function name="OBUISEL_SYNCHRONIZE" type="NULL">
+      <parameter name="ep_instance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/************************************************************************* 
+  * The contents of this file are subject to the Compiere Public 
+  * License 1.1 ("License"); You may not use this file except in 
+  * compliance with the License. You may obtain a copy of the License in 
+  * the legal folder of your Openbravo installation. 
+  * Software distributed under the License is distributed on an 
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or 
+  * implied See the License for the specific language governing rights 
+  * and limitations under the License. 
+  * The Original Code is  Compiere  ERP &  Business Solution 
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc. 
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, 
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.; 
+  * All Rights Reserved. 
+  * Contributor(s): Openbravo SLU 
+  * Contributions are Copyright (C) 2010 Openbravo, S.L.U. 
+  * 
+  * Specifically, this derivative work is based upon the following Compiere 
+  * file and version. 
+  ************************************************************************* 
+  * $Id: AD_Syncronize.sql,v 1.12 2003/07/26 04:29:44 jjanke Exp $ 
+  *** 
+  * Title: Syncronize Application Dictionary for Selector Field 
+  ************************************************************************/
+  v_TemplateInDev CHAR(1); 
+  v_rowcount NUMBER; 
+  
+  BEGIN 
+  
+    SELECT count(*) 
+      INTO v_rowcount 
+      FROM AD_MODULE 
+    WHERE TYPE = 'T'
+       AND ISINDEVELOPMENT = 'Y'; 
+       
+    IF v_rowcount = '0' THEN 
+      v_TemplateInDev:='N'; 
+    ELSE 
+      v_TemplateInDev:='Y'; 
+    END IF; 
+    
+    -- synchronize field 
+    UPDATE OBUISEL_SELECTOR_FIELD 
+      SET NAME= COALESCE((SELECT COALESCE(T.NAME, e.NAME) 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, 
+             AD_ELEMENT e, AD_ELEMENT_TRL T 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE),
+      (SELECT e.NAME 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, AD_MODULE M2, 
+             AD_ELEMENT e 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID 
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE)), 
+      Description=
+        COALESCE((SELECT COALESCE(T.Description, e.Description) 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, 
+             AD_ELEMENT e, AD_ELEMENT_TRL T 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE) 
+          ,
+      (SELECT e.Description 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, AD_MODULE M2, 
+             AD_ELEMENT e 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID 
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE)), 
+      Help=
+        COALESCE((SELECT COALESCE(T.HELP, e.HELP) 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, 
+             AD_ELEMENT e, AD_ELEMENT_TRL T 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE), 
+      (SELECT e.HELP 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, AD_MODULE M2, 
+             AD_ELEMENT e 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID 
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE)), 
+      Updated=now() 
+    WHERE OBUISEL_SELECTOR_FIELD.IsCentrallyMaintained='Y' 
+      AND OBUISEL_SELECTOR_FIELD.IsActive='Y'  
+      AND EXISTS 
+        (SELECT 1 
+        FROM AD_COLUMN c, 
+             AD_MODULE M, 
+             AD_ELEMENT e, AD_ELEMENT_TRL T 
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID 
+          AND E.AD_ELEMENT_ID = T.AD_ELEMENT_ID  
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID 
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y') 
+          AND T.AD_LANGUAGE = M.AD_LANGUAGE 
+          AND (OBUISEL_SELECTOR_FIELD.NAME != COALESCE(T.NAME, e.NAME) 
+             OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD.Description), ' ')<>COALESCE(TO_CHAR(T.Description), TO_CHAR(e.Description), ' ')
+             OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD.Help), ' ')<>COALESCE(TO_CHAR(T.Help), TO_CHAR(e.Help), ' '))
+          union
+      SELECT 1
+        FROM AD_COLUMN c,
+             AD_MODULE M, AD_MODULE M2,
+             AD_ELEMENT e
+        WHERE e.AD_Element_ID=c.AD_Element_ID 
+          AND c.AD_Column_ID=OBUISEL_SELECTOR_FIELD.AD_Column_ID
+          AND OBUISEL_SELECTOR_FIELD.AD_MODULE_ID = M.AD_MODULE_ID
+          AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+          AND E.AD_MODULE_ID = M2.AD_MODULE_ID
+          AND M2.AD_LANGUAGE = M.AD_LANGUAGE
+          AND (OBUISEL_SELECTOR_FIELD.NAME != e.NAME
+             OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+             OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' ')));
+ 
+    DBMS_OUTPUT.PUT_LINE('Synchronize Field Translations') ;
+    UPDATE OBUISEL_SELECTOR_FIELD_TRL
+      SET NAME=
+      (SELECT e.NAME
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f, AD_LANGUAGE L
+      WHERE L.AD_LANGUAGE = e.AD_LANGUAGE AND L.AD_LANGUAGE_ID=OBUISEL_SELECTOR_FIELD_TRL.AD_LANGUAGE_ID AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , Description=
+      (SELECT e.Description
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f, AD_LANGUAGE L
+      WHERE L.AD_LANGUAGE = e.AD_LANGUAGE AND L.AD_LANGUAGE_ID=OBUISEL_SELECTOR_FIELD_TRL.AD_LANGUAGE_ID AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , Help=
+      (SELECT e.Help
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f, AD_LANGUAGE L
+      WHERE L.AD_LANGUAGE = e.AD_LANGUAGE AND L.AD_LANGUAGE_ID=OBUISEL_SELECTOR_FIELD_TRL.AD_LANGUAGE_ID AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , IsTranslated=
+      (SELECT e.IsTranslated
+      FROM AD_ELEMENT_TRL e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f, AD_LANGUAGE L
+      WHERE L.AD_LANGUAGE = e.AD_LANGUAGE AND L.AD_LANGUAGE_ID=OBUISEL_SELECTOR_FIELD_TRL.AD_LANGUAGE_ID AND e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT 1
+      FROM OBUISEL_SELECTOR_FIELD f, AD_ELEMENT_TRL e, AD_COLUMN c, AD_MODULE M, AD_LANGUAGE L
+      WHERE OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID=f.OBUISEL_SELECTOR_FIELD_ID  
+      AND f.AD_Column_ID=c.AD_Column_ID
+      AND c.AD_Element_ID=e.AD_Element_ID 
+      AND c.AD_Process_ID IS NULL
+      AND L.AD_LANGUAGE = e.AD_LANGUAGE
+      AND OBUISEL_SELECTOR_FIELD_TRL.AD_LANGUAGE_ID=L.AD_LANGUAGE_ID
+      AND f.IsCentrallyMaintained='Y' 
+      AND f.IsActive='Y'
+      AND M.AD_MODULE_ID = F.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M.AD_LANGUAGE != E.AD_LANGUAGE
+      AND(OBUISEL_SELECTOR_FIELD_TRL.NAME<>e.NAME OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+      OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' ')));
+    
+     -- Field Translations
+    -- Translations taken from the non trl table
+    UPDATE OBUISEL_SELECTOR_FIELD_TRL
+      SET NAME=
+      (SELECT e.NAME
+      FROM AD_ELEMENT e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , Description=
+      (SELECT e.Description
+      FROM AD_ELEMENT e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f
+      WHERE e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , Help=
+      (SELECT e.Help
+      FROM AD_ELEMENT e, AD_COLUMN c, OBUISEL_SELECTOR_FIELD f
+      WHERE  e.AD_Element_ID=c.AD_Element_ID
+      AND c.AD_Column_ID=f.AD_Column_ID AND f.OBUISEL_SELECTOR_FIELD_ID=OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID
+      )
+      , IsTranslated='Y'
+      , Updated=now()
+    WHERE EXISTS
+      (SELECT 1
+      FROM OBUISEL_SELECTOR_FIELD f, AD_ELEMENT e, AD_COLUMN c, AD_MODULE M, AD_MODULE M1, AD_LANGUAGE L
+      WHERE OBUISEL_SELECTOR_FIELD_TRL.OBUISEL_SELECTOR_FIELD_ID=f.OBUISEL_SELECTOR_FIELD_ID  
+      AND f.AD_Column_ID=c.AD_Column_ID
+      AND c.AD_Element_ID=e.AD_Element_ID 
+      AND c.AD_Process_ID IS NULL
+      AND L.AD_LANGUAGE = M1.AD_LANGUAGE
+      AND OBUISEL_SELECTOR_FIELD_TRL.AD_LANGUAGE_ID=L.AD_LANGUAGE_ID  
+      AND f.IsCentrallyMaintained='Y' 
+      AND f.IsActive='Y'
+      AND M.AD_MODULE_ID = F.AD_MODULE_ID
+      AND (M.ISINDEVELOPMENT='Y' OR v_TemplateInDev ='Y')
+      AND M1.AD_MODULE_ID = E.AD_MODULE_ID
+      AND M.AD_LANGUAGE != M1.AD_LANGUAGE
+      AND(OBUISEL_SELECTOR_FIELD_TRL.NAME<>e.NAME OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD_TRL.Description), ' ')<>COALESCE(TO_CHAR(e.Description), ' ')
+      OR COALESCE(TO_CHAR(OBUISEL_SELECTOR_FIELD_TRL.Help), ' ')<>COALESCE(TO_CHAR(e.Help), ' ')));    
+END OBUISEL_SYNCHRONIZE
+]]></body>
+    </function>
+  </database>

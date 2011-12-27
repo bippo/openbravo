@@ -1,0 +1,583 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<data>
+<!--800003--><AD_ALERTRULE>
+<!--800003-->  <AD_ALERTRULE_ID><![CDATA[800003]]></AD_ALERTRULE_ID>
+<!--800003-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--800003-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--800003-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--800003-->  <NAME><![CDATA[Columns with search reference and reference value null]]></NAME>
+<!--800003-->  <AD_TAB_ID><![CDATA[101]]></AD_TAB_ID>
+<!--800003-->  <SQL><![CDATA[SELECT AD_COLUMN_ID AS referencekey_id, TABLENAME || ' - ' || COLUMNNAME AS RECORD_ID, 0 AS AD_ROLE_ID, NULL AS AD_USER_ID,
+  'The column ' || COLUMNNAME || ' in table ' || TABLENAME || ' is referenced as search and doesn''t have an associated reference value while having active updateable fields.' AS DESCRIPTION,
+  'Y' AS ISACTIVE, 0 AS AD_ORG_ID, 0 AS AD_CLIENT_ID, now() AS CREATED, 0 AS CREATEDBY, now() AS UPDATED, 0 AS UPDATEDBY
+FROM AD_COLUMN, AD_TABLE
+WHERE AD_REFERENCE_ID = '30'
+  AND AD_COLUMN.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID
+  AND AD_REFERENCE_VALUE_ID IS NULL
+  AND AD_TABLE.ISACTIVE = 'Y'
+  AND AD_COLUMN.ISACTIVE = 'Y'
+  AND AD_COLUMN.ISPARENT = 'N'
+  --AND AD_COLUMN.ISUPDATEABLE = 'Y'
+  AND EXISTS (SELECT 1
+              FROM AD_FIELD, aD_TAB, AD_WINDOW
+              WHERE AD_FIELD.AD_COLUMN_ID = AD_COLUMN.AD_COLUMN_ID
+                AND AD_FIELD.AD_TAB_ID = AD_TAB.AD_TAB_ID
+                AND AD_WINDOW.AD_WINDOW_ID = AD_TAB.AD_WINDOW_ID
+                AND AD_FIELD.ISREADONLY = 'N'
+                AND AD_TAB.ISREADONLY = 'N'
+                AND AD_TAB.ISACTIVE = 'Y'
+                AND AD_FIELD.ISACTIVE = 'Y'
+                AND AD_WINDOW.ISACTIVE = 'Y'
+                AND ISDISPLAYED = 'Y')]]></SQL>
+<!--800003-->  <TYPE><![CDATA[D]]></TYPE>
+<!--800003--></AD_ALERTRULE>
+
+<!--1000004--><AD_ALERTRULE>
+<!--1000004-->  <AD_ALERTRULE_ID><![CDATA[1000004]]></AD_ALERTRULE_ID>
+<!--1000004-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000004-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000004-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000004-->  <NAME><![CDATA[Field with editable parent]]></NAME>
+<!--1000004-->  <AD_TAB_ID><![CDATA[107]]></AD_TAB_ID>
+<!--1000004-->  <SQL><![CDATA[select f.ad_field_id as referencekey_id,
+       t.name||'>'||f.name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+        w.name||'>'||t.name||'>'||f.name as description,
+       'Y' as isActive,
+        0 as ad_org_id, 
+        0 as ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from ad_column c, ad_field f, ad_tab t, ad_window w
+where c.AD_COLUMN_ID = f.AD_COLUMN_ID
+and f.AD_TAB_ID = t.AD_TAB_ID
+and t.AD_WINDOW_ID = w.ad_window_id
+and c.ISPARENT = 'Y'
+and f.ISREADONLY = 'N'
+and exists (select 1 from ad_column c1, ad_field f1, ad_tab t1
+           where c1.AD_COLUMN_ID = f1.AD_COLUMN_ID
+           and f1.AD_TAB_ID = t1.AD_TAB_ID
+           and t1.ad_window_id = t.ad_window_id
+           and t1.SEQNO < t.seqno
+           and c1.COLUMNNAME = c.columnname
+           )]]></SQL>
+<!--1000004-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000004--></AD_ALERTRULE>
+
+<!--1000007--><AD_ALERTRULE>
+<!--1000007-->  <AD_ALERTRULE_ID><![CDATA[1000007]]></AD_ALERTRULE_ID>
+<!--1000007-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000007-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000007-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000007-->  <NAME><![CDATA[TableDir Columns without correspondent table]]></NAME>
+<!--1000007-->  <AD_TAB_ID><![CDATA[101]]></AD_TAB_ID>
+<!--1000007-->  <SQL><![CDATA[select c.ad_column_id as referencekey_id,
+       t.tableName||'.'||c.columnname as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       'Column '||c.columnname||' of type TableDir without its correspondent table ('||substr(c.columnname,1,instr(c.columnname,'_ID')-1)||')' as description,
+       'Y' as isActive,
+        0 as ad_org_id, 
+        0 as ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+   from ad_column c,
+        ad_table t
+   where ad_reference_id = '19'
+   and c.ad_table_id = t.ad_table_id
+   and not exists (select 1 
+                    from ad_table 
+                   where upper(tablename)||'_ID' = upper(c.columnname))]]></SQL>
+<!--1000007-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000007--></AD_ALERTRULE>
+
+<!--1000008--><AD_ALERTRULE>
+<!--1000008-->  <AD_ALERTRULE_ID><![CDATA[1000008]]></AD_ALERTRULE_ID>
+<!--1000008-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000008-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000008-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000008-->  <NAME><![CDATA[Disabled constraints]]></NAME>
+<!--1000008-->  <SQL><![CDATA[select constraint_name as referencekey_id,
+       null as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       'Constraint '||constraint_name||' on table '||table_name||' is not enabled' as description,
+       'Y' as isActive,
+        0 as ad_org_id, 
+        0 as ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from user_constraints
+where status!='ENABLED']]></SQL>
+<!--1000008-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000008--></AD_ALERTRULE>
+
+<!--1000009--><AD_ALERTRULE>
+<!--1000009-->  <AD_ALERTRULE_ID><![CDATA[1000009]]></AD_ALERTRULE_ID>
+<!--1000009-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000009-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000009-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000009-->  <NAME><![CDATA[Disabled triggers]]></NAME>
+<!--1000009-->  <SQL><![CDATA[select trigger_name as referencekey_id,
+       null as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       'Constraint '||trigger_name||' on table '||table_name||' is not enabled' as description,
+       'Y' as isActive,
+        0 as ad_org_id, 
+        0 as ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from user_triggers
+where status!='ENABLED']]></SQL>
+<!--1000009-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000009--></AD_ALERTRULE>
+
+<!--1000010--><AD_ALERTRULE>
+<!--1000010-->  <AD_ALERTRULE_ID><![CDATA[1000010]]></AD_ALERTRULE_ID>
+<!--1000010-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000010-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000010-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000010-->  <NAME><![CDATA[Old not processed Bank Statements]]></NAME>
+<!--1000010-->  <AD_TAB_ID><![CDATA[328]]></AD_TAB_ID>
+<!--1000010-->  <SQL><![CDATA[select c_bankstatement_id as referencekey_id,
+       name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       'Not processed bankstatement: '||name||' with '||(select count(*) from c_bankstatementline bl where bl.c_bankstatement_id = bs.c_bankstatement_id)||' lines, older than 10 days' as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+ from c_bankstatement bs
+where statementdate<now()-10
+and processed = 'N']]></SQL>
+<!--1000010-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000010--></AD_ALERTRULE>
+
+<!--1000011--><AD_ALERTRULE>
+<!--1000011-->  <AD_ALERTRULE_ID><![CDATA[1000011]]></AD_ALERTRULE_ID>
+<!--1000011-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000011-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000011-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000011-->  <NAME><![CDATA[Old not processed Sales Invoices]]></NAME>
+<!--1000011-->  <AD_TAB_ID><![CDATA[263]]></AD_TAB_ID>
+<!--1000011-->  <SQL><![CDATA[select c_invoice_id as referencekey_id,
+       documentno as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       ad_column_identifier('C_Invoice',c_invoice_id,'en_US') as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from c_invoice
+where DateInvoiced<now()-10
+and processed = 'N'
+and isSOtrx='Y']]></SQL>
+<!--1000011-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000011--></AD_ALERTRULE>
+
+<!--1000012--><AD_ALERTRULE>
+<!--1000012-->  <AD_ALERTRULE_ID><![CDATA[1000012]]></AD_ALERTRULE_ID>
+<!--1000012-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000012-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000012-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000012-->  <NAME><![CDATA[Old not processed Purchases Invoices]]></NAME>
+<!--1000012-->  <AD_TAB_ID><![CDATA[290]]></AD_TAB_ID>
+<!--1000012-->  <SQL><![CDATA[select c_invoice_id as referencekey_id,
+       documentno as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       ad_column_identifier('C_Invoice',c_invoice_id,'en_US') as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from c_invoice
+where DateInvoiced<now()-10
+and processed = 'N'
+and isSOtrx='N']]></SQL>
+<!--1000012-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000012--></AD_ALERTRULE>
+
+<!--1000013--><AD_ALERTRULE>
+<!--1000013-->  <AD_ALERTRULE_ID><![CDATA[1000013]]></AD_ALERTRULE_ID>
+<!--1000013-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000013-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000013-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000013-->  <NAME><![CDATA[Products without defined price]]></NAME>
+<!--1000013-->  <AD_TAB_ID><![CDATA[180]]></AD_TAB_ID>
+<!--1000013-->  <SQL><![CDATA[select m_product_id as referencekey_id,
+       p.name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       p.name ||' is not in any Purchase price list' as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+ from m_product p
+where p.ispurchased='Y'
+and not exists (select 1 
+                    from m_productprice pp,
+                         m_pricelist_version pv,
+                         m_pricelist pl
+                  where p.m_product_id = pp.m_product_id
+                  and pv.m_pricelist_version_id = pv.m_pricelist_version_id
+                  and pv.m_pricelist_id = pl.m_pricelist_id
+                  and issopricelist='N')
+union                  
+select m_product_id as referencekey_id,
+       p.name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       p.name ||' is not in any Sales price list' as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+ from m_product p
+where p.ispurchased='N'
+and not exists (select 1 
+                    from m_productprice pp,
+                         m_pricelist_version pv,
+                         m_pricelist pl
+                  where p.m_product_id = pp.m_product_id
+                  and pv.m_pricelist_version_id = pv.m_pricelist_version_id
+                  and pv.m_pricelist_id = pl.m_pricelist_id
+                  and issopricelist='Y')]]></SQL>
+<!--1000013-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000013--></AD_ALERTRULE>
+
+<!--1000014--><AD_ALERTRULE>
+<!--1000014-->  <AD_ALERTRULE_ID><![CDATA[1000014]]></AD_ALERTRULE_ID>
+<!--1000014-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000014-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000014-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000014-->  <NAME><![CDATA[Remittance types without defined parameters]]></NAME>
+<!--1000014-->  <AD_TAB_ID><![CDATA[800062]]></AD_TAB_ID>
+<!--1000014-->  <SQL><![CDATA[select c_remittance_type_id as referencekey_id,
+       name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       name ||' has not any parameters defined' as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from c_remittance_type t
+where not exists (select 1 
+                    from c_remittance_parameter p 
+                   where p.c_remittance_type_id = t.c_remittance_type_id)]]></SQL>
+<!--1000014-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000014--></AD_ALERTRULE>
+
+<!--1000015--><AD_ALERTRULE>
+<!--1000015-->  <AD_ALERTRULE_ID><![CDATA[1000015]]></AD_ALERTRULE_ID>
+<!--1000015-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000015-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000015-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000015-->  <NAME><![CDATA[Production plans without assigned cost center]]></NAME>
+<!--1000015-->  <AD_TAB_ID><![CDATA[800117]]></AD_TAB_ID>
+<!--1000015-->  <SQL><![CDATA[select m_productionplan_id as referencekey_id,
+       ad_column_identifier('M_ProductionPlan',m_productionPlan_id,'en_US') as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       ad_column_identifier('M_ProductionPlan',m_productionPlan_id,'en_US')||' has not assigned cost center' as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+  from m_productionplan
+where ma_costcenter_version_id is not null
+and processed = 'N']]></SQL>
+<!--1000015-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000015--></AD_ALERTRULE>
+
+<!--1000016--><AD_ALERTRULE>
+<!--1000016-->  <AD_ALERTRULE_ID><![CDATA[1000016]]></AD_ALERTRULE_ID>
+<!--1000016-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000016-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000016-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000016-->  <NAME><![CDATA[Vendor or Customer BPs without Bill To address]]></NAME>
+<!--1000016-->  <AD_TAB_ID><![CDATA[220]]></AD_TAB_ID>
+<!--1000016-->  <SQL><![CDATA[select c_bpartner_id as referencekey_id,
+       name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       name ||'has not bill to address' as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+  from c_bpartner bp
+where (isvendor='Y' or iscustomer='Y')
+and  not exists (select 1 
+                  from c_bpartner_location l
+                where l.c_bpartner_id = bp.c_bpartner_id
+                and isbillto='Y')]]></SQL>
+<!--1000016-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000016--></AD_ALERTRULE>
+
+<!--1000017--><AD_ALERTRULE>
+<!--1000017-->  <AD_ALERTRULE_ID><![CDATA[1000017]]></AD_ALERTRULE_ID>
+<!--1000017-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000017-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000017-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000017-->  <NAME><![CDATA[Customers with exceded credit]]></NAME>
+<!--1000017-->  <AD_TAB_ID><![CDATA[220]]></AD_TAB_ID>
+<!--1000017-->  <SQL><![CDATA[select c_bpartner_id as referencekey_id,
+       name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       name ||' has '||SO_CreditLimit||' as limit and has reached '||SO_CreditUsed as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from c_bpartner 
+where SO_CreditLimit<SO_CreditUsed
+and iscustomer='Y'
+and SO_CreditLimit!=0]]></SQL>
+<!--1000017-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000017--></AD_ALERTRULE>
+
+<!--1000018--><AD_ALERTRULE>
+<!--1000018-->  <AD_ALERTRULE_ID><![CDATA[1000018]]></AD_ALERTRULE_ID>
+<!--1000018-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000018-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000018-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000018-->  <NAME><![CDATA[Customers that haven't made an order in the last 30 days]]></NAME>
+<!--1000018-->  <AD_TAB_ID><![CDATA[220]]></AD_TAB_ID>
+<!--1000018-->  <SQL><![CDATA[select c_bpartner_id as referencekey_id,
+       name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       name || (case when lastOrder is null 
+                       then ' has never made an order' 
+                       else ' made last order '||to_char(round(to_number((now()-lastOrder))))||' days ago'
+                end ) as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+from (select bp.c_bpartner_id, bp.name, ad_org_id, 
+        ad_client_id, 
+             (select max(dateOrdered)
+                from c_order o
+               where o.c_bpartner_id = bp.c_bpartner_id) as lastOrder
+        from c_bpartner bp
+      where iscustomer='Y') c
+where coalesce(lastOrder,to_date('01-01-1900','DD-MM-YYYY'))<now()-30]]></SQL>
+<!--1000018-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000018--></AD_ALERTRULE>
+
+<!--1000019--><AD_ALERTRULE>
+<!--1000019-->  <AD_ALERTRULE_ID><![CDATA[1000019]]></AD_ALERTRULE_ID>
+<!--1000019-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000019-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000019-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000019-->  <NAME><![CDATA[Not payed DPs that are over date planned ]]></NAME>
+<!--1000019-->  <SQL><![CDATA[select C_debt_payment_id as referencekey_id,
+       null as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       ad_column_identifier('C_Debt_Payment',C_debt_payment_id,'en_US') ||' should be paid '||dateplanned as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+ from c_debt_payment 
+where trunc(dateplanned) < trunc(now())
+and ispaid='N'
+and c_settlement_cancel_id is null]]></SQL>
+<!--1000019-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000019--></AD_ALERTRULE>
+
+<!--1000020--><AD_ALERTRULE>
+<!--1000020-->  <AD_ALERTRULE_ID><![CDATA[1000020]]></AD_ALERTRULE_ID>
+<!--1000020-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000020-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000020-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000020-->  <NAME><![CDATA[Products under stock]]></NAME>
+<!--1000020-->  <AD_TAB_ID><![CDATA[180]]></AD_TAB_ID>
+<!--1000020-->  <SQL><![CDATA[select p.M_PRODUCT_ID as referencekey_id,
+       p.name as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       p.name||' with minimun stock '||po.stockmin||' has stocked '||
+                   (select sum(qtyonhand) as QtyStored
+                       from m_storage_detail s
+                       where s.m_product_id = po.m_product_id
+                        and ad_isOrgIncluded(s.ad_org_id,po.ad_org_id,po.ad_client_id) <> -1) as description,
+       'Y' as isActive,
+        p.ad_org_id, 
+        p.ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+  from m_product p,
+       m_product_org po
+where p.m_product_id = po.m_product_id
+  and po.stockmin is not null
+  and po.stockmin > coalesce((select sum(qtyonhand) as QtyStored
+                       from m_storage_detail s
+                       where s.m_product_id = po.m_product_id
+                        and ad_isOrgIncluded(s.ad_org_id,po.ad_org_id,po.ad_client_id) <> -1), 0)]]></SQL>
+<!--1000020-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000020--></AD_ALERTRULE>
+
+<!--1000021--><AD_ALERTRULE>
+<!--1000021-->  <AD_ALERTRULE_ID><![CDATA[1000021]]></AD_ALERTRULE_ID>
+<!--1000021-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000021-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000021-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000021-->  <NAME><![CDATA[Purchase orders to be received]]></NAME>
+<!--1000021-->  <AD_TAB_ID><![CDATA[294]]></AD_TAB_ID>
+<!--1000021-->  <SQL><![CDATA[select c_order_id as referencekey_id,
+       ad_column_identifier('C_Order',c_order_id,'en_US') as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       ad_column_identifier('C_Order',c_order_id,'en_US')||
+                    (case when trunc(datepromised) = trunc(now())
+                            then ' is planned to be received today'
+                            else ' was planned to be recived '||(to_char(round(to_number(now()-datepromised))))||' days ago'
+                        end) as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+  from c_order o
+where o.processed = 'Y'
+  and trunc(datepromised) <= trunc(now())
+  and issotrx='N'
+  and not exists (select 1
+                from c_orderline ol
+              where o.c_order_id = ol.c_order_id
+                and qtydelivered !=0)
+and 0 != (select sum(qtyordered) 
+              from c_orderline ol
+             where o.c_order_id = ol.c_order_id)]]></SQL>
+<!--1000021-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000021--></AD_ALERTRULE>
+
+<!--1000022--><AD_ALERTRULE>
+<!--1000022-->  <AD_ALERTRULE_ID><![CDATA[1000022]]></AD_ALERTRULE_ID>
+<!--1000022-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1000022-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1000022-->  <ISACTIVE><![CDATA[N]]></ISACTIVE>
+<!--1000022-->  <NAME><![CDATA[Sales orders to be received]]></NAME>
+<!--1000022-->  <AD_TAB_ID><![CDATA[186]]></AD_TAB_ID>
+<!--1000022-->  <SQL><![CDATA[select c_order_id as referencekey_id,
+       ad_column_identifier('C_Order',c_order_id,'en_US') as record_id,
+       0 as ad_role_id,
+       null as ad_user_id,
+       ad_column_identifier('C_Order',c_order_id,'en_US')||
+                    (case when trunc(datepromised) = trunc(now())
+                            then ' is planned to be received today'
+                            else ' was planned to be recived '||(to_char(round(to_number(now()-datepromised))))||' days ago'
+                        end) as description,
+       'Y' as isActive,
+        ad_org_id, 
+        ad_client_id, 
+        now() as created,  
+        0 as createdBy,  
+        now() as updated,
+        0 as updatedBy
+  from c_order o
+where o.processed = 'Y'
+  and trunc(datepromised) <= trunc(now())
+  and issotrx='Y'
+  and not exists (select 1
+                from c_orderline ol
+              where o.c_order_id = ol.c_order_id
+                and qtydelivered !=0)
+and 0 != (select sum(qtyordered) 
+              from c_orderline ol
+             where o.c_order_id = ol.c_order_id)]]></SQL>
+<!--1000022-->  <TYPE><![CDATA[D]]></TYPE>
+<!--1000022--></AD_ALERTRULE>
+
+<!--1005400000--><AD_ALERTRULE>
+<!--1005400000-->  <AD_ALERTRULE_ID><![CDATA[1005400000]]></AD_ALERTRULE_ID>
+<!--1005400000-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--1005400000-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--1005400000-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--1005400000-->  <NAME><![CDATA[Updates Available]]></NAME>
+<!--1005400000-->  <TYPE><![CDATA[E]]></TYPE>
+<!--1005400000--></AD_ALERTRULE>
+
+<!--FDA0D6B303CD4F289A04FA41844C4B0C--><AD_ALERTRULE>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <AD_ALERTRULE_ID><![CDATA[FDA0D6B303CD4F289A04FA41844C4B0C]]></AD_ALERTRULE_ID>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <NAME><![CDATA[Process Execution Failed]]></NAME>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <AD_TAB_ID><![CDATA[8E5972CF3664486D9D887BDEDA88627D]]></AD_TAB_ID>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <SQL><![CDATA[SELECT 	r.ad_process_run_id AS referencekey_id,
+	r.ad_process_run_id AS record_id,
+	0 AS ad_role_id,
+	r.ad_user_id AS ad_user_id,
+	'Execution of process '|| (select p.name from ad_process p where p.ad_process_id = (select pr.ad_process_id from ad_process_request pr where pr.ad_process_request_id = r.ad_process_request_id)) || ' failed.' AS description,
+	'Y' AS isActive,
+	r.ad_org_id AS ad_org_id,
+	r.ad_client_id AS ad_client_id,
+	now() AS created, 
+	0 AS createdBy,
+	now() AS updated,
+	0 AS updatedBy, 
+        r.log AS note
+FROM 	ad_process_execution_v r, ad_process_request pr
+WHERE	r.status = 'ERR' 
+AND     r.ad_process_request_id = pr.ad_process_request_id]]></SQL>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C-->  <TYPE><![CDATA[D]]></TYPE>
+<!--FDA0D6B303CD4F289A04FA41844C4B0C--></AD_ALERTRULE>
+
+</data>

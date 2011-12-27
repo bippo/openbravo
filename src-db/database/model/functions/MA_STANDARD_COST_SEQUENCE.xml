@@ -1,0 +1,385 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_STANDARD_COST_SEQUENCE">
+    <function name="MA_STANDARD_COST_SEQUENCE" type="NULL">
+      <parameter name="p_sequence_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_budget_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_calcdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_currency" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_message" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************/
+  v_ResultStr             VARCHAR2(2000) := '';
+  v_Result NUMBER:= 1;
+
+  v_CostCenterUse         NUMBER;
+  v_Multiplier            NUMBER;
+  v_Outsourced            CHAR(1);
+  v_OutsourcingCost       NUMBER;
+  v_CostCenter_Version    varchar2(32);
+  v_ProcessPlan_Version   varchar2(32);
+  v_SequenceCost          NUMBER;
+  v_SequenceCost_Tmp      NUMBER;
+  v_ProducedKg            NUMBER;
+  v_ProducedUd            NUMBER;
+  v_CompCostSum           NUMBER;
+  v_ID                    varchar2(32);
+  v_No_Cost               BOOLEAN := TRUE;
+  v_Cost                  NUMBER;
+
+  TYPE RECORD IS REF CURSOR;
+  Cur_UsedProducts RECORD;
+  Cur_IntermediateProduct_In RECORD;
+  Cur_IntermediateProduct_Out RECORD;
+  Cur_SequenceEmployee_In RECORD;
+  Cur_SequenceMachine_In RECORD;
+  Cur_SequenceIC_In RECORD;
+  Cur_SequencePIC_In RECORD;
+
+BEGIN
+BEGIN --BODY
+
+  v_ResultStr := 'Set sequence variables';
+  --DBMS_OUTPUT.PUT_LINE('Start MA_Sequence: ' || p_Sequence_ID);
+
+  DELETE FROM MA_SEQUENCE_IC WHERE MA_SEQUENCE_ID = p_Sequence_ID;
+  DELETE FROM MA_SEQUENCE_EMPLOYEE WHERE MA_SEQUENCE_ID = p_Sequence_ID;
+  DELETE FROM MA_SEQUENCE_MACHINE WHERE MA_SEQUENCE_ID = p_Sequence_ID;
+
+  SELECT s.CostCenterUse, s.Multiplier, s.outsourced, s.outsourcingcost, ccv.MA_CostCenter_Version_ID, s.MA_ProcessPlan_Version_ID,
+      SUM(CASE sp.productiontype WHEN '+' THEN (pd.weight*sp.quantity*COALESCE(sp.decrease,1)*COALESCE(sp.rejected,1))
+          ELSE 0 END),
+      SUM(CASE sp.productiontype WHEN '+' THEN (sp.quantity*COALESCE(sp.decrease,1)*COALESCE(sp.rejected,1))
+          ELSE 0 END),
+      SUM(CASE sp.productiontype
+          WHEN '+' THEN (CASE WHEN sp.quantity <> 0 THEN COALESCE(sp.ComponentCost,1) ELSE 0 END )
+          ELSE 0 END)
+    INTO v_CostCenterUse, v_Multiplier, v_Outsourced, v_OutsourcingCost, v_CostCenter_Version, v_ProcessPlan_Version,
+      v_ProducedKG, v_ProducedUd, v_CompCostSum
+  FROM MA_Sequence s, MA_SequenceProduct sp, M_Product pd,
+    MA_Process p LEFT JOIN (SELECT MA_CostCenter_ID, MA_CostCenter_version_ID
+                            FROM MA_CostCenter_Version
+                            WHERE ValidFrom = (SELECT max(ccv1.ValidFrom)
+                                               FROM MA_CostCenter_Version ccv1
+                                               WHERE MA_CostCenter_Version.MA_CostCenter_ID = ccv1.MA_CostCenter_ID
+                                                 AND ccv1.ValidFrom <= p_CalcDate)) ccv
+                 ON p.MA_COSTCENTER_ID = ccv.MA_CostCenter_ID
+  WHERE s.MA_Process_ID = p.MA_Process_ID
+    AND s.MA_Sequence_ID = sp.MA_Sequence_ID
+    aND pd.M_Product_ID = sp.M_Product_ID
+    AND s.MA_Sequence_ID = p_Sequence_ID
+  GROUP BY s.CostCenterUse, s.Multiplier, s.Outsourced, s.outsourcingcost, ccv.MA_CostCenter_Version_ID, s.MA_ProcessPlan_Version_ID;
+
+  v_SequenceCost := 0;
+  v_SequenceCost_Tmp := 0;
+  v_ResultStr := 'Calculate used products cost.';
+  --Intermediate Products produced in same process plan
+  FOR Cur_UsedProducts IN (
+    SELECT MA_SEQUENCEPRODUCT.*, quantity*COALESCE(decrease,1)*COALESCE(rejected,1) as quantityfactor
+    FROM MA_SEQUENCEPRODUCT
+    WHERE MA_SEQUENCE_ID = p_Sequence_ID
+      AND PRODUCTIONTYPE = '-'
+  ) LOOP
+    -- Cost source order: 1. Same processplan, 2. Other processplan, 3. Purchase cost
+    -- Same processplan
+    v_No_Cost := TRUE;
+  FOR Cur_IntermediateProduct_In IN (
+      SELECT s.Calculated, s.MA_Sequence_ID, sp1.MA_SequenceProduct_ID, sp1.cost,
+        CASE ISDEFAULT WHEN 'Y' THEN 1 ELSE 2 END AS to_order
+      FROM MA_SequenceProduct sp1, MA_Sequence s
+    WHERE s.MA_Processplan_Version_ID = v_Processplan_Version
+      AND s.MA_Sequence_ID = sp1.MA_Sequence_ID
+      AND sp1.ProductionType = '+'
+        AND sp1.M_Product_ID = Cur_UsedProducts.M_Product_ID
+      ORDER BY to_order
+    )
+  LOOP
+    v_ResultStr := 'Calculate Sequence';
+    IF (Cur_IntermediateProduct_In.Calculated = 'N') THEN
+      DBMS_OUTPUT.PUT_LINE('Same PP -> MA_Sequence: ' || p_Sequence_ID);
+        MA_Standard_Cost_Sequence(Cur_IntermediateProduct_In.MA_Sequence_ID, p_Budget_ID, p_CalcDate, p_User, p_Currency, p_Message);
+    END IF;
+      v_SequenceCost_Tmp := COALESCE(v_SequenceCost_Tmp, 0) + Cur_UsedProducts.quantityfactor*Cur_IntermediateProduct_In.cost;
+
+    UPDATE MA_SequenceProduct
+      SET COST = Cur_IntermediateProduct_In.cost
+      WHERE MA_SequenceProduct_ID = Cur_UsedProducts.MA_SequenceProduct_ID;
+      v_No_Cost := FALSE;
+      EXIT;
+  END LOOP;
+
+    -- Other Process Plan
+    IF (v_No_Cost) THEN
+  FOR Cur_IntermediateProduct_Out IN (
+        SELECT s.Calculated, s.MA_Sequence_ID, sp2.MA_SequenceProduct_ID, ppv.datefrom, sp2.cost,
+          CASE s.ISDEFAULT WHEN 'Y' THEN 1 ELSE 2 END AS to_order
+        FROM M_Product p, MA_Processplan_Version ppv, MA_Sequence s, MA_SequenceProduct sp2
+        WHERE sp2.M_Product_ID = Cur_UsedProducts.M_Product_ID
+          AND p.M_Product_ID = Cur_UsedProducts.M_Product_ID
+      AND p.MA_ProcessPlan_ID = ppv. MA_ProcessPlan_ID
+      AND ppv.MA_ProcessPlan_Version_ID = s.MA_ProcessPlan_Version_ID
+      AND s.MA_Sequence_ID = sp2.MA_Sequence_ID
+          AND sp2.productiontype = '+'
+      AND ppv.DateFrom <= p_CalcDate
+      AND ppv.DateTo > p_CalcDate
+        ORDER BY to_order
+      ) LOOP
+    v_ResultStr := 'Calculate Sequence';
+    IF (Cur_IntermediateProduct_Out.Calculated = 'N') THEN
+      DBMS_OUTPUT.PUT_LINE('Different PP -> MA_Sequence: ' || p_Sequence_ID);
+          MA_Standard_Cost_Sequence(Cur_IntermediateProduct_Out.MA_Sequence_ID, p_Budget_ID, p_CalcDate, p_User, p_Currency, p_Message);
+    END IF;
+        v_SequenceCost_Tmp := COALESCE(v_SequenceCost_Tmp, 0) + Cur_UsedProducts.quantityfactor*Cur_IntermediateProduct_Out.cost;
+
+    UPDATE MA_SequenceProduct
+        SET COST = Cur_IntermediateProduct_Out.cost
+        WHERE MA_SequenceProduct_ID = Cur_UsedProducts.MA_SequenceProduct_ID;
+        v_No_Cost := FALSE;
+        EXIT;
+  END LOOP;
+    END IF;
+
+    -- Purchased raw material
+    IF (v_No_Cost) THEN
+      SELECT COALESCE(MAX(bl.price),M_GET_PRODUCT_PRICE_DATE(MAX(p.AD_CLIENT_ID), MAX(p.M_PRODUCT_ID), p_Calcdate)) INTO v_Cost
+      FROM M_Product p LEFT JOIN (SELECT C_CURRENCY_CONVERT(C_BudgetLine.Price, C_BudgetLine.C_CURRENCY_ID, p_Currency, p_Calcdate, C_BudgetLine.ad_client_id, C_BudgetLine.ad_org_id) as price,
+                                   C_BudgetLine.M_Product_ID
+                                  FROM C_BudgetLine
+                                  WHERE C_BudgetLine.C_Budget_ID IS NULL) bl ON p.M_Product_ID = bl.M_Product_ID
+      WHERE p.M_Product_ID = Cur_UsedProducts.M_Product_ID
+      AND p.ispurchased = 'Y';
+      v_SequenceCost_Tmp := COALESCE(v_SequenceCost_Tmp, 0) + Cur_UsedProducts.quantityfactor*v_Cost;
+
+  UPDATE MA_SequenceProduct
+      SET COST = v_Cost
+      WHERE MA_SequenceProduct_ID = Cur_UsedProducts.MA_SequenceProduct_ID;
+      v_No_Cost := FALSE;
+    END IF;
+  END LOOP;
+
+  v_SequenceCost := v_SequenceCost + COALESCE(v_SequenceCost_Tmp,0);
+  v_SequenceCost_Tmp := 0;
+
+  IF (v_Outsourced = 'N') THEN
+    --CostCenter Cost
+    IF (v_CostCenter_Version IS NOT NULL) THEN
+    SELECT (CASE COSTUOM
+             WHEN 'H' THEN v_CostCenterUse*Cost
+             WHEN 'K' THEN v_ProducedKg*Cost
+             WHEN 'U' THEN v_ProducedUd*Cost
+           END) INTO v_SequenceCost_Tmp
+    FROM MA_CostCenter_Version
+    WHERE MA_CostCenter_Version_ID = v_CostCenter_Version;
+
+    UPDATE MA_SEQUENCE
+    SET COSTCENTERCOST = v_SequenceCost_Tmp
+    WHERE MA_SEQUENCE_ID = p_Sequence_ID;
+
+    v_SequenceCost := v_SequenceCost + COALESCE(v_SequenceCost_Tmp,0);
+    v_SequenceCost_Tmp := 0;
+
+    --Employees cost
+    FOR Cur_SequenceEmployee_In IN (
+      SELECT cce.C_Salary_Category_ID, MIN(cce.AD_Client_ID) AS AD_Client_ID,
+                MIN(cce.AD_ORG_ID) AS AD_ORG_ID,
+                SUM(COALESCE((CASE scc.costuom
+                           WHEN 'H' THEN (v_CostCenterUse*scc.COST*cce.quantity)
+                           WHEN 'K' THEN (v_ProducedKg*scc.COST*cce.quantity)
+                           WHEN 'U' THEN (v_ProducedUd*scc.COST*cce.quantity)
+                         END), 0)) AS CalcCost
+      FROM MA_CostCenter_Employee cce, C_Salary_Category_Cost scc
+      WHERE cce.C_Salary_Category_ID = scc.C_Salary_Category_ID
+        AND MA_CostCenter_Version_ID = v_CostCenter_Version
+        AND scc.Datefrom = (SELECT max(scc1.datefrom)
+                            FROM C_Salary_Category_Cost scc1
+                            WHERE scc1.C_Salary_Category_ID = cce.C_Salary_Category_ID
+                              AND scc1.datefrom < p_CalcDate)
+      GROUP BY cce.C_Salary_Category_ID
+      )
+    LOOP
+      v_ResultStr := 'Calculate Sequence Employee cost';
+      AD_Sequence_Next('MA_Sequence_Employee', Cur_SequenceEmployee_In.AD_Client_ID, v_ID);
+
+      v_SequenceCost_Tmp := COALESCE(Cur_SequenceEmployee_In.CalcCost, 0);
+
+      INSERT INTO MA_Sequence_Employee (MA_SEQUENCE_EMPLOYEE_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, MA_SEQUENCE_ID,
+        C_SALARY_CATEGORY_ID, CALCCOST)
+      VALUES (v_ID, Cur_SequenceEmployee_In.AD_Client_ID, Cur_SequenceEmployee_In.AD_Org_ID,
+        'Y', now(), p_User, now(), p_User, p_Sequence_ID,
+        Cur_SequenceEmployee_In.C_Salary_Category_ID, v_SequenceCost_Tmp);
+
+      v_SequenceCost := v_SequenceCost + COALESCE(v_SequenceCost_Tmp, 0);
+    END LOOP;
+
+    v_SequenceCost_Tmp := 0;
+
+    --Machines cost
+    FOR Cur_SequenceMachine_In IN (
+      SELECT ccm.MA_Machine_ID, MIN(ccm.AD_Client_ID) AS AD_Client_ID,
+        MIN(ccm.AD_Org_ID) AS AD_Org_ID,
+        SUM(COALESCE((CASE mc.costuom
+                         WHEN 'H' THEN (v_CostCenterUse*mc.COST*ccm.use)
+                         WHEN 'K' THEN (v_ProducedKg*mc.COST*ccm.use)
+                         WHEN 'U' THEN (v_ProducedUd*mc.COST*ccm.use)
+                         END), 0)) AS CalcCost
+      FROM MA_CostCenter_Machine ccm, MA_Machine_Cost mc
+      WHERE ccm.MA_Machine_ID = mc.MA_Machine_ID
+        AND MA_CostCenter_Version_ID = v_CostCenter_Version
+        AND mc.validfrom = (SELECT max(mc1.validfrom)
+                            FROM MA_Machine_Cost mc1
+                            WHERE mc1.MA_Machine_ID = ccm.MA_Machine_ID
+                              AND mc1.validfrom < p_CalcDate)
+      GROUP BY ccm.MA_Machine_ID
+      )
+    LOOP
+      v_ResultStr := 'Calculate Sequence Machine cost';
+      AD_Sequence_Next('MA_Sequence_Machine', Cur_SequenceMachine_In.AD_Client_ID, v_ID);
+
+      v_SequenceCost_Tmp := COALESCE(Cur_SequenceMachine_In.CalcCost, 0);
+
+      INSERT INTO MA_Sequence_Machine (MA_SEQUENCE_MACHINE_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, MA_SEQUENCE_ID,
+        MA_MACHINE_ID, CALCCOST)
+      VALUES (v_ID, Cur_SequenceMachine_In.AD_Client_ID, Cur_SequenceMachine_In.AD_Org_ID,
+        'Y', now(), p_User, now(), p_User, p_Sequence_ID,
+        Cur_SequenceMachine_In.MA_Machine_ID, v_SequenceCost_Tmp);
+
+      v_SequenceCost := v_SequenceCost + COALESCE(v_SequenceCost_Tmp, 0);
+    END LOOP;
+
+    v_SequenceCost_Tmp := 0;
+
+    --Indirect costs cost
+    FOR Cur_SequenceIC_In IN (
+      SELECT ccic.MA_Indirect_Cost_ID, MIN(ccic.AD_Client_ID) AS AD_Client_ID,
+            MIN(ccic.AD_Org_ID) AS AD_Org_ID,
+            SUM(CASE COST_UOM
+               WHEN 'H' THEN icv.COST*v_CostCenterUse
+               WHEN 'K' THEN icv.COST*v_ProducedKg
+               WHEN 'U' THEN icv.COST*v_ProducedUd
+               END) AS CalcCost
+      FROM MA_CostCenter_IC ccic, MA_Indirect_Cost_Value icv, MA_Indirect_Cost ic
+      WHERE ccic.MA_Indirect_Cost_ID = ic.MA_Indirect_Cost_ID
+        AND ic.MA_Indirect_Cost_ID = icv.MA_Indirect_Cost_ID
+        AND ccic.MA_CostCenter_Version_ID = v_CostCenter_Version
+        AND icv.datefrom < p_CalcDate
+        AND icv.dateto > p_CalcDate
+        AND ic.Cost_Type = 'P'
+      GROUP BY ccic.MA_Indirect_Cost_ID
+      )
+    LOOP
+      v_ResultStr := 'Calculate Sequence Indirect cost';
+      AD_Sequence_Next('MA_Sequence_IC', Cur_SequenceIC_In.AD_Client_ID, v_ID);
+
+      v_SequenceCost_Tmp := COALESCE(Cur_SequenceIC_In.CalcCost, 0);
+
+      INSERT INTO MA_Sequence_IC (MA_SEQUENCE_IC_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, MA_SEQUENCE_ID,
+        MA_INDIRECT_COST_ID, CALCCOST)
+      VALUES (v_ID, Cur_SequenceIC_In.AD_Client_ID, Cur_SequenceIC_In.AD_Org_ID,
+        'Y', now(), p_User, now(), p_User, p_Sequence_ID,
+        Cur_SequenceIC_In.MA_INDIRECT_COST_ID, v_SequenceCost_Tmp);
+
+      v_SequenceCost := v_SequenceCost + COALESCE(v_SequenceCost_Tmp, 0);
+    END LOOP;
+
+    v_SequenceCost_Tmp := 0;
+
+    --Calculate porcentual indirect costs
+    v_ResultStr := 'Costs: porcentual indirect cost';
+    FOR Cur_SequencePIC_In IN (
+      SELECT ccic.MA_Indirect_Cost_ID, MIN(ccic.AD_Client_ID) AS AD_Client_ID,
+              MIN(ccic.AD_Org_ID) AS AD_Org_ID,
+              SUM(v_SequenceCost*icv.cost) AS CalcCost
+      FROM MA_CostCenter_IC ccic, MA_Indirect_Cost_Value icv
+      WHERE ccic.MA_Costcenter_Version_ID = v_CostCenter_Version
+        AND ccic.MA_Indirect_Cost_ID = icv.MA_Indirect_Cost_ID
+        AND icv.COST_UOM = 'P'
+        AND icv.DATEFROM < p_CalcDate
+        AND icv.DATETO > p_CalcDate
+      GROUP BY ccic.MA_Indirect_Cost_ID
+      )
+    LOOP
+      v_ResultStr := 'Calculate Sequence porcentual Indirect cost';
+      AD_Sequence_Next('MA_Sequence_IC', Cur_SequencePIC_In.AD_Client_ID, v_ID);
+
+      v_SequenceCost_Tmp := COALESCE(Cur_SequencePIC_In.CalcCost, 0);
+
+      INSERT INTO MA_Sequence_IC (MA_SEQUENCE_IC_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, MA_SEQUENCE_ID,
+        MA_INDIRECT_COST_ID, CALCCOST)
+      VALUES (v_ID, Cur_SequencePIC_In.AD_Client_ID, Cur_SequencePIC_In.AD_Org_ID,
+        'Y', now(), p_User, now(), p_User, p_Sequence_ID,
+        Cur_SequencePIC_In.MA_INDIRECT_COST_ID, v_SequenceCost_Tmp);
+
+      v_SequenceCost := v_SequenceCost + COALESCE(v_SequenceCost_Tmp, 0);
+    END LOOP;
+
+    v_SequenceCost_Tmp := 0;
+  ELSE
+      SELECT '@theSequence@ ' || MA_PROCESSPLAN.NAME || ' - ' || MA_PROCESSPLAN_VERSION.DOCUMENTNO || ' - ' || MA_SEQUENCE.NAME || ' @notCostCenterforDate@' INTO p_Message
+      FROM MA_SEQUENCE, MA_PROCESSPLAN_VERSION, MA_PROCESSPLAN
+      WHERE MA_PROCESSPLAN.MA_PROCESSPLAN_ID = MA_PROCESSPLAN_VERSION.MA_PROCESSPLAN_ID
+        AND MA_PROCESSPLAN_VERSION.MA_PROCESSPLAN_VERSION_ID = MA_SEQUENCE.MA_PROCESSPLAN_VERSION_ID
+        AND MA_SEQUENCE.MA_SEQUENCE_ID = p_Sequence_ID
+        AND MA_PROCESSPLAN_VERSION.MA_PROCESSPLAN_VERSION_ID = v_ProcessPlan_Version;
+    END IF;
+  ELSE
+    v_SequenceCost := v_SequenceCost + COALESCE(v_OutsourcingCost,0);
+  END IF;
+
+  v_ResultStr := 'Update produced products cost: ' || v_SequenceCost || ' component cost total: ' || v_CompCostSum;
+  --Update produced products cost
+  UPDATE MA_SequenceProduct
+  SET cost = ROUND(((v_SequenceCost*COALESCE(componentcost,1)*COALESCE(rejected,1)*COALESCE(decrease,1))/
+              (v_CompCostSum*quantity)),4),
+      UPDATED = now()
+  WHERE productiontype = '+'
+    AND quantity <> 0
+    AND MA_Sequence_ID = p_Sequence_ID;
+
+  --Set sequence as calculated
+  UPDATE MA_Sequence
+  SET calculated = 'Y',
+      updated = p_CalcDate,
+      updatedby = p_User
+  WHERE MA_Sequence_ID = p_Sequence_ID;
+
+   --DBMS_OUTPUT.PUT_LINE('Finish MA_Sequence: ' || p_Sequence_ID || ' cost: ' || v_SequenceCost);
+
+END; --BODY
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('ERROR MA_Standard_Cost_Sequence, sequence_ID '|| p_Sequence_ID || ', date ' || p_CalcDate || ' at ' ||v_ResultStr);
+    RAISE;
+END MA_STANDARD_COST_SEQUENCE
+]]></body>
+    </function>
+  </database>

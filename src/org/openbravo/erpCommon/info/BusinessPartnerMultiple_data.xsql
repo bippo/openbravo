@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="BusinessPartnerMultipleData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      	SELECT * FROM ( SELECT '0' AS RN1, A.* FROM (
+	        SELECT bp.C_BPartner_ID, bp.VALUE, bp.NAME as name, replace(bp.NAME, '''', CHR(92) || '''') as name_hidden, 
+	        (bp.SO_CreditLimit-bp.SO_CreditUsed) AS SO_CreditAvailable, bp.SO_CreditUsed, 
+	        bp.ActualLifetimeValue, bp.URL, MAX(s.EMAIL) AS EMAIL, MAX(sales.NAME) as SALESREP, bp.C_BPartner_ID || '@_##_@' || bp.NAME AS RowKey
+	        FROM C_BPARTNER_LOCATION l left join AD_USER c on l.C_BPartner_Location_ID = c.C_BPartner_Location_ID and c.isactive='Y'
+	                                   left join C_LOCATION a on l.C_Location_ID=a.C_Location_ID
+	                                   left join C_REGION on a.C_REGION_ID = C_REGION.C_REGION_ID,
+	             C_BPARTNER bp left join  AD_USER s on bp.SALESREP_ID = s.c_bpartner_id 
+                               left join C_BPARTNER sales on bp.SALESREP_ID = sales.C_BPARTNER_ID
+	        WHERE bp.C_BPARTNER_ID = l.C_BPartner_ID
+	        AND bp.IsSummary='N' 
+	        AND bp.AD_Client_ID IN ('1') 
+	        AND bp.AD_Org_ID IN ('1') 
+	        AND l.IsActive='Y'
+	        AND 1=1
+	        GROUP BY bp.C_BPartner_ID, bp.VALUE, bp.NAME, bp.SO_CreditLimit, bp.SO_CreditUsed, bp.ActualLifetimeValue, bp.URL
+	        ORDER BY bp.NAME
+	    	) A ) B
+		WHERE 1=1
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="bp.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="bp.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(bp.Value) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="name" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(bp.Name) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="contact" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(c.Name) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="codigoPostal" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(a.Postal) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="provincia" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(C_REGION.NAME) LIKE UPPER(?)]]></Parameter>
+        <Parameter name="clients" optional="true" type="none" after="AND 1=1"><![CDATA[AND bp.ISCUSTOMER = 'Y' ]]></Parameter>
+        <Parameter name="vendors" optional="true" type="none" after="AND 1=1"><![CDATA[AND bp.ISVENDOR ='Y']]></Parameter>
+        <Parameter name="ciudad" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(a.City) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="bp.NAME" />
+        <Parameter name="pgLimit" type="argument" optional="true" after="ORDER BY bp.NAME"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") A "><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <Sql> <![CDATA[
+            SELECT count(*) AS VALUE FROM ( SELECT '0' AS RN1, B.* FROM ( select 1
+            FROM C_BPARTNER_LOCATION l left join AD_USER c on l.C_BPartner_Location_ID = c.C_BPartner_Location_ID and c.isactive='Y'
+                                       left join C_LOCATION a on l.C_Location_ID=a.C_Location_ID
+                                       left join C_REGION on a.C_REGION_ID = C_REGION.C_REGION_ID,
+                 C_BPARTNER bp
+            WHERE bp.C_BPARTNER_ID = l.C_BPartner_ID
+            AND bp.IsSummary='N'
+            AND bp.AD_Client_ID IN ('1')
+            AND bp.AD_Org_ID IN ('1')
+            AND l.IsActive='Y'
+            AND 1=1
+            GROUP BY bp.C_BPartner_ID, bp.VALUE, bp.NAME, bp.SO_CreditLimit, bp.SO_CreditUsed, bp.ActualLifetimeValue, bp.URL
+            ) B
+            ) A 
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="bp.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="bp.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(bp.Value) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="name" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(bp.Name) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="contact" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(c.Name) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="codigoPostal" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(a.Postal) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="provincia" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(C_REGION.NAME) LIKE UPPER(?)]]></Parameter>
+        <Parameter name="clients" optional="true" type="none" after="AND 1=1"><![CDATA[AND bp.ISCUSTOMER = 'Y' ]]></Parameter>
+        <Parameter name="vendors" optional="true" type="none" after="AND 1=1"><![CDATA[AND bp.ISVENDOR ='Y']]></Parameter>
+        <Parameter name="ciudad" ignoreValue="%" optional="true" after="AND 1=1"><![CDATA[AND UPPER(a.City) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="bp.URL"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+
+</SqlClass>

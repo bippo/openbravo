@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="InvoiceData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT B.*,
+        	C_Invoice_ID || '@_##_@' || DocumentNo || ' - ' || TO_CHAR(DateInvoiced, TO_CHAR(?)) as RowKey,
+        	C_Base_Convert(GrandTotal, C_Currency_ID, AD_Client_ID, DateAcct, '0') AS ConvertedAmount,
+            DocumentNo||' - '||TO_CHAR(DateInvoiced,to_char(?))||' - '||GrandTotal AS Name,
+          	REPLACE(DocumentNo||' - '||TO_CHAR(DateInvoiced,to_char(?))||' - '||GrandTotal, '''', CHR(92) || '''') AS Name_HIDDEN, '' AS value
+        
+        FROM ( SELECT '0' AS RN1, A.* FROM ( 
+          SELECT
+          i.C_Invoice_ID,
+          bp.name AS BPartnerName,
+          i.DateInvoiced,
+          i.DocumentNo,
+          (SELECT ISO_Code FROM C_Currency c WHERE c.C_Currency_ID=i.C_Currency_ID) AS Currency,
+          i.GrandTotal,
+          0 AS OpenAmt,
+          i.IsSOTrx,
+          i.Description,
+          i.POReference,
+          i.DateAcct, i.AD_Client_ID, i.C_Currency_ID
+          FROM C_Invoice_v i LEFT JOIN C_BPartner bp ON bp.C_BPartner_ID=i.C_BPartner_ID
+          WHERE i.AD_Client_ID IN ('1') 
+          AND i.AD_Org_ID IN ('1') 
+          AND i.IsActive='Y'
+          ORDER BY 2
+        ) A ) B
+        WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="dateFormat"/>
+        <Parameter name="dateFormat"/>
+        <Parameter name="dateFormat"/>        
+        <Parameter name="adUserClient" type="replace" optional="true" after="i.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="i.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key" ignoreValue="%" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND UPPER(i.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND UPPER(i.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.C_BPartner_ID = ? ]]></Parameter>
+        <Parameter name="order" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.POReference = ? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.DateInvoiced >= TO_DATE(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.DateInvoiced < TO_DATE(?) ]]></Parameter>
+        <Parameter name="grandTotalFrom" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.GrandTotal >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="grandTotalTo" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.GrandTotal <= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="sotrx" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.IsSOTrx = ? ]]></Parameter>
+        <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="2" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   
+   
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+          SELECT COUNT(*) AS value FROM ( SELECT '0' AS rn1, B.* FROM (
+            SELECT 1 FROM C_Invoice_v i
+            WHERE i.AD_Client_ID IN ('1') 
+            AND i.AD_Org_ID IN ('1') 
+            AND i.IsActive='Y'
+            AND 1=1
+          ) B
+          ) A 
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="i.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="i.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key" ignoreValue="%" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND UPPER(i.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND UPPER(i.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.C_BPartner_ID = ? ]]></Parameter>
+        <Parameter name="order" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.POReference = ? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.DateInvoiced >= TO_DATE(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.DateInvoiced < TO_DATE(?) ]]></Parameter>
+        <Parameter name="grandTotalFrom" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.GrandTotal >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="grandTotalTo" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.GrandTotal <= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="sotrx" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.IsSOTrx = ? ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+<Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+<Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+
+
+   <SqlMethod name="selectKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT
+          i.C_Invoice_ID, i.DocumentNo||' - '||TO_CHAR(i.DateInvoiced,to_char(?))||' - '||i.GrandTotal AS Name,
+          (SELECT Name FROM C_BPartner bp WHERE bp.C_BPartner_ID=i.C_BPartner_ID) AS BPartnerName,
+          i.DateInvoiced,
+          i.DocumentNo,
+          (SELECT ISO_Code FROM C_Currency c WHERE c.C_Currency_ID=i.C_Currency_ID) AS Currency,
+          i.GrandTotal,
+          C_Base_Convert(i.GrandTotal, i.C_Currency_ID, i.AD_Client_ID, i.DateAcct, '0') AS ConvertedAmount,
+          0 AS OpenAmt,
+          i.IsSOTrx,
+          i.Description,
+          i.POReference
+          FROM C_Invoice_v i
+          WHERE i.AD_Client_ID IN ('1') 
+          AND i.AD_Org_ID IN ('1') 
+          AND i.IsActive='Y'
+          AND UPPER(i.DocumentNo) LIKE UPPER(?)
+      ]]>
+      </Sql>
+        <Parameter name="dateFormat"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="i.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="i.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="sotrx" optional="true" after="AND i.IsActive='Y'"><![CDATA[ AND i.IsSOTrx = ? ]]></Parameter>
+        <Parameter name="key"/>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,1523 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_ORDER_POST1">
+    <function name="C_ORDER_POST1" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistics
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_IsProcessing CHAR(1) ;
+  v_IsProcessed VARCHAR(60) ;
+  v_Result NUMBER:=1; -- Success
+  v_is_included NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_Order RECORD;
+  -- Record Info
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+  v_Org_Name VARCHAR2(60);
+  v_UpdatedBy VARCHAR2(32);
+  v_DocAction VARCHAR(60) ;
+  v_DocStatus VARCHAR(60) ;
+  v_InvoiceRule VARCHAR(60) ;
+  v_M_Warehouse_ID VARCHAR2(32);
+  v_DocType_ID VARCHAR2(32);
+  v_DocTypeTarget_ID VARCHAR2(32);
+  v_DocSubTypeSO VARCHAR(60) ;
+  v_DocSubTypeSOTarget VARCHAR(60) ;
+  v_DocBaseTypeTarget VARCHAR(60);
+  v_IsReturnDocType CHAR(1);
+  v_IsBinding CHAR(1):='Y';
+  --
+  ToDeliver NUMBER;
+  ToInvoice NUMBER;
+  --
+  InOut_ID VARCHAR2(32);
+  Invoice_ID VARCHAR2(32);
+  --Added by P.SAROBE
+  v_documentno_Settlement VARCHAR2(40);
+  v_dateSettlement DATE;
+  v_Cancel_Processed VARCHAR(60);
+  v_nameBankstatement VARCHAR2 (60);
+  v_dateBankstatement DATE;
+  v_nameCash VARCHAR2 (60);
+  v_dateCash DATE;
+  v_Bankstatementline_ID VARCHAR2(32);
+  --Finish added by P.Sarobe
+  v_AuxCashLine_ID VARCHAR2(32);
+  v_CashLine_ID VARCHAR2(32);
+  v_ispaid CHAR(1);
+  v_Settlement_Cancel_ID VARCHAR2(32);
+  v_Cash_ID VARCHAR2(32):=NULL;
+  v_Line NUMBER:=0;
+  v_CashBook_ID VARCHAR2(32):=NULL;
+  v_Debtpayment_ID VARCHAR2(32);
+  v_ISO_Code VARCHAR(10) ;
+  v_DocumentNo VARCHAR2(200) ;
+  v_GrandTotal NUMBER;
+  v_Multiplier NUMBER:=1;
+  v_Date DATE;
+  v_WarehouseName VARCHAR2(60) ;
+  v_CashProcessed NUMBER;
+  v_count NUMBER;
+  v_isSoTrx CHAR(1) ;
+  v_Aux NUMBER;
+  v_c_Bpartner_ID VARCHAR2(32);
+  v_c_currency_ID VARCHAR2(32);
+  v_C_PROJECT_ID VARCHAR2(32);
+  v_PriceList_ID VARCHAR2(32);
+  FINISH_PROCESS BOOLEAN:=FALSE;
+  END_PROCESSING BOOLEAN:=FALSE;
+  v_CBPartner_ID VARCHAR2(32);
+  rowcount NUMBER;
+
+  v_CumDiscount NUMBER;
+  v_OldCumDiscount NUMBER;
+  v_OrderLineSeqNo NUMBER;
+  Cur_COrderDiscount RECORD;
+  Cur_TaxDiscount RECORD;
+  v_OrderLine VARCHAR2(32);
+  v_Discount NUMBER;
+  v_precision NUMBER;
+  Cur_OrderLine RECORD;
+  v_DiscountExist NUMBER;
+  BEGIN
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+          p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      SELECT CREATEDBY INTO v_User  FROM C_ORDER  WHERE C_ORDER_ID=p_Order_ID;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+  BEGIN --BODY
+    /**
+    * Read Order
+    */
+    v_ResultStr:='ReadingOrder';
+    SELECT Processing, Processed, DocAction, DocStatus,
+      C_DocType_ID, C_DocTypeTarget_ID, AD_Client_ID,
+      AD_Org_ID, UpdatedBy, M_Warehouse_ID, TRUNC(DateOrdered),
+      Issotrx, c_Bpartner_Id, c_currency_id, C_PROJECT_ID,
+      C_BPartner_ID, M_PriceList_ID, invoicerule
+    INTO v_IsProcessing, v_IsProcessed, v_DocAction, v_DocStatus,
+      v_DocType_ID, v_DocTypeTarget_ID, v_Client_ID,
+      v_Org_ID, v_UpdatedBy, v_M_Warehouse_ID, v_Date,
+      v_isSoTrx, v_c_Bpartner_Id, v_c_currency_id, v_C_PROJECT_ID,
+      v_CBPartner_ID, v_PriceList_ID, v_invoicerule
+    FROM C_ORDER
+    WHERE C_Order_ID=v_Record_ID  FOR UPDATE;
+    -- Get current DocSubTypeSO
+    SELECT DocSubTypeSO
+      INTO v_DocSubTypeSO
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocType_ID;
+    SELECT DocSubTypeSO, isreturn
+      INTO v_DocSubTypeSOTarget, v_isreturndoctype
+    FROM C_DOCTYPE
+    WHERE C_DocType_ID=v_DocTypetarget_ID;
+    -- Get the name of the org of the Order. Added by P.Sarobe
+    SELECT name INTO v_Org_Name FROM AD_ORG WHERE ad_org_id = v_Org_ID;
+    DBMS_OUTPUT.PUT_LINE('DocAction=' || v_DocAction || ', DocStatus=' || v_DocStatus || ', DocType_ID=' || v_DocType_ID || ', DocTypeTarget_ID=' || v_DocTypeTarget_ID || ', DocSubTypeSO=' || v_DocSubTypeSO) ;
+
+    /**
+    * Check if order has lines
+    */
+    IF (v_DocAction = 'CO') THEN
+      SELECT COUNT(*)
+        INTO v_Aux
+       FROM C_ORDERLINE
+       WHERE C_ORDER_ID = v_Record_ID;
+       IF v_Aux=0 THEN
+         RAISE_APPLICATION_ERROR(-20000, '@OrderWithoutLines@');
+       END IF;
+    END IF;
+
+    /**
+    * Order Closed, Voided or Reversed - No action possible
+    */
+    IF(v_DocStatus IN('CL', 'VO', 'RE')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@') ;
+    END IF;
+
+    /**
+    * Waiting on Prepayment  can only be closed
+    */
+    IF(v_DocStatus='WP' AND v_DocAction<>'CL') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@WaitingPayment@') ;
+    END IF;
+
+    IF (v_DocSubTypeSOTarget='PR' AND v_invoicerule <> 'I') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@PrepayMustImmediate@');
+    END IF;
+    /**
+    * Unlock
+    */
+    IF(v_DocAction='XL') THEN
+      UPDATE C_ORDER
+        SET Processing='N',
+        DocAction='--',
+        Updated=now(),
+        UpdatedBy=v_User
+      WHERE C_Order_ID=v_Record_ID;
+      FINISH_PROCESS:=TRUE;
+    END IF;
+    IF(NOT FINISH_PROCESS) THEN
+      IF(v_IsProcessing='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OtherProcessActive@') ;
+      END IF;
+
+      /**
+      * Re-activate
+      */
+      IF (v_DocAction='RE') THEN
+        IF (v_DocSubTypeSO IN ('WR', 'WI')) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ActionNotSupported@');
+        END IF;
+        --Verify not managed debtPayments added by ALO
+        --Added by P.Sarobe. New messages
+        SELECT max(c_debt_payment_id), COUNT(*)
+          INTO v_Debtpayment_ID, v_Aux
+        FROM C_DEBT_PAYMENT
+        WHERE C_Order_ID=v_Record_ID
+          AND C_Debt_Payment_Status(C_Settlement_Cancel_ID, Cancel_Processed, Generate_Processed, IsPaid, IsValid, C_CashLine_ID, C_BankStatementLine_ID)!='P';
+        IF (v_Aux != 0) THEN
+          --Added by P.Sarobe. New messages
+          SELECT c_Bankstatementline_Id, c_cashline_id, c_settlement_cancel_id, ispaid, cancel_processed
+            INTO v_Bankstatementline_ID, v_CashLine_ID, v_Settlement_Cancel_ID, v_ispaid, v_Cancel_Processed
+          FROM C_DEBT_PAYMENT WHERE C_Debt_Payment_ID = v_Debtpayment_ID;
+
+          IF (v_Bankstatementline_ID IS NOT NULL) THEN
+            SELECT C_BANKSTATEMENT.NAME, C_BANKSTATEMENT.STATEMENTDATE
+              INTO v_nameBankstatement, v_dateBankstatement
+            FROM C_BANKSTATEMENT, C_BANKSTATEMENTLINE
+            WHERE C_BANKSTATEMENT.C_BANKSTATEMENT_ID = C_BANKSTATEMENTLINE.C_BANKSTATEMENT_ID
+              AND C_BANKSTATEMENTLINE.C_BANKSTATEMENTLINE_ID = v_Bankstatementline_ID;
+            RAISE_APPLICATION_ERROR(-20000, '@ManagedDebtPaymentOrderBank@'||v_nameBankstatement||' '||'@Bydate@'||v_dateBankstatement) ;
+          END IF;
+          IF (v_CashLine_ID IS NOT NULL) THEN
+            SELECT C_CASH.NAME, C_CASH.STATEMENTDATE
+              INTO v_nameCash, v_dateCash
+            FROM C_CASH, C_CASHLINE
+            WHERE C_CASH.C_CASH_ID = C_CASHLINE.C_CASH_ID
+              AND C_CASHLINE.C_CASHLINE_ID = v_CashLine_ID;
+            RAISE_APPLICATION_ERROR(-20000, '@ManagedDebtPaymentOrderCash@'||v_nameCash||' '||'@Bydate@'||v_dateCash) ;
+          END IF;
+          IF (v_Cancel_Processed='Y' AND v_ispaid='N') THEN
+            SELECT documentno, datetrx
+              INTO v_documentno_Settlement, v_dateSettlement
+            FROM C_SETTLEMENT
+            WHERE C_SETTLEMENT_ID = v_Settlement_Cancel_ID;
+            RAISE_APPLICATION_ERROR(-20000, '@ManagedDebtPaymentOrderCancel@'||v_documentno_Settlement||' '||'@Bydate@'||v_dateSettlement) ;
+          END IF;
+        END IF;
+
+        DBMS_OUTPUT.PUT_LINE('Re-Activating ' || v_DocSubTypeSO || ': ' || v_Record_ID) ;
+        IF(v_DocSubTypeSO IN ('WI', 'WP', 'WR')) THEN
+          -- Cancel existing Deli very + Invoice Documents
+          M_INOUT_CANCEL(NULL, v_Record_ID) ;
+          IF (v_DocSubTypeSO<>'WP') THEN
+            C_INVOICE_CANCEL(NULL, v_Record_ID);
+          END IF;
+        END IF;
+        -- Update Order
+        v_ResultStr:='ReActivate';
+        UPDATE C_ORDER
+        SET DocStatus='IP', -- In Progress
+            DocAction='CO',
+            Processing='N',
+            Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+        UPDATE M_INOUTLINE SET C_ORDERLINE_ID = NULL
+        WHERE (SELECT DISTINCT A.DOCSTATUS FROM M_INOUT A, M_INOUTLINE B, C_ORDERLINE C
+               WHERE A.M_INOUT_ID = B.M_INOUT_ID AND B.C_ORDERLINE_ID = C.C_ORDERLINE_ID
+                 AND C.C_ORDER_DISCOUNT_ID IS NOT NULL AND C.C_ORDER_ID = v_Record_ID) = 'VO'
+                 AND C_ORDERLINE_ID IN (SELECT C_ORDERLINE_ID FROM C_ORDERLINE WHERE C_ORDER_DISCOUNT_ID IS NOT NULL 
+                 AND C_ORDER_ID = v_Record_ID);
+        DELETE
+        FROM C_ORDERLINE
+        WHERE C_ORDER_DISCOUNT_ID IS NOT NULL
+          AND C_ORDER_ID=v_Record_ID;
+        --ADDED BY E.ARGAL
+        --Invalidate debt payments added by ALO
+        UPDATE C_DEBT_PAYMENT
+        SET IsValid='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID
+          AND IsAutomaticGenerated='N';
+
+        DELETE
+        FROM C_CASHLINE
+        WHERE C_Debt_Payment_Id IN
+            (SELECT C_DEBT_PAYMENT_ID
+            FROM C_DEBT_PAYMENT
+            WHERE C_Order_ID=v_Record_ID
+              AND COALESCE(IsAutomaticGenerated, 'Y')='Y'
+            );
+        DELETE
+        FROM C_DEBT_PAYMENT
+        WHERE C_Order_ID=v_Record_ID
+          AND COALESCE(IsAutomaticGenerated, 'Y')='Y';
+        /*
+        * Undo inventory reservation
+        */
+        DECLARE
+          Cur_ResLine RECORD;
+          v_QtySO NUMBER; -- Reserved
+          v_QtyOrderSO NUMBER;
+          v_QtyPO NUMBER; -- Ordered
+          v_QtyOrderPO NUMBER;
+        BEGIN
+          v_ResultStr:='ReserveInventory';
+          -- For all lines needing reservation
+          FOR Cur_ResLine IN
+            (SELECT l.M_Warehouse_ID, l.M_Product_ID, l.M_AttributeSetInstance_ID, l.C_OrderLine_ID,
+                 l.QtyOrdered AS Qty, l.QUANTITYORDER, l.qtyreserved, l.qtydelivered,
+                l.C_UOM_ID, l.M_PRODUCT_UOM_ID
+             FROM C_ORDERLINE l, M_PRODUCT p
+             WHERE l.C_Order_ID=v_Record_ID  -- Reserve Products (not: services, null products)
+               AND l.M_Product_ID=p.M_Product_ID
+               AND p.IsStocked='Y'
+               AND p.ProductType='I'  FOR UPDATE
+             )
+            LOOP
+            -- Qty corrected for SO/PO
+            IF (v_DocSubTypeSO IS NULL) THEN
+              v_QtySO:=0;
+              v_QtyOrderSO:=NULL;
+              v_QtyPO:=Cur_ResLine.qtydelivered-Cur_ResLine.qty;
+              v_QtyOrderPO:=NULL;
+              IF (Cur_ResLine.QtyDelivered=0) THEN
+                v_QtyOrderPO := -Cur_ResLine.QuantityOrder;
+              ELSIF Cur_ResLine.M_Product_UOM_ID IS NOT NULL THEN
+                v_QtyOrderPO := -C_Uom_Convert(v_QtyPO, Cur_ResLine.C_UOM_ID, Cur_ResLine.M_Product_UOM_ID, 'Y');
+              END IF;
+            ELSE
+              v_QtySO:=-Cur_ResLine.QtyReserved;
+              IF (Cur_ResLine.QtyReserved=Cur_ResLine.Qty) THEN
+                v_QtyOrderSO := -Cur_ResLine.QuantityOrder;
+              ELSIF Cur_ResLine.M_Product_UOM_ID IS NOT NULL THEN
+                v_QtyOrderSO := -C_Uom_Convert(v_QtySO, Cur_ResLine.C_UOM_ID, Cur_ResLine.M_Product_UOM_ID, 'Y');
+              END IF;
+              v_QtyPO:=0;
+              v_QtyOrderPO:=NULL;
+            END IF;
+            IF (v_DocStatus<>'IP' OR v_DocAction<>'CO') THEN
+              M_UPDATE_STORAGE_PENDING(v_Client_ID, v_Org_ID, v_UpdatedBy, Cur_ResLine.M_Product_ID, Cur_ResLine.M_Warehouse_ID, Cur_ResLine.M_AttributeSetInstance_ID, Cur_ResLine.C_UOM_ID, Cur_ResLine.M_PRODUCT_UOM_ID, v_QtySO, v_QtyOrderSO, v_QtyPO, v_QtyOrderPO) ;
+            END IF;
+          END LOOP;
+          -- Set reserved quantity to 0
+          UPDATE C_ORDERLINE
+          SET QtyReserved = 0,
+              Updated=now(),
+              UpdatedBy=v_User
+          WHERE c_orderline_id IN (select c_orderline_id
+                                   from c_orderline
+                                   where c_order_id = v_Record_id);
+
+        END;
+        --ADDED BY P.SAROBE but to be deprecated 26052007
+        SELECT MAX(C_CASHLINE_ID)
+          INTO v_CashLine_ID
+        FROM C_CASHLINE
+        WHERE C_ORDER_ID=v_Record_ID;
+        IF (v_CashLine_ID IS NOT NULL) THEN
+          SELECT PROCESSED
+            INTO v_IsProcessed
+          FROM C_CASH, C_CASHLINE
+          WHERE C_CASH.C_CASH_ID=C_CASHLINE.C_CASH_ID
+            AND C_CASHLINE_ID=v_CashLine_ID;
+          IF (v_IsProcessed='N') THEN
+            DELETE FROM C_CASHLINE WHERE C_CASHLINE_ID=v_CashLine_ID;
+          ELSE
+            SELECT C_CASH.NAME, C_CASH.STATEMENTDATE, C_CASHLINE.LINE
+              INTO v_nameCash, v_dateCash, v_Line
+            FROM C_CASH, C_CASHLINE
+            WHERE C_CASH.C_CASH_ID = C_CASHLINE.C_CASH_ID
+              AND C_CASHLINE.C_CASHLINE_ID = v_CashLine_ID;
+            RAISE_APPLICATION_ERROR(-20000, '@Ordercahslineprocessed@'||v_nameCash||' '||'@Bydate@'||v_dateCash||' '||'@line@'||v_Line) ;
+          END IF;
+        END IF;
+
+        UPDATE C_ORDER
+        SET DocStatus='DR', -- Draft
+            DocAction='CO',
+            Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+        INTO v_Count
+      FROM C_ORDER C, C_DOCTYPE
+      WHERE C_DocType.DocBaseType IN ('SOO', 'POO')
+        AND C_DocType.IsSOTrx=C.ISSOTRX
+        AND AD_ISORGINCLUDED(C.AD_Org_ID,C_DocType.AD_Org_ID, C.AD_Client_ID) <> -1
+        AND C.C_DOCTYPETARGET_ID = C_DOCTYPE.C_DOCTYPE_ID
+        AND C.C_ORDER_ID = v_Record_ID;
+      IF (v_Count=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgDoctypeOrder@') ;
+      END IF;
+
+      -- Set org lines like the headear
+      UPDATE C_ORDERLINE
+      SET AD_ORG_ID = (SELECT AD_ORG_ID FROM C_ORDER WHERE C_ORDER_ID = v_Record_ID)
+      WHERE C_ORDER_ID = v_Record_ID;
+
+      /**
+      * Close Order - prepare
+      */
+      IF (v_DocAction='CL') THEN
+        -- Cancel undelivered Items
+        IF (v_isSoTrx='Y') THEN --Sales orders
+          UPDATE C_ORDERLINE
+          SET QtyOrdered=QtyDelivered,
+              --MODIFIED BY P.SAROBE
+              linenetamt=QtyDelivered*priceactual,
+              --MODIFIED BY F.IRIAZABAL
+              QuantityOrder=QuantityOrder,
+              Updated=now()
+          WHERE C_Order_ID=v_Record_ID
+            AND QtyOrdered<>QtyDelivered;
+          -- For Purchase orders, M_MatchPO table used. Notice that only delivered lines(C_Invoiceline_Id is null) using
+        ELSE
+          UPDATE C_ORDERLINE
+          SET QTYORDERED=COALESCE
+                (
+                  (SELECT SUM(M_MATCHPO.QTY)
+                  FROM M_MATCHPO
+                  WHERE M_MATCHPO.C_ORDERLINE_ID=C_ORDERLINE.C_ORDERLINE_ID
+                    AND M_MATCHPO.C_INVOICELINE_ID IS NULL
+                  )
+                  , 0
+                ),
+              QuantityOrder=C_ORDERLINE.QuantityOrder,
+              Updated=now(),
+              linenetamt=COALESCE
+                (
+                  (SELECT SUM(M_MATCHPO.QTY)
+                  FROM M_MATCHPO
+                  WHERE M_MATCHPO.C_ORDERLINE_ID=C_ORDERLINE.C_ORDERLINE_ID
+                    AND M_MATCHPO.C_INVOICELINE_ID IS NULL
+                  )
+                  , 0
+                )
+                *priceactual
+          WHERE C_ORDERLINE.C_ORDER_ID=v_Record_ID;
+        END IF;
+        -- if there is no change, the tax calculation, etc. is not needed.
+        -- potential problem, if posted (i.e. encumbered) for full amount
+        -- and the rest then cancelled out.
+      END IF;
+
+      /**
+      *Update Product purchasing Plan Table
+      * Return Material orders do not update the last price.
+      */
+      IF (v_isSoTrx ='N' AND v_isreturndoctype = 'N') THEN
+        FOR Cur_OrderLine IN (SELECT * FROM C_ORDERLINE WHERE C_Order_Id =  v_Record_ID)
+        LOOP
+          UPDATE M_PRODUCT_PO SET PriceLastPO=Cur_OrderLine.PriceActual 
+          Where C_BPARTNER_ID = v_CBPartner_ID AND M_PRODUCT_ID = Cur_OrderLine.M_PRODUCT_ID
+          AND Ad_Isorgincluded(Cur_OrderLine.AD_ORG_ID,AD_ORG_ID, Cur_OrderLine.AD_Client_ID) <> -1;
+        END LOOP;
+      END IF;
+      /**
+      * Void Order - prepare
+      */
+      IF (v_DocAction='VO') THEN
+        -- Cancel all Items
+        UPDATE C_ORDERLINE
+          SET QtyOrdered=0,
+          --MODIFIED BY F.IRIAZABAL
+          QuantityOrder = CASE WHEN M_PRODUCT_UOM_ID IS NULL THEN NULL ELSE 0 END,
+          LineNetAmt=0,
+          Updated=now()
+        WHERE C_Order_ID=v_Record_ID
+          AND QtyOrdered<>0;
+      END IF;
+
+     /**************************************************************************
+      * Start Processing ------------------------------------------------------
+      *************************************************************************/
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+        INTO v_is_ready, v_is_tr_allow
+      FROM C_ORDER, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=C_ORDER.AD_Org_ID
+        AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+        AND C_ORDER.C_ORDER_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+      SELECT AD_ORG_CHK_DOCUMENTS('C_ORDER', 'C_ORDERLINE', v_Record_ID, 'C_ORDER_ID', 'C_ORDER_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='LockingOrder';
+        UPDATE C_ORDER  SET Processing='Y'  WHERE C_Order_ID=v_Record_ID;
+        COMMIT;
+        -- Now, needs to go to END_PROCESSING to unlock
+      END IF;
+      /**
+      * Allowed Actions:  AProve, COmplete, PRocess, CLose, VOid
+      */
+      IF (v_DocAction IN('AP', 'CO', 'PR', 'CL', 'VO')) THEN
+        NULL;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20000, '@ActionNotAllowedHere@') ;
+      END IF;
+
+      SELECT COUNT(*)
+        INTO v_count
+      FROM AD_CLIENTINFO
+      WHERE AD_CLIENT_ID=v_Client_ID
+        AND CHECKORDERORG='Y';
+      IF (v_count > 0) THEN
+        v_ResultStr:='CheckingRestrictions - C_ORDER ORG IS IN C_BPARTNER ORG TREE';
+        SELECT COUNT(*)
+          INTO v_count
+        FROM C_ORDER c, C_BPARTNER bp
+        WHERE c.C_Order_ID=v_Record_ID
+          AND c.C_BPARTNER_ID=bp.C_BPARTNER_ID
+          AND Ad_Isorgincluded(c.AD_ORG_ID, bp.AD_ORG_ID, bp.AD_CLIENT_ID)=-1;
+        IF (v_count > 0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgBpartnerOrder@') ;
+        END IF;
+      END IF;
+
+     /**************************************************************************
+      * Calculate Discounts
+      *************************************************************************/
+
+      -- Delete first previous discounts (if possible) and then recalculate them
+      UPDATE C_ORDER
+      SET DocStatus='IP', -- In progress
+          Processing='N',
+          Processed='N',
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE C_Order_ID=v_Record_ID;
+
+      DELETE
+      FROM C_ORDERLINE
+      WHERE C_ORDER_DISCOUNT_ID IS NOT NULL
+        AND C_ORDER_ID = v_Record_ID
+        AND NOT EXISTS (SELECT C_INVOICELINE_ID FROM C_INVOICELINE WHERE C_INVOICELINE.C_ORDERLINE_ID = C_ORDERLINE.C_ORDERLINE_ID)
+        AND NOT EXISTS (SELECT M_INOUTLINE_ID FROM M_INOUTLINE WHERE M_INOUTLINE.C_ORDERLINE_ID = C_ORDERLINE.C_ORDERLINE_ID)
+        AND NOT EXISTS (SELECT M_MATCHPO_ID FROM M_MATCHPO WHERE M_MATCHPO.C_ORDERLINE_ID = C_ORDERLINE.C_ORDERLINE_ID);
+
+      UPDATE C_ORDERLINE
+      SET pricelist = 0, priceactual = 0, pricelimit = 0, linenetamt = 0, pricestd = 0
+      WHERE C_ORDER_DISCOUNT_ID IS NOT NULL
+        AND C_ORDER_ID=v_Record_ID;
+
+      UPDATE C_ORDER
+      SET DocStatus=v_DocStatus, -- restore
+          Processing=v_IsProcessing,
+          Processed=v_IsProcessed,
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE C_Order_ID=v_Record_ID;
+
+      v_CumDiscount:=0;
+      v_OldCumDiscount:=0;
+      v_Line:=10;
+      v_precision:=0;
+      SELECT MAX(LINE)
+        INTO v_OrderLineSeqNo
+      FROM C_ORDERLINE
+      WHERE C_ORDER_ID=v_Record_ID;
+      SELECT PricePrecision INTO v_precision
+      FROM C_ORDER o, C_CURRENCY c
+      WHERE o.C_ORDER_ID = v_Record_ID AND  o.C_CURRENCY_ID = c.C_CURRENCY_ID;
+      FOR Cur_COrderDiscount IN
+         (SELECT C_ORDER_DISCOUNT.C_ORDER_DISCOUNT_ID, C_DISCOUNT.DISCOUNT, C_DISCOUNT.M_PRODUCT_ID, C_DISCOUNT.NAME,
+            C_ORDER_DISCOUNT.CASCADE, C_DISCOUNT.C_DISCOUNT_ID, M_PRODUCT.C_UOM_ID
+          FROM C_ORDER_DISCOUNT, C_DISCOUNT, M_PRODUCT
+          WHERE C_ORDER_DISCOUNT.C_DISCOUNT_ID=C_DISCOUNT.C_DISCOUNT_ID
+            AND C_DISCOUNT.M_PRODUCT_ID=M_PRODUCT.M_PRODUCT_ID
+            AND C_ORDER_DISCOUNT.C_ORDER_ID=v_Record_ID
+            AND C_ORDER_DISCOUNT.ISACTIVE='Y'
+            AND C_DISCOUNT.ISACTIVE='Y'
+          ORDER BY C_ORDER_DISCOUNT.LINE
+          )
+      LOOP
+        v_CumDiscount:=(1-v_OldCumDiscount) * Cur_COrderDiscount.Discount/100;
+        v_OldCumDiscount:=v_OldCumDiscount + v_CumDiscount;
+        FOR Cur_TaxDiscount IN
+           (SELECT C_ORDERLINE.C_TAX_ID,
+              SUM(C_ORDERLINE.LINENETAMT) AS LINENETAMT
+            FROM C_ORDERLINE
+            WHERE C_ORDER_ID=v_Record_ID
+              AND C_ORDERLINE.LINENETAMT<>0
+              AND C_ORDER_DISCOUNT_ID IS NULL
+            GROUP BY C_TAX_ID
+            )
+        LOOP
+          IF (Cur_COrderDiscount.CASCADE='Y') THEN
+            v_Discount:=(-1) * Cur_TaxDiscount.LINENETAMT * v_CumDiscount;
+          ELSE
+            v_Discount:=(-1) * Cur_TaxDiscount.LINENETAMT * Cur_COrderDiscount.Discount/100;
+          END IF;
+
+          SELECT COUNT(*) INTO v_DiscountExist FROM C_ORDERLINE
+          WHERE C_ORDERLINE.C_ORDER_DISCOUNT_ID = Cur_COrderDiscount.C_ORDER_DISCOUNT_ID
+            AND C_ORDERLINE.C_TAX_ID = Cur_TaxDiscount.C_TAX_ID;
+
+          IF (v_DiscountExist = 0) THEN
+            v_OrderLineSeqNo:=10 + v_OrderLineSeqNo;
+            v_OrderLine:=get_uuid();
+            INSERT INTO c_orderline
+              (
+                c_orderline_id, ad_client_id, ad_org_id, isactive, created, createdby,
+                updated, updatedby, c_order_id, line, c_bpartner_id, c_bpartner_location_id,
+                dateordered, datepromised, datedelivered, dateinvoiced, description,
+                m_product_id, m_warehouse_id, directship, c_uom_id, qtyordered,
+                qtyreserved, qtydelivered, qtyinvoiced, m_shipper_id, c_currency_id,
+                pricelist, priceactual, pricelimit, linenetamt, discount, freightamt,
+                c_charge_id, chargeamt, c_tax_id, s_resourceassignment_id, ref_orderline_id,
+                m_attributesetinstance_id, isdescription, quantityorder, m_product_uom_id,
+                m_offer_id, pricestd, C_ORDER_DISCOUNT_ID
+              )
+            VALUES
+              (
+                v_OrderLine, v_Client_ID, v_Org_ID, 'Y', now(), v_UpdatedBy,
+                now(), v_UpdatedBy, v_Record_ID, v_OrderLineSeqNo, NULL, NULL,
+                now(), now(), now(), now(), Cur_COrderDiscount.NAME,
+                Cur_COrderDiscount.M_PRODUCT_ID, v_M_Warehouse_ID, 'N', Cur_COrderDiscount.C_UOM_ID, 1,
+                0, 0, 0, NULL, v_c_currency_id,
+                ROUND(v_Discount,v_precision), ROUND(v_Discount,v_precision), ROUND(v_Discount,v_precision), ROUND(v_Discount,v_precision), 0, 0,
+                NULL, NULL, Cur_TaxDiscount.C_TAX_ID, NULL, NULL,
+                NULL, 'N', NULL, NULL,
+                NULL, ROUND(v_Discount,v_precision), NULL
+              );
+  
+            UPDATE C_ORDERLINE
+            SET C_ORDER_DISCOUNT_ID=Cur_COrderDiscount.C_ORDER_DISCOUNT_ID
+            WHERE C_ORDERLINE_ID=v_OrderLine;
+          ELSE
+            UPDATE C_ORDERLINE 
+            SET pricelist = ROUND(v_Discount,v_precision), priceactual = ROUND(v_Discount,v_precision), pricelimit = ROUND(v_Discount,v_precision), linenetamt = ROUND(v_Discount,v_precision), pricestd = ROUND(v_Discount,v_precision)
+            WHERE C_ORDERLINE.C_ORDER_DISCOUNT_ID = Cur_COrderDiscount.C_ORDER_DISCOUNT_ID
+              AND C_ORDERLINE.C_TAX_ID = Cur_TaxDiscount.C_TAX_ID;
+          END IF;
+        END LOOP;
+        v_Line:=v_Line + 10;
+      END LOOP;
+
+      /**
+      * Convert to Target DocType
+      */
+      DECLARE
+        v_DocSubTypeSO_Target VARCHAR(60) ;
+      BEGIN
+        v_ResultStr:='ConvertingDocType';
+        IF (v_DocType_ID <> v_DocTypeTarget_ID) THEN
+          -- New
+          IF (v_DocStatus='DR' OR v_DocType_ID='0') THEN
+            -- Update to Target Document Type
+            WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+            LOOP
+              BEGIN
+                v_ResultStr:='UpdateDocType';
+                UPDATE C_ORDER
+                SET C_DocType_ID=v_DocTypeTarget_ID,
+                    Updated=now(),
+                    UpdatedBy=v_User
+                WHERE C_Order_ID=v_Record_ID;
+                v_DocType_ID:=v_DocTypeTarget_ID;
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_ResultStr:='UpdateDocumentNo';
+                UPDATE C_ORDER  SET DocumentNo=DocumentNo || '.'  WHERE C_Order_ID=v_Record_ID;
+              END;
+            END LOOP;
+          ELSE
+            v_ResultStr:='GetTargetDocType';
+            SELECT DocSubTypeSO
+              INTO v_DocSubTypeSO_Target
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocTypeTarget_ID;
+            DBMS_OUTPUT.PUT_LINE('Changing DocType from ' || v_DocSubTypeSO || ' to ' || v_DocSubTypeSO_Target) ;
+            -- Change Offer to anything, Change InProcess to anything
+            IF (v_DocSubTypeSO IN('ON', 'OB') OR v_DocStatus='IP') THEN
+              -- Update to Target Document Type
+              WHILE(v_DocType_ID<>v_DocTypeTarget_ID)
+              LOOP
+                BEGIN
+                  v_ResultStr:='UpdateDocType';
+                  UPDATE C_ORDER
+                  SET C_DocType_ID=v_DocTypeTarget_ID,
+                      Updated=now(),
+                      UpdatedBy=v_User
+                  WHERE C_Order_ID=v_Record_ID;
+                  v_DocType_ID:=v_DocTypeTarget_ID;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_ResultStr:='UpdateDocumentNo';
+                  UPDATE C_ORDER  SET DocumentNo=DocumentNo || '.'  WHERE C_Order_ID=v_Record_ID;
+                END;
+              END LOOP;
+            ELSE
+              -- Change Back
+              UPDATE C_ORDER
+                SET C_DocTypeTarget_ID=v_DocType_ID
+              WHERE C_Order_ID=v_Record_ID;
+              RAISE_APPLICATION_ERROR(-20000, '@CannotChangeDocType@') ;
+            END IF;
+          END IF;
+        END IF; -- C_DocType_ID <> C_DocTypeTarget_ID
+      END; -- Conversion
+
+    /**
+      * Get DocSubTypeSO + Is it Binding :1:2
+      */
+      v_ResultStr:='TestBinding DocType_ID=' || v_DocType_ID;
+      SELECT CASE DocSubTypeSO WHEN 'ON' THEN 'N' ELSE 'Y' END, DocSubTypeSO
+        INTO v_IsBinding, v_DocSubTypeSO
+      FROM C_DOCTYPE
+      WHERE C_DocType_ID=v_DocType_ID;
+      DBMS_OUTPUT.PUT_LINE('DocSubTypeSO=' || v_DocSubTypeSO || ' IsBinding=' || v_IsBinding) ;
+
+    /**************************************************************************
+      * Resolve not-stocked BOMs
+      *************************************************************************/
+      DECLARE
+        -- Order Lines with non-stocked BOMs
+        CUR_BOM_Line RECORD;
+        -- BOM Product List
+        CUR_BOM RECORD;
+        CountNo NUMBER;
+        v_PriceList_Version_ID VARCHAR2(32);
+        NextNo varchar2(32);
+        v_Line NUMBER;
+        v_FreightAmt NUMBER;
+        v_ChargeAmt NUMBER;
+        v_Parner_ID VARCHAR2(32);
+        --v_PriceList_ID VARCHAR2(32);
+      BEGIN
+        LOOP
+          -- How many BOMs do we have:3
+          SELECT COUNT(*)
+            INTO CountNo
+          FROM C_ORDERLINE l
+          WHERE l.C_Order_ID=v_Record_ID
+            AND EXISTS
+               (SELECT *
+                FROM M_PRODUCT p
+                WHERE l.M_Product_ID=p.M_Product_ID
+                  AND p.IsBOM='Y'
+                  AND p.IsStocked='N'
+                )
+                ;
+          -- Nothing to do:4
+          EXIT WHEN CountNo=0;
+          DBMS_OUTPUT.PUT_LINE('  BOMs to resolve=' || CountNo) ;
+          DECLARE
+            Cur_MPriceListVersion RECORD;
+          BEGIN
+            -- last shipment
+            FOR Cur_MPriceListVersion IN
+               (SELECT COALESCE(v.M_PriceList_Version_ID, '0') AS PriceList_Version_ID, o.M_PriceList_ID
+                FROM M_PRICELIST_VERSION v, C_ORDER o
+                WHERE v.M_PriceList_ID=o.M_PriceList_ID
+                  AND v.ValidFrom<=o.DateOrdered
+                  AND v.IsActive='Y'
+                  AND o.C_Order_ID=v_Record_ID
+                ORDER BY v.ValidFrom DESC
+               )
+            LOOP
+              v_PriceList_Version_ID:=Cur_MPriceListVersion.PriceList_Version_ID;
+              -- v_PriceList_ID := Cur_MPriceListVersion.M_PriceList_Id;
+              EXIT;
+            END LOOP;
+          END;
+          -- Get Price List Version
+          -- Replace Lines
+          FOR CUR_BOM_Line IN
+             (SELECT *
+              FROM C_ORDERLINE l
+              WHERE l.C_Order_ID=v_Record_ID
+                AND IsActive='Y'
+                AND EXISTS
+                   (SELECT *
+                    FROM M_PRODUCT p
+                    WHERE l.M_Product_ID=p.M_Product_ID
+                      AND p.IsBOM='Y'
+                    AND p.IsStocked='N'
+                   )
+              ORDER BY l.Line  FOR UPDATE
+             )
+          LOOP
+            v_Line:=CUR_BOM_Line.Line;
+            -- One Time variables
+            v_FreightAmt:=CUR_BOM_Line.FreightAmt;
+            v_ChargeAmt:=CUR_BOM_Line.ChargeAmt;
+            -- Create New Lines
+            FOR CUR_BOM IN
+               (SELECT b.M_ProductBOM_ID, p.C_UOM_ID, b.BOMQty, b.Description
+                FROM M_PRODUCT_BOM b
+                      INNER JOIN M_PRODUCT p ON (b.M_ProductBOM_ID=p.M_Product_ID)
+                WHERE b.M_Product_ID=CUR_BOM_Line.M_Product_ID
+                ORDER BY Line
+               )
+            LOOP
+              Ad_Sequence_Next('C_OrderLine', CUR_BOM_Line.AD_Client_ID, NextNo) ;
+              v_Line:=v_Line + 1;
+              INSERT
+              INTO C_ORDERLINE
+                (
+                  C_OrderLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                  Created, CreatedBy, Updated, UpdatedBy,
+                  C_Order_ID, Line, C_BPartner_ID, C_BPartner_Location_ID,
+                  DateOrdered, DatePromised, DateDelivered, DateInvoiced,
+                  Description, M_Product_ID, M_Warehouse_ID, DirectShip,
+                  C_UOM_ID, QtyOrdered, QtyReserved, QtyDelivered,
+                  QtyInvoiced, M_Shipper_ID, C_Currency_ID,
+                  PriceList,
+                  PriceActual, PriceLimit, LineNetAmt, Discount,
+                  FreightAmt, C_Charge_ID, ChargeAmt, C_Tax_ID,
+                  QuantityOrder, M_Product_Uom_ID, PriceStd
+                )
+              VALUES
+                (
+                  NextNo, CUR_BOM_Line.AD_Client_ID, CUR_BOM_Line.AD_Org_ID, CUR_BOM_Line.IsActive,
+                  now(), '0', now(), '0',
+                  CUR_BOM_Line.C_Order_ID, v_Line, CUR_BOM_Line.C_BPartner_ID, CUR_BOM_Line.C_BPartner_Location_ID,
+                  CUR_BOM_Line.DateOrdered, CUR_BOM_Line.DatePromised, CUR_BOM_Line.DateDelivered, CUR_BOM_Line.DateInvoiced,
+                  CUR_BOM.Description, CUR_BOM.M_ProductBOM_ID, CUR_BOM_Line.M_Warehouse_ID, CUR_BOM_Line.DirectShip,
+                  CUR_BOM.C_UOM_ID, CUR_BOM_Line.QtyOrdered*CUR_BOM.BOMQty, CUR_BOM_Line.QtyReserved*CUR_BOM.BOMQty, CUR_BOM_Line.QtyDelivered*CUR_BOM.BOMQty,
+                  CUR_BOM_Line.QtyInvoiced*CUR_BOM.BOMQty, CUR_BOM_Line.M_Shipper_ID, CUR_BOM_Line.C_Currency_ID,
+                  M_BOM_PriceList(CUR_BOM.M_ProductBOM_ID, v_PriceList_Version_ID),
+                  M_Get_Offers_Price(CUR_BOM_Line.DateOrdered, v_CBPartner_ID, CUR_BOM.M_ProductBOM_ID, M_BOM_PriceStd(CUR_BOM.M_ProductBOM_ID, v_PriceList_Version_ID), CUR_BOM_Line.QtyInvoiced*CUR_BOM.BOMQty, v_PriceList_ID), M_BOM_PriceLimit(CUR_BOM.M_ProductBOM_ID, v_PriceList_Version_ID),
+                  M_Get_Offers_Price(CUR_BOM_Line.DateOrdered, v_CBPartner_ID, CUR_BOM.M_ProductBOM_ID, M_BOM_PriceStd(CUR_BOM.M_ProductBOM_ID, v_PriceList_Version_ID), CUR_BOM_Line.QtyInvoiced*CUR_BOM.BOMQty, v_PriceList_ID) * CUR_BOM_Line.QtyOrdered*CUR_BOM.BOMQty, CUR_BOM_Line.Discount,
+                  v_FreightAmt, CUR_BOM_Line.C_Charge_ID, v_ChargeAmt, CUR_BOM_Line.C_Tax_ID,
+                  CUR_BOM_Line.QuantityOrder, CUR_BOM_Line.M_Product_UOM_ID, M_BOM_PriceStd(CUR_BOM.M_ProductBOM_ID, v_PriceList_Version_ID)
+                )
+              ; -- no Lot/SerNo for BOMs
+              -- One Time variables
+              v_FreightAmt:=0;
+              v_ChargeAmt:=0;
+            END LOOP; -- Create New Lines
+            -- Convert into Comment Line
+            UPDATE C_ORDERLINE
+            SET M_Product_ID=NULL,
+                PriceList=0,
+                PriceActual=0,
+                PriceLimit=0,
+                LineNetAmt=0,
+                FreightAmt=0,
+                ChargeAmt=0,
+                Description=
+                    (SELECT p.NAME || ' ' || C_ORDERLINE.Description
+                    FROM M_PRODUCT p
+                    WHERE p.M_Product_ID=CUR_BOM_Line.M_Product_ID
+                    )
+                    ,
+                PriceStd=0,
+                M_Offer_ID=NULL
+            WHERE C_OrderLine_ID=CUR_BOM_Line.C_OrderLine_ID;
+          END LOOP; -- Replace Lines
+        END LOOP; -- BOM Loop
+      END;
+    /**************************************************************************
+      * Always check and (un) Reserve Inventory  (counterpart: M_InOut_Post)
+      *************************************************************************/
+      DECLARE
+        Cur_ResLine RECORD;
+
+        v_QtySO       NUMBER; -- Reserved
+        v_QtyOrderSO  NUMBER;
+        v_QtyPO       NUMBER; -- Ordered
+        v_QtyOrderPO  NUMBER;
+      BEGIN
+        v_ResultStr := 'ReserveInventory';
+        -- For all lines needing reservation
+        FOR Cur_ResLine IN (SELECT l.M_Warehouse_ID, l.M_Product_ID, l.M_AttributeSetInstance_ID, l.C_OrderLine_ID,
+              -- Target Level = 0 if DirectShip='Y' or Binding='N'
+              (CASE l.DirectShip WHEN 'Y' THEN 0 ELSE (CASE v_IsBinding WHEN 'N' THEN 0 ELSE l.QtyOrdered END) END)
+               -l.QtyReserved-l.QtyDelivered AS Qty, l.QUANTITYORDER,
+              l.QtyReserved, l.QtyDelivered, l.DatePromised, l.C_UOM_ID,
+              l.M_PRODUCT_UOM_ID
+            FROM C_ORDERLINE l, M_PRODUCT p
+            WHERE l.C_Order_ID=v_Record_ID
+              -- Reserve Products (not: services, null products) --
+              AND l.M_Product_ID=p.M_Product_ID
+              AND p.IsStocked='Y' AND p.ProductType='I'
+              -- Target Level = 0 if DirectShip='Y' or Binding='N'
+              AND (CASE l.DirectShip WHEN 'Y' THEN 0 ELSE (CASE v_IsBinding WHEN 'N' THEN 0 ELSE l.QtyOrdered END)END)
+              -l.QtyReserved-l.QtyDelivered <> 0
+            FOR UPDATE)
+        LOOP
+          -- Qty corrected for SO/PO
+          IF (v_DocSubTypeSO IS NOT NULL) THEN
+            v_QtySO   := Cur_ResLine.Qty;
+            v_QtyOrderSO := NULL;
+            IF (Cur_ResLine.QtyReserved = 0 AND Cur_ResLine.QtyDelivered = 0) THEN
+              v_QtyOrderSO := Cur_ResLine.QuantityOrder;
+            ELSIF (Cur_ResLine.M_Product_UOM_ID IS NOT NULL) THEN
+              v_QtyOrderSO := C_Uom_Convert(v_QtySO, Cur_ResLine.C_UOM_ID, Cur_ResLine.M_Product_UOM_ID, 'Y');
+            END IF;
+            v_QtyPO   := 0;
+            v_QtyOrderPO := NULL;
+          ELSE -- PO
+            v_QtySO := 0;
+            v_QtyOrderSO := NULL;
+            v_QtyPO := Cur_ResLine.Qty;
+            v_QtyOrderPO := NULL;
+            IF (Cur_ResLine.QtyReserved = 0 AND Cur_ResLine.QtyDelivered = 0) THEN
+              v_QtyOrderPO := Cur_ResLine.QuantityOrder;
+            ELSIF (Cur_ResLine.M_Product_UOM_ID IS NOT NULL) THEN
+              v_QtyOrderPO := C_Uom_Convert(v_QtyPO, Cur_ResLine.C_UOM_ID, Cur_ResLine.M_Product_UOM_ID, 'Y');
+            END IF;
+          END IF;
+          IF (v_DocStatus<>'IP' OR v_DocAction<>'CO') THEN
+            M_UPDATE_STORAGE_PENDING(v_Client_ID, v_Org_ID, v_UpdatedBy, Cur_ResLine.M_Product_ID, Cur_ResLine.M_Warehouse_ID, Cur_ResLine.M_AttributeSetInstance_ID,
+            Cur_ResLine.C_UOM_ID, Cur_ResLine.M_PRODUCT_UOM_ID, v_QtySO, v_QtyOrderSO, v_QtyPO, v_QtyOrderPO);
+          END IF;
+          DBMS_OUTPUT.PUT_LINE('Reserved Warehouse=' || Cur_ResLine.M_Warehouse_ID || ', Product=' || Cur_ResLine.M_Product_ID || ', Attrib=' || Cur_ResLine.M_AttributeSetInstance_ID || ', Qty=' || v_QtySO || '/' || v_QtyPO);
+
+          -- Update Order Line
+          IF (v_DocSubTypeSO IS NOT NULL) THEN
+            UPDATE C_ORDERLINE
+            SET QtyReserved = QtyReserved + v_QtySO
+            WHERE C_OrderLine_ID = Cur_ResLine.C_OrderLine_ID;
+          END IF;
+          rowcount:=SQL%ROWCOUNT;
+          IF (rowcount <> 1) THEN
+            IF (p_PInstance_ID IS NOT NULL) THEN
+              ROLLBACK;
+              v_ResultStr := 'LockingOrder';
+              UPDATE C_ORDER
+              SET Processing = 'N',
+              Updated=now(),
+              UpdatedBy=v_User
+              WHERE C_Order_ID = v_Record_ID;
+              RAISE NO_DATA_FOUND;
+              COMMIT;
+            END IF;
+            RAISE_APPLICATION_ERROR(-20011, 'Did not update Line');
+          END IF;
+        END LOOP; -- For all lines needing reservation
+      END; -- Reserve Inventory
+
+     /**************************************************************************
+      * Calculate Taxes and Totals
+      *************************************************************************/
+      DECLARE
+        Cur_Tax RECORD;
+        Cur_MultiTax RECORD;
+        xTotalLines NUMBER:=0;
+        v_LineNetAmt NUMBER:=0;
+        xTaxAmt NUMBER:=0;
+        xGrandTotal NUMBER:=0;
+        HeaderNotAdded BOOLEAN:=TRUE;
+        v_FirstLine BOOLEAN;
+        v_ActualBaseAmt NUMBER;
+        v_lineNo NUMBER:= 0;
+      BEGIN
+        v_ResultStr:='DeleteOldTaxes';
+        DELETE FROM C_ORDERLINETAX  WHERE C_OrderLine_ID IN (SELECT C_OrderLine_ID FROM C_OrderLine
+                                                             WHERE C_Order_ID = v_Record_ID);
+        DELETE FROM C_ORDERTAX  WHERE C_Order_ID=v_Record_ID;
+        -- For all Tax Rates
+        v_ResultStr:='InsertNewTaxes';
+        FOR Cur_Tax IN
+            (SELECT l.C_OrderLine_ID, l.C_Tax_ID, o.IsTaxIncluded,
+                SUM(l.LineNetAmt) + SUM(l.FreightAmt) + SUM(coalesce(l.ChargeAmt,0)) AS LineNetAmt,
+                SUM(l.TaxBaseAmt) + SUM(l.FreightAmt) + SUM(coalesce(l.ChargeAmt,0)) AS TaxBaseAmt,
+                SUM(o.FreightAmt) + SUM(coalesce(o.ChargeAmt,0)) AS HeaderNet,
+                t.Rate, t.IsSummary, c.StdPrecision, t.BaseAmount, o.C_Order_ID
+            FROM C_ORDER o,  C_ORDERLINE l, C_TAX t, C_CURRENCY c
+            WHERE o.C_Order_ID=l.C_Order_ID
+              AND o.C_Order_ID=v_Record_ID -- Parameter
+              AND l.C_Tax_ID=t.C_Tax_ID
+              AND o.C_Currency_ID=c.C_Currency_ID
+            GROUP BY l.C_OrderLine_ID, l.C_Tax_ID, o.IsTaxIncluded, t.Rate,
+                     t.IsSummary, c.StdPrecision, t.BaseAmount, o.C_Order_ID
+            ORDER BY 4 DESC
+            )
+        LOOP
+          v_LineNetAmt:=Cur_Tax.LineNetAmt;
+          xTotalLines:=xTotalLines + v_LineNetAmt; -- w/o Header Freight/Charge
+          IF (HeaderNotAdded) THEN --  add header net to first tax
+            HeaderNotAdded:=FALSE;
+            v_LineNetAmt:=v_LineNetAmt + Cur_Tax.HeaderNet;
+          END IF;
+          C_ORDERLINETAX_INSERT(v_Org_ID, Cur_Tax.C_Order_ID, Cur_Tax.C_OrderLine_ID, v_UpdatedBy, Cur_Tax.C_Tax_ID, Cur_Tax.C_Tax_ID, Cur_Tax.LineNetAmt, Cur_Tax.TaxBaseAmt, Cur_Tax.StdPrecision);
+        END LOOP; -- Insert New Taxes
+        SELECT COALESCE(SUM(TAXAMT), 0)
+            INTO xGrandTotal
+        FROM C_ORDERTAX
+        WHERE C_ORDER_ID = v_Record_ID;
+        xGrandTotal:=xGrandTotal+ xTotalLines;    
+        -- Update Header
+        UPDATE C_ORDER
+        SET TotalLines=xTotalLines,
+            GrandTotal=xGrandTotal
+        WHERE C_Order_ID=v_Record_ID;
+        DBMS_OUTPUT.PUT_LINE('GrandTotal=' || xGrandTotal) ;
+      END; -- Calculate Tax and Totals
+      -- Synchronize Client/Org Ownership
+      UPDATE C_ORDERLINE
+      SET AD_Client_ID=v_Client_ID,
+          AD_Org_ID=v_Org_ID
+      WHERE C_Order_ID=v_Record_ID
+        AND (AD_Client_ID<>v_Client_ID OR AD_Org_ID<>v_Org_ID) ;
+
+    /**************************************************************************
+     * Order Complete:5 - Something to do:6
+     */
+      BEGIN
+        v_ResultStr:='OrderCompleteCheck';
+        SELECT SUM(QtyOrdered*hex_to_int(C_OrderLine_ID)) -SUM(QtyDelivered*hex_to_int(C_OrderLine_ID)),
+            SUM(QtyOrdered*hex_to_int(C_OrderLine_ID)) -SUM(QtyInvoiced*hex_to_int(C_OrderLine_ID))
+          INTO ToDeliver,
+            ToInvoice
+        FROM C_ORDERLINE
+        WHERE C_Order_ID=v_Record_ID;
+        -- If no lines, ToDeliver is NULL
+        IF ((ToDeliver=0 AND ToInvoice=0) OR(ToDeliver IS NULL AND ToInvoice IS NULL)) THEN
+          DBMS_OUTPUT.PUT_LINE('OrderComplete') ;
+          IF (v_DocAction='CL') THEN
+            END_PROCESSING:=TRUE;
+          ELSIF (v_DocAction='VO') THEN
+            UPDATE C_ORDER
+            SET DocStatus='VO',
+                DocAction='--',
+                Processed='Y',
+                Updated=now(),
+                UpdatedBy=v_User
+            WHERE C_Order_ID=v_Record_ID;
+            END_PROCESSING:=TRUE;
+          ELSE
+            UPDATE C_ORDER
+            SET DocStatus='CO',
+                DocAction='--',
+                Processed='Y',
+                Updated=now(),
+                UpdatedBy=v_User
+            WHERE C_Order_ID=v_Record_ID;
+            END_PROCESSING:=TRUE;
+          END IF;
+          IF (NOT END_PROCESSING) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@AlreadyPosted@');
+          END IF;--END_PROCESSING
+        END IF;
+      END;
+    END IF;--FINISH_PROCESS
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**
+      * In Progress -----------------------------------------------------------
+      */
+      UPDATE C_ORDER
+      SET DocStatus='IP',
+          DateAcct=DateOrdered,
+          Updated=now(),
+          UpdatedBy=v_User
+      WHERE C_Order_ID=v_Record_ID;
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        COMMIT;
+      END IF;
+
+    /**
+      * Finished with processing
+      */
+      IF (v_DocAction='PR') THEN
+        v_ResultStr:='FinishProcessing';
+        UPDATE C_ORDER
+        SET DocStatus='IP',
+            DocAction='CO',
+            Processed='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+        -- C_Order_PickList(NULL, v_Record_ID);  -- Print PickList
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+    /**************************************************************************
+      * Prepayment Order  Create Invoice
+      *************************************************************************/
+      IF (v_DocSubTypeSO='PR' AND v_DocStatus<>'WP') THEN
+        DBMS_OUTPUT.PUT_LINE('Create PreInvoice - ' || v_Record_ID) ;
+        v_ResultStr:='CreatePreInvoice';
+        C_Invoice_Create(NULL, Invoice_ID, v_Record_ID) ;
+        DBMS_OUTPUT.PUT_LINE('  PreInvoice - ' || Invoice_ID) ;
+        IF (Invoice_ID='0') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PreInvoiceCreateFailed@');
+        END IF;
+        C_INVOICE_POST(NULL, Invoice_ID) ;
+        --
+        UPDATE C_ORDER
+        SET DocStatus='WP',
+            DocAction='--',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+        --
+        END_PROCESSING:=TRUE;
+      END IF;
+      IF (NOT END_PROCESSING) THEN
+       /**
+        * Deliver Direct Shipments
+        */
+        v_ResultStr:='NonInventoryDelivery';
+        UPDATE C_ORDERLINE
+        SET QtyDelivered=QtyOrdered
+        WHERE DirectShip='Y'
+          AND C_Order_ID=v_Record_ID;
+      END IF;--END_PROCESSING
+    END IF;--FINISH_PROCESS
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**************************************************************************
+      * Will-Call + Walk In Processing
+      * --
+      * (W)illCall(I)nvoice - (W)illCall(P)ickup - (W)alkIn(R)eceipt
+      * --
+      *************************************************************************/
+      IF (v_DocSubTypeSO IN('WI', 'WP', 'WR')) THEN
+       /************
+        * Shipment
+        */
+        DBMS_OUTPUT.PUT_LINE('Create Shipment - ' || v_Record_ID) ;
+        v_ResultStr:='CreateShipment';
+
+        M_Inout_Create(NULL, InOut_ID, v_Record_ID, NULL, 'Y') ; -- Force Delivery
+
+        DBMS_OUTPUT.PUT_LINE('  Shipment - ' || InOut_ID) ;
+        IF (InOut_ID='0') THEN
+          RAISE_APPLICATION_ERROR(-20000, '@InOutCreateFailed@');
+        ELSE
+          SELECT documentno
+            INTO v_DocumentNo
+          FROM M_INOUT
+          WHERE M_INOUT_ID = InOut_ID;
+          v_Message:='@InoutDocumentno@ ' || v_DocumentNo || ' @beenCreated@';
+        END IF;
+        IF (v_DocSubTypeSO IN('WI', 'WR')) THEN
+         /************
+          * Invoice
+          */
+          DBMS_OUTPUT.PUT_LINE('Create Invoice - ' || v_Record_ID) ;
+          v_ResultStr:='CreateInvoice';
+          C_Invoice_Create(NULL, Invoice_ID, v_Record_ID) ;
+          DBMS_OUTPUT.PUT_LINE('  Invoice - ' || Invoice_ID) ;
+          IF (Invoice_ID IS NULL OR Invoice_ID='0') THEN
+            RAISE_APPLICATION_ERROR(-20000, '@InvoiceCreateFailed@');
+          ELSE
+            SELECT documentno
+              INTO v_DocumentNo
+            FROM C_INVOICE
+            WHERE C_INVOICE_ID = Invoice_ID;
+            v_Message:=v_Message||' , '||'@InvoiceDocumentno@ ' || v_DocumentNo || ' @invbeenCreated@';
+          END IF;
+        END IF;
+      END IF;
+
+     /**
+      * Final Completeness check
+      */
+      SELECT SUM(QtyOrdered*hex_to_int(C_OrderLine_ID)) -SUM(QtyDelivered*hex_to_int(C_OrderLine_ID)),
+          SUM(QtyOrdered*hex_to_int(C_OrderLine_ID)) -SUM(QtyInvoiced*hex_to_int(C_OrderLine_ID))
+        INTO ToDeliver,
+          ToInvoice
+      FROM C_ORDERLINE
+      WHERE C_Order_ID=v_Record_ID;
+      DBMS_OUTPUT.PUT_LINE('To deliver - ' || ToDeliver) ;
+      DBMS_OUTPUT.PUT_LINE('ToInvoice - ' || ToInvoice) ;
+      DBMS_OUTPUT.PUT_LINE('v_DocSubTypeSO - ' || v_DocSubTypeSO) ;
+      -- Nothing to Deliver + Invoice for (W)illCall(I)nvoice and (W)alkIn(R)eceipt
+      IF (v_DocSubTypeSO IN ('WI', 'WR') AND ToDeliver=0 AND ToInvoice=0) THEN
+        UPDATE C_ORDER
+        SET DocStatus='CO',
+            DocAction='--',
+            IsDelivered='Y',
+            IsInvoiced='Y',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+        DBMS_OUTPUT.PUT_LINE('DocAction - ' || v_DocAction) ;
+        IF (v_DocAction='VO') THEN
+          UPDATE C_ORDER  SET DocStatus='VO'  WHERE C_Order_ID=v_Record_ID;
+        END IF;
+      END IF;
+      -- Nothing to Deliver for (W)illCall(P)ickup (Invoice generated independently)
+      IF (v_DocSubTypeSO='WP' AND ToDeliver=0) THEN
+        UPDATE C_ORDER
+        SET DocStatus='CO',
+            DocAction='--',
+            IsDelivered='Y',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+        IF (v_DocAction='VO') THEN
+          UPDATE C_ORDER  SET DocStatus='VO'  WHERE C_Order_ID=v_Record_ID;
+        END IF;
+      END IF;
+      -- We are done with standard sales orders
+      IF (v_DocSubTypeSO = 'RM' OR v_isreturndoctype = 'Y') THEN
+
+        FOR Cur_Order IN( SELECT ol.qtyordered, ol.c_order_discount_id FROM C_order o,C_orderline ol
+            WHERE o.C_Order_ID = v_Record_ID
+              AND ol.C_Order_ID = o.C_Order_ID)
+        LOOP
+          IF (Cur_Order.qtyordered >0 AND Cur_Order.c_order_discount_id IS NULL) THEN 
+            RAISE_APPLICATION_ERROR(-20000, '@ReturnMaterialOrderType@') ;
+          END IF;
+        END LOOP;
+      END IF;
+      IF (v_DocAction IN('CO', 'CL', 'VO') AND v_DocSubTypeSO IN('SO','RM')) THEN
+        UPDATE C_ORDER
+        SET DocStatus='CO',
+            DocAction='--',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+      END IF;
+      -- Purchase Orders
+      IF (v_DocAction IN('CO', 'CL', 'VO') AND v_DocSubTypeSO IS NULL) THEN
+        UPDATE C_ORDER
+        SET DocStatus='CO',
+            DocAction='--',
+            Processed='Y',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+      END IF;
+      -- Only create cash entry if docAction is Complete
+      IF (v_DocAction NOT IN('CO')) THEN
+        END_PROCESSING:=TRUE;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
+     /**************************************************************************
+      * Create default Cash entry
+      *************************************************************************/
+      DECLARE
+        v_PaymentRule VARCHAR(60) ;
+        CUR_CB RECORD;
+        v_debtPaymentID varchar2(32);
+        v_totalCash NUMBER;
+        v_CB_Curr varchar2(32);
+      BEGIN
+       /* ALO
+        */
+        UPDATE C_DEBT_PAYMENT  SET IsValid='Y'  WHERE C_Order_ID=v_Record_ID;
+        SELECT C_ORDER.PAYMENTRULE,
+            C_ORDER.DOCUMENTNO||' - '||C_BPARTNER.NAME||' - '||C_ORDER.GRANDTOTAL,
+            C_ORDER.GRANDTOTAL,
+            C_ORDER.M_WAREHOUSE_ID
+          INTO v_PaymentRule,
+            v_DocumentNo,
+            v_GrandTotal,
+            v_M_Warehouse_ID
+        FROM C_ORDER, C_BPARTNER
+        WHERE C_ORDER.C_BPARTNER_ID=C_BPARTNER.C_BPARTNER_ID
+          AND C_ORDER_ID=v_Record_ID;
+        SELECT MAX(NAME)
+          INTO v_WarehouseName
+        FROM M_WAREHOUSE
+        WHERE M_WAREHOUSE_ID=v_M_Warehouse_ID;
+
+        --PaymentRule C, WI and WR have already created DP, this won't be inserted in cashline
+        --because it will processed with the invoice.
+        IF (v_PaymentRule='C') AND (v_DocSubTypeSO NOT IN ('WI', 'WR') OR v_DocSubTypeSO IS NULL) THEN
+          IF (v_CashLine_ID IS NULL OR v_CashLine_ID='0') THEN
+            -- Create CashLine
+            -- Find Defaylt CashBook
+            v_ResultStr:='Find C_CashBook Org_ID=' || v_Org_ID;
+            BEGIN
+              -- First active default Book of Org
+              FOR CUR_CB IN
+                 (SELECT cb.C_CashBook_ID, c.ISO_Code, cb.NAME, cb.c_currency_id
+                  FROM C_CASHBOOK cb, C_CURRENCY c
+                  WHERE cb.AD_Org_ID=v_Org_ID
+                    AND cb.C_Currency_ID=c.C_Currency_ID
+                    AND cb.IsActive='Y'
+                  ORDER BY cb.IsDefault DESC
+                 )
+              LOOP
+                IF (v_CashBook_ID IS NULL) THEN
+                  v_CashBook_ID:=CUR_CB.C_CashBook_ID;
+                  v_ISO_Code:=CUR_CB.ISO_Code;
+                  v_CB_Curr:=CUR_CB.C_Currency_ID;
+                ELSIF (CUR_CB.NAME=v_WarehouseName) THEN
+                  v_CashBook_ID:=CUR_CB.C_CashBook_ID;
+                  v_ISO_Code:=CUR_CB.ISO_Code;
+                  v_CB_Curr:=CUR_CB.C_Currency_ID;
+                END IF;
+              END LOOP;
+            END;
+            IF (v_CashBook_ID IS NULL) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@CashBookPRSCnotfoundOrg@' || v_Org_Name) ;
+            END IF;
+            DBMS_OUTPUT.PUT_LINE('CashBook_ID=' || v_CashBook_ID) ;
+            -- Find/Create Cash Journal
+            v_ResultStr:='Find C_Cash for ' || v_Date;
+            DECLARE
+              Cur_CashId RECORD;
+            BEGIN
+              FOR Cur_CashId IN
+                 (SELECT C_Cash_ID AS Cash_ID
+                  FROM C_CASH
+                  WHERE C_CashBook_ID=v_CashBook_ID
+                    AND TRUNC(StatementDate)=v_Date
+                    AND Processed='N'
+                 )
+              LOOP
+                v_Cash_ID:=Cur_CashId.Cash_ID;
+                EXIT;
+              END LOOP;
+            EXCEPTION
+              WHEN NO_DATA_FOUND THEN
+                NULL;
+            END;
+           /**************************************************************************
+            * Credit Multiplier
+            *************************************************************************/
+            DECLARE
+              v_DocBaseType C_DOCTYPE.DocBaseType%TYPE;
+            BEGIN
+              -- Is it a Credit Memo?
+              SELECT DocBaseType
+                INTO v_DocBaseType
+              FROM C_DOCTYPE
+              WHERE C_DocType_ID=v_DocType_ID;
+              IF (v_DocBaseType IN('ARC', 'API')) THEN
+                v_Multiplier:=-1;
+              END IF;
+            END;
+
+            IF (v_Cash_ID IS NULL) THEN
+              v_ResultStr:='Create C_Cash';
+              Ad_Sequence_Next('C_Cash', v_Org_ID, v_Cash_ID) ;
+              INSERT
+              INTO C_CASH
+                (
+                  C_Cash_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                  Created, CreatedBy, Updated, UpdatedBy,
+                  C_CashBook_ID, NAME, StatementDate, DateAcct,
+                  BeginningBalance, EndingBalance, StatementDifference, Processing,
+                  Processed, Posted
+                )
+              VALUES
+                (
+                  v_Cash_ID, v_Client_ID, v_Org_ID, 'Y',
+                  now(), v_UpdatedBy, now(), v_UpdatedBy,
+                  v_CashBook_ID, TO_CHAR(v_Date, 'YYYY-MM-DD') || ' ' || v_ISO_Code, v_Date, v_Date,
+                  0, 0, 0, 'N',
+                  'N', 'N'
+                )
+              ;
+            END IF;
+           /*
+            Create a debt payment for paymentrule=C
+            Note: for WI and WR we have already created an invoice and its DP, we only have to link it
+            */
+            SELECT COALESCE(SUM(C_Currency_Round(C_Currency_Convert((Amount + WriteOffAmt), C_Currency_ID, v_CB_Curr, v_Date, NULL, v_Client_ID, v_Org_ID), v_c_Currency_ID, NULL)), 0)
+              INTO v_totalCash
+            FROM C_DEBT_PAYMENT_V dp
+            WHERE C_Order_ID=v_Record_ID;
+
+            Ad_Sequence_Next('C_Debt_Payment', v_Record_ID, v_debtPaymentID) ;
+            INSERT INTO C_DEBT_PAYMENT
+               (C_DEBT_PAYMENT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+                CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+                ISRECEIPT, C_SETTLEMENT_CANCEL_ID, C_SETTLEMENT_GENERATE_ID, DESCRIPTION,
+                C_ORDER_ID, C_BPARTNER_ID, C_CURRENCY_ID, C_CASHLINE_ID,
+                C_BANKACCOUNT_ID, C_CASHBOOK_ID, PAYMENTRULE, ISPAID,
+                AMOUNT, WRITEOFFAMT, DATEPLANNED, ISMANUAL,
+                ISVALID, C_BANKSTATEMENTLINE_ID, CHANGESETTLEMENTCANCEL, CANCEL_PROCESSED,
+                GENERATE_PROCESSED, c_project_id,IsAutomaticGenerated, STATUS_INITIAL)
+            VALUES
+               (v_debtPaymentID, v_Client_ID, v_Org_ID, 'Y',
+                now(), v_UpdatedBy, now(), v_UpdatedBy,
+                v_isSoTrx, NULL, NULL, '',
+                v_Record_ID, v_c_Bpartner_Id, v_c_currency_id, null,
+                NULL, v_CashBook_ID, 'C', 'N',
+                (v_GrandTotal-v_totalCash), 0, v_Date, 'N',
+                'Y', NULL, 'N', 'N',
+                'N', v_C_PROJECT_ID,'Y', 'DE');
+
+            DBMS_OUTPUT.PUT_LINE('  Cash_ID=' || v_Cash_ID) ;
+            -- Create CashJournal Line in invoice currency
+            v_ResultStr:='Create C_CashLine';
+            Ad_Sequence_Next('C_CashLine', v_Org_ID, v_CashLine_ID) ;
+
+            SELECT COALESCE(MAX(Line), 0) +10
+              INTO v_Line
+            FROM C_CASHLINE
+            WHERE C_Cash_ID=v_Cash_ID;
+            --
+            INSERT
+            INTO C_CASHLINE
+              (
+                C_CashLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                Created, CreatedBy, Updated, UpdatedBy,
+                C_Cash_ID, C_Debt_Payment_ID, Line, Description,
+                Amount, CashType, DiscountAmt, WriteOffAmt,
+                IsGenerated
+              )
+            VALUES
+              (
+                v_CashLine_ID, v_Client_ID, v_Org_ID, 'Y',
+                now(), v_UpdatedBy, now(), v_UpdatedBy,
+                v_Cash_ID, v_debtPaymentID, v_Line, v_DocumentNo,
+                (v_GrandTotal-v_totalCash) * (CASE WHEN v_isSoTrx='N' THEN -1 ELSE 1 END), 'P', 0, 0,
+                'Y'
+              )
+            ;
+            DBMS_OUTPUT.PUT_LINE('  CashLine_ID=' || v_CashLine_ID) ;
+
+          END IF; -- CashLine_ID IS NULL OR CashLine_ID = '0'
+        END IF; -- v_PaymentRule = 'C'
+      END;
+    END IF;--FINISH_PROCESS
+    IF (NOT FINISH_PROCESS) THEN
+      -- End Processing --------------------------------------------------------
+      --<<END_PROCESSING>>
+      -- Cloase Order
+      IF (v_DocAction='CL') THEN
+        UPDATE C_ORDER
+        SET DocStatus='CL',
+            DocAction='--',
+            Processed='Y'
+        WHERE C_Order_ID=v_Record_ID;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --C_Order_Post - Finish_Process Extension Point
+    SELECT count(*) INTO v_count
+    FROM DUAL
+    where exists (select 1 from ad_ep_procedures where ad_extension_points_id = 'CB68FC0E8A4547D9943C785761977E77');
+    IF (v_count=1) THEN
+      DECLARE
+        v_ep_instance VARCHAR2(32);
+        v_extension_point_id VARCHAR2(32) := 'CB68FC0E8A4547D9943C785761977E77';
+      BEGIN
+        v_ep_instance := get_uuid();
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+          v_record_id, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction',
+          v_DocAction, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+          v_User, NULL, NULL, NULL, NULL, NULL, NULL);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+          NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+        AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+          NULL, NULL, v_result, NULL, NULL, NULL, NULL);
+        AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+        SELECT p_number INTO v_Result
+        FROM ad_ep_instance_para
+        WHERE ad_ep_instance_id = v_ep_instance
+          AND parametername LIKE 'Result';
+        SELECT p_text INTO v_Message
+        FROM ad_ep_instance_para
+        WHERE ad_ep_instance_id = v_ep_instance
+          AND parametername LIKE 'Message';
+
+        DELETE FROM ad_ep_instance_para
+        WHERE ad_ep_instance_id = v_ep_instance;
+      END;
+    END IF;
+
+    IF (NOT FINISH_PROCESS) THEN
+      IF (p_PInstance_ID IS NOT NULL) THEN
+        v_ResultStr:='UnLockingOrder';
+        UPDATE C_ORDER
+        SET Processing='N',
+            Updated=now(),
+            UpdatedBy=v_User
+        WHERE C_Order_ID=v_Record_ID;
+        COMMIT;
+      END IF;
+    END IF;--FINISH_PROCESS
+
+    --<<FINISH_PROCESS>>
+    IF (p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    --Inserted by Carlos Romero 062706
+    UPDATE C_ORDER  SET Processing='N'  WHERE C_Order_ID=v_Record_ID;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END C_ORDER_POST1
+]]></body>
+    </function>
+  </database>

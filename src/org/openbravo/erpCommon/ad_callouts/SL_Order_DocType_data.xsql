@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="SLOrderDocTypeData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COALESCE(d.DocSubTypeSO, '--') as DocSubTypeSO,
+        d.IsDocNoControlled, s.CurrentNext, s.CurrentNextSys, 
+        s.AD_Sequence_ID, d.IsSOTrx, 
+        '' as PaymentRule, '' as C_PaymentTerm_ID,
+        '' as InvoiceRule, '' as DeliveryRule,
+        '' as DeliveryViaRule,
+        '' as PaymentRulePO, '' as PO_PaymentTerm_ID
+        FROM C_DocType d left join AD_Sequence s on d.DocNoSequence_ID=s.AD_Sequence_ID
+        WHERE C_DocType_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="cDoctypeId"/>
+  </SqlMethod>
+  <SqlMethod name="BPartner" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT PaymentRule,C_PaymentTerm_ID,
+        InvoiceRule,DeliveryRule,
+        DeliveryViaRule,
+        PaymentRulePO,PO_PaymentTerm_ID
+        FROM C_BPartner
+        WHERE C_BPartner_ID=?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOldDocSubType" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT DOCSUBTYPESO FROM C_DOCTYPE
+      WHERE C_DOCTYPE_ID IN (SELECT C_DOCTYPETARGET_ID FROM C_ORDER WHERE C_ORDER_ID = ?)
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOldDocNo" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT DocumentNo FROM C_ORDER WHERE C_ORDER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOldDocTypeTargetId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT c_doctypetarget_id FROM C_ORDER WHERE C_ORDER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+</SqlClass>

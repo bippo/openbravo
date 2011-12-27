@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ACCTSCHEMA_TRG">
+    <trigger name="C_ACCTSCHEMA_TRG" table="C_ACCTSCHEMA" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2006 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  TYPE RECORD IS REF CURSOR;
+  cur_tables RECORD;
+  v_AcctSchema_Table_ID VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  FOR cur_tables IN
+    (
+    SELECT AD_Table.AD_Table_ID as id,
+      (AD_Table.Name)           as name
+    FROM AD_Table
+    WHERE EXISTS
+      (
+      SELECT *
+      FROM AD_Column c
+      WHERE AD_Table.AD_Table_ID=c.AD_Table_ID
+        AND c.ColumnName='Posted'
+      )
+      AND AD_Table.isActive='Y'
+    )
+  LOOP
+    AD_Sequence_Next('C_AcctSchema_Table', :new.AD_ORG_ID, v_AcctSchema_Table_ID) ;
+    INSERT
+    INTO C_ACCTSCHEMA_TABLE
+      (
+        UPDATEDBY, UPDATED, ISACTIVE,
+        CREATEDBY, CREATED, C_ACCTSCHEMA_TABLE_ID,
+        C_ACCTSCHEMA_ID, AD_TABLE_ID, AD_ORG_ID,
+        AD_CLIENT_ID
+      )
+      VALUES
+      (
+        :new.UPDATEDBY, now(), 'N',
+        :new.CREATEDBY, now(), v_AcctSchema_Table_ID,
+        :new.C_ACCTSCHEMA_ID, cur_tables.id, :new.AD_ORG_ID,
+        :new.AD_CLIENT_ID
+      )
+      ;
+  END LOOP;
+  UPDATE C_ACCTSCHEMA_TABLE
+    SET ISACTIVE='Y'
+  WHERE AD_TABLE_ID IN
+    (SELECT AD_TABLE_ID FROM AD_TABLE WHERE ISDEFAULTACCT='Y')
+    ;
+END C_ACCTSCHEMA_TRG
+]]></body>
+    </trigger>
+  </database>

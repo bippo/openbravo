@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReportStandardCostsJR_srptcosts" pageWidth="505" pageHeight="46" orientation="Landscape" columnWidth="505" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Report_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Data_Field" fontName="Bitstream Vera Sans" fontSize="11" isBold="false"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true">
+		<box leftPadding="5"/>
+	</style>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="12" isBold="true">
+		<box leftPadding="5"/>
+	</style>
+	<style name="Group_Data_Label" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Group_Data_Field" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#5D5D5D" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10" isBold="true">
+		<box leftPadding="5">
+			<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+			<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+		</box>
+	</style>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="8">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{REPORT_COUNT}.intValue()%2==0)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<style name="Detail_Data_Label" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10" isBold="true"/>
+	<style name="Detail_Data_Field" mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Group_Footer" fontName="Bitstream Vera Sans" fontSize="11" isBold="true"/>
+	<style name="Report_Footer" isDefault="true" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="11"/>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["(1000000)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["(0)"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SEQUENCE_ID" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["1000004"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="CURRENCY_ID" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_CURRENCY_ID" class="java.lang.String" isForPrompting="false"/>
+	<queryString>
+		<![CDATA[SELECT 1 AS LINEORDER, 
+       AD_COLUMN_IDENTIFIER(to_char('M_PRODUCT'), to_char(M_PRODUCT_ID), $P{LANGUAGE}) AS CONCEPT,
+       quantity*COALESCE(decrease,1)*COALESCE(rejected,1) AS QUANTITY,
+       C_CURRENCY_CONVERT(COALESCE(COST, 0), $P{BASE_CURRENCY_ID}, $P{CURRENCY_ID}, TO_DATE(COALESCE(CREATED,NOW())), NULL, AD_CLIENT_ID, AD_ORG_ID) AS UNIT_COST,
+       C_CURRENCY_CONVERT(COALESCE(COST*quantity*COALESCE(decrease,1)*COALESCE(rejected,1),0), $P{BASE_CURRENCY_ID}, $P{CURRENCY_ID}, TO_DATE(COALESCE(CREATED,NOW())), NULL, AD_CLIENT_ID, AD_ORG_ID) AS COST,
+       C_CURRENCY_SYMBOL($P{CURRENCY_ID}, 0, 'Y') AS CONVSYM,
+       C_CURRENCY_ISOSYM($P{CURRENCY_ID}) AS CONVISOSYM
+FROM MA_SEQUENCEPRODUCT
+WHERE MA_SEQUENCEPRODUCT.MA_SEQUENCE_ID = $P{SEQUENCE_ID}
+  AND MA_SEQUENCEPRODUCT.PRODUCTIONTYPE = '-'
+UNION ALL
+SELECT 2 AS LINEORDER, 
+       AD_COLUMN_IDENTIFIER(to_char('MA_SEQUENCE'), to_char(MA_SEQUENCE_ID), $P{LANGUAGE}) AS CONCEPT,
+       1 AS QUANTITY, COALESCE(OUTSOURCINGCOST,0) AS UNIT_COST, COALESCE(OUTSOURCINGCOST,0) AS COST,
+       C_CURRENCY_SYMBOL($P{CURRENCY_ID}, 0, 'Y') AS CONVSYM,
+       C_CURRENCY_ISOSYM($P{CURRENCY_ID}) AS CONVISOSYM
+FROM MA_SEQUENCE
+WHERE MA_SEQUENCE_ID = $P{SEQUENCE_ID}
+  AND OUTSOURCED = 'Y'
+UNION ALL
+SELECT 3 AS LINEORDER,
+       AD_COLUMN_IDENTIFIER(to_char('MA_COSTCENTER'), to_char(MA_PROCESS.MA_COSTCENTER_ID), $P{LANGUAGE}) AS CONCEPT,
+       1 AS QUANTITY, COALESCE(MA_SEQUENCE.COSTCENTERCOST,0) AS UNIT_COST, COALESCE(MA_SEQUENCE.COSTCENTERCOST,0) AS COST,
+       C_CURRENCY_SYMBOL($P{CURRENCY_ID}, 0, 'Y') AS CONVSYM,
+       C_CURRENCY_ISOSYM($P{CURRENCY_ID}) AS CONVISOSYM
+FROM MA_SEQUENCE, MA_PROCESS
+WHERE MA_SEQUENCE.MA_SEQUENCE_ID = $P{SEQUENCE_ID}
+  AND MA_SEQUENCE.OUTSOURCED = 'N'
+  AND MA_SEQUENCE.MA_PROCESS_ID = MA_PROCESS.MA_PROCESS_ID
+UNION ALL
+SELECT 4 AS LINEORDER,
+       AD_COLUMN_IDENTIFIER(to_char('C_SALARY_CATEGORY'), to_char(MA_SEQUENCE_EMPLOYEE.C_SALARY_CATEGORY_ID), $P{LANGUAGE}) AS CONCEPT,
+       1 AS QUANTITY, MA_SEQUENCE_EMPLOYEE.CALCCOST AS UNIT_COST, MA_SEQUENCE_EMPLOYEE.CALCCOST AS COST,
+       C_CURRENCY_SYMBOL($P{CURRENCY_ID}, 0, 'Y') AS CONVSYM,
+       C_CURRENCY_ISOSYM($P{CURRENCY_ID}) AS CONVISOSYM
+FROM MA_SEQUENCE, MA_SEQUENCE_EMPLOYEE
+WHERE MA_SEQUENCE.MA_SEQUENCE_ID = MA_SEQUENCE_EMPLOYEE.MA_SEQUENCE_ID
+  AND MA_SEQUENCE.MA_SEQUENCE_ID = $P{SEQUENCE_ID}
+  AND MA_SEQUENCE.OUTSOURCED = 'N'
+UNION ALL
+SELECT 5 AS LINEORDER,
+       AD_COLUMN_IDENTIFIER(to_char('MA_MACHINE'), to_char(MA_SEQUENCE_MACHINE.MA_MACHINE_ID), $P{LANGUAGE}) AS CONCEPT,
+       1 AS QUANTITY, MA_SEQUENCE_MACHINE.CALCCOST AS UNIT_COST, MA_SEQUENCE_MACHINE.CALCCOST AS COST,
+       C_CURRENCY_SYMBOL($P{CURRENCY_ID}, 0, 'Y') AS CONVSYM,
+       C_CURRENCY_ISOSYM($P{CURRENCY_ID}) AS CONVISOSYM
+FROM MA_SEQUENCE, MA_SEQUENCE_MACHINE
+WHERE MA_SEQUENCE.MA_SEQUENCE_ID = MA_SEQUENCE_MACHINE.MA_SEQUENCE_ID
+  AND MA_SEQUENCE.MA_SEQUENCE_ID = $P{SEQUENCE_ID}
+  AND MA_SEQUENCE.OUTSOURCED = 'N'
+UNION ALL
+SELECT 6 AS LINEORDER,
+       AD_COLUMN_IDENTIFIER(to_char('MA_INDIRECT_COST'), to_char(MA_SEQUENCE_IC.MA_INDIRECT_COST_ID), $P{LANGUAGE}) AS CONCEPT,
+       1 AS QUANTITY, MA_SEQUENCE_IC.CALCCOST AS UNIT_COST, MA_SEQUENCE_IC.CALCCOST AS COST,
+       C_CURRENCY_SYMBOL($P{CURRENCY_ID}, 0, 'Y') AS CONVSYM,
+       C_CURRENCY_ISOSYM($P{CURRENCY_ID}) AS CONVISOSYM
+FROM MA_SEQUENCE, MA_SEQUENCE_IC
+WHERE MA_SEQUENCE.MA_SEQUENCE_ID = MA_SEQUENCE_IC.MA_SEQUENCE_ID
+  AND MA_SEQUENCE.MA_SEQUENCE_ID = $P{SEQUENCE_ID}
+  AND MA_SEQUENCE.OUTSOURCED = 'N'
+ORDER BY LINEORDER, QUANTITY DESC, COST DESC]]>
+	</queryString>
+	<field name="LINEORDER" class="java.math.BigDecimal"/>
+	<field name="CONCEPT" class="java.lang.String"/>
+	<field name="QUANTITY" class="java.math.BigDecimal"/>
+	<field name="UNIT_COST" class="java.math.BigDecimal"/>
+	<field name="COST" class="java.math.BigDecimal"/>
+	<field name="CONVSYM" class="java.lang.String"/>
+	<field name="CONVISOSYM" class="java.lang.String"/>
+	<variable name="DetailFieldTotal" class="java.lang.String"/>
+	<variable name="COST_TOTAL" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{COST}]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band splitType="Stretch"/>
+	</title>
+	<pageHeader>
+		<band splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band height="16" splitType="Stretch">
+			<staticText>
+				<reportElement key="element-90" style="Detail_Header" x="0" y="0" width="272" height="16"/>
+				<box leftPadding="5">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+				</box>
+				<textElement/>
+				<text><![CDATA[Resources]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="element-90" style="Detail_Header" x="272" y="0" width="75" height="16"/>
+				<box leftPadding="5">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+				</box>
+				<textElement/>
+				<text><![CDATA[Quantity]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="element-90" style="Detail_Header" x="347" y="0" width="75" height="16"/>
+				<box leftPadding="5">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font pdfFontName="Helvetica-Bold"/>
+				</textElement>
+				<text><![CDATA[Cost]]></text>
+			</staticText>
+			<staticText>
+				<reportElement key="element-90" style="Detail_Header" x="422" y="0" width="83" height="16"/>
+				<box leftPadding="5">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#FFFFFF"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font pdfFontName="Helvetica-Bold"/>
+				</textElement>
+				<text><![CDATA[Amount]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<frame>
+				<reportElement key="frame-1" style="Detail_Line" stretchType="RelativeToBandHeight" x="0" y="0" width="505" height="14"/>
+				<box>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textField isBlankWhenNull="false">
+					<reportElement key="textField-1" style="default" mode="Transparent" x="422" y="0" width="65" height="14"/>
+					<box leftPadding="5" rightPadding="2">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#666666"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#666666"/>
+					</box>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression class="java.lang.String"><![CDATA[($F{COST}!=null)?$P{NUMBERFORMAT}.format($F{COST}):new String(" ")]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="false">
+					<reportElement key="textField-2" style="default" stretchType="RelativeToBandHeight" mode="Transparent" x="347" y="0" width="58" height="14"/>
+					<box leftPadding="5" rightPadding="2">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#666666"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression class="java.lang.String"><![CDATA[($F{UNIT_COST}!=null)?$P{NUMBERFORMAT}.format($F{UNIT_COST}):new String(" ")]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="false">
+					<reportElement key="textField-3" style="default" stretchType="RelativeToBandHeight" x="272" y="0" width="75" height="14"/>
+					<box leftPadding="5" rightPadding="2">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#666666"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression class="java.lang.String"><![CDATA[($F{QUANTITY}!=null)?$P{NUMBERFORMAT}.format($F{QUANTITY}):new String(" ")]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true" isBlankWhenNull="false">
+					<reportElement key="textField-4" style="default" stretchType="RelativeToBandHeight" x="0" y="0" width="272" height="14"/>
+					<box leftPadding="5" rightPadding="2">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#666666"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement/>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{CONCEPT}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="false">
+					<reportElement key="textField-5" style="Report_Footer" x="406" y="0" width="16" height="14"/>
+					<box>
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="10" isUnderline="false"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{CONVSYM}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="false">
+					<reportElement key="textField-6" style="Report_Footer" x="488" y="0" width="16" height="14"/>
+					<box>
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="10" isUnderline="false"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{CONVSYM}]]></textFieldExpression>
+				</textField>
+			</frame>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="16" splitType="Stretch">
+			<textField isStretchWithOverflow="true" pattern="" isBlankWhenNull="false">
+				<reportElement key="textField" style="Total_Field" x="422" y="1" width="59" height="15"/>
+				<box leftPadding="5">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right">
+					<font pdfFontName="Helvetica-Bold"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($V{COST_TOTAL}!=null)?$P{NUMBERFORMAT}.format($V{COST_TOTAL}):new String(" ")]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement key="staticText-1" style="Report_Footer" x="272" y="1" width="150" height="15"/>
+				<box>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right"/>
+				<text><![CDATA[Sequence Total Cost: ]]></text>
+			</staticText>
+			<line>
+				<reportElement key="line-1" style="Report_Footer" x="0" y="0" width="505" height="1" forecolor="#666666"/>
+			</line>
+			<textField isBlankWhenNull="false">
+				<reportElement key="textField-7" style="Total_Field" mode="Opaque" x="481" y="1" width="24" height="15"/>
+				<box leftPadding="5">
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font isUnderline="false" pdfFontName="Helvetica-Bold"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{CONVSYM}]]></textFieldExpression>
+			</textField>
+		</band>
+	</columnFooter>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<summary>
+		<band splitType="Stretch"/>
+	</summary>
+</jasperReport>

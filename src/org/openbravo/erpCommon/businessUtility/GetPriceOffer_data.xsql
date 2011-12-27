@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="GetPriceOfferData" package="org.openbravo.erpCommon.businessUtility" accessModifier="public">
+   <SqlClassComment>This class offers methods related to retrieving the price for a product using the M_GET_OFFERS pl function.</SqlClassComment>
+  <SqlMethod name="getOffersPriceCurrency" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment>Retrieves the price for product on a certain date for a certain quantity using the price-precision of the currency.</SqlMethodComment>
+    <Sql>
+      SELECT ROUND(M_GET_OFFERS_PRICE(TO_DATE(?),?,?,TO_NUMBER(?), TO_NUMBER(?), ?),
+                   (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C
+                      WHERE C.C_CURRENCY_ID = ?)) AS TOTAL FROM DUAL
+    </Sql>
+    <Parameter name="dateordered"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="qty"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="currencyid"/>
+    
+  </SqlMethod>
+
+   <!--SqlMethod name="getOffersStdPriceCurrency" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT ROUND(M_GET_OFFERS_STD_PRICE(?,TO_NUMBER(?),?,TO_DATE(?), TO_NUMBER(?), ?),
+                    (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C 
+                      WHERE C.C_CURRENCY_ID = ?)) as TOTAL FROM DUAL
+     </Sql>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="qty"/>
+    <Parameter name="pricelistId"/>
+    <Parameter name="currencyid"/>
+  </SqlMethod-->
+</SqlClass>

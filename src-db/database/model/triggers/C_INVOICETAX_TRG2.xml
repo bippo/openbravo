@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_INVOICETAX_TRG2">
+    <trigger name="C_INVOICETAX_TRG2" table="C_INVOICETAX" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+-- Invoice
+v_buspartid varchar2(32);
+vIsSalesInvoice CHAR(1);
+whamountold NUMBER;
+vProcessed  CHAR(1);
+-- InvoiceTax
+v_invoiceid varchar2(32);
+v_taxid varchar2(32);
+taxamountnew NUMBER;
+taxamountold NUMBER;
+-- BP_Withholding
+isbaseamountpercent CHAR(1);
+baseamountpercent NUMBER;
+includetaxinps CHAR(1);
+taxinps_ID VARCHAR2(32);
+-- Withholding
+withpercent NUMBER;
+-- Tax
+v_IsWithTax CHAR(1);
+-- Calculated Variables
+baseamount  NUMBER;
+whamountnew NUMBER;
+vwithid varchar2(32);
+finish_process BOOLEAN := FALSE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(inserting) THEN
+    v_invoiceid := :NEW.c_invoice_id;
+    v_taxid := :NEW.c_tax_id;
+    taxamountnew := :NEW.taxamt;
+    taxamountold := 0;
+    ELSIF(updating) THEN
+      v_invoiceid := :NEW.c_invoice_id;
+      v_taxid := :NEW.c_tax_id;
+      taxamountnew := :NEW.taxamt;
+      taxamountold := :OLD.taxamt;
+      ELSIF(deleting) THEN
+        v_invoiceid := :OLD.c_invoice_id;
+        v_taxid := :OLD.c_tax_id;
+        taxamountnew := 0;
+        taxamountold := :OLD.taxamt;
+      END IF;
+     -- Read data from invoice
+     select c_bpartner_id,withholdingamount,issotrx , coalesce(processed,'N') ,c_withholding_id
+     into v_buspartid, whamountold, vissalesinvoice, vProcessed   ,vwithid
+     from c_invoice
+     where c_invoice_id=v_invoiceid;
+     -- Se the invoice isn't purchase exit from trigger
+     if (vIsSalesInvoice <> 'N') then
+        finish_process:= true;
+     end if;
+
+  IF (NOT finish_process) THEN
+     -- Read data from tax
+     select iswithholdingtax into v_IsWithTax from c_tax where c_tax_id=v_taxid;
+
+     -- Read data from Withholding
+    BEGIN
+
+       select bpwh.is_percent_wh, bpwh.wh_percent, bpwh.include_tax, bpwh.c_tax_id , wh.rate
+       into isbaseamountpercent, baseamountpercent,  includetaxinps, taxinps_id, withpercent
+       from c_bp_withholding bpwh ,c_withholding wh
+       where bpwh.c_bpartner_id  = v_buspartid
+       and bpwh.c_withholding_id = wh.c_withholding_id
+        and bpwh.c_withholding_id = vwithid;
+
+     EXCEPTION
+      when NO_DATA_FOUND THEN
+        finish_process:= true;
+     end;
+  END IF;
+  IF (NOT finish_process) THEN
+      IF(isbaseamountpercent <> 'Y') THEN
+        baseamountpercent := 100;
+      END IF;
+  END IF;
+  IF (NOT finish_process) THEN
+   -- ReadOnly Check
+    IF (vProcessed = 'N') THEN
+      -- Is the tax is for WithHolding and the BP have the flag activate it add the tax amount
+      IF (v_IsWithTax= 'Y') and (includetaxinps = 'Y') THEN
+        baseamount := baseamountpercent * (taxamountnew-taxamountold)/100;
+        whamountnew := whamountold + withpercent*baseamount/100 ;
+        if (v_taxid<>taxinps_id)  then
+          whamountnew:=whamountold;
+        end if;
+        UPDATE c_invoice
+        SET withholdingamount = whamountnew
+        WHERE c_invoice_id = v_invoiceid;
+      END IF;
+
+    END IF;
+  END IF;
+
+    END C_INVOICETAX_TRG2
+]]></body>
+    </trigger>
+  </database>

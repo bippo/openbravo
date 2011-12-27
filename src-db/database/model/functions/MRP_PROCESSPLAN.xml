@@ -1,0 +1,165 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_PROCESSPLAN">
+    <function name="MRP_PROCESSPLAN" type="NULL">
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_run_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_timehorizon" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planningdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_securitymargin" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+
+  v_Count NUMBER;
+  v_Count_Aux NUMBER;
+  v_Aux_ID VARCHAR2(32);
+  v_planned CHAR(1) := 'N';
+
+  FINISH_PROCESS BOOLEAN DEFAULT FALSE;
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_PlanProduct RECORD;
+  Cur_DeadLock RECORD;
+
+BEGIN
+  BEGIN --BODY
+
+    --SET AS PLANNED PURCHASE PRODUCTS
+    UPDATE MRP_RUN_PRODUCTIONLINE
+    SET ISPLANNED = 'Y'
+    WHERE MRP_RUN_PRODUCTION_ID = p_Run_ID
+      AND EXISTS (SELECT 1 FROM M_PRODUCT
+                  WHERE ISPURCHASED = 'Y'
+                    AND MA_PROCESSPLAN_ID IS NULL
+                    AND M_PRODUCT_ID = MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID);
+
+    v_ResultStr := 'Production mrp';
+    SELECT COUNT(*) INTO v_Count
+     FROM (SELECT pl.M_PRODUCT_ID
+           FROM MRP_RUN_PRODUCTIONLINE pl, M_PRODUCT p
+           WHERE pl.M_PRODUCT_ID = p.M_PRODUCT_ID
+             AND p.ISPURCHASED = 'N'
+             AND pl.MRP_RUN_PRODUCTION_ID = p_Run_ID
+             AND isplanned = 'N'
+           GROUP BY pl.M_PRODUCT_ID) AAA;
+
+    WHILE v_Count > 0 LOOP
+      v_ResultStr := 'loop';
+      v_Planned := 'N';
+      FOR Cur_PlanProduct IN (
+        SELECT MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID
+        FROM MRP_RUN_PRODUCTIONLINE, M_PRODUCT
+        WHERE MRP_RUN_PRODUCTION_ID = p_Run_ID
+          AND MRP_RUN_PRODUCTIONLINE.isplanned = 'N'
+          AND M_PRODUCT.M_PRODUCT_ID = MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID
+          AND M_PRODUCT.ISPURCHASED = 'N'
+          AND NOT EXISTS (SELECT 1
+                          FROM MRP_RUN_PRODUCTIONLINE pl, MRP_RUN_PRODUCTIONLINE parent
+                          WHERE pl.PARENT_ID = parent.MRP_RUN_PRODUCTIONLINE_ID
+                            AND pl.MRP_RUN_PRODUCTION_ID = p_Run_ID
+                            AND pl.M_PRODUCT_ID = MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID
+                            AND parent.isplanned = 'N')
+      GROUP BY MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID
+      ) LOOP
+        v_Planned := 'Y';
+        MRP_PROCESSPLAN_PLAN(p_User_ID, p_Run_ID, Cur_PlanProduct.M_Product_ID, p_TimeHorizon,
+                             p_PlanningDate, p_SecurityMargin);
+      END LOOP;
+
+      IF (v_Planned = 'N') THEN
+        -- Check for dead-locks
+        v_ResultStr := 'Consider production plans with more than one produed products.';
+        FOR Cur_DeadLock IN (
+          SELECT MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID
+          FROM MRP_RUN_PRODUCTIONLINE, M_PRODUCT
+          WHERE MRP_RUN_PRODUCTIONLINE.MRP_RUN_PRODUCTION_ID = p_Run_ID
+            AND MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+            AND M_PRODUCT.ISPURCHASED = 'N'
+            AND MRP_RUN_PRODUCTIONLINE.isplanned = 'N'
+            AND NOT EXISTS (SELECT 1
+                            FROM MRP_RUN_PRODUCTIONLINE pl, MRP_RUN_PRODUCTIONLINE parent
+                            WHERE pl.PARENT_ID = parent.MRP_RUN_PRODUCTIONLINE_ID
+                              AND pl.MRP_RUN_PRODUCTION_ID = p_Run_ID
+                              AND pl.M_PRODUCT_ID = MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID
+                              AND parent.isplanned = 'N'
+                              AND pl.isfixed = 'Y'
+                              AND ((pl.qty < 0 and parent.qty > 0 ) OR (pl.qty > 0 AND parent.qty < 0)))
+
+          ORDER BY planneddate
+          ) LOOP
+          v_Planned := 'Y';
+          MRP_PROCESSPLAN_PLAN(p_User_ID, p_Run_ID, Cur_DeadLock.M_Product_ID, p_TimeHorizon,
+                               p_PlanningDate, p_SecurityMargin);
+          EXIT;
+        END LOOP;
+      END IF;
+
+      IF (v_Planned = 'N') THEN
+        -- ERROR: Circular reference
+        v_ResultStr := 'Break while loop. Nothing planned with pending lines to plan.';
+        v_Message := '@CircularReference@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message) ;
+      END IF;
+
+      SELECT COUNT(*) INTO v_Count_Aux
+      FROM (SELECT pl.M_PRODUCT_ID
+            FROM MRP_RUN_PRODUCTIONLINE pl, M_PRODUCT p
+            WHERE pl.M_PRODUCT_ID = p.M_PRODUCT_ID
+              AND p.ISPURCHASED = 'N'
+              AND pl.MRP_RUN_PRODUCTION_ID = p_Run_ID
+              AND isplanned = 'N'
+            GROUP BY pl.M_PRODUCT_ID) BBB;
+
+      IF v_Count = v_Count_Aux THEN
+        v_ResultStr := 'Break while loop. Planned flag set to ''Y'' but unplanned lines amount do not change.';
+        RAISE_APPLICATION_ERROR(-20000, '@CircularReference@');
+      END IF;
+      v_Count := v_Count_Aux;
+    END LOOP;
+
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MRP_PROCESSPLAN exception: ' || v_ResultStr) ;
+  RAISE;
+--  RETURN;
+END MRP_PROCESSPLAN
+]]></body>
+    </function>
+  </database>

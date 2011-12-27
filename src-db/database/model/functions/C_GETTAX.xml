@@ -1,0 +1,275 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_GETTAX">
+    <function name="C_GETTAX" type="VARCHAR">
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_shipdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_billbpartnerloc_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_shipbpartnerloc_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_project_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_issotrx" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_glitem_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Title: Get C_Tax_ID from product or glitem, bpartner, ...
+************************************************************************/
+  v_billFrom      VARCHAR2(32);
+  v_billTo        VARCHAR2(32) ;
+  v_isTaxExempt   CHAR(1) ;
+  v_TaxID         varchar2(32) ;
+  v_TaxCategoryID varchar2(32) ;
+  v_shipFrom      VARCHAR2(32) ;
+  v_shipTo        VARCHAR2(32) ;
+  v_aux           VARCHAR2(32) ;
+  v_BPTaxCategory VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    BILLTO RECORD;
+  BEGIN
+    -- If Not Tax Deductable(public) organization for sales transaction
+    --then we have to return configured sales tax rate which is exempt true 
+    IF(p_IsSOTrx = 'Y') THEN
+       SELECT MAX(C_TAX_ID) 
+       INTO v_TaxID 
+       FROM AD_ORGINFO 
+       WHERE ISTAXUNDEDUCTABLE='Y' AND AD_ORG_ID = p_org_id;
+       IF(v_TaxID IS NOT NULL) THEN
+         RETURN v_TaxID;
+       END IF;
+    END IF;
+    --  For sales, if project line has c_tax_id assigned, return it
+    IF(p_IsSOTrx = 'Y' AND p_Project_ID IS NOT NULL) THEN
+      SELECT MAX(C_TAX_ID)
+      INTO v_TaxID
+      FROM C_PROJECTLINE
+      WHERE C_Project_ID = p_Project_ID
+        AND M_Product_ID = p_Product_ID;
+      IF(v_TaxID IS NOT NULL) THEN
+        RETURN v_TaxID;
+      END IF;
+    END IF;
+    -- Get billFrom
+    SELECT C_Location_ID
+    INTO v_billFrom
+    FROM AD_OrgInfo
+    WHERE AD_Org_ID = p_Org_ID;
+
+
+    FOR BILLTO IN
+      (SELECT il.C_Location_ID AS billToC_Location_ID,
+        b.SO_BP_TaxCategory_ID,
+        b.PO_BP_TaxCategory_ID,
+        b.IsTaxExempt
+      FROM C_BPartner_Location il,
+           C_BPartner b
+      WHERE il.C_BPartner_ID = b.C_BPartner_ID
+        AND il.C_BPartner_Location_ID = p_billBPartnerLoc_ID) LOOP
+      v_billTo := BILLTO.billToC_Location_ID;
+      IF p_IsSOTrx = 'Y' THEN
+        v_isTaxExempt := COALESCE(BILLTO.IsTaxExempt, 'N') ;
+        v_BPTaxCategory := BILLTO.SO_BP_TaxCategory_ID;
+      ELSE
+        v_isTaxExempt := 'N';
+        v_BPTaxCategory := BILLTO.PO_BP_TaxCategory_ID;
+      END IF;
+      EXIT;
+    END LOOP;
+    IF(v_billTo IS NULL) THEN
+      RETURN NULL;
+    ELSIF v_isTaxExempt = 'Y' THEN
+      DECLARE
+        TAX_ID RECORD;
+      BEGIN
+        FOR TAX_ID IN
+          (SELECT t.C_Tax_ID
+          FROM C_Tax t
+          INNER JOIN AD_Org o
+            ON(t.AD_Client_ID = o.AD_Client_ID)
+          WHERE t.ISTAXEXEMPT = 'Y'
+            AND o.AD_Org_ID = p_Org_ID
+            AND t.ValidFrom <= p_shipDate
+            AND t.isActive = 'Y'
+          ORDER BY t.VALIDFROM DESC
+          )
+        LOOP
+          v_TaxID := TAX_ID.C_Tax_ID;
+          EXIT;
+        END LOOP;
+      END;
+    ELSE
+      IF(p_glitem_id IS NULL) THEN
+        SELECT C_TaxCategory_ID
+        INTO v_TaxCategoryID
+        FROM M_Product
+        WHERE M_Product_ID = p_Product_ID;
+      ELSE
+        SELECT C_TaxCategory_ID
+        INTO v_TaxCategoryID
+        FROM C_GLITEM
+        WHERE C_GLITEM_ID = p_glitem_id;
+      END IF;
+      
+      IF(p_Warehouse_ID IS NULL) THEN
+        v_shipFrom := v_billFrom;
+      ELSE
+        SELECT C_Location_ID
+        INTO v_shipFrom
+        FROM M_Warehouse
+        WHERE M_Warehouse_ID = p_Warehouse_ID;
+      END IF;
+      SELECT C_Location_ID
+      INTO v_shipTo
+      FROM C_BPartner_Location
+      WHERE C_BPartner_Location_ID = p_shipBPartnerLoc_ID;
+      IF p_IsSOTrx = 'N' THEN
+        v_aux := v_billTo;
+        v_billTo := v_billFrom;
+        v_billFrom := v_aux;
+        v_aux := v_shipTo;
+        v_shipTo := v_shipFrom;
+        v_shipFrom := v_aux;
+      END IF;
+      DECLARE
+        SEL1 RECORD;
+        SEL2 RECORD;
+        SEL3 RECORD;
+      BEGIN
+        FOR SEL1 IN
+          (SELECT t.C_Tax_ID, '' AS billToC_Location_ID, '' AS IsTaxExempt
+          FROM  (SELECT C_Tax_ID, C_Country_ID, C_Region_ID, To_Country_Id,
+                   To_Region_ID, ValidFrom, C_TaxCategory_ID,
+                   Parent_Tax_ID, C_BP_TaxCategory_ID, SoPoType, c_Tax.ad_org_id,c_Tax.ad_client_id
+                 FROM c_Tax
+                WHERE c_Tax.isActive = 'Y'
+                 UNION
+                 SELECT tz.C_Tax_ID, tz.From_Country_ID, tz.From_Region_ID, tz.To_Country_ID,
+                   tz.To_Region_ID, ValidFrom, C_TaxCategory_ID,
+                   Parent_Tax_Id, C_BP_TaxCategory_ID, ct.SoPoType, ct.ad_org_id,ct.ad_client_id
+                 FROM c_Tax_Zone tz,
+                      c_Tax ct
+                 WHERE tz.C_Tax_ID = ct.C_Tax_ID
+                   AND ct.isActive = 'Y'
+                 ) t,
+            C_Location lf,
+            C_Location lt
+          WHERE t.Parent_Tax_ID IS NULL
+            AND t.C_TaxCategory_ID = v_TaxCategoryID
+            AND lf.C_Location_ID = v_billFrom
+            AND(t.C_Country_ID = lf.C_Country_ID OR(t.C_Country_ID IS NULL))
+            AND(t.C_Region_ID = lf.C_Region_ID   OR(t.C_Region_ID IS NULL))
+            AND lt.C_Location_ID = v_shipTo
+            AND(t.To_Country_ID = lt.C_Country_ID OR(t.To_Country_ID IS NULL))
+            AND(t.To_Region_ID = lt.C_Region_ID   OR(t.To_Region_ID IS NULL))
+            AND t.ValidFrom <= p_shipDate
+            AND ad_isorgincluded(p_org_id, t.ad_org_id,t.ad_client_id) <> -1
+         --   AND ((t.C_BP_TaxCategory_ID = v_BPTaxCategory) OR (v_BPTaxCategory IS NULL))
+            AND ((t.C_BP_TaxCategory_ID IS NOT NULL AND t.C_BP_TaxCategory_ID = v_BPTaxCategory) OR (t.C_BP_TaxCategory_ID IS NULL))
+            AND (SoPoType = 'B' OR (SoPoType =(case when p_IsSOTrx='Y' then 'S' else 'P' end)))
+          ORDER BY ad_isorgincluded(p_org_id, t.ad_org_id,t.ad_client_id),t.C_BP_TaxCategory_ID, t.C_Country_ID, t.To_Country_ID, t.C_Region_ID, t.To_Region_ID, t.ValidFrom DESC
+          )
+        LOOP
+          v_TaxID := SEL1.C_Tax_ID;
+          EXIT;
+        END LOOP;
+        IF v_TaxID IS NULL THEN
+          FOR SEL2 IN
+            (SELECT t.C_Tax_ID
+            FROM
+              (SELECT C_Tax_ID, C_Country_ID, C_Region_ID, To_Country_Id,
+                To_Region_ID, ValidFrom, C_TaxCategory_ID,
+                Parent_Tax_ID, C_BP_TaxCategory_ID, SoPoType, c_Tax.ad_org_id,c_Tax.ad_client_id
+              FROM c_Tax
+              WHERE c_Tax.isActive = 'Y'
+              UNION
+              SELECT tz.C_Tax_ID, tz.From_Country_ID, tz.From_Region_ID, tz.To_Country_ID,
+                tz.To_Region_ID, ValidFrom, C_TaxCategory_ID,
+                Parent_Tax_Id, C_BP_TaxCategory_ID, SoPoType, ct.ad_org_id, ct.ad_client_id
+              FROM c_Tax_Zone tz,
+                c_Tax ct
+              WHERE tz.C_Tax_ID = ct.C_Tax_ID
+                AND ct.isActive = 'Y'
+              )
+              t,
+              C_Location lf
+            WHERE t.Parent_Tax_ID IS NULL
+              AND t.C_TaxCategory_ID = v_TaxCategoryID
+              AND lf.C_Location_ID = v_billFrom
+              AND(t.C_Country_ID = lf.C_Country_ID
+              OR(t.C_Country_ID IS NULL))
+              AND(t.C_Region_ID = lf.C_Region_ID
+              OR(t.C_Region_ID IS NULL))
+              AND t.To_Country_ID IS NULL
+              AND t.To_Region_ID IS NULL
+              AND t.ValidFrom <= p_shipDate
+              AND ad_isorgincluded(p_org_id, t.ad_org_id,t.ad_client_id) <> -1
+              --AND ((t.C_BP_TaxCategory_ID = v_BPTaxCategory) OR (v_BPTaxCategory IS NULL))
+              AND ((t.C_BP_TaxCategory_ID IS NOT NULL AND t.C_BP_TaxCategory_ID = v_BPTaxCategory) OR (t.C_BP_TaxCategory_ID IS NULL))
+              AND (SoPoType = 'B' OR (SoPoType =(case when p_IsSOTrx='Y' then 'S' else 'P' end)))
+            ORDER BY ad_isorgincluded(p_org_id, t.ad_org_id,t.ad_client_id),t.C_BP_TaxCategory_ID,t.C_Country_ID, t.C_Region_ID, t.ValidFrom DESC
+            )
+          LOOP
+            v_TaxID := SEL2.C_Tax_ID;
+            EXIT;
+          END LOOP;
+        END IF;
+        IF v_TaxID IS NULL THEN
+          FOR SEL3 IN
+            (SELECT t.C_Tax_ID,t.C_BP_TaxCategory_ID, SoPoType
+            FROM C_Tax t,
+              C_Location lf
+            WHERE t.AD_Client_ID = lf.AD_Client_ID
+              AND lf.C_Location_ID = v_billFrom
+              AND t.IsDefault = 'Y'
+              AND t.ValidFrom <= p_shipDate
+              --AND ((t.C_BP_TaxCategory_ID = v_BPTaxCategory) OR (v_BPTaxCategory IS NULL))
+              AND ((t.C_BP_TaxCategory_ID IS NOT NULL AND t.C_BP_TaxCategory_ID = v_BPTaxCategory) OR (t.C_BP_TaxCategory_ID IS NULL))
+              AND (SoPoType = 'B' OR (SoPoType =(case when p_IsSOTrx='Y' then 'S' else 'P' end)))
+              AND t.isActive = 'Y'
+              AND ad_isorgincluded(p_org_id, t.ad_org_id,t.ad_client_id) <> -1
+            ORDER BY ad_isorgincluded(p_org_id, t.ad_org_id,t.ad_client_id),t.C_BP_TaxCategory_ID, t.ValidFrom DESC
+            )
+          LOOP
+            v_TaxID := SEL3.C_Tax_ID;
+            EXIT;
+          END LOOP;
+        END IF;
+      END;
+    END IF;
+    RETURN v_TaxID;
+END C_GETTAX
+]]></body>
+    </function>
+  </database>

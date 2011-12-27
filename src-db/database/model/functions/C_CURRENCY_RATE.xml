@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CURRENCY_RATE">
+    <function name="C_CURRENCY_RATE" type="NUMERIC">
+      <parameter name="p_curfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ratetype" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default><![CDATA[0]]></default>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default><![CDATA[0]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: C_Currency_Rate.sql,v 1.5 2003/03/17 20:32:24 jjanke Exp $
+***
+* Title: Return Conversion Rate
+* Description:
+*  from CurrencyFrom_ID to CurrencyTo_ID
+*  Returns NULL, if rate not found
+* Test
+*  SELECT C_Currency_Rate(116, 100, null, null) FROM DUAL; => .647169
+************************************************************************/
+  -- Currency From variables
+  v_cf_IsEuro      char(1);
+  -- Triangle
+  v_CurrencyFrom VARCHAR(32);
+  v_CurrencyTo   VARCHAR(32);
+  v_CurrencyEuro VARCHAR(32);
+  --
+  v_ConvDate DATE := now();
+  v_RateType VARCHAR(60) := 'S';
+  v_Rate     NUMBER;
+
+  v_Message VARCHAR2(2000):='';
+  v_ClientName VARCHAR2(2000):='';
+  v_OrgName VARCHAR2(2000):='';
+BEGIN
+  -- No Conversion
+  IF(p_CurFrom_ID = p_CurTo_ID) THEN
+    RETURN 1;
+  END IF;
+  -- Default Parameter
+  IF(p_ConvDate IS NOT NULL) THEN
+    v_ConvDate := p_ConvDate;
+  END IF;
+  IF(p_RateType IS NOT NULL) THEN
+    v_RateType := p_RateType;
+  END IF;
+  -- Flexible Rates
+  v_CurrencyFrom := p_CurFrom_ID;
+  v_CurrencyTo := p_CurTo_ID;
+  -- Get Rate
+  DECLARE
+  TYPE RECORD IS REF CURSOR;
+    CUR_Rate RECORD;
+  BEGIN
+    FOR CUR_Rate IN
+      (SELECT MultiplyRate
+      FROM C_Conversion_Rate
+      WHERE C_Currency_ID = v_CurrencyFrom
+        AND C_Currency_ID_To = v_CurrencyTo
+        AND ConversionRateType = v_RateType
+        AND TRUNC(v_ConvDate) BETWEEN ValidFrom AND ValidTo
+        AND AD_Client_ID IN ('0', p_Client_ID)
+        AND AD_Org_ID IN ('0', p_Org_ID)
+        AND IsActive = 'Y'
+      ORDER BY AD_Client_ID DESC,
+        AD_Org_ID DESC,
+        ValidFrom DESC
+      )
+    LOOP
+      v_Rate := CUR_Rate.MultiplyRate;
+      EXIT; -- only first
+    END LOOP;
+  END;
+  -- Not found
+  IF(v_Rate IS NULL) THEN
+    DBMS_OUTPUT.PUT_LINE('v_CurrencyFrom:'||v_CurrencyFrom||'-v_CurrencyTo:'||v_CurrencyTo||'-v_RateType:'||v_RateType||'-v_ConvDate'||v_ConvDate||'-p_Client_ID:'||p_Client_ID||'-p_Org_ID:'||p_Org_ID) ;
+    DBMS_OUTPUT.PUT_LINE('Conversion Rate Not Found') ;
+    SELECT ad_client.name
+    INTO v_ClientName
+    FROM ad_client
+    WHERE ad_client.ad_client_id = p_Client_ID;
+    SELECT ad_org.name
+    INTO v_OrgName
+    FROM ad_org
+    WHERE ad_org.ad_org_id = p_Org_ID;
+    IF (v_CurrencyFrom IS NULL OR v_CurrencyTo IS NULL OR v_ConvDate IS NULL OR v_ClientName IS NULL OR v_OrgName IS NULL) THEN
+      RETURN NULL;
+    ELSE
+      v_Message:='@NoConversionRate@' || ' ' || C_CURRENCY_ISOSYM(v_CurrencyFrom) || ' '
+        || '@to@' || ' ' || C_CURRENCY_ISOSYM(v_CurrencyTo) || ' ' || '@ForDate@' || ' ''' || TO_CHAR(v_ConvDate)
+	|| ''', ' || '@Client@' || ' ''' || v_ClientName || ''' ' || '@And@' || ' ' || '@ACCS_AD_ORG_ID_D@' || ' ''' || v_OrgName || '''.';
+      RAISE_APPLICATION_ERROR(-20000, v_Message);
+    END IF;
+  END IF;
+  -- Currency From was EMU
+  RETURN v_Rate;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END C_CURRENCY_RATE
+]]></body>
+    </function>
+  </database>

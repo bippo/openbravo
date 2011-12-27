@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="ListData" package="org.openbravo.erpCommon.reference" accessModifier="public">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT value as id, ((CASE ad_ref_list.isActive WHEN 'N' THEN '**' ELSE '' END) || name) AS name, description FROM ad_ref_list 
+      WHERE ad_ref_list.ad_reference_id = ? 
+      AND (ad_ref_list.isActive = 'Y' 
+      OR ad_ref_list.value = ?)
+      ORDER BY NAME
+    </Sql>
+    <Parameter name="list"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+  <SqlMethod name="selectLanguage" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT arl.value as id, ((CASE arl.isActive WHEN 'N' THEN '**' ELSE '' END) || (CASE WHEN arl_t.name IS NULL THEN arl.name ELSE arl_t.name END)) AS NAME, 
+      (CASE WHEN arl_t.description IS NULL THEN arl.description ELSE arl_t.description END) AS DESCRIPTION 
+      FROM ad_ref_list arl left join ad_ref_list_trl arl_t  on arl.ad_ref_list_id = arl_t.ad_ref_list_id 
+                                                           AND arl_t.ad_language = ? 
+      WHERE arl.ad_reference_id = ? 
+      AND (arl.isActive = 'Y' 
+      OR arl.Value = ? )
+      ORDER BY (CASE WHEN arl_t.name IS NULL THEN arl.name ELSE arl_t.name END)
+    </Sql>
+    <Parameter name="language"/>
+    <Parameter name="list"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+  <SqlMethod name="selectName" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT name FROM ad_ref_list 
+      WHERE ad_ref_list.ad_reference_id = ?
+        AND value = ?
+    </Sql>
+    <Parameter name="list"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+  <SqlMethod name="selectNameTrl" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT (CASE WHEN arl_t.name IS NULL THEN arl.name ELSE arl_t.name END) AS NAME 
+      FROM ad_ref_list arl left join ad_ref_list_trl arl_t  on arl.ad_ref_list_id = arl_t.ad_ref_list_id 
+                                                           AND arl_t.ad_language = ? 
+      WHERE arl.ad_reference_id = ? 
+      AND arl.Value = ?
+    </Sql>
+    <Parameter name="language"/>
+    <Parameter name="list"/>
+    <Parameter name="value"/>
+  </SqlMethod>
+</SqlClass>

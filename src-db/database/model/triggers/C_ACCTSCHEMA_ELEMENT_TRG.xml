@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ACCTSCHEMA_ELEMENT_TRG">
+    <trigger name="C_ACCTSCHEMA_ELEMENT_TRG" table="C_ACCTSCHEMA_ELEMENT" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Update Valid Combination
+    * when element becomes mandatory
+    **/
+    v_UpdateIt BOOLEAN:=FALSE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Do we have to update
+  IF(INSERTING OR UPDATING) THEN
+    IF(:new.IsMandatory='Y') THEN
+      v_UpdateIt:=TRUE;
+    END IF;
+  END IF;
+  --
+  IF(v_UpdateIt) THEN
+    IF(:new.ElementType IN('OO', 'AC')) THEN
+      NULL;
+      -- Mandatory - no need
+    ELSIF(:new.ElementType='PR' AND :new.M_Product_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET M_Product_ID=:new.M_Product_ID
+      WHERE M_Product_ID IS NULL;
+    ELSIF(:new.ElementType='BP' AND :new.C_BPartner_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_BPartner_ID=:new.C_BPartner_ID
+      WHERE C_BPartner_ID IS NULL;
+    ELSIF(:new.ElementType='PJ' AND :new.C_Project_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_Project_ID=:new.C_Project_ID
+      WHERE C_Project_ID IS NULL;
+    ELSIF(:new.ElementType='OT' AND :new.Org_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET AD_OrgTrx_ID=:new.Org_ID
+      WHERE AD_OrgTrx_ID IS NULL;
+    ELSIF(:new.ElementType='LT' AND :new.C_Location_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_LocTo_ID=:new.C_Location_ID
+      WHERE C_LocTo_ID IS NULL;
+    ELSIF(:new.ElementType='LF' AND :new.C_Location_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_LocFrom_ID=:new.C_Location_ID
+      WHERE C_LocFrom_ID IS NULL;
+    ELSIF(:new.ElementType='SR' AND :new.C_SalesRegion_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_SalesRegion_ID=:new.C_SalesRegion_ID
+      WHERE C_SalesRegion_ID IS NULL;
+    ELSIF(:new.ElementType='MC' AND :new.C_Campaign_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_Campaign_ID=:new.C_Campaign_ID
+      WHERE C_Campaign_ID IS NULL;
+    ELSIF(:new.ElementType='AY' AND :new.C_Activity_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET C_Activity_ID=:new.C_Activity_ID
+      WHERE C_Activity_ID IS NULL;
+    ELSIF(:new.ElementType='U1' AND :new.C_ElementValue_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET User1_ID=:new.C_ElementValue_ID
+      WHERE User1_ID IS NULL;
+    ELSIF(:new.ElementType='U2' AND :new.C_ElementValue_ID IS NOT NULL) THEN
+      UPDATE C_ValidCombination
+        SET User2_ID=:new.C_ElementValue_ID
+      WHERE User2_ID IS NULL;
+    END IF;
+  END IF;
+  --
+END C_ACCTSCHEMA_ELEMENT_TRG
+]]></body>
+    </trigger>
+  </database>

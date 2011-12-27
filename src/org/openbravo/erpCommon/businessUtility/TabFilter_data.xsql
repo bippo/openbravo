@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="TabFilterData" package="org.openbravo.erpCommon.businessUtility">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT F.NAME, C.AD_REFERENCE_ID, F.SHOWINRELATION, F.ISDISPLAYED, F.NAME AS COMPLETE_NAME, C.ColumnName 
+        FROM AD_FIELD F, AD_COLUMN C
+        WHERE F.AD_COLUMN_ID = C.AD_COLUMN_ID 
+        AND F.AD_TAB_ID = ?
+        ORDER BY F.SEQNO
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Field name="completePosition" value="count"/>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT (CASE WHEN FT.NAME IS NULL THEN F.NAME ELSE FT.NAME END) AS NAME, C.AD_REFERENCE_ID, F.SHOWINRELATION, F.ISDISPLAYED, 
+        (CASE WHEN FT.NAME IS NULL THEN F.NAME ELSE FT.NAME END) AS COMPLETE_NAME, C.ColumnName 
+        FROM AD_FIELD F left join  AD_FIELD_TRL FT on F.AD_FIELD_ID = FT.AD_FIELD_ID 
+                                                  AND FT.AD_LANGUAGE = ?, 
+          AD_COLUMN C
+        WHERE F.AD_COLUMN_ID = C.AD_COLUMN_ID 
+        AND F.AD_TAB_ID = ?
+        ORDER BY F.SEQNO
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Field name="completePosition" value="count"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+</SqlClass>

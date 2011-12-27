@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="InvoiceEditionData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO) AS DOCUMENTNO, C_INVOICE.DATEINVOICED AS DATEINVOICED, 
+      C_BPARTNER.NAME AS CLIENT_NAME, COALESCE(M_PRODUCT.NAME, C_GLITEM.NAME) AS PRODUCT_NAME,
+      SUM(CASE WHEN C_DOCTYPE.DOCBASETYPE='APC' THEN C_INVOICELINE.QTYINVOICED*-1 ELSE C_INVOICELINE.QTYINVOICED END) AS QUANTITYORDER, 
+      C_UOM.NAME AS UOMNAME, C_INVOICELINE.PRICEACTUAL AS PRICEACTUAL, 
+      C_CURRENCY_SYMBOL (C_INVOICE.C_CURRENCY_ID, C_INVOICELINE.PRICEACTUAL, 'Y') AS PRICEACTUALSYM,
+	  C_CURRENCY_CONVERT(C_INVOICELINE.PRICEACTUAL, C_INVOICE.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID) AS CONVPRICEACTUAL,
+      SUM(CASE WHEN C_DOCTYPE.DOCBASETYPE='APC' THEN C_INVOICELINE.LINENETAMT*-1 ELSE C_INVOICELINE.LINENETAMT END) AS PRICELIST,
+      C_CURRENCY_SYMBOL (C_INVOICE.C_CURRENCY_ID, SUM(C_INVOICELINE.LINENETAMT) , 'Y') AS PRICELISTSYM,
+	  SUM(C_CURRENCY_CONVERT(CASE WHEN C_DOCTYPE.DOCBASETYPE='APC' THEN C_INVOICELINE.LINENETAMT*-1 ELSE C_INVOICELINE.LINENETAMT END, C_INVOICE.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID)) AS CONVPRICELIST,
+	  C_CURRENCY_SYMBOL(?, '0', 'Y') AS CONVSYM,
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM,
+	  TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())) AS TRANSDATE,
+	  C_INVOICE.C_CURRENCY_ID AS TRANSCURRENCYID,
+      C_INVOICELINE.AD_CLIENT_ID AS TRANSCLIENTID, 
+	  C_INVOICELINE.AD_ORG_ID AS TRANSORGID 
+      FROM C_INVOICE left join C_DOCTYPE on C_INVOICE.C_DOCTYPE_ID=C_DOCTYPE.C_DOCTYPE_ID,
+      C_INVOICELINE left join M_PRODUCT on C_INVOICELINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+                    left join C_GLITEM on C_INVOICELINE.ACCOUNT_ID = C_GLITEM.C_GLITEM_ID,
+      C_UOM, C_BPARTNER
+      WHERE C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_INVOICE.C_INVOICE_ID = C_INVOICELINE.C_INVOICE_ID
+      AND (C_INVOICELINE.M_PRODUCT_ID IS NOT NULL OR C_INVOICELINE.ACCOUNT_ID IS NOT NULL)
+      AND C_INVOICELINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND C_INVOICE.AD_ORG_ID IN ('1')
+      AND C_INVOICE.AD_CLIENT_ID IN ('1')
+      AND 1=1
+      AND C_INVOICE.ISSOTRX = ?
+      GROUP BY C_BPARTNER.NAME, COALESCE(M_PRODUCT.NAME, C_GLITEM.NAME), C_UOM.NAME, C_INVOICELINE.PRICEACTUAL, 
+      COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO), C_INVOICE.DATEINVOICED,
+      C_INVOICE.C_CURRENCY_ID, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID
+      ORDER BY C_BPARTNER.NAME, COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO), C_INVOICE.DATEINVOICED
+     ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND C_INVOICE.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_INVOICE.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="dateFrom" optional="true" after="1=1"><![CDATA[AND C_INVOICE.DATEINVOICED >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="1=1"><![CDATA[AND C_INVOICE.DATEINVOICED < TO_DATE(?)]]></Parameter>
+    <Parameter name="cBPartnerId" optional="true" after="1=1"><![CDATA[AND C_INVOICE.C_BPARTNER_ID = ?]]></Parameter>
+    <Parameter name="cProjectId" optional="true" after="1=1"><![CDATA[AND C_INVOICE.C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="issotrx"/>
+  </SqlMethod>
+  <SqlMethod name="selectProject" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO) AS DOCUMENTNO, C_INVOICE.DATEINVOICED AS DATEINVOICED, 
+      C_BPARTNER.NAME AS CLIENT_NAME, COALESCE(M_PRODUCT.NAME, C_GLITEM.NAME) AS PRODUCT_NAME, SUM(CASE WHEN C_DOCTYPE.DOCBASETYPE='APC' THEN C_INVOICELINE.QTYINVOICED*-1 ELSE C_INVOICELINE.QTYINVOICED END) AS QUANTITYORDER, 
+      C_UOM.NAME AS UOMNAME, C_INVOICELINE.PRICEACTUAL AS PRICEACTUAL, 
+      C_CURRENCY_SYMBOL (C_INVOICE.C_CURRENCY_ID, C_INVOICELINE.PRICEACTUAL, 'Y') AS PRICEACTUALSYM,
+	  C_CURRENCY_CONVERT(C_INVOICELINE.PRICEACTUAL, C_INVOICE.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID) AS CONVPRICEACTUAL,
+      SUM(CASE WHEN C_DOCTYPE.DOCBASETYPE='APC' THEN C_INVOICELINE.LINENETAMT*-1 ELSE C_INVOICELINE.LINENETAMT END) AS PRICELIST,
+      C_CURRENCY_SYMBOL (C_INVOICE.C_CURRENCY_ID, SUM(C_INVOICELINE.LINENETAMT) , 'Y') AS PRICELISTSYM,
+	  SUM(C_CURRENCY_CONVERT(CASE WHEN C_DOCTYPE.DOCBASETYPE='APC' THEN C_INVOICELINE.LINENETAMT*-1 ELSE C_INVOICELINE.LINENETAMT END, C_INVOICE.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID)) AS CONVPRICELIST,
+	  C_CURRENCY_SYMBOL(?, '0', 'Y') AS CONVSYM,
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM,
+	  TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())) AS TRANSDATE,
+	  C_INVOICE.C_CURRENCY_ID AS TRANSCURRENCYID,
+      C_INVOICELINE.AD_CLIENT_ID AS TRANSCLIENTID, 
+	  C_INVOICELINE.AD_ORG_ID AS TRANSORGID 
+      FROM C_INVOICE left join C_DOCTYPE on C_INVOICE.C_DOCTYPE_ID=C_DOCTYPE.C_DOCTYPE_ID,
+      C_INVOICELINE left join M_PRODUCT on C_INVOICELINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+                    left join C_GLITEM on C_INVOICELINE.ACCOUNT_ID = C_GLITEM.C_GLITEM_ID,
+      C_UOM, C_BPARTNER
+      WHERE C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_INVOICE.C_INVOICE_ID = C_INVOICELINE.C_INVOICE_ID
+      AND (C_INVOICELINE.M_PRODUCT_ID IS NOT NULL OR C_INVOICELINE.ACCOUNT_ID IS NOT NULL)
+      AND C_INVOICELINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND C_INVOICE.AD_ORG_ID IN ('1')
+      AND C_INVOICE.AD_CLIENT_ID IN ('1')
+      AND 1=1
+      AND (C_INVOICE.C_PROJECT_ID = ?
+           OR EXISTS (SELECT 1 FROM C_INVOICELINE il, C_INVOICELINE_ACCTDIMENSION ila
+                      WHERE il.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+                        AND il.C_INVOICELINE_ID = ila.C_INVOICELINE_ID
+                        AND ila.C_PROJECT_ID = ?))
+      AND C_INVOICE.ISSOTRX = ?
+      GROUP BY C_BPARTNER.NAME, COALESCE(M_PRODUCT.NAME, C_GLITEM.NAME), C_UOM.NAME, C_INVOICELINE.PRICEACTUAL, 
+      COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO), C_INVOICE.DATEINVOICED,
+      C_INVOICE.C_CURRENCY_ID, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID
+      ORDER BY C_BPARTNER.NAME, COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO), C_INVOICE.DATEINVOICED
+     ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND C_INVOICE.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_INVOICE.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="dateFrom" optional="true" after="1=1"><![CDATA[AND C_INVOICE.DATEINVOICED >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="1=1"><![CDATA[AND C_INVOICE.DATEINVOICED < TO_DATE(?)]]></Parameter>
+    <Parameter name="cBPartnerId" optional="true" after="1=1"><![CDATA[AND C_INVOICE.C_BPARTNER_ID = ?]]></Parameter>
+    <Parameter name="cProjectId"/>
+    <Parameter name="cProjectId"/>
+    <Parameter name="issotrx"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

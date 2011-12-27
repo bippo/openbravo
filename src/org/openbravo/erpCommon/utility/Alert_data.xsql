@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="AlertData" package="org.openbravo.erpCommon.utility">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+   	<SqlMethodComment></SqlMethodComment>
+   	<Sql>
+   		<![CDATA[
+	       SELECT AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+	              Created, CreatedBy, Updated, UpdatedBy, Description, AD_AlertRule_ID,
+                  AD_Role_ID, AD_User_ID, Record_Id, Referencekey_ID
+      		 FROM AD_Alert
+      		WHERE AD_AlertRule_ID = ?
+      ]]>
+   	</Sql>
+   	<Parameter name="adAlertId" />
+   </SqlMethod>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+   	<SqlMethodComment></SqlMethodComment>
+   	<Sql>
+   		<![CDATA[
+	       SELECT AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+	              Created, CreatedBy, Updated, UpdatedBy, Description, AD_AlertRule_ID,
+                  AD_Role_ID, AD_User_ID, Record_Id
+      		 FROM AD_Alert
+      		WHERE AD_AlertRule_ID = ? AND Record_Id = ?
+      ]]>
+   	</Sql>
+   	<Parameter name="adAlertId" />
+   	<Parameter name="recordId" />
+   </SqlMethod>
+   <SqlMethod name="selectByDescription" type="preparedStatement" return="multiple">
+   	<SqlMethodComment></SqlMethodComment>
+   	<Sql>
+   		<![CDATA[
+	       SELECT AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+	              Created, CreatedBy, Updated, UpdatedBy, Description, AD_AlertRule_ID,
+                  AD_Role_ID, AD_User_ID, Record_Id, Description
+      		 FROM AD_Alert
+      		WHERE AD_AlertRule_ID = ? AND Description = ?
+      ]]>
+   	</Sql>
+   	<Parameter name="adAlertId" />
+   	<Parameter name="description" />
+   </SqlMethod>
+   <SqlMethod name="insert" type="preparedStatement"
+   	return="rowcount">
+   	<SqlMethodComment></SqlMethodComment>
+   	<Sql>
+   		<![CDATA[
+       INSERT INTO AD_Alert (AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+                      Created, CreatedBy, Updated, UpdatedBy, Description, AD_AlertRule_ID, Record_Id, Referencekey_ID,
+                      status)
+      		VALUES (get_uuid(), 0, 0, 'Y', NOW(), 0, NOW(), 0, ?, ?, ?, ?,'NEW')
+      ]]>
+   	</Sql>
+   	<Parameter name="description" />
+   	<Parameter name="adAlertRuleId" />
+   	<Parameter name="recordId" />
+   	<Parameter name="referencekeyId" />
+   </SqlMethod>
+</SqlClass>

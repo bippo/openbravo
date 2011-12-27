@@ -1,0 +1,438 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_RAPPEL_INVOICE_CREATE">
+    <function name="M_RAPPEL_INVOICE_CREATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    v_Record_ID VARCHAR2(32):=NULL;
+    v_AD_User_ID VARCHAR2(32):=NULL;
+    v_LimitDate DATE;
+    --
+    v_invoiceId varchar2(32):=NULL;
+    v_rappelInvoiceId varchar2(32):=NULL;
+    v_invoicelineId varchar2(32):=NULL;
+    v_NoRecords NUMBER:=0;
+    v_DocType_ID VARCHAR2(32);
+    v_DocumentNo VARCHAR2(40) ;
+    v_seqno NUMBER(10) ;
+    v_line NUMBER(10):=0;
+    v_paymentRule VARCHAR2(60) ;
+    v_paymenttermId varchar2(32) ;
+    v_pricelistId varchar2(32) ;
+    v_description VARCHAR2(100) ;
+    v_validTo DATE;
+    v_TotalLines NUMBER;
+    v_RappelID varchar2(32);
+    v_Scaled char(1) ;
+    v_Discount NUMBER;
+    v_Discount1 NUMBER;
+    v_From NUMBER;
+    v_AppliedDiscount NUMBER;
+    CUR_SCALES RECORD;
+    CUR_INVOICE RECORD;
+    FINISH_PROCESS BOOLEAN:=FALSE;
+  BEGIN
+    -- PROCESS PARAMETERS
+    --  UPDATE AD_PINSTANCE
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || P_PINSTANCE_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(P_PINSTANCE_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- GET PARAMETERS
+    v_ResultStr:='ReadingParameters';
+    FOR CUR_PARAMETER IN
+      (SELECT I.RECORD_ID,
+        I.AD_USER_ID,
+        P.PARAMETERNAME,
+        P.P_STRING,
+        P.P_NUMBER,
+        P.P_DATE
+      FROM AD_PINSTANCE I
+      LEFT JOIN AD_PINSTANCE_PARA P
+        ON I.AD_PINSTANCE_ID=P.AD_PINSTANCE_ID
+      WHERE I.AD_PINSTANCE_ID=p_PInstance_ID
+      ORDER BY P.SEQNO
+      )
+    LOOP
+      v_Record_ID:=CUR_PARAMETER.RECORD_ID;
+      v_AD_User_ID:=CUR_PARAMETER.AD_USER_ID;
+      IF(CUR_PARAMETER.PARAMETERNAME='LimitDate') THEN
+        v_LimitDate:=CUR_PARAMETER.P_DATE;
+        DBMS_OUTPUT.PUT_LINE(' LimitDate=' || v_LimitDate) ;
+      END IF;
+    END LOOP; -- GET PARAMETER
+    /**
+    *
+    */
+    SELECT VALIDTO
+    INTO v_validTo
+    FROM M_RAPPEL_BPARTNER
+    WHERE M_RAPPEL_BPARTNER_ID=v_Record_ID;
+    IF v_LimitDate IS NOT NULL AND v_validTo IS NOT NULL THEN
+      IF v_validTo>v_LimitDate THEN
+        v_LimitDate:=v_validTo;
+      END IF;
+    ELSIF v_validTo IS NOT NULL AND v_LimitDate IS NULL THEN
+      v_LimitDate:=v_validTo;
+    ELSE
+      v_LimitDate:=COALESCE(v_LimitDate, TO_DATE('31-12-9999','DD-MM-YYYY')) ;
+    END IF;
+    -- CALCULATE DISCOUNT
+  BEGIN
+    SELECT COALESCE(SUM(IL.LINENETAMT), 0)
+    INTO v_TotalLines
+    FROM C_INVOICE I,
+      C_INVOICELINE IL,
+      M_RAPPEL_BPARTNER RP,
+      C_BPARTNER_LOCATION PL,
+      M_RAPPEL R
+    WHERE I.C_INVOICE_ID=IL.C_INVOICE_ID
+      AND R.M_RAPPEL_ID=RP.M_RAPPEL_ID
+      AND R.C_CURRENCY_ID=I.C_CURRENCY_ID
+      AND I.PROCESSED='Y'
+      AND I.DATEINVOICED>=RP.VALIDFROM
+      AND I.DATEINVOICED<v_LimitDate+1
+      AND I.C_BPARTNER_ID=RP.C_BPARTNER_ID
+      AND I.C_BPARTNER_ID = PL.C_BPARTNER_ID
+      /*Commented by Carlos ROmero
+      AND IL.M_PRODUCT_ID IN (SELECT P.M_PRODUCT_ID
+      FROM M_RAPPEL         R,
+      M_PRODUCT        P
+      WHERE R.M_RAPPEL_ID = RP.M_RAPPEL_ID AND
+      ((COALESCE(R.INCLUDE_PRODUCT_CATEGORY,'Y') = 'N'
+      AND P.M_PRODUCT_CATEGORY_ID IN (SELECT M_PRODUCT_CATEGORY_ID
+      FROM M_RAPPEL_PRODUCTCATEGORY RC
+      WHERE RC.M_RAPPEL_ID = R.M_RAPPEL_ID))
+      OR (COALESCE(R.INCLUDE_PRODUCT_CATEGORY,'Y') = 'Y'
+      AND P.M_PRODUCT_CATEGORY_ID NOT IN (SELECT M_PRODUCT_CATEGORY_ID
+      FROM M_RAPPEL_PRODUCTCATEGORY RC
+      WHERE RC.M_RAPPEL_ID = R.M_RAPPEL_ID)))
+      UNION
+      SELECT M_PRODUCT_ID
+      FROM M_RAPPEL_PRODUCT RP,
+      M_RAPPEL R1
+      WHERE R1.M_RAPPEL_ID = RP.M_RAPPEL_ID AND
+      R.M_RAPPEL_ID = RP.M_RAPPEL_ID
+      AND COALESCE(R1.INCLUDE_PRODUCT,'Y') = 'N'
+      MINUS
+      SELECT M_PRODUCT_ID
+      FROM M_RAPPEL_PRODUCT RP,
+      M_RAPPEL R1
+      WHERE R1.M_RAPPEL_ID = RP.M_RAPPEL_ID AND
+      R.M_RAPPEL_ID = RP.M_RAPPEL_ID
+      AND COALESCE(R1.INCLUDE_PRODUCT,'Y') = 'Y' )
+      AND I.C_BPARTNER_ID = PL.C_BPARTNER_ID
+      AND NOT EXISTS (SELECT 1
+      FROM M_RAPPEL_INVOICE RI
+      WHERE RI.M_RAPPEL_BPARTNER_ID = RP.M_RAPPEL_BPARTNER_ID
+      AND RI.C_INVOICE_ID = I.C_INVOICE_ID)*/
+      AND((COALESCE(R.INCLUDE_PRODUCT_CATEGORY, 'Y')='N' -- Just selected
+      AND EXISTS
+      (SELECT 1
+      FROM M_RAPPEL_PRODUCTCATEGORY RC,
+        M_PRODUCT PROD
+      WHERE PROD.M_PRODUCT_ID=IL.M_PRODUCT_ID
+        AND RC.M_PRODUCT_CATEGORY_ID=PROD.M_PRODUCT_CATEGORY_ID
+      ))
+      OR (COALESCE(R.INCLUDE_PRODUCT_CATEGORY, 'Y')='Y' -- Everyone except selected
+      AND NOT EXISTS
+      (SELECT 1
+      FROM M_RAPPEL_PRODUCTCATEGORY RC,
+        M_PRODUCT PROD
+      WHERE PROD.M_PRODUCT_ID=IL.M_PRODUCT_ID
+        AND RC.M_PRODUCT_CATEGORY_ID=PROD.M_PRODUCT_CATEGORY_ID
+      )))
+      AND((COALESCE(R.INCLUDE_PRODUCT, 'Y')='N' -- Just selected
+      AND EXISTS
+      (SELECT 1 FROM M_RAPPEL_PRODUCT RP WHERE RP.M_PRODUCT_ID=IL.M_PRODUCT_ID AND RP.ISACTIVE='Y'))
+      OR (COALESCE(R.INCLUDE_PRODUCT, 'Y')='Y' -- Everyone except selected
+      AND NOT EXISTS
+      (SELECT 1 FROM M_RAPPEL_PRODUCT RP  WHERE RP.M_PRODUCT_ID=IL.M_PRODUCT_ID AND RP.ISACTIVE='Y')))
+      AND RP.ISSOTRX=I.ISSOTRX
+      AND RP.M_RAPPEL_BPARTNER_ID=v_Record_ID;
+  EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    v_TotalLines:=0;
+  END;
+  IF v_TotalLines=0 THEN
+    V_MESSAGE:='@NoInvoicesForRappel@';
+    FINISH_PROCESS:=TRUE;
+  END IF;
+  IF(NOT FINISH_PROCESS) THEN
+    SELECT COALESCE(SCALED, 'N'),
+      R.M_RAPPEL_ID
+    INTO v_Scaled,
+      v_RappelID
+    FROM M_RAPPEL R,
+      M_RAPPEL_BPARTNER RP
+    WHERE RP.M_RAPPEL_BPARTNER_ID=v_Record_ID
+    AND RP.ISACTIVE='Y'
+      AND RP.M_RAPPEL_ID=R.M_RAPPEL_ID;
+    IF v_Scaled='N' THEN
+      SELECT MAX(DISCOUNT)
+      INTO v_Discount
+      FROM M_RAPPEL_SCALE
+      WHERE M_RAPPEL_ID=v_RappelID
+        AND v_TotalLines BETWEEN AMNT_FROM AND COALESCE(AMNT_TO, 9999999999) ;
+    ELSE
+      v_Discount1:=0;
+      FOR CUR_SCALES IN
+        (SELECT DISCOUNT,
+          AMNT_FROM,
+          AMNT_TO
+        FROM M_RAPPEL_SCALE
+        WHERE AMNT_TO<v_TotalLines
+          AND M_RAPPEL_ID=v_RappelID
+        )
+      LOOP
+        v_Discount1:=v_Discount1 +(CUR_SCALES.DISCOUNT *(CUR_SCALES.AMNT_TO-CUR_SCALES.AMNT_FROM)) ;
+      END LOOP;
+    BEGIN
+      SELECT MIN(DISCOUNT),
+        MIN(AMNT_FROM)
+      INTO v_Discount,
+        v_From
+      FROM M_RAPPEL_SCALE
+      WHERE M_RAPPEL_ID=v_RappelID
+        AND v_TotalLines BETWEEN AMNT_FROM AND COALESCE(AMNT_TO, 9999999999) ;
+    EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      v_Discount:=0;
+    END;
+    v_Discount1:=v_Discount1 +(v_Discount *(v_TotalLines-v_From)) ;
+    v_Discount:=v_Discount1/v_TotalLines; --TOTAL DISCOUNT
+  END IF;
+  SELECT COALESCE(SUM(LINENETAMT), 0)
+  INTO v_AppliedDiscount
+  FROM M_RAPPEL_INVOICE RI,
+    C_INVOICELINE IL
+  WHERE RI.M_RAPPEL_BPARTNER_ID=v_Record_ID
+    AND RI.C_INVOICE_ID=IL.C_INVOICE_ID;
+  v_AppliedDiscount:=(-100) *v_AppliedDiscount/v_TotalLines;
+  v_Discount:=v_Discount - v_AppliedDiscount;
+  ---------------------
+  --V_MESSAGE := v_RappelID||'#'||v_Record_ID||'#'||v_TotalLines||'#'||v_Discount||'#'||v_Discount1;
+  IF v_Discount!=0 THEN
+    FOR CUR_INVOICE IN
+      (SELECT I.AD_CLIENT_ID,
+        I.AD_ORG_ID,
+        IL.M_PRODUCT_ID,
+        RP.ISSOTRX,
+        RP.C_BPARTNER_ID,
+        MAX(PL.C_BPARTNER_LOCATION_ID) AS C_BPARTNER_LOCATION_ID,
+        MAX(I.C_CURRENCY_ID) AS C_CURRENCY_ID,
+        MIN(I.C_DOCTYPETARGET_ID) AS C_DOCTYPETARGET_ID,
+        MAX(I.C_DOCTYPE_ID) AS C_DOCTYPE_ID,
+        SUM(IL.QTYINVOICED) AS QTYINVOICED,
+        SUM(IL.LINENETAMT) AS TOTALLINES,
+        MAX(IL.C_UOM_ID) AS C_UOM_ID,
+        IL.C_TAX_ID,
+        TO_NUMBER(NULL) AS RAPPELINVOICED,
+        (-v_Discount) *SUM(IL.LINENETAMT) /100 AS LINENET --    SUM(IL.LINENETAMT)
+      FROM C_INVOICE I,
+        C_INVOICELINE IL,
+        M_RAPPEL_BPARTNER RP,
+        C_BPARTNER_LOCATION PL,
+        M_RAPPEL R
+      WHERE I.C_INVOICE_ID=IL.C_INVOICE_ID
+        AND R.M_RAPPEL_ID=RP.M_RAPPEL_ID
+        AND R.C_CURRENCY_ID=I.C_CURRENCY_ID
+        AND I.PROCESSED='Y'
+        AND I.DATEINVOICED>=RP.VALIDFROM
+        AND I.DATEINVOICED<v_LimitDate+1
+        AND I.C_BPARTNER_ID=RP.C_BPARTNER_ID
+        AND IL.M_PRODUCT_ID IN
+        (SELECT P.M_PRODUCT_ID
+        FROM M_RAPPEL R,
+          M_PRODUCT P
+        WHERE R.M_RAPPEL_ID=RP.M_RAPPEL_ID
+          AND ((COALESCE(R.INCLUDE_PRODUCT_CATEGORY, 'Y')='N'
+          AND P.M_PRODUCT_CATEGORY_ID IN
+          (SELECT M_PRODUCT_CATEGORY_ID
+          FROM M_RAPPEL_PRODUCTCATEGORY RC
+          WHERE RC.M_RAPPEL_ID=R.M_RAPPEL_ID
+          )))
+        UNION
+        SELECT M_PRODUCT_ID
+        FROM M_RAPPEL_PRODUCT RP,
+          M_RAPPEL R1
+        WHERE R.M_RAPPEL_ID=RP.M_RAPPEL_ID
+          AND  R1.M_RAPPEL_ID=RP.M_RAPPEL_ID
+          AND RP.ISACTIVE='Y'
+          AND COALESCE(R1.INCLUDE_PRODUCT, 'Y')='N' MINUS
+        SELECT M_PRODUCT_ID
+        FROM M_RAPPEL_PRODUCT RP,
+          M_RAPPEL R1
+        WHERE R.M_RAPPEL_ID=RP.M_RAPPEL_ID
+          AND  R1.M_RAPPEL_ID=RP.M_RAPPEL_ID
+          AND RP.ISACTIVE='Y'
+          AND COALESCE(R1.INCLUDE_PRODUCT, 'Y')='Y'
+        )
+        AND I.C_BPARTNER_ID=PL.C_BPARTNER_ID
+        AND NOT EXISTS
+        (SELECT 1
+        FROM M_RAPPEL_INVOICE RI
+        WHERE RI.M_RAPPEL_BPARTNER_ID=RP.M_RAPPEL_BPARTNER_ID
+          AND RI.C_INVOICE_ID=I.C_INVOICE_ID
+        )
+        AND RP.ISSOTRX=I.ISSOTRX
+        AND RP.M_RAPPEL_BPARTNER_ID=v_Record_ID
+      GROUP BY I.AD_CLIENT_ID,
+        I.AD_ORG_ID,
+        IL.M_PRODUCT_ID,
+        RP.ISSOTRX,
+        RP.C_BPARTNER_ID,
+        IL.C_TAX_ID
+      )
+    LOOP
+      IF(v_invoiceId IS NULL) THEN
+        --
+        AD_SEQUENCE_NEXT('C_Invoice', CUR_INVOICE.AD_CLIENT_ID, v_invoiceId) ;
+        AD_SEQUENCE_DOCTYPE(CUR_INVOICE.C_DOCTYPE_ID, CUR_INVOICE.AD_CLIENT_ID, 'Y', v_DocumentNo) ;
+        IF(v_DocumentNo IS NULL) THEN
+          AD_SEQUENCE_DOC('DocumentNo_C_Invoice', CUR_INVOICE.AD_CLIENT_ID, 'Y', v_DocumentNo) ;
+        END IF;
+        SELECT(
+          CASE CUR_INVOICE.ISSOTRX WHEN 'Y' THEN C_BPARTNER.PAYMENTRULE ELSE C_BPARTNER.PAYMENTRULEPO
+          END
+          ), (
+          CASE CUR_INVOICE.ISSOTRX WHEN 'Y' THEN C_BPARTNER.C_PAYMENTTERM_ID ELSE C_BPARTNER.PO_PAYMENTTERM_ID
+          END
+          ), (
+          CASE CUR_INVOICE.ISSOTRX WHEN 'Y' THEN C_BPARTNER.M_PRICELIST_ID ELSE C_BPARTNER.PO_PRICELIST_ID
+          END
+          )
+        INTO v_paymentRule,
+          v_paymenttermId,
+          v_pricelistId
+        FROM C_BPARTNER
+        WHERE C_BPARTNER.C_BPARTNER_ID=CUR_INVOICE.C_BPARTNER_ID;
+        INSERT
+        INTO C_INVOICE
+          (
+            C_INVOICE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            ISSOTRX, DOCUMENTNO, DOCSTATUS, DOCACTION,
+            PROCESSING, PROCESSED, POSTED, C_DOCTYPE_ID,
+            C_DOCTYPETARGET_ID, C_ORDER_ID, DESCRIPTION,
+            ISPRINTED, SALESREP_ID, DATEINVOICED, DATEPRINTED, 
+            TAXDATE, DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID,
+            POREFERENCE, ISDISCOUNTPRINTED, DATEORDERED, C_CURRENCY_ID,
+            PAYMENTRULE, C_PAYMENTTERM_ID, C_CHARGE_ID, CHARGEAMT,
+            TOTALLINES, GRANDTOTAL, M_PRICELIST_ID, ISTAXINCLUDED,
+            C_CAMPAIGN_ID, C_PROJECT_ID, C_ACTIVITY_ID,
+            CREATEFROM, GENERATETO, AD_USER_ID,
+            COPYFROM, ISSELFSERVICE, AD_ORGTRX_ID, USER1_ID,
+            USER2_ID
+          )
+          VALUES
+          (
+            v_invoiceId, CUR_INVOICE.AD_CLIENT_ID, CUR_INVOICE.AD_ORG_ID, 'Y',
+            now(), v_AD_User_ID, now(), v_AD_User_ID,
+            CUR_INVOICE.ISSOTRX, v_DocumentNo, 'DR', 'CO',
+             'N', 'N', 'N', CUR_INVOICE.C_DOCTYPE_ID,
+            CUR_INVOICE.C_DOCTYPETARGET_ID, NULL, NULL,
+            'N', NULL, now(), NULL, 
+            now(), now(), CUR_INVOICE.C_BPARTNER_ID, CUR_INVOICE.C_BPARTNER_LOCATION_ID,
+            NULL, 'N', NULL, CUR_INVOICE.C_CURRENCY_ID,
+            v_paymentRule, v_paymenttermId, NULL, 0,
+            0, 0, v_pricelistId, 'N',
+            NULL, NULL, NULL,
+             'N', 'N', v_AD_User_ID,
+             'N', 'N', NULL, NULL,
+            NULL
+          )
+          ;
+        AD_SEQUENCE_NEXT('M_Rappel_Invoice', CUR_INVOICE.AD_CLIENT_ID, v_rappelInvoiceId) ;
+
+        SELECT COALESCE(MAX(M_RAPPEL_INVOICE.SEQNO), 0) + 10
+        INTO v_seqno
+        FROM M_RAPPEL_INVOICE
+        WHERE M_RAPPEL_INVOICE.M_RAPPEL_INVOICE_ID=v_rappelInvoiceId;
+
+        INSERT
+        INTO M_RAPPEL_INVOICE
+          (
+            M_RAPPEL_INVOICE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            M_RAPPEL_BPARTNER_ID, C_INVOICE_ID, SEQNO)
+          VALUES
+          (
+            v_rappelInvoiceId, CUR_INVOICE.AD_CLIENT_ID, CUR_INVOICE.AD_ORG_ID, 'Y',
+            now(), v_AD_User_ID, now(), v_AD_User_ID,
+            v_Record_ID, v_invoiceId, v_seqno)
+          ;
+      END IF;
+      AD_SEQUENCE_NEXT('C_InvoiceLine', CUR_INVOICE.AD_CLIENT_ID, v_invoicelineId) ;
+      v_description:='('||CUR_INVOICE.TOTALLINES||'*'||'('||v_Discount||'/100)) - '||COALESCE(CUR_INVOICE.RAPPELINVOICED, 0) ;
+      v_line:=v_line + 10;
+      INSERT
+      INTO C_INVOICELINE
+        (
+          C_INVOICELINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+          CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+          C_INVOICE_ID, C_ORDERLINE_ID, M_INOUTLINE_ID, LINE,
+          DESCRIPTION, M_PRODUCT_ID, QTYINVOICED, PRICELIST,
+          PRICEACTUAL, PRICELIMIT, LINENETAMT, C_CHARGE_ID,
+          CHARGEAMT, C_UOM_ID, C_TAX_ID, S_RESOURCEASSIGNMENT_ID,
+          TAXAMT, M_ATTRIBUTESETINSTANCE_ID, ISDESCRIPTION,
+          QUANTITYORDER, M_PRODUCT_UOM_ID, PRICESTD, M_OFFER_ID
+        )
+        VALUES
+        (
+          v_invoicelineId, CUR_INVOICE.AD_CLIENT_ID, CUR_INVOICE.AD_ORG_ID, 'Y',
+          now(), v_AD_User_ID, now(), v_AD_User_ID,
+          v_invoiceId, NULL, NULL, v_line,
+          v_description, CUR_INVOICE.M_PRODUCT_ID, 0, 0,
+          0, 0, CUR_INVOICE.LINENET, NULL,
+          0, CUR_INVOICE.C_UOM_ID, CUR_INVOICE.C_TAX_ID, NULL,
+          0, NULL, 'N',
+          NULL, NULL, 0, NULL
+        )
+        ;	
+    END LOOP;
+    IF v_Message IS NOT NULL THEN
+          v_Message:=v_Message || ', ';
+    END IF;
+    v_Message:=v_Message || v_DocumentNo;	
+  END IF;
+  v_Message:='@DocumentNo@: ' || v_Message;
+ END IF;--FINISH_PROCESS
+ --<<FINISH_PROCESS>>
+ --  UPDATE AD_PINSTANCE
+ DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || V_MESSAGE) ;
+ AD_UPDATE_PINSTANCE(P_PINSTANCE_ID, NULL, 'N', 1, V_MESSAGE) ;
+ END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(P_PINSTANCE_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END M_RAPPEL_INVOICE_CREATE
+]]></body>
+    </function>
+  </database>

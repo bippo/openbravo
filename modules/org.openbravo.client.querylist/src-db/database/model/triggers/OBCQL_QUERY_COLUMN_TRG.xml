@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBCQL_QUERY_COLUMN_TRG">
+    <trigger name="OBCQL_QUERY_COLUMN_TRG" table="OBCQL_QUERY_COLUMN" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+BEGIN
+
+  IF (INSERTING) THEN
+    INSERT INTO obcql_query_column_trl
+             (obcql_query_column_trl_id , obcql_query_column_id, ad_language,
+              ad_client_id              , ad_org_id            , isactive   ,
+              created                   , createdby            , updated    ,
+              updatedby                 , name                 ,
+              istranslated)
+      SELECT get_uuid()                , :new.obcql_query_column_id, l.ad_language,
+             :new.ad_client_id         , :new.ad_org_id            , :new.isactive,
+             now()                     , :new.createdby            , now()        ,
+             :new.updatedby            , :new.name                 ,
+             'N'
+      FROM ad_language l, ad_module m, obcql_widget_query wq, obkmo_widget_class wc
+      WHERE l.isactive = 'Y'
+        AND l.issystemlanguage = 'Y'
+        AND wq.obcql_widget_query_id = :new.obcql_widget_query_id
+        AND wc.obkmo_widget_class_id = wq.obkmo_widget_class_id
+        AND m.ad_module_id = wc.ad_module_id
+        AND m.ad_language != l.ad_language;
+  END IF;
+
+  IF (UPDATING) THEN
+    IF (COALESCE(:new.name,'.') != COALESCE(:old.name,'.')) THEN
+      UPDATE obcql_query_column_trl
+      SET istranslated = 'N',
+          updated = now()
+      WHERE obcql_query_column_id=:new.obcql_query_column_id;
+    END IF;
+  END IF;
+
+END OBCQL_QUERY_COLUMN_TRG
+]]></body>
+    </trigger>
+  </database>

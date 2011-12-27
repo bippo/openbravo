@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_GET_OFFER">
+    <function name="M_GET_OFFER" type="VARCHAR">
+      <parameter name="p_date" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_bpartner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*
+DEPRECATED!
+This function should not be used, now more than one offer can be applied
+*/
+  v_Offer_ID VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    Cur_Offer RECORD;
+  BEGIN
+    FOR Cur_Offer IN
+      (SELECT M_OFFER_ID
+      FROM M_OFFER
+      WHERE p_Date BETWEEN DATEFROM AND COALESCE(DATETO, TO_DATE('31-12-9999', 'DD-MM-YYYY'))
+        AND((BPARTNER_SELECTION = 'Y'
+        AND NOT EXISTS
+        (SELECT 1
+        FROM M_OFFER_BPARTNER
+        WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND C_BPARTNER_ID = p_BPartner_ID
+        ))
+        OR(BPARTNER_SELECTION = 'N'
+        AND EXISTS
+        (SELECT 1
+        FROM M_OFFER_BPARTNER
+        WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND C_BPARTNER_ID = p_BPartner_ID
+        )))
+        AND((BP_GROUP_SELECTION = 'Y'
+        AND NOT EXISTS
+        (SELECT 1
+        FROM C_BPARTNER B,
+          M_OFFER_BP_GROUP OB
+        WHERE OB.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND B.C_BPARTNER_ID = p_BPartner_ID
+          AND OB.C_BP_GROUP_ID = B.C_BP_GROUP_ID
+        ))
+        OR(BP_GROUP_SELECTION = 'N'
+        AND EXISTS
+        (SELECT 1
+        FROM C_BPARTNER B,
+          M_OFFER_BP_GROUP OB
+        WHERE OB.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND B.C_BPARTNER_ID = p_BPartner_ID
+          AND OB.C_BP_GROUP_ID = B.C_BP_GROUP_ID
+        )))
+        AND((PRODUCT_SELECTION = 'Y'
+        AND NOT EXISTS
+        (SELECT 1
+        FROM M_OFFER_PRODUCT
+        WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND M_PRODUCT_ID = p_Product_ID
+        ))
+        OR(PRODUCT_SELECTION = 'N'
+        AND EXISTS
+        (SELECT 1
+        FROM M_OFFER_PRODUCT
+        WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND M_PRODUCT_ID = p_Product_ID
+        )))
+        AND((PROD_CAT_SELECTION = 'Y'
+        AND NOT EXISTS
+        (SELECT 1
+        FROM M_PRODUCT P,
+          M_OFFER_PROD_CAT OP
+        WHERE OP.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND P.M_PRODUCT_ID = p_Product_ID
+          AND OP.M_PRODUCT_CATEGORY_ID = P.M_PRODUCT_CATEGORY_ID
+        ))
+        OR(PROD_CAT_SELECTION = 'N'
+        AND EXISTS
+        (SELECT 1
+        FROM M_PRODUCT P,
+          M_OFFER_PROD_CAT OP
+        WHERE OP.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND P.M_PRODUCT_ID = p_Product_ID
+          AND OP.M_PRODUCT_CATEGORY_ID = P.M_PRODUCT_CATEGORY_ID
+        )))
+      ORDER BY PRIORITY,
+        M_OFFER_ID DESC
+      )
+    LOOP
+      v_Offer_ID := Cur_Offer.M_OFFER_ID;
+      EXIT;
+    END LOOP;
+    RETURN v_Offer_ID;
+  EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NULL;
+END M_GET_OFFER
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_INVLINE_CHK_RESTRICTIONS_TRG">
+    <trigger name="C_INVLINE_CHK_RESTRICTIONS_TRG" table="C_INVOICELINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2010 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  v_Processed VARCHAR(60) ;
+  v_C_INVOICE_ID VARCHAR2(32) ;
+  v_Prec NUMBER:=2;
+  v_Currency     VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_INVOICE_ID:=:NEW.C_INVOICE_ID;
+  ELSE
+    v_C_INVOICE_ID:=:OLD.C_INVOICE_ID;
+  END IF;
+  SELECT PROCESSED,
+    C_CURRENCY_ID
+  INTO v_Processed,
+    v_Currency
+  FROM C_INVOICE
+  WHERE C_INVOICE_ID=v_C_INVOICE_ID;
+  IF UPDATING THEN
+    IF(v_Processed='Y' AND ((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+         OR(COALESCE(:OLD.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0'))
+      OR(COALESCE(:OLD.QTYINVOICED, 0) <> COALESCE(:NEW.QTYINVOICED, 0))
+      OR(COALESCE(:old.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+      OR(COALESCE(:OLD.PRICELIST, 0) <> COALESCE(:NEW.PRICELIST, 0))
+      OR(COALESCE(:OLD.PRICEACTUAL, 0) <> COALESCE(:NEW.PRICEACTUAL, 0))
+      OR(COALESCE(:OLD.PRICELIMIT, 0) <> COALESCE(:NEW.PRICELIMIT, 0))
+      OR(COALESCE(:OLD.LINENETAMT, 0) <> COALESCE(:NEW.LINENETAMT, 0))
+      OR(COALESCE(:OLD.C_CHARGE_ID, '0') <> COALESCE(:NEW.C_CHARGE_ID, '0'))
+      OR(COALESCE(:OLD.CHARGEAMT, 0) <> COALESCE(:NEW.CHARGEAMT, 0))
+      OR(COALESCE(:OLD.C_UOM_ID, '0') <> COALESCE(:NEW.C_UOM_ID, '0'))
+      OR(COALESCE(:OLD.C_TAX_ID, '0') <> COALESCE(:NEW.C_TAX_ID, '0'))
+      OR(COALESCE(:OLD.TAXAMT, 0) <> COALESCE(:NEW.TAXAMT, 0))
+      OR(COALESCE(:OLD.M_ATTRIBUTESETINSTANCE_ID, '0') <> COALESCE(:NEW.M_ATTRIBUTESETINSTANCE_ID, '0'))
+      OR(COALESCE(:OLD.QUANTITYORDER, 0) <> COALESCE(:NEW.QUANTITYORDER, 0))
+      OR(COALESCE(:OLD.C_ORDERLINE_ID, '0') <> COALESCE(:NEW.C_ORDERLINE_ID, '0'))
+      OR(COALESCE(:OLD.M_PRODUCT_UOM_ID, '0') <> COALESCE(:NEW.M_PRODUCT_UOM_ID, '0'))
+      OR(COALESCE(:OLD.AD_ORG_ID, '0') <> COALESCE(:NEW.AD_ORG_ID, '0'))
+      OR(COALESCE(:OLD.AD_CLIENT_ID, '0') <> COALESCE(:NEW.AD_CLIENT_ID, '0'))
+      )) THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF((DELETING OR INSERTING) AND v_Processed='Y') THEN
+    RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+  END IF;
+  -- Rounds linenetAmt and ChargeAmt
+  IF(INSERTING OR UPDATING) THEN
+    SELECT STDPRECISION
+    INTO v_Prec
+    FROM C_CURRENCY
+    WHERE C_CURRENCY_ID=v_Currency;
+    :NEW.LineNetAmt:=ROUND(:NEW.LineNetAmt, v_Prec) ;
+    :NEW.ChargeAmt:=ROUND(:NEW.ChargeAmt, v_Prec) ;
+
+    IF (:NEW.ISEDITLINENETAMT='Y' AND ROUND(TO_NUMBER(:NEW.QTYINVOICED) * TO_NUMBER(:NEW.PRICEACTUAL),v_Prec)!=TO_NUMBER(:NEW.LINENETAMT)) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@LineAmountNotCorrect@') ;
+    END IF;
+
+    IF (:NEW.account_id is null AND :NEW.m_product_id is null AND :NEW.linenetamt <> 0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@InvoiceLineAmountMustBeZero@') ;
+    END IF;
+    
+  END IF;
+END C_INVLINE_CHK_RESTRICTIONS_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+  <database name="VIEW FIN_PAYMENT_DETAIL_V">
+    <view name="FIN_PAYMENT_DETAIL_V"><![CDATA[SELECT psd.fin_payment_scheduledetail_id AS fin_payment_detail_v_id, psd.ad_client_id, psd.ad_org_id, psd.isactive, psd.created, psd.createdby, psd.updated, psd.updatedby, psi.fin_payment_schedule_id AS fin_payment_sched_inv_v_id, pso.fin_payment_schedule_id AS fin_payment_sched_ord_v_id, i.documentno AS invoiceno, o.documentno AS orderno, p.documentno AS paymentno, pd.fin_payment_id, COALESCE(psi.duedate, pso.duedate) AS duedate, COALESCE(i.grandtotal, o.grandtotal) AS invoicedamt, COALESCE(psi.amount, pso.amount) AS expected, psd.amount AS paidamt, p.c_bpartner_id, p.fin_paymentmethod_id, p.fin_financial_account_id, p.c_currency_id, p.paymentdate, gli.name AS glitemname, pd.writeoffamt, fa.c_currency_id AS finacc_currency_id, p.finacc_txn_convert_rate, psd.amount * p.finacc_txn_convert_rate AS paidconverted, COALESCE(psi.amount, pso.amount) * p.finacc_txn_convert_rate AS expectedconverted, psd.iscanceled, psd.c_bpartner_id AS c_bpartner_id_dim, psd.c_activity_id, psd.m_product_id, psd.c_campaign_id, psd.c_project_id, psd.c_salesregion_id
+FROM fin_payment p
+LEFT JOIN fin_financial_account fa ON p.fin_financial_account_id = fa.fin_financial_account_id, fin_payment_detail pd
+JOIN fin_payment_scheduledetail psd ON pd.fin_payment_detail_id = psd.fin_payment_detail_id
+LEFT JOIN fin_payment_schedule psi ON psd.fin_payment_schedule_invoice = psi.fin_payment_schedule_id
+LEFT JOIN c_invoice i ON psi.c_invoice_id = i.c_invoice_id
+LEFT JOIN fin_payment_schedule pso ON psd.fin_payment_schedule_order = pso.fin_payment_schedule_id
+LEFT JOIN c_order o ON pso.c_order_id = o.c_order_id
+LEFT JOIN c_glitem gli ON pd.c_glitem_id = gli.c_glitem_id
+WHERE p.fin_payment_id = pd.fin_payment_id]]></view>
+  </database>

@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_REQUISITIONLINE_TRG">
+    <trigger name="M_REQUISITIONLINE_TRG" table="M_REQUISITIONLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_DocStatus VARCHAR(60);
+  v_ReqStatus VARCHAR(60);
+  v_OrderedQty NUMBER;
+
+      
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    SELECT DocStatus, :new.ReqStatus, 0 INTO v_DocStatus, v_ReqStatus, v_OrderedQty
+    FROM M_Requisition
+    WHERE M_Requisition_ID = :new.M_Requisition_ID;
+  ELSE
+    SELECT DocStatus, :old.ReqStatus, :old.OrderedQty INTO v_DocStatus, v_ReqStatus, v_OrderedQty
+    FROM M_Requisition
+    WHERE M_Requisition_ID = :old.M_Requisition_ID;
+  END IF;
+
+  IF (v_DocStatus = 'CL') THEN
+    RAISE_APPLICATION_ERROR(-20527, 'It is not possible to modify a closed requisition');
+  END IF;
+
+  IF (v_DocStatus = 'CO' AND INSERTING) THEN
+    RAISE_APPLICATION_ERROR(-20525, 'It is not possible insert a new line in a completed requisition');
+  END IF;
+  
+  IF (v_DocStatus = 'CO' AND DELETING) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20501@');
+  END IF;
+
+  IF (v_ReqStatus = 'P') THEN
+    RAISE_APPLICATION_ERROR(-20526, 'It is not possible to modify planned requisition lines');
+  END IF;
+
+  IF (v_ReqStatus <> 'O') THEN
+    RAISE_APPLICATION_ERROR(-20520, 'It is not possible to modify closed or cancelled requisition lines');
+  END IF;
+
+  IF (DELETING AND v_OrderedQty <> 0 )THEN
+    RAISE_APPLICATION_ERROR(-20521, 'It is not possible to delete a requisition line with associated purchase order lines');
+  END IF;
+
+  IF UPDATING THEN
+    IF ((COALESCE(:old.M_Requisition_ID, '0') <> COALESCE(:new.M_Requisition_ID,'0'))
+       OR (COALESCE(:old.M_Product_ID, '-1') <> COALESCE(:new.M_Product_ID, '-1'))
+       OR (COALESCE(:old.M_PriceList_ID, '-1') <> COALESCE(:new.M_PriceList_ID, '-1'))
+       OR (COALESCE(:old.C_Currency_ID, '-1') <> COALESCE(:new.C_Currency_ID, '-1'))
+       OR (COALESCE(:old.Qty, -1) <> COALESCE(:new.Qty, -1))
+       OR (COALESCE(:old.PriceList, -1) <> COALESCE(:new.PriceList, -1))
+       OR (COALESCE(:old.PriceActual, -1) <> COALESCE(:new.PriceActual, -1 ))
+       OR (COALESCE(:old.Discount, -1) <> COALESCE(:new.Discount, -1 ))
+       OR (COALESCE(:old.LineNetAmt, -1) <> COALESCE(:new.LineNetAmt, -1 ))
+       OR (COALESCE(:old.C_BPartner_ID, '0') <> COALESCE(:new.C_BPartner_ID, '0' ))
+       OR (COALESCE(:old.C_UOM_ID, '0') <> COALESCE(:new.C_UOM_ID, '0' ))
+       OR (COALESCE(:old.M_Product_UOM_ID, '0') <> COALESCE(:new.M_Product_UOM_ID, '0' ))
+       OR (COALESCE(:old.QuantityOrder, -1) <> COALESCE(:new.QuantityOrder, -1 ))
+       OR (COALESCE(:old.M_AttributeSetInstance_ID, '-1') <> COALESCE(:new.M_AttributeSetInstance_ID, '-1' ))
+       OR (COALESCE(:old.NeedByDate, TO_DATE('01-01-1900', 'DD-MM-YYYY')) <> COALESCE(:new.NeedByDate, TO_DATE('01-01-1900', 'DD-MM-YYYY')))) THEN
+      IF (v_DocStatus = 'CO') THEN
+        RAISE_APPLICATION_ERROR(-20522, 'It is not possible to modify a requisition line when the requisition is completed');
+      ELSIF (v_OrderedQty <> 0 ) THEN
+        RAISE_APPLICATION_ERROR(-20523, 'It is not possible to modify a requisition line when it has associated purchase order lines');
+      END IF;
+    END IF;
+  END IF;
+
+END M_REQUISITIONLINE_TRG
+]]></body>
+    </trigger>
+  </database>

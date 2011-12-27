@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="WADSearchData" package="org.openbravo.wad.controls">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Get the translate of a text</SqlMethodComment>
+      <Sql><![CDATA[
+        select r.name as Reference_Name, coalesce(rt.name, r.name) AS Reference_Name_Trl, 
+        mom.MappingName, rfc.columntype, rfc.column_suffix, rfc.columnname, rfc.name 
+        from ad_reference r left join ad_reference_trl rt on r.ad_reference_id = rt.ad_reference_id 
+                                                          AND rt.ad_language = ?, 
+        ad_ref_search rf 
+                              left join ad_ref_search_column rfc on rf.ad_ref_search_id = rfc.ad_ref_search_id 
+                              left join ad_model_object mo on rf.ad_reference_id = mo.ad_reference_id 
+                                               AND mo.isactive = 'Y'
+                                               AND mo.isdefault = 'Y'
+                                               AND mo.action = 'S'
+                              left join ad_model_object_mapping mom on mo.ad_model_object_id = mom.ad_model_object_id
+                                        AND mom.isactive = 'Y'
+                                        AND mom.isdefault = 'Y'
+        where r.ad_reference_id = rf.ad_reference_id 
+        and r.ad_reference_id = ?
+        order by rfc.columntype
+          ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adReferenceId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getLinkColumn" type="preparedStatement" return="String" default="">
+    <Sql>
+       SELECT C.AD_COLUMN_ID as name
+       FROM AD_TABLE T, AD_COLUMN C 
+       WHERE T.AD_TABLE_ID = C.AD_TABLE_ID 
+       AND C.ISKEY='Y'
+       AND UPPER(T.TABLENAME) = UPPER(?) 
+    </Sql>
+    <Parameter name="tableName"/>
+  </SqlMethod>
+</SqlClass>

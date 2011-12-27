@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ALERTRULE_TRG">
+    <trigger name="AD_ALERTRULE_TRG" table="AD_ALERTRULE" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2006 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+      TYPE RECORD IS REF CURSOR;
+      Cur_Role RECORD;
+      recipient_ID VARCHAR2(32);
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+    IF INSERTING THEN
+      -- insert translations
+      INSERT INTO AD_AlertRule_Trl
+        (
+          AD_AlertRule_Trl_ID, AD_AlertRule_ID, AD_Language, AD_Client_ID,
+          AD_Org_ID, IsActive, Created,
+          CreatedBy, Updated, UpdatedBy,
+          Name, IsTranslated
+        )
+      SELECT
+        get_uuid(), :new.AD_AlertRule_ID, AD_Language, :new.AD_Client_ID,
+        :new.AD_Org_ID, :new.IsActive, :new.Created,
+        :new.CreatedBy, :new.Updated, :new.UpdatedBy,
+        :new.Name, 'N'
+      FROM AD_Language
+      WHERE IsActive='Y'
+        AND IsSystemLanguage='Y';
+
+      --insert permissions
+      FOR Cur_Role in (SELECT DISTINCT AD_Role_ID, AD_CLIENT_ID, AD_ORG_ID
+                        FROM AD_Role
+                       WHERE isManual='N' and ad_role.ad_client_id=:new.AD_Client_ID) loop
+        Ad_Sequence_Next('AD_AlertRecipient', Cur_Role.AD_Org_Id, recipient_id) ;
+        INSERT INTO AD_AlertRecipient
+            (AD_AlertRule_ID, AD_Role_ID, AD_Client_ID,
+              AD_Org_ID, IsActive, Created,
+              CreatedBy, Updated, UpdatedBy, AD_AlertRecipient_ID
+            ) values
+            (:new.AD_AlertRule_ID, Cur_Role.AD_Role_ID, Cur_Role.AD_CLIENT_ID,
+            Cur_Role.AD_ORG_ID, 'Y', now(),
+            '0', now(), '0', recipient_id);
+       END LOOP;
+     END IF;
+
+   IF UPDATING THEN
+    IF (COALESCE(:old.Name, '.') <> COALESCE(:new.Name,'.')) THEN
+    UPDATE AD_AlertRule_Trl
+      SET IsTranslated='N'
+    WHERE AD_AlertRule_ID=:new.AD_AlertRule_ID;
+   END IF;
+   END IF;
+END AD_ALERTRULE_TRG
+]]></body>
+    </trigger>
+  </database>

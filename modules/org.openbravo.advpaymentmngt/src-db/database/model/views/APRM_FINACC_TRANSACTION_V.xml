@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+  <database name="VIEW APRM_FINACC_TRANSACTION_V">
+    <view name="APRM_FINACC_TRANSACTION_V"><![CDATA[SELECT trx.fin_finacc_transaction_id AS aprm_finacc_transaction_v_id, trx.fin_finacc_transaction_id, trx.ad_client_id, trx.ad_org_id, trx.isactive, trx.created, trx.createdby, trx.updated, trx.updatedby, trx.fin_financial_account_id, trx.line, trx.description, trx.statementdate, trx.trxtype, trx.fin_payment_id, trx.c_glitem_id, trx.depositamt, trx.paymentamt, trx.c_currency_id, trx.fin_reconciliation_id, trx.status, trx.createdbyalgorithm, trx.posted, trx.dateacct, trx.processed, trx.processing, trx.user1_id, trx.user2_id, trx.c_activity_id, trx.c_campaign_id, trx.c_project_id, trx.foreign_currency_id, trx.foreign_amount, trx.em_aprm_modify, trx.foreign_convert_rate, 
+CASE trx.status
+WHEN 'RPPC' THEN 'Y'
+ELSE 'N'
+END AS cleared, COALESCE(trx.c_bpartner_id, p.c_bpartner_id) AS c_bpartner_id, trx.m_product_id, trx.c_salesregion_id, p.documentno AS paymentdocno, COALESCE(r.processed, 'N') AS reconciled, 'N' AS delete_btn, (SELECT ad_table.ad_table_id
+FROM ad_table
+WHERE lower(ad_table.tablename) = 'fin_finacc_transaction') AS forced_table_id
+FROM fin_finacc_transaction trx
+LEFT JOIN fin_payment p ON trx.fin_payment_id = p.fin_payment_id
+LEFT JOIN fin_reconciliation r ON trx.fin_reconciliation_id = r.fin_reconciliation_id]]></view>
+  </database>

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="LocationSearchData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT L.C_LOCATION_ID, L.AD_CLIENT_ID, L.AD_ORG_ID, L.CREATEDBY, L.UPDATEDBY, L.C_COUNTRY_ID, L.C_REGION_ID,
+        AD_COLUMN_IDENTIFIER(TO_CHAR('C_Location'), TO_CHAR(L.C_LOCATION_ID), ?) AS NAME,
+        L.ADDRESS1, L.ADDRESS2, L.POSTAL, L.CITY, R.DESCRIPTION AS REGION, C.NAME AS COUNTRY
+        FROM C_LOCATION L left join C_REGION R on  L.C_REGION_ID = R.C_REGION_ID, 
+             C_COUNTRY C 
+        WHERE L.C_COUNTRY_ID = C.C_COUNTRY_ID
+        AND L.ISACTIVE = 'Y'
+        AND L.C_LOCATION_ID = ?
+        ]]>
+      </Sql>
+      <Parameter name="language"/>
+      <Parameter name="cLocationId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+      <Parameter name="cCountryId"/>
+   </SqlMethod>
+   <SqlMethod name="locationAddress" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN_IDENTIFIER(TO_CHAR('C_Location'), TO_CHAR(L.C_LOCATION_ID), ?) AS NAME 
+        FROM C_LOCATION L left join  C_REGION R on L.C_REGION_ID = R.C_REGION_ID, 
+             C_COUNTRY C
+        WHERE L.C_COUNTRY_ID = C.C_COUNTRY_ID
+        AND L.ISACTIVE = 'Y'
+        AND L.C_LOCATION_ID = ?
+        ]]>
+      </Sql>
+      <Parameter name="language"/>
+      <Parameter name="cLocationId"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowCount" static="false">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      UPDATE C_LOCATION SET UPDATED = now(), UPDATEDBY = ?, ADDRESS1 = ?, ADDRESS2 = ?, CITY = ?, POSTAL = ?, C_COUNTRY_ID = ?, C_REGION_ID = ?
+      WHERE C_LOCATION_ID = ?
+      </Sql>
+      <Parameter name="updatedby"/>
+      <Parameter name="address1"/>
+      <Parameter name="address2"/>
+      <Parameter name="city"/>
+      <Parameter name="postal"/>
+      <Parameter name="cCountryId"/>
+      <Parameter name="cRegionId"/>
+      <Parameter name="cLocationId"/>
+   </SqlMethod>
+   <SqlMethod name="insert" type="preparedStatement" return="rowCount" static="false">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      INSERT INTO C_LOCATION (C_LOCATION_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ADDRESS1, ADDRESS2, CITY, POSTAL, C_COUNTRY_ID, C_REGION_ID) VALUES (?, ?, ?, 'Y', now(), ?, now(), ?, ?, ?, ?, ?, ?, ?)
+      </Sql>
+      <Parameter name="cLocationId"/>
+      <Parameter name="adClientId"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="createdby"/>
+      <Parameter name="updatedby"/>
+      <Parameter name="address1"/>
+      <Parameter name="address2"/>
+      <Parameter name="city"/>
+      <Parameter name="postal"/>
+      <Parameter name="cCountryId"/>
+      <Parameter name="cRegionId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectDefaultCountry" type="preparedStatement" return="String">
+   <SqlMethodComment>Select Organization</SqlMethodComment>
+   <Sql><![CDATA[
+    SELECT MIN(l.C_COUNTRY_ID) FROM AD_ORG o
+                left join AD_ORGINFO oinf on oinf.AD_ORG_ID = o.AD_ORG_ID
+                left join C_LOCATION l on oinf.C_LOCATION_ID = l.C_LOCATION_ID
+    WHERE
+     ? IN (o.AD_ORG_ID, '0')
+    AND o.ISACTIVE = 'Y'                     
+    AND o.AD_Client_ID IN ('1')
+    ]]></Sql>
+   <Parameter name="adOrgId"/>   
+   <Parameter name="adUserClient"  type="replace" optional="true"  after="o.AD_Client_ID IN (" text="'1'"/>
+   </SqlMethod>   
+</SqlClass>

@@ -1,0 +1,103 @@
+<!--
+Title: Tigra Calculator
+URL: http://www.softcomplex.com/products/tigra_calculator/
+Version: 1.0
+Date: 04/14/2003 (mm/dd/yyyy)
+Note: Permission given to use this script in ANY kind of applications if
+   header lines are left unchanged.
+Note: Script consists of two files: calculator.js and calculator.html
+-->
+
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title>Calculator</title>
+	<link rel="shortcut icon" href="../../web/images/favicon.ico" type="image/x-icon" />
+</head>
+<body topmargin="10" marginheight="10" leftmargin="10" marginwidth="10" onload="on_load()" onunload="T.t_load=false" bgcolor="#343434">
+<form name="calc">
+<table cellpadding="0" cellspacing="0" border="0" width="100%" align="center">
+<tr>
+	<td align="center" style="height: 44px">
+	
+	<table cellpadding="0" cellspacing="0" border="0" style="width: 198px; height: 29px">
+		<tr>
+			<td style="height: 29px; width: 16px; background-image: url(../images/calculator/displayLeft.png)"></td>
+			<td style="height: 29px; width: 166px; background-image: url(../images/calculator/displayFill.png)">
+				<input type="text" name="monitor" value="0" size="16" maxlength="16" dir="rtl" onfocus="document.body.focus()" 
+					style="width: 166px; height: 24px; font-size: 20px; color: #e3f4fe; background: transparent; 
+						border: none; margin: 0px; padding: 0px; line-height: 24px; 
+						font-family: tahoma, verdana, arial, helvetica, sans-serif;">
+			</td>
+			<td style="height: 29px; width: 16px; background-image: url(../images/calculator/displayRight.png)"></td>
+		</tr>
+	</table>
+	
+	</td>
+</tr>
+<tr>
+	<td style="height: 7px">
+	</td>
+</tr>
+<tr>
+	<td align="center">
+	<table cellpadding="0" cellspacing="1" border="0">
+	<tr align="center">
+		<td><a href="#"><img src="../images/calculator/0_1.png" border="0" alt="7" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/1_1.png" border="0" alt="8" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/2_1.png" border="0" alt="9" width="38" height="27"></a></td>
+		<td width="3"></td>
+		<td><a href="#"><img src="../images/calculator/3_1.png" border="0" alt="divide" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/4_1.png" border="0" alt="clear" width="38" height="27"></a></td>
+	</tr>
+	<tr align="center">
+		<td><a href="#"><img src="../images/calculator/5_1.png" border="0" alt="4" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/6_1.png" border="0" alt="5" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/7_1.png" border="0" alt="6" width="38" height="27"></a></td>
+		<td width="3"></td>
+		<td><a href="#"><img src="../images/calculator/8_1.png" border="0" alt="multiply" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/9_1.png" border="0" alt="extract square root" width="38" height="27"></a></td>
+	</tr>
+	<tr align="center">
+		<td><a href="#"><img src="../images/calculator/10_1.png" border="0" alt="1" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/11_1.png" border="0" alt="2" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/12_1.png" border="0" alt="3" width="38" height="27"></a></td>
+		<td width="3"></td>
+		<td><a href="#"><img src="../images/calculator/13_1.png" border="0" alt="substruct" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/14_1.png" border="0" alt="show result" width="38" height="27"></a></td>
+	</tr>
+	<tr align="center">
+		<td><a href="#"><img src="../images/calculator/15_1.png" border="0" alt="0" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/16_1.png" border="0" alt="change sign" width="38" height="27"></a></td>
+		<td><a href="#"><img src="../images/calculator/17_1.png" border="0" alt="decimal point" width="38" height="27"></a></td>
+		<td width="3"></td>
+		<td colspan="2"><a href="#"><img src="../images/calculator/18_1.png" border="0" alt="add" width="77" height="27" onclick="try { top.opener.changeToEditingMode('force'); } catch (e) {}"></a></td>	
+	</tr>
+	</table> 		
+	</td>
+</tr>
+</table>
+</form>
+<script language="JavaScript">
+var arr_zn = ["7","8","9","sqr","C","4","5","6","*","/","1","2","3","+","-","0","z",".","="],
+
+T = self.opener.TCR, a_img = [], i, j, l;
+function ch_img(v1, v2) {
+	document.images[v1].src = '../images/calculator/'+v1+'_'+v2+'.png'; 
+}
+function on_load() {
+	T.TCRmntr('C');
+	T.t_load = true;
+	if (T.control_obj.value == '') from_p = '0';
+	else from_p = T.control_obj_value_calc_format;
+	document.forms[0].elements[0].value = from_p;
+}
+for (i = 0; i < document.links.length; i++) {
+	l = document.links[i];
+	l.onmousedown = Function("ch_img(" + i + ",0)")
+	l.onmouseout = Function("ch_img(" + i + ",1)")
+	l.onmouseup = l.onmouseover = Function("ch_img(" + i + ",2)")
+	l.onclick = l.ondblclick = Function("T.TCRmntr('" + arr_zn[i] + "')");
+}
+</script>
+</body></html>

@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ELEMENT_TRG">
+    <trigger name="AD_ELEMENT_TRG" table="AD_ELEMENT" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Insert AD_Element Trigger
+    *  for Translation
+    * Update AD_Element Trigger
+    *  synchronize Column
+    *  synchronize PrintInfo
+    *  reset Translation flag
+    ************************************************************************/
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    -- Insert AD_Element Trigger
+    IF INSERTING
+    THEN
+  INSERT
+  INTO AD_Element_Trl
+    (
+      AD_Element_Trl_ID, AD_Element_ID, AD_Language, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      Name, PrintName, Description,
+      Help, PO_Name, PO_PrintName,
+      PO_Description, PO_Help, IsTranslated
+    )
+  SELECT get_uuid(), :new.AD_Element_ID,
+    AD_Language.AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+    :new.IsActive, :new.Created, :new.CreatedBy,
+    :new.Updated, :new.UpdatedBy, :new.Name,
+    :new.PrintName, :new.Description, :new.Help,
+    :new.PO_Name, :new.PO_PrintName, :new.PO_Description,
+    :new.PO_Help,  'N'
+  FROM AD_Language, AD_Module M
+  WHERE AD_Language.IsActive='Y'
+    AND IsSystemLanguage='Y'
+    AND M.AD_Module_ID = :new.AD_Module_ID
+    AND M.AD_Language != AD_Language.AD_Language;
+ END IF;
+ -- INSERTING
+ -- Update AD_Element Trigger
+ IF UPDATING THEN
+  --  synchronize Column
+  UPDATE AD_Column
+    SET Description=:new.Description,
+        Help=:new.Help
+  WHERE AD_Element_ID=:new.AD_Element_ID
+    AND exists (select 1
+                  from ad_module m, ad_module m1
+                 where m.ad_module_id = ad_column.ad_module_id
+                   and m1.ad_module_id = :New.AD_Module_id
+                   and m.ad_language = m1.ad_language);
+                   
+  --Translations for columns in other languages must be managed in ad_element_trl trg
+  
+  
+  --  reset Translation flag
+  IF(COALESCE(:old.Name,'.') <> COALESCE(:new.Name,'.') OR COALESCE(:old.PO_Name,'.') <> COALESCE(:new.PO_Name,'.')  OR COALESCE(:old.PrintName,'.') <> COALESCE(:new.PrintName,'.') OR COALESCE(:old.PO_PrintName,'.') <> COALESCE(:new.PO_PrintName,'.')  OR COALESCE(:old.Description,'.') <> COALESCE(:new.Description,'.') OR COALESCE(:old.PO_Description,'.') <> COALESCE(:new.PO_Description,'.')  OR COALESCE(:old.Help,'.') <> COALESCE(:new.Help,'.') OR COALESCE(:old.PO_Help,'.') <> COALESCE(:new.PO_Help,'.')) THEN
+    UPDATE AD_Element_Trl
+      SET IsTranslated='N'
+    WHERE AD_Element_ID=:new.AD_Element_ID;
+  END IF;
+  --  synchronize Process Fields
+  UPDATE AD_Process_Para
+    SET Name=:new.Name,
+    Description=:new.Description,
+    Help=:new.Help,
+    ColumnName=:new.ColumnName
+  WHERE UPPER(ColumnName)=UPPER(:new.ColumnName)
+    AND IsCentrallyMaintained='Y'
+     AND exists (select 1
+                  from ad_module m, ad_module m1, ad_process p
+                 where m.ad_module_id = p.ad_module_id
+                   and p.ad_process_id  = AD_Process_Para.ad_process_id
+                   and m1.ad_module_id = :New.AD_Module_id
+                   and m.ad_language = m1.ad_language);
+                   
+  UPDATE AD_Process_Para_trl
+    SET Name=:new.Name,
+    Description=:new.Description,
+    Help=:new.Help,
+    isTranslated = 'N'
+  WHERE exists (select 1
+                  from ad_module m, ad_module m1, ad_process p, AD_Process_Para
+                 where m.ad_module_id = p.ad_module_id
+                   and p.ad_process_id  = AD_Process_Para.ad_process_id
+                   and AD_Process_Para.AD_Process_Para_id = AD_Process_Para_trl.AD_Process_Para_ID
+                   and AD_Process_Para.IsCentrallyMaintained='Y'
+                   and UPPER(ColumnName)=UPPER(:new.ColumnName)
+                   and m1.ad_module_id = :New.AD_Module_id
+                   and m.ad_language != m1.ad_language
+                   and AD_Process_Para_trl.ad_language = m.ad_language);
+
+ END IF;
+-- UPDATING
+END AD_ELEMENT_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,581 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ *************************************************************************
+-->
+<HTML xmlns="http://www.w3.org/1999/xhtml" xmlns:="http://www.w3.org/1999/xhtml">
+<HEAD>
+<META http-equiv="Content-Type" content="text/html; charset=utf-8"></META>
+<TITLE>Transactions</TITLE>
+<LINK rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon"></LINK>
+<LINK rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></LINK>
+<LINK rel="stylesheet" type="text/css" media="print" href="../../../../../web/skins/Default/Openbravo_ERP_print.css" id="paramCSS_print"></LINK>
+
+<SCRIPT language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" type="text/javascript" id="paramLanguage">
+    defaultLang = "en_US";
+</SCRIPT>
+<SCRIPT language="JavaScript" type="text/javascript" id="confirmOnChanges">var confirmOnChanges = true;</SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/djConfig.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/dojotoolkit/dojo/dojo.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="../../../../../web/js/djDependencies.js" type="text/javascript"></SCRIPT>
+<script language="JavaScript" type="text/javascript">
+function selectFilters(params) {
+  setGridFilters(params);
+  updateGridDataAfterFilter();
+  return true;
+}
+
+ function calculateNumRows() {
+   resizeArea();
+   document.getElementById("grid_sample").style.display = "block";
+   var grid_header_height = document.getElementById("grid_sample_header").clientHeight + 1;
+   var grid_row_height = document.getElementById("grid_sample_row").clientHeight + 1;
+   if (getBrowserInfo('name').toUpperCase().indexOf("CHROME") != -1 || getBrowserInfo('name').toUpperCase().indexOf("SAFARI") != -1) {
+     grid_header_height = grid_header_height + 1;
+     grid_row_height = grid_row_height - 1;
+   }
+   var messagebox_cont = document.getElementById("messageBoxID");
+   var informationrow_cont = document.getElementById("informationRow");
+   var paddingrow_cont = document.getElementById("paddingRow");
+   var filtersrow_cont = document.getElementById("filtersRow");
+   var bottomrow_cont = document.getElementById("bottomRow");
+   var related_info_cont = document.getElementById("related_info_cont");
+   var client_height = document.getElementById("client").clientHeight;
+   client_height = client_height
+     - grid_header_height
+     - (related_info_cont?related_info_cont.clientHeight:0)
+     - (paddingrow_cont?paddingrow_cont.clientHeight:0)
+     - (bottomrow_cont?bottomrow_cont.clientHeight:0)
+     - (filtersrow_cont?filtersrow_cont.clientHeight:0)
+     - (informationrow_cont?informationrow_cont.clientHeight:0)
+     - (messagebox_cont?messagebox_cont.clientHeight:0);
+   client_height = client_height - 20;
+   var numRows = (client_height)/(grid_row_height);
+   numRows = parseInt(numRows);
+   if (numRows > 1) { numRows -= 1; }
+   document.getElementById("grid_sample").style.display = "none";
+   return numRows;
+ }
+</SCRIPT>
+<SCRIPT language="JavaScript" type="text/javascript" id="selectedColumn">
+  var selectedRow = 0;
+  var orderByPositions = new Array("1");
+  var orderByDirections = new Array("ASC");
+</SCRIPT>
+<SCRIPT language="JavaScript" type="text/javascript">dojo.require("openbravo.widget.DataGrid");
+function updateHeader(liveGrid, offset) {
+  var backendPageSize = liveGrid.getBackendPageSize();
+  var currPageStart = (liveGrid.metaData.getBackendPage()*backendPageSize);
+  var pageFull = (liveGrid.metaData.getTotalRows() >= backendPageSize);
+  var firstPage = (liveGrid.metaData.getBackendPage() == 0);
+  var res =  "<nobr class='Main_ToolBar_text_bookmark'>";
+  var strPrevious = getMessage("GridPreviousPage");
+  var strNext = getMessage("GridNextPage");
+
+  if (!firstPage) {
+    res = res + "<a href='#' onclick='gridMovePage(\"PREVIOUSPAGE\")' class='Main_ToolBar_text_pagerange'>" + strPrevious + " " + backendPageSize + "</a>&nbsp;&nbsp;";
+  }
+  res = res + ((liveGrid.visibleRows>0)?(currPageStart+offset+1):0) + " - "+ (currPageStart+offset+liveGrid.visibleRows) + " / " + (currPageStart+liveGrid.metaData.getTotalRows());
+  if (pageFull) {
+    res = res + "&nbsp;&nbsp;<a href='#' onclick='gridMovePage(\"NEXTPAGE\")' class='Main_ToolBar_text_pagerange'>" + strNext + " " + backendPageSize + "</a>";
+  }
+
+  liveGrid.setGridPaging(!firstPage,pageFull);
+  res = res + "</nobr>";
+  dojo.byId('bookmark').innerHTML = res;
+}
+
+function validateSelector() {
+  var strSelectedRowList = "";
+  rows = dijit.byId('grid').getSelectedRows();
+  if (rows[0] === undefined) {
+    showJSMessage('NotSelected');
+    return false;
+  }
+  document.frmMain.elements["inpKey"].value = rows[0];
+}
+
+function onGridLoadDo() {
+  if (selectedRow==null) return true;
+  if (selectedRow<=0) dijit.byId('grid').goToFirstRow();
+  else dijit.byId('grid').goToRow(selectedRow);
+  return true;
+}
+function setGridFilters(newparams) {
+  var params = [];
+  params["newFilter"] = "1";
+  if (newparams!=null && newparams.length>0) {
+    var total = newparams.length;
+    for (var i=0;i<total;i++) {
+      params[newparams[i][0]] = newparams[i][1];
+    }
+  }
+  dijit.byId('grid').setRequestParams(params);
+  return true;
+}
+function updateGridData() {
+  dijit.byId('grid').refreshGridData();
+  return true;
+}
+function updateGridDataAfterFilter() {
+  dijit.byId('grid').refreshGridDataAfterFilter();
+  return true;
+}
+function gridMovePage(direction) {
+  dijit.byId('grid').gridMovePage(direction);
+  return true;
+}
+function changeHideReconciled(){
+  submitCommandForm('HIDERECONCILED');
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+
+function validate() {
+   return true;
+}
+
+function onLoadDo(){
+    this.windowTables = new Array(
+      new windowTableId('client')
+    );
+    setWindowTableParentElement();
+    this.tabsTables = new Array(
+      new tabTableId('tdtopTabs')
+    );
+    setTabTableParentElement();
+    enableShortcuts('edition');
+    setBrowserAutoComplete(false);
+
+    resizeArea();
+    updateMenuIcon('buttonMenu');
+    try {
+      onloadFunctions();
+    } catch (e) {}
+    xx();
+
+    setWindowElementFocus('firstElement');
+  }
+
+  function onResizeDo() {
+    resizeArea(true);
+  }
+</script>
+
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();" id="paramBody">
+<form id="form" method="post" action="Transactions.html" name="frmMain">
+  <input type="hidden" name="Command">
+  <input type="hidden" name="inpCommandType" value="" id="paramCommandType">
+  <input type="hidden" name="inpTabId" value="" id="fieldTabId">
+  <input type="hidden" name="inpLastFieldChanged" id="paramChanged" value="">
+  <input type="hidden" name="inpwindowId" value="" id="fieldWindowId">
+  <input type="hidden" name="inpkeyColumnId" value="" id="Fin_Financial_Account_ID">
+  <input type="hidden" name="inpTableId" value="" id="fieldTableId">
+  <input type="hidden" name="inpKeyName" value="inpC_Invoice_ID">
+  <input type="hidden" name="inpKey" value="">
+  <input type="hidden" name="inpPosted" id="inpPosted" value="">
+  <input type="hidden" name="inpKeyReferenceColumnName">
+  <input type="hidden" name="inpTableReferenceId">
+  <input type="hidden" name="inpKeyReferenceId">
+  <input type="hidden" name="inpSecondKey">
+  <input type="hidden" name="inpfinFinancialAccountId" value="" id="Fin_Financial_Account_ID"></input>
+  <input type="hidden" name="inpdocstatus" value="" id="fieldDocStatus"></input>
+  <input type="hidden" name="inpprocessing" value="" id="fieldProcessing"></input>
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"></tr>
+          <tr id="paramMainTabContainer"></tr>
+          <tr id="paramChildTabContainer"></tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: hidden; display: none;" id="client">
+          <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+            <tr>
+              <td>
+                <table class="Main_Client_TableEdition">
+                  <tr>
+                    <td>
+                    <!-- MessageBox Start -->
+                    <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+                  <tbody>
+                    <tr class="MessageBox_TopMargin">
+                      <td class="MessageBox_LeftMargin"></td>
+                      <td></td>
+                      <td class="MessageBox_RightMargin"></td>
+                    </tr>
+                    <tr>
+                      <td class="MessageBox_LeftMargin"></td>
+                      <td>
+
+                        <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                          <tbody>
+                            <tr>
+                              <td class="MessageBox_LeftTrans">
+                                <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                  <tbody>
+                                  <tr>
+                                    <td class="MessageBox_TopLeft"></td>
+                                  </tr>
+                                  <tr>
+                                    <td class="MessageBox_Left"></td>
+                                  </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                              <td class="MessageBox_bg">
+
+                                <table class="MessageBox_Top">
+                                  <tbody>
+                                    <tr>
+                                      <td>
+                                        <span>
+                                          <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                            <tbody>
+                                              <tr>
+                                                <td class="MessageBox_Icon_ContentCell">
+                                                  <div class="MessageBox_Icon"></div>
+                                                </td>
+                                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                                  <span>
+                                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                                      xxInfo: AccessTableWithNoView
+                                                    </div>
+                                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                                      xxThe current information is empty.
+                                                    </div>
+                                                    <div class="MessageBox_TextSeparator"></div>
+                                                  </span>
+                                                </td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+
+                              </td>
+                              <td class="MessageBox_RightTrans">
+                                <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                  <tbody>
+                                  <tr>
+                                    <td class="MessageBox_TopRight"></td>
+                                  </tr>
+                                  <tr>
+                                    <td class="MessageBox_Right"></td>
+                                  </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td rowspan="2" class="MessageBox_BottomLeft">
+                              </td>
+                              <td class="MessageBox_BottomTrans MessageBox_bg">
+                              </td>
+                              <td rowspan="2" class="MessageBox_BottomRight">
+                              </td>
+                            </tr>
+                            <tr>
+                              <td class="MessageBox_Bottom">
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                      </td>
+                      <td class="MessageBox_RightMargin"></td>
+                    </tr>
+                    <tr class="MessageBox_BottomMargin">
+                      <td class="MessageBox_LeftMargin"></td>
+                      <td></td>
+                      <td class="MessageBox_RightMargin"></td>
+                    </tr>
+                  </tbody>
+                </table>
+                  <!-- MessageBox End -->
+                    </td>
+                  </tr>
+                  <!-- Info & Buttons Start -->
+                  <tr id="informationRow">
+                    <td>
+                      <table style="table-layout: auto;">
+                        <tr>
+                          <td class="ReadOnly_Text_ContentCell"><span class="LabelText">Account</span></td>
+                          <td class="TitleCell"><span class="LabelText Bold" id="paramAccount">xxAccount</span></td>
+                        </tr>
+                        <tr>
+                          <td class="ReadOnly_Text_ContentCell"><span class="LabelText">Last Reconciliation</span></td>
+                          <td class="TitleCell"><span class="LabelText" id="paramLastReconcileDate">xx</span></td>
+                        </tr>
+                        <tr>
+                          <td class="ReadOnly_Text_ContentCell"><span class="LabelText Bold">Last Reconciliation Balance</span></td>
+                          <td class="TitleCell">
+                             <span class="LabelText" id="lastRecBalance">xx</span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="ReadOnly_Text_ContentCell"><span class="LabelText Bold">Current Balance</span></td>
+                          <td class="TitleCell"><span class="LabelText" id="currentBalance">xx</span></td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td align="center">
+                      <table width="100%">
+                        <tr>
+                          <td>&nbsp;</td>
+                        </tr>
+                        <tr>
+                          <td align="center">
+                            <BUTTON type="button" id="ImportBankFile" class="ButtonLink" onclick="logClick(document.getElementById('APRM_ImportBankFile')); openServletNewWindow('DEFAULT', false, '../org.openbravo.advpaymentmngt.ad_actionbutton/ImportBankFile.html', 'DETAIL', null, true, 600, 900,null,null,false); return false;"
+                              onfocus="buttonEvent('onfocus', this); window.status='Import Bank File'; return true;"
+                              onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);"
+                              onkeydown="buttonEvent('onkeydown', this);"
+                              onkeypress="buttonEvent('onkeypress', this);"
+                              onmouseup="buttonEvent('onmouseup', this);"
+                              onmousedown="buttonEvent('onmousedown', this);"
+                              onmouseover="buttonEvent('onmouseover', this); window.status='Import Bank Statement'; return true;"
+                              onmouseout="buttonEvent('onmouseout', this);">
+                              <TABLE class="Button" align="center">
+                                <TR>
+                                  <TD class="Button_left"><IMG class="Button_Icon Button_Icon_process" alt="Import Bank Statement" title="Import Bank Statement" src="../../../../../web/images/blank.gif" border="0"></IMG></TD>
+                                  <TD class="Button_text">Import Bank Statement</TD>
+                                  <TD class="Button_right"></TD>
+                                </TR>
+                              </TABLE>
+                            </BUTTON>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td align="center">
+                             <BUTTON type="button" id="Match_Using_Imported_Bank_Statement" class="ButtonLink" onclick="logClick(document.getElementById('APRM_MatchTransaction')); openServletNewWindow('DEFAULT', false, '../org.openbravo.advpaymentmngt.ad_actionbutton/MatchTransaction.html', 'DETAIL', null, true, 600, 1200,null,null,false); return false;"
+                                    onfocus="buttonEvent('onfocus', this); window.status='Match using imported Bank Statement'; return true;"
+                                    onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);"
+                                    onkeydown="buttonEvent('onkeydown', this);"
+                                    onkeypress="buttonEvent('onkeypress', this);"
+                                    onmouseup="buttonEvent('onmouseup', this);"
+                                    onmousedown="buttonEvent('onmousedown', this);"
+                                    onmouseover="buttonEvent('onmouseover', this); window.status='Match using imported Bank Statement'; return true;"
+                                    onmouseout="buttonEvent('onmouseout', this);">
+                                    <TABLE class="Button" align="center">
+                                        <TR>
+                                            <TD class="Button_left"><IMG class="Button_Icon Button_Icon_process" alt="Match using imported Bank Statement" title="Match using imported Bank Statement" src="../../../../../web/images/blank.gif" border="0"></IMG></TD>
+                                            <TD class="Button_text">Match Using Imported Bank Statement</TD>
+                                            <TD class="Button_right"></TD>
+                                        </TR>
+                                    </TABLE>
+                                </BUTTON>
+                            </td>
+                        </tr>
+                        <tr>
+                          <td align="center">
+                            <BUTTON type="button" id="Reconcile" class="ButtonLink" onclick="logClick(document.getElementById('Reconcile')); openServletNewWindow('DEFAULT', true, '../org.openbravo.advpaymentmngt.ad_actionbutton/Reconciliation.html', 'BUTTON', '2EED9BC16DB34D2B80BA40A21564BEFA', true,600, 900); return false;"
+                              onfocus="buttonEvent('onfocus', this); window.status='Reconcile'; return true;"
+                              onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);"
+                              onkeydown="buttonEvent('onkeydown', this);"
+                              onkeypress="buttonEvent('onkeypress', this);"
+                              onmouseup="buttonEvent('onmouseup', this);"
+                              onmousedown="buttonEvent('onmousedown', this);"
+                              onmouseover="buttonEvent('onmouseover', this); window.status='Reconcile'; return true;"
+                              onmouseout="buttonEvent('onmouseout', this);">
+                              <TABLE class="Button" width="100%" align="center">
+                                <TR>
+                                  <TD class="Button_left"><IMG class="Button_Icon Button_Icon_process" alt="Reconcile" title="Reconcile" src="../../../../../web/images/blank.gif" border="0"></IMG></TD>
+                                  <TD class="Button_text">Reconcile</TD>
+                                  <TD class="Button_right"></TD>
+                                </TR>
+                              </TABLE>
+                            </BUTTON>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <!-- Info & Buttons End -->
+                  <tr id="paddingRow"><td colspan="3">&nbsp;</td></tr>
+                  <tr id="filtersRow">
+                    <td>
+                      <table style="table-layout: auto;">
+                        <tr>
+                          <td class="TitleCell" id="Hide_Reconciled_Trans_lbl_td">
+                            <span class="LabelText" id="Hide_Reconciled_Trans_lbl">
+                              <label for="paramHideReconciled">Hide Reconciled Transactions</label>
+                            </span>
+                          </td>
+                          <td class="Radio_Check_ContentCell">
+                            <SPAN class="Checkbox_container_NOT_Focused">
+                              <INPUT type="checkbox" name="inpHideReconciled" id="paramHideReconciled" value="Y" onchange="changeHideReconciled();return true;" onclick="changeToEditingMode('force');logChanges(this);return true;" required="false" checked="" />
+                            </SPAN>
+                          </td>
+                          <td width="200px">&nbsp;<td>
+                          <td><span class="LabelText Bold" id="paramItemNo">xx6</span>&nbsp;<span class="LabelText Bold">items to match</span></td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <!-- GRID Start -->
+                  <tr>
+                        <table cellspacing="0" cellpadding="0" width="10px" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="grid_sample">
+                          <tr class="DataGrid_Body_Row" id="grid_sample_header">
+                            <th width="10px" class="DataGrid_Header_Cell">DataGrid</th>
+                          </tr>
+                          <tr class="DataGrid_Body_Row DataGrid_Body_Row_1" id="grid_sample_row">
+                            <td class="DataGrid_Body_Cell">Loading...</td>
+                          </tr>
+                        </table>
+                        <table cellspacing="0" cellpadding="0" width="0px" height="0px" cellspacing="0" cellpadding="0">
+                          <tr>
+                            <td><input type="text" class="DataGrid_Table_Dummy_Input" id="grid_table_dummy_input"></input></td>
+                          </tr>
+                        </table>
+                        <table width="100%" cellspacing="0" cellpadding="0" border="0" id="grid_table" class="Main_Client_TableRelation">
+                          <tr>
+                            <td>
+                              <div id="grid" dojoType="openbravo.widget.DataGrid"
+                                    structureUrl="../org.openbravo.advpaymentmngt.ad_forms/Transactions.html?Command=STRUCTURE"
+                                    dataUrl="../org.openbravo.advpaymentmngt.ad_forms/Transactions.html?Command=DATA"
+                                    updatesUrl="../org.openbravo.advpaymentmngt.ad_forms/Transactions.html?Command=DATA"
+                                    calculateNumRows="true"
+                                    editable="false" sortable="true"
+                                    deleteable="true"
+                                    onInvalidValue="alert"
+                                    onScroll="updateHeader"
+                                    onGridLoad="onGridLoadDo"
+                                    bufferSize="3.0"
+                                    showLineNumbers="true"
+                                    offset="0" sortcols="1" sortdirs="ASC" defaultrow="0"
+                                    maxWidth="99%"
+                                    percentageWidthRelativeToId="client"
+                                    multiplerowselection="false"
+                                    preventCache="true" useCache="true" cacheContent="false">
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                  </tr>
+                  <!-- GRID End -->
+                  <tr id="bottomRow">
+                    <td>
+                      <table width="800px">
+                        <tr align="left">
+                          <td class="TableEdition_OneCell_width"></td>
+                          <td>
+                            <BUTTON type="button" id="AddTransaction" class="ButtonLink" onclick="logClick(document.getElementById('AddTransaction')); openServletNewWindow('DEFAULT', true, '../org.openbravo.advpaymentmngt.ad_actionbutton/AddTransaction.html', 'BUTTON', '2EED9BC16DB34D2B80BA40A21564BECF', true,600, 900); return false;"
+                              onfocus="buttonEvent('onfocus', this); window.status='AddTransaction'; return true;"
+                              onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);"
+                              onkeydown="buttonEvent('onkeydown', this);"
+                              onkeypress="buttonEvent('onkeypress', this);"
+                              onmouseup="buttonEvent('onmouseup', this);"
+                              onmousedown="buttonEvent('onmousedown', this);"
+                              onmouseover="buttonEvent('onmouseover', this); window.status='AddTransaction'; return true;"
+                              onmouseout="buttonEvent('onmouseout', this);">
+                              <TABLE class="Button" align="center">
+                                <TR>
+                                  <TD class="Button_left"><IMG class="Button_Icon Button_Icon_process" alt="AddTransaction" title="AddTransaction" src="../../../../../web/images/blank.gif" border="0"></IMG></TD>
+                                  <TD class="Button_text">Add Transaction</TD>
+                                  <TD class="Button_right"></TD>
+                                </TR>
+                              </TABLE>
+                            </button>
+                          </td>
+                        
+                          <td>
+                            <BUTTON type="button" id="Delete" class="ButtonLink" onclick="logClick(document.getElementById('APRM_Delete')); validateSelector(); submitCommandForm('DELETE'); return false;"
+                                onfocus="buttonEvent('onfocus', this); window.status='Delete'; return true;"
+                                onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);"
+                                onkeydown="buttonEvent('onkeydown', this);"
+                                onkeypress="buttonEvent('onkeypress', this);"
+                                onmouseup="buttonEvent('onmouseup', this);"
+                                onmousedown="buttonEvent('onmousedown', this);"
+                                onmouseover="buttonEvent('onmouseover', this); window.status='Delete'; return true;"
+                                onmouseout="buttonEvent('onmouseout', this);">
+                              <TABLE class="Button" width="100%" align="center">
+                                <TR>
+                                  <TD class="Button_left"><IMG class="Button_Icon Button_Icon_process" alt="Delete" title="Import Bank Statement" src="../../../../../web/images/blank.gif" border="0"></IMG></TD>
+                                  <TD class="Button_text">Delete</TD>
+                                  <TD class="Button_right"></TD>
+                                </TR>
+                              </TABLE>
+                            </BUTTON>
+                          </td>
+                          
+                          <td>
+                            <BUTTON type="button" id="Post" class="ButtonLink" onclick="logClick(document.getElementById('APRM_Post')); validateSelector(); openServletNewWindow('BUTTONPosted', true, 'Transactions.html', 'BUTTON', null, true, 600, 900); return false;"
+                                onfocus="buttonEvent('onfocus', this); window.status='Post'; return true;"
+                                onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);"
+                                onkeydown="buttonEvent('onkeydown', this);"
+                                onkeypress="buttonEvent('onkeypress', this);"
+                                onmouseup="buttonEvent('onmouseup', this);"
+                                onmousedown="buttonEvent('onmousedown', this);"
+                                onmouseover="buttonEvent('onmouseover', this); window.status='Post'; return true;"
+                                onmouseout="buttonEvent('onmouseout', this);">
+                                <TABLE class="Button" width="100%" align="center">
+                                  <TR>
+                                    <TD class="Button_left"><IMG class="Button_Icon Button_Icon_process" alt="Post" title="Post" src="../../../../../web/images/blank.gif" border="0"></IMG></TD>
+                                    <TD class="Button_text" id="buttonText">Post</TD>
+                                    <TD class="Button_right"></TD>
+                                  </TR>
+                                </TABLE>
+                            </BUTTON>
+                          </td>
+                          <td class="TableEdition_OneCell_width"></td>
+                          
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+  </td></tr></table>
+</FORM>
+</BODY>
+</HTML>

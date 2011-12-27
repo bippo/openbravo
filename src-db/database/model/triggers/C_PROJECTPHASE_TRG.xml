@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_PROJECTPHASE_TRG">
+    <trigger name="C_PROJECTPHASE_TRG" table="C_PROJECTPHASE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html 
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License. 
+* The Original Code is Openbravo ERP. 
+* The Initial Developer of the Original Code is Openbravo SLU 
+* All portions are Copyright (C) 2008 Openbravo SLU 
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+*/
+v_projecttaskid VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+IF (:NEW.ISCOMPLETE = 'Y') THEN
+  SELECT MAX(PT.C_PROJECTTASK_ID)
+  INTO v_projecttaskid
+  FROM C_PROJECTTASK PT
+  WHERE PT.C_PROJECTPHASE_ID=:NEW.C_PROJECTPHASE_ID
+  AND PT.ISCOMPLETE='N';
+  IF (v_projecttaskid IS NOT NULL) THEN
+    UPDATE C_PROJECTTASK
+    SET ISCOMPLETE='Y'
+    WHERE C_PROJECTPHASE_ID=:NEW.C_PROJECTPHASE_ID
+    AND ISCOMPLETE='N';
+  END IF;
+END IF;
+END C_PROJECTPHASE_TRG
+]]></body>
+    </trigger>
+  </database>

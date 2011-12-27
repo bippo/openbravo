@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="ReportTaxInvoiceSale" pageWidth="605" pageHeight="842" columnWidth="605" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="default" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="10"/>
+	<style name="Report_Title" fontName="Bitstream Vera Sans" fontSize="18"/>
+	<style name="Report_Subtitle" forecolor="#555555" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="Total_Field" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC" vAlign="Middle"/>
+	<style name="Detail_Header" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle"/>
+	<style name="GroupHeader_DarkGray" mode="Opaque" forecolor="#FFFFFF" backcolor="#555555" vAlign="Middle" fontName="Bitstream Vera Sans" fontSize="14"/>
+	<style name="GroupHeader_Gray" mode="Opaque" backcolor="#999999"/>
+	<style name="Detail_Line" fontName="Bitstream Vera Sans" fontSize="9">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[new Boolean($V{TAXNAME_COUNT}.intValue()%2==1)]]></conditionExpression>
+			<style mode="Opaque" backcolor="#CCCCCC" fontName="Bitstream Vera Sans" fontSize="9"/>
+		</conditionalStyle>
+	</style>
+	<style name="Total_Gray" mode="Opaque" forecolor="#000000" backcolor="#CCCCCC"/>
+	<parameter name="ATTACH" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_WEB" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="BASE_DESIGN" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="LANGUAGE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["en_US"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_CLIENT" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'1000000'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="USER_ORG" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["'0','1000000'"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["REPORT TITLE"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="REPORT_SUBTITLE" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["Sale"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="aux_client" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{USER_CLIENT}.equals("") ? " " : " AND C_INVOICE.AD_CLIENT_ID IN ("+$P{USER_CLIENT}+") "]]></defaultValueExpression>
+	</parameter>
+	<parameter name="aux_org" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[$P{USER_ORG}.equals("") ? " " : " AND C_INVOICE.AD_ORG_ID IN ("+$P{USER_ORG}+") "]]></defaultValueExpression>
+	</parameter>
+	<parameter name="cCountryId" class="java.lang.String">
+		<defaultValueExpression><![CDATA["100"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="parDateFrom" class="java.util.Date"/>
+	<parameter name="parDateTo" class="java.util.Date"/>
+	<parameter name="ReportData" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+	</parameter>
+	<parameter name="SALE" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="DETAIL" class="java.lang.String" isForPrompting="false"/>
+	<parameter name="NUMBERFORMAT" class="java.text.DecimalFormat" isForPrompting="false"/>
+	<parameter name="LOCALE" class="java.util.Locale" isForPrompting="false"/>
+	<parameter name="PARAM_CURRENCY" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["102"]]></defaultValueExpression>
+	</parameter>
+	<queryString>
+		<![CDATA[SELECT C_INVOICE.ISSOTRX AS SALES, 'Y' AS NATIONAL, C_INVOICE.DOCUMENTNO AS DOCUMENTNO, C_INVOICE.DATEINVOICED, C_BPARTNER.NAME AS BPARTNER, LTRIM(RTRIM(C_TAX.NAME, ' '), ' ') AS TAXNAME, 
+      SUM(CASE WHEN DOCBASETYPE IN ('ARC','APC') THEN -1 * (C_CURRENCY_CONVERT(C_INVOICETAX.TAXBASEAMT, C_INVOICE.C_CURRENCY_ID,$P{PARAM_CURRENCY}, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICETAX.AD_CLIENT_ID, C_INVOICETAX.AD_ORG_ID))
+       ELSE (C_CURRENCY_CONVERT(C_INVOICETAX.TAXBASEAMT, C_INVOICE.C_CURRENCY_ID,$P{PARAM_CURRENCY}, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICETAX.AD_CLIENT_ID, C_INVOICETAX.AD_ORG_ID)) END) AS TAXBASEAMT, 
+      SUM(CASE WHEN DOCBASETYPE IN ('ARC','APC') THEN -1 * (C_CURRENCY_CONVERT(C_INVOICETAX.TAXAMT, C_INVOICE.C_CURRENCY_ID, $P{PARAM_CURRENCY}, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICETAX.AD_CLIENT_ID, C_INVOICETAX.AD_ORG_ID))
+       ELSE (C_CURRENCY_CONVERT(C_INVOICETAX.TAXAMT, C_INVOICE.C_CURRENCY_ID, $P{PARAM_CURRENCY}, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICETAX.AD_CLIENT_ID, C_INVOICETAX.AD_ORG_ID)) END) AS TAXAMT, '' AS ADTREEID,C_CURRENCY_SYMBOL($P{PARAM_CURRENCY}, 0, 'Y') AS CURRENCY,'' AS SUM_AMOUNT,'' AS Tax_BASE
+      FROM C_TAX, C_INVOICETAX, C_INVOICE, C_BPARTNER_LOCATION, C_LOCATION, C_BPARTNER, C_DOCTYPE
+      WHERE C_TAX.C_TAX_ID=C_INVOICETAX.C_TAX_ID
+      AND C_INVOICETAX.C_INVOICE_ID=C_INVOICE.C_INVOICE_ID
+      AND C_INVOICE.C_BPARTNER_LOCATION_ID = C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID
+      AND C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+      AND C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_INVOICE.C_DOCTYPE_ID = C_DOCTYPE.C_DOCTYPE_ID
+      AND C_INVOICE.PROCESSED = 'Y'
+      AND C_INVOICE.ISACTIVE = 'Y'
+      AND C_INVOICE.ISSOTRX = 'Y'
+      AND C_LOCATION.C_COUNTRY_ID = $P{cCountryId}
+      AND C_INVOICE.DATEINVOICED >= $P{parDateFrom}
+      AND C_INVOICE.DATEINVOICED < $P{parDateTo}
+    AND 1=1 $P!{aux_client} 
+AND 1=1 $P!{aux_org}
+      AND 1=1 
+      GROUP BY C_INVOICE.DOCUMENTNO, C_INVOICE.DATEINVOICED, C_TAX.NAME, C_BPARTNER.NAME, C_INVOICE.ISSOTRX
+      HAVING SUM(C_INVOICETAX.TAXBASEAMT) <> 0
+      ORDER BY C_TAX.NAME, C_INVOICE.DATEINVOICED]]>
+	</queryString>
+	<field name="SALES" class="java.lang.String"/>
+	<field name="NATIONAL" class="java.lang.String"/>
+	<field name="DOCUMENTNO" class="java.lang.String"/>
+	<field name="DATEINVOICED" class="java.sql.Timestamp"/>
+	<field name="BPARTNER" class="java.lang.String"/>
+	<field name="TAXNAME" class="java.lang.String"/>
+	<field name="TAXBASEAMT" class="java.math.BigDecimal"/>
+	<field name="TAXAMT" class="java.math.BigDecimal"/>
+	<field name="ADTREEID" class="java.lang.String"/>
+	<field name="CURRENCY" class="java.lang.String"/>
+	<field name="SUM_AMOUNT" class="java.lang.String"/>
+	<field name="Tax_BASE" class="java.lang.String"/>
+	<variable name="sumTaxBaseAmt" class="java.math.BigDecimal" resetType="Group" resetGroup="TAXNAME" calculation="Sum">
+		<variableExpression><![CDATA[$F{TAXBASEAMT}]]></variableExpression>
+	</variable>
+	<variable name="sumImport" class="java.math.BigDecimal" resetType="Group" resetGroup="TAXNAME" calculation="Sum">
+		<variableExpression><![CDATA[$F{TAXAMT}]]></variableExpression>
+	</variable>
+	<variable name="sumAmount" class="java.lang.String">
+		<variableExpression><![CDATA[$V{sumImport}.toString()]]></variableExpression>
+	</variable>
+	<group name="TAXNAME">
+		<groupExpression><![CDATA[$F{TAXNAME}]]></groupExpression>
+		<groupHeader>
+			<band height="44" splitType="Stretch">
+				<staticText>
+					<reportElement key="staticText" style="GroupHeader_DarkGray" x="1" y="0" width="100" height="20"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement>
+						<font pdfFontName="Helvetica"/>
+					</textElement>
+					<text><![CDATA[Tax Type]]></text>
+				</staticText>
+				<textField isStretchWithOverflow="true" pattern="" isBlankWhenNull="true">
+					<reportElement key="textField" style="GroupHeader_DarkGray" x="101" y="0" width="503" height="20"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement>
+						<font pdfFontName="Helvetica"/>
+					</textElement>
+					<textFieldExpression class="java.lang.String"><![CDATA[$F{TAXNAME}]]></textFieldExpression>
+				</textField>
+				<line>
+					<reportElement key="line-2" stretchType="RelativeToBandHeight" x="0" y="1" width="1" height="43" forecolor="#555555"/>
+				</line>
+				<line>
+					<reportElement key="line-3" stretchType="RelativeToBandHeight" x="604" y="0" width="1" height="43" forecolor="#555555"/>
+				</line>
+				<staticText>
+					<reportElement key="element-90" style="Detail_Header" x="10" y="28" width="90" height="16">
+						<printWhenExpression><![CDATA[new Boolean($P{DETAIL}.equals("Y"))]]></printWhenExpression>
+					</reportElement>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement/>
+					<text><![CDATA[Invoice]]></text>
+				</staticText>
+				<staticText>
+					<reportElement key="element-90" style="Detail_Header" x="100" y="28" width="70" height="16">
+						<printWhenExpression><![CDATA[new Boolean($P{DETAIL}.equals("Y"))]]></printWhenExpression>
+					</reportElement>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement/>
+					<text><![CDATA[Date]]></text>
+				</staticText>
+				<staticText>
+					<reportElement key="element-90" style="Detail_Header" x="170" y="28" width="165" height="16">
+						<printWhenExpression><![CDATA[new Boolean($P{DETAIL}.equals("Y"))]]></printWhenExpression>
+					</reportElement>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement/>
+					<text><![CDATA[Business Partner]]></text>
+				</staticText>
+				<staticText>
+					<reportElement key="element-90" style="Detail_Header" x="335" y="28" width="117" height="16"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right"/>
+					<text><![CDATA[Taxable Base]]></text>
+				</staticText>
+				<staticText>
+					<reportElement key="element-90" style="Detail_Header" x="452" y="28" width="114" height="16"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right"/>
+					<text><![CDATA[Amount]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="25" splitType="Stretch">
+				<line>
+					<reportElement key="line-32" stretchType="RelativeToBandHeight" x="0" y="0" width="1" height="20" forecolor="#555555"/>
+				</line>
+				<line>
+					<reportElement key="line-33" stretchType="RelativeToBandHeight" x="604" y="0" width="1" height="20" forecolor="#555555"/>
+				</line>
+				<line>
+					<reportElement key="line-34" x="0" y="20" width="603" height="1" forecolor="#555555"/>
+				</line>
+				<staticText>
+					<reportElement key="staticText-4" style="default" x="199" y="0" width="90" height="16"/>
+					<box>
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right">
+						<font fontName="Bitstream Vera Sans"/>
+					</textElement>
+					<text><![CDATA[Total:]]></text>
+				</staticText>
+				<textField isBlankWhenNull="false">
+					<reportElement key="textField" style="Total_Field" x="294" y="0" width="33" height="16"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement verticalAlignment="Middle"/>
+					<textFieldExpression class="java.lang.Integer"><![CDATA[$V{TAXNAME_COUNT}]]></textFieldExpression>
+				</textField>
+				<line>
+					<reportElement key="line-37" x="10" y="0" width="510" height="1" forecolor="#666666"/>
+				</line>
+				<textField isBlankWhenNull="false">
+					<reportElement key="textField" style="Total_Field" x="452" y="0" width="114" height="17"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression class="java.lang.String"><![CDATA[($V{sumImport}!=null)?$P{NUMBERFORMAT}.format($V{sumImport})+$F{CURRENCY}:new String(" ")]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="false">
+					<reportElement key="textField" style="Total_Field" x="335" y="0" width="117" height="16"/>
+					<box leftPadding="5">
+						<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+						<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					</box>
+					<textElement textAlignment="Right" verticalAlignment="Middle"/>
+					<textFieldExpression class="java.lang.String"><![CDATA[($V{sumTaxBaseAmt}!=null)?$P{NUMBERFORMAT}.format($V{sumTaxBaseAmt})+$F{CURRENCY}:new String(" ")]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band splitType="Stretch"/>
+	</title>
+	<pageHeader>
+		<band height="20" splitType="Stretch">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="false">
+				<reportElement key="textField" style="Report_Subtitle" x="1" y="0" width="602" height="20"/>
+				<box leftPadding="5">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$P{SALE}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<printWhenExpression><![CDATA[new Boolean($P{DETAIL}.equals("Y"))]]></printWhenExpression>
+			<line>
+				<reportElement key="line-16" stretchType="RelativeToBandHeight" x="603" y="-6" width="1" height="14" forecolor="#555555"/>
+			</line>
+			<line>
+				<reportElement key="line-17" stretchType="RelativeToBandHeight" x="0" y="0" width="1" height="14" forecolor="#555555"/>
+			</line>
+			<textField isStretchWithOverflow="true" pattern="" isBlankWhenNull="true">
+				<reportElement key="textField" style="Detail_Line" x="10" y="0" width="90" height="14"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{DOCUMENTNO}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement key="textField" style="Detail_Line" x="100" y="0" width="70" height="14"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression class="java.sql.Timestamp"><![CDATA[$F{DATEINVOICED}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="" isBlankWhenNull="true">
+				<reportElement key="textField" style="Detail_Line" x="170" y="0" width="165" height="14"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression class="java.lang.String"><![CDATA[$F{BPARTNER}]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="false">
+				<reportElement key="textField" style="Detail_Line" x="335" y="0" width="117" height="14"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="9"/>
+				</textElement>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{TAXBASEAMT}!=null)?$P{NUMBERFORMAT}.format($F{TAXBASEAMT})+$F{CURRENCY}:new String(" ")]]></textFieldExpression>
+			</textField>
+			<textField pattern="" isBlankWhenNull="false">
+				<reportElement key="textField" style="Detail_Line" x="452" y="0" width="114" height="14"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle"/>
+				<textFieldExpression class="java.lang.String"><![CDATA[($F{TAXAMT}!=null)?$P{NUMBERFORMAT}.format($F{TAXAMT})+$F{CURRENCY}:new String(" ")]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<summary>
+		<band splitType="Stretch"/>
+	</summary>
+</jasperReport>

@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_FIELDGROUP_TRG">
+    <trigger name="AD_FIELDGROUP_TRG" table="AD_FIELDGROUP" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Insert AD_Menu Trigger
+    *  for Translation
+    */
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+   IF INSERTING
+    THEN
+    --  Create Translation Row
+  INSERT
+  INTO AD_FieldGroup_Trl
+    (
+      AD_FieldGroup_Trl_ID, AD_FieldGroup_ID, AD_Language, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      Name, IsTranslated
+    )
+  SELECT get_uuid(), :new.AD_FieldGroup_ID,
+    AD_Language.AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+    :new.IsActive, :new.Created, :new.CreatedBy,
+    :new.Updated, :new.UpdatedBy, :new.Name,
+     'N'
+  FROM AD_Language, ad_module m
+  WHERE AD_Language.IsActive='Y'
+    AND IsSystemLanguage='Y'
+     and m.ad_module_id = :new.ad_module_id
+        and m.ad_language != AD_Language.AD_Language;
+ END IF;
+ IF UPDATING THEN
+  IF(COALESCE(:OLD.Name, '.') <> COALESCE(:NEW.Name, '.')) THEN
+    UPDATE AD_FieldGroup_Trl
+      SET IsTranslated='N'
+      --  Updated=SysDate
+    WHERE AD_FieldGroup_ID=:new.AD_FieldGroup_ID;
+  END IF;
+ END IF;
+-- Updating
+END AD_FIELDGROUP_TRG
+]]></body>
+    </trigger>
+  </database>

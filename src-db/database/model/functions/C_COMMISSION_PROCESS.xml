@@ -1,0 +1,355 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_COMMISSION_PROCESS">
+    <function name="C_COMMISSION_PROCESS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/******************************************************************************
+  * The contents of this file are subject to the   Compiere License  Version 1.1
+  * ("License"); You may not use this file except in compliance with the License
+  * You may obtain a copy of the License at http://www.compiere.org/license.html
+  * Software distributed under the License is distributed on an  "AS IS"  basis,
+  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+  * the specific language governing rights and limitations under the License.
+  * The Original Code is                  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2006 Openbravo S.L.U.
+  ******************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    p_StartDate DATE;
+    --
+    v_AD_Client_ID VARCHAR2(32);
+    v_AD_Org_ID VARCHAR2(32);
+    v_Name VARCHAR2(90) ;
+    v_Currency VARCHAR2(10) ;
+    v_FrequencyType VARCHAR(60);
+    v_DocBasisType VARCHAR(60);
+    v_ListDetails VARCHAR(60);
+    v_SalesRep_ID VARCHAR2(32) ;
+    --
+    v_StartDate DATE;
+    v_EndDate DATE;
+    v_C_CommissionRun_ID VARCHAR2(32) ;
+    v_NextNo VARCHAR2(32) ;
+    v_DocumentNo VARCHAR(40) ;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      IF(Cur_Parameter.ParameterName='StartDate') THEN
+        p_StartDate:=Cur_Parameter.P_Date;
+        DBMS_OUTPUT.PUT_LINE('  StartDate=' || p_StartDate) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    /**
+    * Create Header + Determine DATE Range
+    */
+    v_ResultStr:='ReadingRecord';
+    SELECT AD_Client_ID,
+      AD_Org_ID,
+      Name,
+      FrequencyType,
+      DocBasisType,
+      ListDetails,
+      C_BPartner_ID
+    INTO v_AD_Client_ID,
+      v_AD_Org_ID,
+      v_Name,
+      v_FrequencyType,
+      v_DocBasisType,
+      v_ListDetails,
+      v_SalesRep_ID
+    FROM C_Commission
+    WHERE C_Commission_ID=v_Record_ID;
+    --
+    SELECT ISO_Code
+    INTO v_Currency
+    FROM C_Currency cur,
+      C_Commission com
+    WHERE cur.C_Currency_ID=com.C_Currency_ID
+      AND com.C_Commission_ID=v_Record_ID;
+    --
+    v_ResultStr:='CalculatingHeader';
+    IF(p_StartDate IS NULL) THEN
+      p_StartDate:=now() ;
+    END IF;
+    --
+    IF(v_FrequencyType='Q') THEN -- Quarter
+      v_StartDate:=TRUNC(p_StartDate, 'Q') ;
+      v_EndDate:=TRUNC(v_StartDate+93, 'Q') -1;
+    ELSIF(v_FrequencyType='W') THEN -- Weekly
+      v_StartDate:=TRUNC(p_StartDate, 'DAY') ;
+      v_EndDate:=TRUNC(v_StartDate+7, 'DAY') -1;
+    ELSE -- Month
+      v_StartDate:=TRUNC(p_StartDate, 'MM') ;
+      v_EndDate:=TRUNC(v_StartDate+32, 'MM') -1;
+    END IF;
+    -- Name 01-Jan-2000 - 31-Jan-2001 - USD
+    v_Name:=v_Name || ' ' || TO_CHAR(v_StartDate) || ' - ' || TO_CHAR(v_EndDate) || ' - ' || v_Currency;
+    AD_Sequence_Next('C_CommissionRun', v_AD_Client_ID, v_C_CommissionRun_ID) ;
+    AD_Sequence_Doc('DocumentNo_C_CommissionRun', v_AD_Client_ID, 'Y', v_DocumentNo) ;
+    DBMS_OUTPUT.PUT_LINE('Create: ' || v_DocumentNo || ' - ' || v_Name) ;
+    v_ResultStr:='InsertingHeader';
+    INSERT
+    INTO C_CommissionRun
+      (
+        C_CommissionRun_ID, C_Commission_ID, AD_Client_ID, AD_Org_ID,
+        IsActive, Created, CreatedBy, Updated,
+        UpdatedBy, DocumentNo, Description, StartDate,
+        GrandTotal, Processing, Processed
+      )
+      VALUES
+      (
+        v_C_CommissionRun_ID, v_Record_ID, v_AD_Client_ID, v_AD_Org_ID,
+         'Y', now(), '0', now(),
+        '0', v_DocumentNo, v_Name, v_StartDate,
+        0, 'N', 'N'
+      )
+      ;
+    --
+    v_ResultStr:='Update Record';
+    UPDATE C_Commission
+      SET DateLastRun=now()
+    WHERE C_Commission_ID=v_Record_ID;
+    /**
+    * Calculate Lines
+    */
+    DECLARE
+      CUR_CLine RECORD;
+    TYPE TYPE_Ref IS REF CURSOR;
+      v_rc TYPE_REF;
+      --
+      v_Cmd VARCHAR2(2000):='';
+      v_C_CommissionAmt_ID VARCHAR2(32) ;
+      --
+      v_C_Currency_ID C_CommissionDetail.C_Currency_ID%TYPE;
+      v_Amt C_CommissionDetail.ActualAmt%TYPE;
+      v_Qty C_CommissionDetail.ActualQty%TYPE;
+      v_C_OrderLine_ID VARCHAR2(32) ;
+      v_C_InvoiceLine_ID VARCHAR2(32) ;
+      v_Reference C_CommissionDetail.Reference%TYPE;
+      v_Info C_CommissionDetail.Info%TYPE;
+      --
+    BEGIN
+      FOR CUR_CLine IN
+        (SELECT *  FROM C_CommissionLine  WHERE C_Commission_ID=v_Record_ID AND IsActive='Y')
+      LOOP
+        v_ResultStr:='InsertingAmt';
+        -- For every Commission Line create empty Amt line (updated by Detail)
+        AD_Sequence_Next('C_CommissionAmt', v_AD_Client_ID, v_C_CommissionAmt_ID) ;
+        INSERT
+        INTO C_CommissionAmt
+          (
+            C_CommissionAmt_ID, C_CommissionRun_ID, C_CommissionLine_ID, AD_Client_ID,
+            AD_Org_ID, IsActive, Created, CreatedBy, Updated,
+            UpdatedBy, ConvertedAmt, ActualQty, CommissionAmt
+          )
+          VALUES
+          (
+            v_C_CommissionAmt_ID, v_C_CommissionRun_ID, CUR_CLine.C_CommissionLine_ID, v_AD_Client_ID,
+            v_AD_Org_ID, 'Y', now(), '0',
+            now(), '0', 0, 0,
+            0
+          )
+          ; -- Calculation done by Trigger
+        -- DBMS_OUTPUT.PUT_LINE('- ' || CUR_CLine.Line);
+        v_ResultStr:='AssemblingDynSQL';
+        -- Receipt Basis
+        IF(v_DocBasisType='R') THEN
+          v_ResultStr:='To develope';
+          /*IF (v_ListDetails = 'Y') THEN
+          v_Cmd := 'SELECT h.C_Currency_ID, l.LineNetAmt, l.QtyInvoiced, '
+          || 'NULL, l.C_InvoiceLine_ID, p.DocumentNo || ''_'' || h.DocumentNo, COALESCE(prd.Name,l.Description) '
+          || 'FROM C_Payment p, C_Invoice h, C_InvoiceLine l LEFT JOIN M_Product prd ON l.M_Product_ID = prd.M_Product_ID '
+          || 'WHERE p.C_Invoice_ID = h.C_Invoice_ID'
+          || ' AND p.DocStatus IN (''CL'',''CO'')'
+          || ' AND h.C_Invoice_ID = l.C_Invoice_ID'
+          || ' AND h.AD_Client_ID = '':1'''
+          || ' AND h.DateInvoiced >= to_date('':2'')'
+          || ' AND h.DateInvoiced < to_date('':3'') +1';
+          || ' ';
+          ELSE
+          v_Cmd := 'SELECT h.C_Currency_ID, SUM(l.LineNetAmt) AS Amt, SUM(l.QtyInvoiced) AS Qty, '
+          || 'NULL, NULL, NULL, NULL '
+          || 'FROM C_Payment p, C_Invoice h, C_InvoiceLine l '
+          || 'WHERE p.C_Invoice_ID = h.C_Invoice_ID'
+          || ' AND p.DocStatus IN (''CL'',''CO'')'
+          || ' AND h.C_Invoice_ID = l.C_Invoice_ID'
+          || ' AND h.AD_Client_ID = '':1'''
+          || ' AND h.DateInvoiced >= to_date('':2'')'
+          || ' AND h.DateInvoiced < to_date('':3'') +1';
+          END IF;*/
+          -- Invoice Basis
+        ELSIF(v_DocBasisType='I') THEN
+          IF(v_ListDetails='Y') THEN
+            v_Cmd:='SELECT h.C_Currency_ID, l.LineNetAmt, l.QtyInvoiced, '
+            || 'NULL, l.C_InvoiceLine_ID, h.DocumentNo, substr(COALESCE(prd.Name,l.Description),1,60) '
+            || 'FROM C_Invoice h, C_InvoiceLine l LEFT JOIN M_Product prd ON l.M_Product_ID = prd.M_Product_ID '
+            || 'WHERE h.C_Invoice_ID = l.C_Invoice_ID'
+            || ' AND h.DocStatus IN (''CL'',''CO'')'
+            || ' AND h.ISSOTRX = ''Y'''
+            || ' AND h.AD_Client_ID = '':1'''
+            || ' AND h.DateInvoiced >= to_date('':2'')'
+            || ' AND h.DateInvoiced < to_date('':3'') +1';
+          ELSE
+            v_Cmd:='SELECT h.C_Currency_ID, SUM(l.LineNetAmt) AS Amt, SUM(l.QtyInvoiced) AS Qty, '
+            || 'NULL, NULL, NULL, NULL '
+            || 'FROM C_Invoice h, C_InvoiceLine l '
+            || 'WHERE h.C_Invoice_ID = l.C_Invoice_ID'
+            || ' AND h.DocStatus IN (''CL'',''CO'')'
+            || ' AND h.ISSOTRX = ''Y'''
+            || ' AND h.AD_Client_ID = '':1'''
+            || ' AND h.DateInvoiced >= to_date('':2'')'
+            || ' AND h.DateInvoiced < to_date('':3'') +1';
+          END IF;
+          -- Order Basis
+        ELSE
+          IF(v_ListDetails='Y') THEN
+            v_Cmd:='SELECT h.C_Currency_ID, l.LineNetAmt, l.QtyOrdered, '
+            || 'l.C_OrderLine_ID, NULL, h.DocumentNo, substr(COALESCE(prd.Name,l.Description),1,60) '
+            || 'FROM C_Order h, C_OrderLine l LEFT JOIN M_Product prd ON l.M_Product_ID = prd.M_Product_ID '
+            || 'WHERE h.C_Order_ID = l.C_Order_ID'
+            || ' AND h.DocStatus IN (''CL'',''CO'')'
+            || ' AND h.ISSOTRX = ''Y'''
+            || ' AND h.AD_Client_ID = '':1'''
+            || ' AND h.DateOrdered >= to_date('':2'')'
+            || ' AND h.DateOrdered < to_date('':3'') +1';
+          ELSE
+            v_Cmd:='SELECT h.C_Currency_ID, SUM(l.LineNetAmt) AS Amt, SUM(l.QtyOrdered) AS Qty, '
+            || 'NULL, NULL, NULL, NULL '
+            || 'FROM C_Order h, C_OrderLine l '
+            || 'WHERE h.C_Order_ID = l.C_Order_ID'
+            || ' AND h.DocStatus IN (''CL'',''CO'')'
+            || ' AND h.ISSOTRX = ''Y'''
+            || ' AND h.AD_Client_ID = '':1'''
+            || ' AND h.DateOrdered >= to_date('':2'')'
+            || ' AND h.DateOrdered < to_date('':3'') +1';
+          END IF;
+        END IF;
+        -- CommissionOrders/Invoices
+        IF(CUR_CLine.CommissionOrders='Y') THEN
+          v_Cmd:=v_Cmd || ' AND h.SalesRep_ID = (SELECT AD_User_ID FROM AD_User WHERE C_BPartner_ID=''' || v_SalesRep_ID || ''')';
+        END IF;
+        -- Organization
+        IF(CUR_CLine.Org_ID IS NOT NULL) THEN
+          v_Cmd:=v_Cmd || ' AND h.AD_Org_ID=''' || CUR_CLine.Org_ID || '''';
+        END IF;
+        -- BPartner
+        IF(CUR_CLine.C_BPartner_ID IS NOT NULL) THEN
+          v_Cmd:=v_Cmd || ' AND h.C_BPartner_ID=''' || CUR_CLine.C_BPartner_ID || '''';
+        END IF;
+        -- BPartner Group
+        IF(CUR_CLine.C_BP_Group_ID IS NOT NULL) THEN
+          v_Cmd:=v_Cmd || ' AND h.C_BPartner_ID IN'  || '(SELECT C_BPartner_ID FROM C_BPartner WHERE C_BP_Group_ID=''' || CUR_CLine.C_BP_Group_ID || ''')';
+        END IF;
+        -- Sales Region
+        IF(CUR_CLine.C_SalesRegion_ID IS NOT NULL) THEN
+          v_Cmd:=v_Cmd || ' AND h.C_BPartner_Location_ID IN '  || '(SELECT C_BPartner_Location_ID FROM C_BPartner_Location WHERE C_SalesRegion_ID=''' || CUR_CLine.C_SalesRegion_ID || ''')';
+        END IF;
+        -- Product
+        IF(CUR_CLine.M_Product_ID IS NOT NULL) THEN
+          v_Cmd:=v_Cmd || ' AND l.M_Product_ID=''' || CUR_CLine.M_Product_ID || '''';
+        END IF;
+        -- Product Category
+        IF(CUR_CLine.M_Product_Category_ID IS NOT NULL) THEN
+          v_Cmd:=v_Cmd || ' AND l.M_Product_ID IN '  || '(SELECT M_Product_ID FROM M_Product WHERE M_Product_Category_ID=''' || CUR_CLine.M_Product_Category_ID ||''')';
+        END IF;
+        -- Grouping
+        IF(v_ListDetails<>'Y') THEN
+          v_Cmd:=v_Cmd || ' GROUP BY h.C_Currency_ID';
+        END IF;
+        --
+        -- DBMS_OUTPUT.PUT_LINE('- ' || CUR_CLine.Line || ' SQL=' || SUBSTR(v_Cmd, 1, 200));
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(v_Cmd, 200,200));
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(v_Cmd, 400));
+        --
+        v_ResultStr:='OpenDynCursor';
+        SELECT REPLACE(REPLACE(REPLACE(v_Cmd, ':1', to_char(v_AD_Client_ID)), ':2', to_char(v_StartDate)), ':3', to_char(v_EndDate)) INTO v_Cmd FROM DUAL;
+        OPEN v_rc FOR v_Cmd;
+        LOOP
+          v_ResultStr:='FetchingData';
+          FETCH v_rc INTO v_C_Currency_ID,
+          v_Amt,
+          v_Qty,
+          v_C_OrderLine_ID,
+          v_C_InvoiceLine_ID,
+          v_Reference,
+          v_Info;
+          EXIT WHEN v_rc%NOTFOUND;
+          --
+          v_ResultStr:='InsertingDetail';
+          AD_Sequence_Next('C_CommissionDetail', v_AD_Client_ID, v_NextNo) ;
+          INSERT
+          INTO C_CommissionDetail
+            (
+              C_CommissionDetail_ID, C_CommissionAmt_ID, AD_Client_ID, AD_Org_ID,
+              IsActive, Created, CreatedBy, Updated,
+              UpdatedBy, C_Currency_ID, ActualAmt, ConvertedAmt,
+              ActualQty,
+              C_OrderLine_ID, C_InvoiceLine_ID, Reference, Info
+            )
+            VALUES
+            (
+              v_NextNo, v_C_CommissionAmt_ID, v_AD_Client_ID, v_AD_Org_ID,
+               'Y', now(), '0', now(),
+              '0', v_C_Currency_ID, v_Amt, 0,
+              v_Qty, -- Conversion done by Trigger
+              v_C_OrderLine_ID, v_C_InvoiceLine_ID, v_Reference, v_Info
+            )
+            ;
+          --
+          -- DBMS_OUTPUT.PUT_LINE('  ' || v_Reference || ' - ' || v_Amt || ' - ' || v_Qty);
+        END LOOP;
+        CLOSE v_rc;
+        --
+      END LOOP; -- For every Commission Line
+    END;
+    v_Message:='@CommissionRun@ = ' || v_DocumentNo || ' - ' || v_Name;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_COMMISSION_PROCESS
+]]></body>
+    </function>
+  </database>

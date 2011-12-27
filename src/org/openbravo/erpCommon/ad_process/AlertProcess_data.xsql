@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="AlertProcessData" package="org.openbravo.erpCommon.ad_process">
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT '' AS AD_CLIENT_ID,
+               '' AS AD_ORG_ID,
+               '' AS CREATED,
+               '' AS CREATEDBY,
+               '' AS UPDATED,
+               '' AS UPDATEDBY,
+               '' AS ISACTIVE,
+               '' AS AD_USER_ID,
+               '' AS AD_ROLE_ID,
+               '' AS RECORD_ID,
+               '' AS DESCRIPTION,
+               '' AS REFERENCEKEY_ID, 
+               '' AS AD_ALERTRULE_ID,
+               '' AS SQL,
+               '' AS NAME,
+               '' AS SMTPHOST,
+               '' AS REQUESTUSER,
+               '' AS REQUESTUSERPW,
+               '' AS MAILTO,
+               '' AS MAILFROM,
+               '' AS AD_LANGUAGE
+          FROM DUAL
+    ]]></Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="selectAlert" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          SELECT * 
+            FROM (SELECT '' AS AD_CLIENT_ID, '' AS AD_ORG_ID, TO_DATE(NULL) AS CREATED, '' AS CREATEDBY,'' AS UPDATED,'' AS UPDATEDBY,'' AS RECORD_ID, '' AS REFERENCEKEY_ID, '' AS DESCRIPTION, '' AS ISACTIVE, '' AS AD_USER_ID, '' AS AD_ROLE_ID FROM DUAL) AAA 
+      ]]></Sql>
+      <Parameter name="sql" type="replace" optional="true" after="FROM (" text="SELECT '' AS AD_CLIENT_ID, '' AS AD_ORG_ID, TO_DATE(NULL) AS CREATED, '' AS CREATEDBY,'' AS UPDATED,'' AS UPDATEDBY,'' AS RECORD_ID, '' AS REFERENCEKEY_ID, '' AS DESCRIPTION, '' AS ISACTIVE, '' AS AD_USER_ID, '' AS AD_ROLE_ID FROM DUAL"/>
+   </SqlMethod>
+   
+   <SqlMethod name="existsReference" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          SELECT COUNT(*) AS EXISTING
+            FROM AD_ALERT
+           WHERE AD_ALERTRULE_ID = ?
+             AND REFERENCEKEY_ID = ?
+             AND STATUS != 'SOLVED'
+      ]]></Sql>
+      <Parameter name="alertRule"/>
+      <Parameter name="ref"/>      
+   </SqlMethod>
+   
+   <SqlMethod name="selectSQL" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_ALERTRULE_ID, SQL, NAME
+          FROM AD_ALERTRULE
+         WHERE ISACTIVE = 'Y'
+    ]]></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="selectSQL" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_ALERTRULE_ID, SQL, NAME
+          FROM AD_ALERTRULE
+         WHERE ISACTIVE = 'Y'
+           AND AD_CLIENT_ID = ?
+    ]]></Sql>
+    <Parameter name="adClientId"/>
+   </SqlMethod>
+
+  <SqlMethod name="InsertAlert" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        INSERT INTO AD_ALERT
+        (AD_ALERT_ID, AD_CLIENT_ID, AD_ORG_ID,
+         ISACTIVE, CREATED, CREATEDBY, 
+         UPDATED, UPDATEDBY, 
+         AD_ALERTRULE_ID, RECORD_ID, REFERENCEKEY_ID, 
+         DESCRIPTION, AD_USER_ID, AD_ROLE_ID,
+         STATUS)
+        VALUES
+         (?,?,?,
+          'Y',TO_DATE(?),?,
+          now(),0,
+          ?,?,?,
+          ?,?,?,
+          'NEW')
+    ]]></Sql>
+    <Parameter name="alertId"/>
+    <Parameter name="clientId"/>
+    <Parameter name="orgId"/>
+    
+    <Parameter name="created"/>
+    <Parameter name="createdBy"/>
+    
+    <Parameter name="ruleId"/>
+    <Parameter name="recordId"/>
+    <Parameter name="referenceKey"/>
+    
+    <Parameter name="description"/>
+    <Parameter name="user"/>
+    <Parameter name="role"/>
+   </SqlMethod>
+   
+   <SqlMethod name="updateAlert" type="preparedStatement" return="rowcount"> 
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        UPDATE AD_ALERT
+           SET STATUS    = 'SOLVED',
+               UPDATED   = NOW(),
+               UPDATEDBY = 0
+         WHERE AD_ALERTRULE_ID = ?
+           AND STATUS != 'SOLVED'
+           AND NOT EXISTS 
+                   (SELECT 1 FROM (SELECT '' AS AD_REFERENCEKEY_ID FROM DUAL) A WHERE 1=1
+                              AND A.REFERENCEKEY_ID = AD_ALERT.REFERENCEKEY_ID)
+    ]]></Sql>
+   <Parameter name="alertRuleId"/>
+   <Parameter name="sql" type="replace" optional="true" after="(SELECT 1 FROM (" text="SELECT '' AS AD_REFERENCEKEY_ID FROM DUAL"/>
+   </SqlMethod>
+   
+   <SqlMethod name="prepareMails" type="preparedStatement" return="multiple">
+     <Sql><![CDATA[
+        select c.smtphost, c.requestuser, c.requestuserpw, c.requestemail as mailfrom, 
+               u.email as mailto, c.ad_language, c.ad_client_id
+          from ad_alertrecipient  ar, ad_user_roles ur, ad_user u, ad_client c
+          where ar.ad_alertrule_id = ?
+            and ur.ad_role_id = ar.ad_role_id
+            and ur.ad_client_id = ar.ad_client_id
+            and ur.ad_user_id = u.ad_user_id
+            and u.ad_client_id = c.ad_client_id
+            and c.requestuser is not null
+            and c.requestuserpw is not null
+            and u.email is not null
+            and ar.ad_user_id is null
+            and ar.sendemail = 'Y'
+        union
+        select c.smtphost, c.requestuser, c.requestuserpw, c.requestemail as mailfrom, 
+               u.email as mailto, c.ad_language, c.ad_client_id
+          from ad_alertrecipient  ar, ad_user u, ad_client c
+          where ar.ad_alertrule_id = ?
+            and u.ad_client_id = c.ad_client_id
+            and ar.ad_user_id = u.ad_user_id
+            and c.requestuser is not null
+            and c.requestuserpw is not null
+            and u.email is not null
+            and ar.ad_user_id is not null
+            and ar.sendemail = 'Y'
+      ]]></Sql>
+      <Parameter name="alertRuleId"/>
+      <Parameter name="alertRuleId"/>
+   </SqlMethod>
+   
+</SqlClass>

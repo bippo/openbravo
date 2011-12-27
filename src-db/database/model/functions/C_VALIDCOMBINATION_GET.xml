@@ -1,0 +1,305 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_VALIDCOMBINATION_GET">
+    <function name="C_VALIDCOMBINATION_GET" type="NULL">
+      <parameter name="p_c_validcombination_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_c_acctschema_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_account_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_b_c_validcombination_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_mustbefullyqualified" type="CHAR" mode="in">
+        <default><![CDATA[N]]></default>
+      </parameter>
+      <parameter name="p_alias" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_createdby" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_m_product_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_bpartner_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_ad_orgtrx_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_locfrom_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_locto_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_salesregion_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_project_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_campaign_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_c_activity_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_user1_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_user2_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_ValidCombination_Get.sql,v 1.4 2003/07/22 18:49:41 jjanke Exp $
+  ***
+  * Title: Create Valid Account Code Combination
+  * Description:
+  * Get a Valid Account Combination
+  * 1) Create template for combination
+  *  - if base combination (b_) != NULL, retrieve existing VC
+  *  - replace with NOT NULL transaction values (p_) elements
+  * 2) Check, if combination exists
+  *  - yes, return target combination (t_)
+  *  - otherwise create it
+  * Returns NULL if not all mandatory fields have values
+  * or if p_MustBeFullyQualified=Y and found combination is not fully qualified
+  ***
+  *  Problem is that it does not create accounts with null values!
+  ************************************************************************/
+
+  -- Base Combination
+  TYPE RECORD IS REF CURSOR;
+    Cur_Base_VC RECORD;
+    Cur_Existing_VC RECORD;
+    -- Target Combination
+    v_AD_Client_ID VARCHAR2(32):=NULL;
+    v_AD_Org_ID VARCHAR2(32):=NULL;
+    v_C_AcctSchema_ID VARCHAR2(32):=NULL;
+    v_Account_ID VARCHAR2(32):=NULL;
+    v_M_Product_ID VARCHAR2(32):=NULL;
+    v_C_BPartner_ID VARCHAR2(32):=NULL;
+    v_AD_OrgTrx_ID VARCHAR2(32):=NULL;
+    v_C_LocFrom_ID VARCHAR2(32):=NULL;
+    v_C_LocTo_ID VARCHAR2(32):=NULL;
+    v_C_SalesRegion_ID VARCHAR2(32):=NULL;
+    v_C_Project_ID VARCHAR2(32):=NULL;
+    v_C_Campaign_ID VARCHAR2(32):=NULL;
+    v_C_Activity_ID VARCHAR2(32):=NULL;
+    v_User1_ID VARCHAR2(32):=NULL;
+    v_User2_ID VARCHAR2(32):=NULL;
+    v_CreatedBy VARCHAR2(32):=NULL;
+    -- Existance Loop - Get first fully qualified matching combination
+    --
+    FoundValue CHAR(1):='N';
+    RetValue VARCHAR2(32):=NULL;
+    fullyQualified CHAR(1) ;
+  BEGIN
+    -- 1a  -- Fill with base info
+    IF(p_b_C_ValidCombination_ID!=NULL) THEN
+      -- Actually only one value possible, for convineance
+      FOR Cur_Base_VC in
+        (SELECT *
+        FROM C_ValidCombination
+        WHERE C_ValidCombination_ID=p_b_C_ValidCombination_ID
+        )
+      LOOP
+        DBMS_OUTPUT.PUT_LINE('Base VC found') ;
+        -- mandatory fields
+        v_AD_Client_ID:=Cur_Base_VC.AD_Client_ID;
+        v_AD_Org_ID:=Cur_Base_VC.AD_Org_ID;
+        v_C_AcctSchema_ID:=Cur_Base_VC.C_AcctSchema_ID;
+        v_Account_ID:=Cur_Base_VC.Account_ID;
+        -- optional fields
+        v_M_Product_ID:=Cur_Base_VC.M_Product_ID;
+        v_C_BPartner_ID:=Cur_Base_VC.C_BPartner_ID;
+        v_AD_OrgTrx_ID:=Cur_Base_VC.AD_OrgTrx_ID;
+        v_C_LocFrom_ID:=Cur_Base_VC.C_LocFrom_ID;
+        v_C_LocTo_ID:=Cur_Base_VC.C_LocTo_ID;
+        v_C_SalesRegion_ID:=Cur_Base_VC.C_SalesRegion_ID;
+        v_C_Project_ID:=Cur_Base_VC.C_Project_ID;
+        v_C_Campaign_ID:=Cur_Base_VC.C_Campaign_ID;
+        v_C_Activity_ID:=Cur_Base_VC.C_Activity_ID;
+        v_User1_ID:=Cur_Base_VC.User1_ID;
+        v_User2_ID:=Cur_Base_VC.User2_ID;
+      END LOOP;
+    END IF;
+    -- 1b  -- Update target values
+    IF(p_AD_Client_ID IS NOT NULL) THEN
+      v_AD_Client_ID:=p_AD_Client_ID;
+    END IF;
+    IF(p_AD_Org_ID IS NOT NULL) THEN
+      v_AD_Org_ID:=p_AD_Org_ID;
+    END IF;
+    IF(p_C_AcctSchema_ID IS NOT NULL) THEN
+      v_C_AcctSchema_ID:=p_C_AcctSchema_ID;
+    END IF;
+    IF(p_Account_ID IS NOT NULL) THEN
+      v_Account_ID:=p_Account_ID;
+    END IF;
+    -- optional fields
+    IF(p_M_Product_ID IS NOT NULL) THEN
+      v_M_Product_ID:=p_M_Product_ID;
+    END IF;
+    IF(p_C_BPartner_ID IS NOT NULL) THEN
+      v_C_BPartner_ID:=p_C_BPartner_ID;
+    END IF;
+    IF(p_AD_OrgTrx_ID IS NOT NULL) THEN
+      v_AD_OrgTrx_ID:=p_AD_OrgTrx_ID;
+    END IF;
+    IF(p_C_LocFrom_ID IS NOT NULL) THEN
+      v_C_LocFrom_ID:=p_C_LocFrom_ID;
+    END IF;
+    IF(p_C_LocTo_ID IS NOT NULL) THEN
+      v_C_LocTo_ID:=p_C_LocTo_ID;
+    END IF;
+    IF(p_C_SalesRegion_ID IS NOT NULL) THEN
+      v_C_SalesRegion_ID:=p_C_SalesRegion_ID;
+    END IF;
+    IF(p_C_Project_ID IS NOT NULL) THEN
+      v_C_Project_ID:=p_C_Project_ID;
+    END IF;
+    IF(p_C_Campaign_ID IS NOT NULL) THEN
+      v_C_Campaign_ID:=p_C_Campaign_ID;
+    END IF;
+    IF(p_C_Activity_ID IS NOT NULL) THEN
+      v_C_Activity_ID:=p_C_Activity_ID;
+    END IF;
+    IF(p_User1_ID IS NOT NULL) THEN
+      v_User1_ID:=p_User1_ID;
+    END IF;
+    IF(p_User2_ID IS NOT NULL) THEN
+      v_User2_ID:=p_User2_ID;
+    END IF;
+    -- Are nandatory elements null:1
+    IF(v_AD_Client_ID IS NULL OR v_AD_Org_ID IS NULL  OR v_C_AcctSchema_ID IS NULL OR v_Account_ID IS NULL) THEN
+      DBMS_OUTPUT.PUT_LINE('Mandatory Fields Null') ;
+      p_C_ValidCombination_ID:=NULL;
+      RETURN;
+    END IF;
+    --  DBMS_OUTPUT.PUT_LINE('v_M_Product_ID=' || v_M_Product_ID);
+    -- Existance check
+    FOR Cur_Existing_VC IN
+      (SELECT *
+      FROM C_ValidCombination  -- Mandatory fields
+      WHERE AD_Client_ID=v_AD_Client_ID
+        AND AD_Org_ID=v_AD_Org_ID
+        AND C_AcctSchema_ID=v_C_AcctSchema_ID
+        AND Account_ID=v_Account_ID  -- Optional fields
+        AND((v_M_Product_ID IS NULL AND M_Product_ID IS NULL)
+        OR (v_M_Product_ID IS NOT NULL AND M_Product_ID=v_M_Product_ID))
+        AND((v_C_BPartner_ID IS NULL AND C_BPartner_ID IS NULL)
+        OR (v_C_BPartner_ID IS NOT NULL AND C_BPartner_ID=v_C_BPartner_ID))
+        AND((v_AD_OrgTrx_ID IS NULL AND AD_OrgTrx_ID IS NULL)
+        OR (v_AD_OrgTrx_ID IS NOT NULL AND AD_OrgTrx_ID=v_AD_OrgTrx_ID))
+        AND((v_C_LocFrom_ID IS NULL AND C_LocFrom_ID IS NULL)
+        OR (v_C_LocFrom_ID IS NOT NULL AND C_LocFrom_ID=v_C_LocFrom_ID))
+        AND((v_C_LocTo_ID IS NULL AND C_LocTo_ID IS NULL)
+        OR (v_C_LocTo_ID IS NOT NULL AND C_LocTo_ID=v_C_LocTo_ID))
+        AND((v_C_SalesRegion_ID IS NULL AND C_SalesRegion_ID IS NULL)
+        OR (v_C_SalesRegion_ID IS NOT NULL AND C_SalesRegion_ID=v_C_SalesRegion_ID))
+        AND((v_C_Project_ID IS NULL AND C_Project_ID IS NULL)
+        OR (v_C_Project_ID IS NOT NULL AND C_Project_ID=v_C_Project_ID))
+        AND((v_C_Campaign_ID IS NULL AND C_Campaign_ID IS NULL)
+        OR (v_C_Campaign_ID IS NOT NULL AND C_Campaign_ID=v_C_Campaign_ID))
+        AND((v_C_Activity_ID IS NULL AND C_Activity_ID IS NULL)
+        OR (v_C_Activity_ID IS NOT NULL AND C_Activity_ID=v_C_Activity_ID))
+        AND((v_User1_ID IS NULL AND User1_ID IS NULL)
+        OR (v_User1_ID IS NOT NULL AND User1_ID=v_User1_ID))
+        AND((v_User2_ID IS NULL AND User2_ID IS NULL)
+        OR (v_User2_ID IS NOT NULL AND User2_ID=v_User2_ID))
+        AND IsActive='Y'  -- Y comes after N
+      ORDER BY IsFullyQualified DESC
+      )
+    LOOP
+      --  DBMS_OUTPUT.PUT_LINE('C_ValidCombination_ID=' || e.C_ValidCombination_ID || ', M_Product_ID=' || e.M_Product_ID);
+      IF(FoundValue='N') THEN
+        FoundValue:='Y';
+        IF(p_MustBeFullyQualified='Y' AND Cur_Existing_VC.IsFullyQualified='N') THEN
+          DBMS_OUTPUT.PUT_LINE('Combination found but not fully qualified - ' || Cur_Existing_VC.C_ValidCombination_ID) ;
+          RetValue:=NULL;
+        END IF;
+        RetValue:=Cur_Existing_VC.C_ValidCombination_ID;
+      END IF;
+    END LOOP;
+    -- We found a value
+    IF(FoundValue='Y') THEN
+      p_C_ValidCombination_ID:=RetValue;
+      DBMS_OUTPUT.PUT_LINE('Found Combination' || p_C_ValidCombination_ID) ;
+      RETURN;
+    END IF;
+    -- No Combination found - so create one
+    DBMS_OUTPUT.PUT_LINE('Create new') ;
+    AD_Sequence_Next('C_ValidCombination', v_AD_Client_ID, p_C_ValidCombination_ID) ;
+    v_CreatedBy:=p_CreatedBy;
+    IF(v_CreatedBy IS NULL) THEN
+      v_CreatedBy:=0;
+    END IF;
+    -- Don't catch trigger or integrity errors - let it fail
+    INSERT
+    INTO C_ValidCombination
+      (
+        C_ValidCombination_ID, IsFullyQualified, AD_Client_ID, AD_Org_ID,
+        IsActive, Created, CreatedBy, Updated,
+        UpdatedBy, Alias, C_AcctSchema_ID, Account_ID,
+        M_Product_ID, C_BPartner_ID, AD_OrgTrx_ID, C_LocFrom_ID,
+        C_LocTo_ID, C_SalesRegion_ID, C_Project_ID, C_Campaign_ID,
+        C_Activity_ID, User1_ID, User2_ID
+      )
+      VALUES
+      (
+        p_C_ValidCombination_ID, p_MustBeFullyQualified, v_AD_Client_ID, v_AD_Org_ID,
+         'Y', now(), v_CreatedBy, now(),
+        v_CreatedBy, p_Alias, v_C_AcctSchema_ID, v_Account_ID,
+        v_M_Product_ID, v_C_BPartner_ID, v_AD_OrgTrx_ID, v_C_LocFrom_ID,
+        v_C_LocTo_ID, v_C_SalesRegion_ID, v_C_Project_ID, v_C_Campaign_ID,
+        v_C_Activity_ID, v_User1_ID, v_User2_ID
+      )
+      ;
+    -- Commented by cromero 19102006 COMMIT;
+    -- Read Trigger result (fully qualified)
+    IF(p_MustBeFullyQualified='Y') THEN
+      SELECT IsFullyQualified
+      INTO fullyQualified
+      FROM C_ValidCombination
+      WHERE C_ValidCombination_ID=p_C_ValidCombination_ID;
+      --
+      IF(fullyQualified='N') THEN
+        DBMS_OUTPUT.PUT_LINE('New Combination not fully qualified - ' || p_C_ValidCombination_ID) ;
+        p_C_ValidCombination_ID:=NULL;
+      END IF;
+    END IF;
+END C_VALIDCOMBINATION_GET
+]]></body>
+    </function>
+  </database>

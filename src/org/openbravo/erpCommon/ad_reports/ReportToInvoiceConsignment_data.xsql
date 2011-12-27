@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportToInvoiceConsignmentData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT A.MWAREHOUSE, A.PRODUCTNAME, A.C_PROJECT_ID, SUM(A.MOVEMENTQTY) AS MOVEMENTQTY, 
+      SUM(A.QUANTITYORDER) AS QUANTITYORDER, A.BPARTNERNAME, A.UOMNAME1, A.UOMNAME2, A.CATEGORY,
+      C_PROJECTLINE.PLANNEDPOPRICE,
+	  C_CURRENCY_CONVERT(C_PROJECTLINE.PLANNEDPOPRICE, C_PROJECT.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_PROJECT.DATECONTRACT, C_PROJECT.DATEFINISH, NOW())), NULL, C_PROJECTLINE.AD_CLIENT_ID, C_PROJECTLINE.AD_ORG_ID) AS CONVPLANNEDPOPRICE,       
+      SUM(A.MOVEMENTQTY)*C_PROJECTLINE.PLANNEDPOPRICE AS NETAMT,
+      C_CURRENCY_CONVERT(SUM(A.MOVEMENTQTY)*C_PROJECTLINE.PLANNEDPOPRICE, C_PROJECT.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_PROJECT.DATECONTRACT, C_PROJECT.DATEFINISH, NOW())), NULL, C_PROJECTLINE.AD_CLIENT_ID, C_PROJECTLINE.AD_ORG_ID) AS CONVNETAMT,             
+      C_PROJECT.C_CURRENCY_ID AS TRANSCURRENCYID,
+	  TO_DATE(COALESCE(C_PROJECT.DATECONTRACT, C_PROJECT.DATEFINISH, NOW())) AS TRANSDATE,
+	  C_PROJECTLINE.AD_CLIENT_ID AS TRANSCLIENTID, 
+	  C_PROJECTLINE.AD_ORG_ID AS TRANSORGID,
+	  C_CURRENCY_SYMBOL(C_PROJECT.C_CURRENCY_ID, '0', 'Y') AS TRANSYM,
+	  C_CURRENCY_SYMBOL(?, '0', 'Y') AS CONVSYM,
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM
+      FROM (SELECT M_WAREHOUSE.NAME AS MWAREHOUSE, M_PRODUCT.NAME AS PRODUCTNAME, M_INOUTLINE.MOVEMENTQTY, 
+      M_INOUTLINE.QUANTITYORDER, C_BPARTNER.NAME AS BPARTNERNAME, C_PROJECT.C_PROJECT_ID, 
+      M_PRODUCT.M_PRODUCT_ID, C1.NAME AS UOMNAME1, C2.NAME AS UOMNAME2, M_PRODUCT.M_PRODUCT_CATEGORY_ID AS CATEGORY 
+      FROM M_INOUTLINE left join C_UOM C2 on M_INOUTLINE.C_UOM_ID = C2.C_UOM_ID
+                       left join M_PRODUCT_UOM on M_INOUTLINE.M_PRODUCT_UOM_ID = M_PRODUCT_UOM.M_PRODUCT_UOM_ID
+                       left join C_UOM C1 on M_PRODUCT_UOM.C_UOM_ID = C1.C_UOM_ID,
+           M_LOCATOR, M_WAREHOUSE, M_PRODUCT, C_PROJECT, C_BPARTNER, M_INOUT
+          WHERE M_INOUT.M_INOUT_ID = M_INOUTLINE.M_INOUT_ID
+      AND M_INOUTLINE.M_LOCATOR_ID = M_LOCATOR.M_LOCATOR_ID
+      AND M_LOCATOR.M_WAREHOUSE_ID = M_WAREHOUSE.M_WAREHOUSE_ID
+      AND M_INOUTLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_INOUT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      AND C_PROJECT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND M_INOUT.ISSOTRX = 'Y'
+      AND M_INOUT.AD_CLIENT_ID IN ('1')
+      AND M_INOUT.AD_ORG_ID IN ('1')
+      AND 1=1
+      UNION ALL
+      SELECT M_WAREHOUSE.NAME AS MWAREHOUSE, M_PRODUCT.NAME AS PRODUCTNAME, M_MOVEMENTLINE.MOVEMENTQTY, 
+      M_MOVEMENTLINE.QUANTITYORDER, C_BPARTNER.NAME AS BPARTNERNAEM, C_PROJECT.C_PROJECT_ID, 
+      M_PRODUCT.M_PRODUCT_ID, C1.NAME AS UOMNAME, C2.NAME AS UOMNAME2, M_PRODUCT.M_PRODUCT_CATEGORY_ID AS CATEGORY
+      FROM M_MOVEMENTLINE left join M_PRODUCT_UOM on M_MOVEMENTLINE.M_PRODUCT_UOM_ID = M_PRODUCT_UOM.M_PRODUCT_UOM_ID
+                          left join C_UOM C1 on M_PRODUCT_UOM.C_UOM_ID = C1.C_UOM_ID
+                          left join C_UOM C2 on M_MOVEMENTLINE.C_UOM_ID = C2.C_UOM_ID,
+      M_MOVEMENT, M_LOCATOR, M_WAREHOUSE, M_PRODUCT, C_PROJECT, C_BPARTNER
+      WHERE M_MOVEMENT.M_MOVEMENT_ID = M_MOVEMENTLINE.M_MOVEMENT_ID
+      AND M_MOVEMENTLINE.M_LOCATOR_ID = M_LOCATOR.M_LOCATOR_ID
+      AND M_LOCATOR.M_WAREHOUSE_ID = M_WAREHOUSE.M_WAREHOUSE_ID
+      AND M_MOVEMENTLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_MOVEMENT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      AND C_PROJECT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND M_MOVEMENT.AD_CLIENT_ID IN ('2')
+      AND M_MOVEMENT.AD_ORG_ID IN ('2')
+      AND 2=2) A, C_PROJECTLINE, C_PROJECT
+      WHERE C_PROJECTLINE.C_PROJECT_ID = A.C_PROJECT_ID
+      AND C_PROJECTLINE.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      AND C_PROJECTLINE.M_PRODUCT_ID = A.M_PRODUCT_ID 
+      GROUP BY C_PROJECTLINE.PLANNEDPOPRICE, A.MWAREHOUSE, A.PRODUCTNAME, A.C_PROJECT_ID,
+      A.BPARTNERNAME, A.UOMNAME1, A.UOMNAME2, A.CATEGORY,
+      C_PROJECT.C_CURRENCY_ID, C_PROJECT.DATECONTRACT, C_PROJECT.DATEFINISH, 
+	  C_PROJECTLINE.AD_CLIENT_ID, C_PROJECTLINE.AD_ORG_ID
+      ORDER BY BPARTNERNAME
+     ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_INOUT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND M_INOUT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND M_INOUT.MOVEMENTDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND M_INOUT.MOVEMENTDATE < TO_DATE(?)]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="AND 1=1"><![CDATA[ AND M_WAREHOUSE.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_MOVEMENT.AD_CLIENT_ID IN (" text="'2'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND M_MOVEMENT.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 2=2"><![CDATA[ AND M_MOVEMENT.MOVEMENTDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[ AND M_MOVEMENT.MOVEMENTDATE < TO_DATE(?)]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="AND 2=2"><![CDATA[ AND M_WAREHOUSE.M_WAREHOUSE_ID = ?]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="RequisitionToOrderData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS M_REQUISITIONLINE_ID, '' AS REQQTY, '' AS MATCHEDQTY, '' AS QTYTOORDER, 
+          '' AS M_PRICELIST_ID, '' AS NEEDBYDATE, '' AS PRICELIST, '' AS PRICE,
+          '' AS M_PRODUCT_ID, '' AS M_ATTRIBUTESETINSTANCE_ID, '' AS VENDOR_ID, '' AS VENDOR, 
+          '' AS PRODUCT, '' AS ATTRIBUTE, ''  AS REQUESTER, '' AS PRICELISTID, '' AS VENDORPRICELIST,
+          '' AS LOCKEDBY, '' AS LOCKQTY, '' AS LOCKPRICE, '' AS AD_ORG_ID, '' AS ORG, 
+          '' AS InvoiceRule, '' AS DeliveryRule, '' AS FreightCostRule, '' AS DeliveryViaRule,
+          '' AS PaymentRulePO, '' AS PO_PaymentTerm_ID, '' AS DESCRIPTION, '' AS C_UOM_ID, '' AS QUANTITYORDER, '' AS M_PRODUCT_UOM_ID,
+          '' AS PRICELIMIT, '' AS PRICEACTUAL, '' AS DISCOUNT, '' AS TAX, '' AS C_ORDERLINE_ID,
+          '' AS PADRE, '' AS ID, '' AS NAME, '' AS PRICESTD, '' AS TO_CLOSE, '' AS UOMNAME, '' AS SECUOMNAME, '' AS PO_PAYMENTMETHOD_ID
+        FROM DUAL
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_REQUISITIONLINE_ID, M_REQUISITIONLINE.NEEDBYDATE,
+          M_REQUISITIONLINE.QTY - M_REQUISITIONLINE.ORDEREDQTY AS QTYTOORDER,
+          QUANTITYORDER, C_UOM1.NAME AS SECUOMNAME, C_UOM.NAME AS UOMNAME,
+          M_REQUISITIONLINE.PRICEACTUAL AS PRICE,
+          AD_COLUMN_IDENTIFIER(to_char('C_BPartner'), to_char(COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID)), ?) AS VENDOR,
+          AD_COLUMN_IDENTIFIER(to_char('M_PriceList'), to_char(COALESCE(M_REQUISITIONLINE.M_PRICELIST_ID, M_REQUISITION.M_PRICELIST_ID)), ?) AS PRICELISTID,
+          AD_COLUMN_IDENTIFIER(to_char('M_Product'), to_char(M_REQUISITIONLINE.M_PRODUCT_ID), ?) AS PRODUCT,
+          AD_COLUMN_IDENTIFIER(to_char('M_AttributeSetInstance'), to_char(M_REQUISITIONLINE.M_ATTRIBUTESETINSTANCE_ID), ?) AS ATTRIBUTE,
+          AD_COLUMN_IDENTIFIER(to_char('AD_User'), to_char(M_REQUISITION.AD_USER_ID), ?) AS REQUESTER
+        FROM M_REQUISITIONLINE LEFT JOIN C_UOM ON C_UOM.C_UOM_ID = M_REQUISITIONLINE.C_UOM_ID
+                               LEFT JOIN M_PRODUCT_UOM ON M_PRODUCT_UOM.M_PRODUCT_UOM_ID = M_REQUISITIONLINE.M_PRODUCT_UOM_ID
+                               LEFT JOIN C_UOM C_UOM1 ON M_PRODUCT_UOM.C_UOM_ID = C_UOM1.C_UOM_ID, 
+             M_REQUISITION
+        WHERE M_REQUISITIONLINE.M_REQUISITION_ID = M_REQUISITION.M_REQUISITION_ID
+          AND M_REQUISITION.ISACTIVE = 'Y'
+          AND M_REQUISITIONLINE.ISACTIVE = 'Y'
+          AND M_REQUISITION.DOCSTATUS = 'CO'
+          AND M_REQUISITIONLINE.REQSTATUS = 'O'
+          AND (M_REQUISITIONLINE.LOCKEDBY IS NULL OR COALESCE (M_REQUISITIONLINE.LOCKDATE, TO_DATE('01-01-1900', 'DD-MM-YYYY')) < (now()-3))
+          AND M_REQUISITION.AD_CLIENT_ID IN ('1')
+          AND M_REQUISITIONLINE.AD_ORG_ID IN ('1')
+          AND 1=1
+        ORDER BY M_REQUISITIONLINE.NEEDBYDATE, M_REQUISITIONLINE.M_PRODUCT_ID, M_REQUISITIONLINE.M_ATTRIBUTESETINSTANCE_ID
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_REQUISITION.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND M_REQUISITIONLINE.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND M_REQUISITIONLINE.NEEDBYDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND M_REQUISITIONLINE.NEEDBYDATE < TO_DATE(?)]]></Parameter>
+    <Parameter name="parProduct" optional="true" after="AND 1=1"><![CDATA[ AND M_REQUISITIONLINE.M_PRODUCT_ID = TO_CHAR(?)]]></Parameter>
+    <Parameter name="parRequester" optional="true" after="AND 1=1"><![CDATA[ AND M_REQUISITION.AD_USER_ID = TO_CHAR(?)]]></Parameter>
+    <Parameter name="parVendorInc" optional="true" after="AND 1=1"><![CDATA[ AND (COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID,'-1') = TO_CHAR(?) OR (M_REQUISITIONLINE.C_BPARTNER_ID IS NULL AND M_REQUISITION.C_BPARTNER_ID IS NULL))]]></Parameter>
+    <Parameter name="parVendor" optional="true" after="AND 1=1"><![CDATA[ AND COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID,'-1') = TO_CHAR(?)]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectSelected" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_REQUISITIONLINE.M_REQUISITIONLINE_ID, M_REQUISITIONLINE.NEEDBYDATE, M_REQUISITIONLINE.QTY AS REQQTY,
+          M_REQUISITIONLINE.ORDEREDQTY AS MATCHEDQTY, M_REQUISITIONLINE.PRICELIST,
+          COALESCE(LOCKQTY, QTY-ORDEREDQTY) AS LOCKQTY,
+          QUANTITYORDER, C_UOM1.NAME AS SECUOMNAME, C_UOM.NAME AS UOMNAME,
+          COALESCE(LOCKPRICE, PRICEACTUAL) AS LOCKPRICE,
+          COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID, '-1') AS VENDOR_ID,
+          COALESCE(M_REQUISITIONLINE.M_PRICELIST_ID, M_REQUISITION.M_PRICELIST_ID, '-1') AS M_PRICELIST_ID,
+          AD_COLUMN_IDENTIFIER(to_char('C_BPartner'), to_char(COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID)), ?) AS VENDOR,
+          AD_COLUMN_IDENTIFIER(to_char('M_Product'), to_char(M_REQUISITIONLINE.M_PRODUCT_ID), ?) AS PRODUCT,
+          AD_COLUMN_IDENTIFIER(to_char('M_AttributeSetInstance'), to_char(M_REQUISITIONLINE.M_ATTRIBUTESETINSTANCE_ID), ?) AS ATTRIBUTE,
+          AD_COLUMN_IDENTIFIER(to_char('M_PriceList'), to_char(COALESCE(M_REQUISITIONLINE.M_PRICELIST_ID, M_REQUISITION.M_PRICELIST_ID)), ?) AS PRICELISTID
+        FROM M_REQUISITION, M_REQUISITIONLINE LEFT JOIN C_UOM ON C_UOM.C_UOM_ID = M_REQUISITIONLINE.C_UOM_ID
+                                              LEFT JOIN M_PRODUCT_UOM ON M_PRODUCT_UOM.M_PRODUCT_UOM_ID = M_REQUISITIONLINE.M_PRODUCT_UOM_ID
+                                              LEFT JOIN C_UOM C_UOM1 ON M_PRODUCT_UOM.C_UOM_ID = C_UOM1.C_UOM_ID
+        WHERE M_REQUISITION.M_REQUISITION_ID = M_REQUISITIONLINE.M_REQUISITION_ID
+          AND M_REQUISITION.ISACTIVE = 'Y'
+          AND M_REQUISITIONLINE.ISACTIVE = 'Y'
+          AND M_REQUISITION.DOCSTATUS = 'CO'
+          AND M_REQUISITIONLINE.REQSTATUS = 'O'
+          AND M_REQUISITIONLINE.LOCKEDBY = ?
+          AND M_REQUISITIONLINE.LOCKDATE >= (now()-3)
+          AND M_REQUISITION.AD_CLIENT_ID IN ('1')
+          AND M_REQUISITIONLINE.AD_ORG_ID IN ('1')
+        ORDER BY VENDOR_ID, M_PRICELIST_ID
+        ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_REQUISITION.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND M_REQUISITIONLINE.AD_ORG_ID IN (" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="linesToOrder" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_REQUISITIONLINE.M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID, LOCKQTY, DESCRIPTION, C_UOM_ID, QUANTITYORDER, M_PRODUCT_UOM_ID,
+          M_REQUISITIONLINE_ID, '' AS C_ORDERLINE_ID,
+          COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE) AS PRICELIST,
+          COALESCE(M_PRODUCTPRICE.PRICELIMIT, LOCKPRICE) AS PRICELIMIT,
+          COALESCE(M_PRODUCTPRICE.PRICESTD, LOCKPRICE) AS PRICESTD,
+          ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD),(SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) AS PRICEACTUAL,
+          CASE WHEN COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE) = 0 THEN 0 ELSE
+          ROUND((COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE) - COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD))/
+                   COALESCE(M_PRODUCTPRICE.PRICELIST, M_REQUISITIONLINE.PRICELIST, LOCKPRICE)*100,
+                (SELECT STDPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?)) END AS DISCOUNT,
+          C_GetTax(M_REQUISITIONLINE.M_PRODUCT_ID, to_date(?), ?, ?, ?, ?, null, 'N') AS TAX,
+          CASE WHEN LOCKQTY < (M_REQUISITIONLINE.QTY - M_REQUISITIONLINE.ORDEREDQTY) THEN 'N' ELSE 'Y' END AS TO_CLOSE
+        FROM M_REQUISITIONLINE LEFT JOIN M_PRODUCTPRICE
+                                         ON M_REQUISITIONLINE.M_PRODUCT_ID = M_PRODUCTPRICE.M_PRODUCT_ID
+                                            AND M_PRODUCTPRICE.M_PRICELIST_VERSION_ID = ?
+        WHERE 1=1
+        ORDER BY M_REQUISITIONLINE.M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID, SUPPLIERNOTES, 
+                 ROUND(COALESCE(LOCKPRICE, M_PRODUCTPRICE.PRICESTD),(SELECT PRICEPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = ?))
+        ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="currency"/>
+    <Parameter name="currency"/>
+    <Parameter name="orderdate"/>
+    <Parameter name="org"/>
+    <Parameter name="warehouse"/>
+    <Parameter name="billto"/>
+    <Parameter name="shipto"/>
+    <Parameter name="pricelistversion"/>
+    <Parameter name="parRequisitionLines" optional="true" type="argument" after="WHERE 1=1" text=" AND M_RequisitionLine_ID IN"/>
+    <Parameter name="currency"/>
+  </SqlMethod>
+  <SqlMethod name="selectVendor" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT DISTINCT COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID) AS VENDOR_ID
+      FROM M_REQUISITIONLINE, M_REQUISITION
+      WHERE M_REQUISITION.M_REQUISITION_ID = M_REQUISITIONLINE.M_REQUISITION_ID
+        AND COALESCE(M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID) IS NOT NULL
+        AND 1=1
+      ]]></Sql>
+    <Parameter name="parRequisitionLines" optional="true" type="argument" after="AND 1=1" text="AND M_RequisitionLine_ID IN"/>
+  </SqlMethod>
+  <SqlMethod name="selectPriceList" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DISTINCT COALESCE(M_REQUISITIONLINE.M_PRICELIST_ID, M_REQUISITION.M_PRICELIST_ID) AS M_PRICELIST_ID,
+          AD_COLUMN_IDENTIFIER(to_char('M_PriceList'), to_char(COALESCE(M_REQUISITIONLINE.M_PRICELIST_ID, M_REQUISITION.M_PRICELIST_ID)), ?) AS PRICELISTID
+        FROM M_REQUISITIONLINE, M_REQUISITION
+        WHERE M_REQUISITION.M_REQUISITION_ID = M_REQUISITIONLINE.M_REQUISITION_ID
+          AND 1=1
+          ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="parRequisitionLines" optional="true" type="argument" after="AND 1=1" text="AND M_RequisitionLine_ID IN"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrg" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DISTINCT AD_ORG_ID,
+          AD_COLUMN_IDENTIFIER(to_char('AD_Org'), to_char(AD_ORG_ID), ?) AS ORG
+        FROM M_REQUISITIONLINE
+        WHERE 1=1
+          ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="parRequisitionLines" optional="true" type="argument" after="WHERE 1=1" text="AND M_RequisitionLine_ID IN"/>
+  </SqlMethod>
+  <SqlMethod name="selectNoPrice" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DISTINCT M_PRODUCT_ID,
+          AD_COLUMN_IDENTIFIER(to_char('M_Product'), to_char(M_REQUISITIONLINE.M_PRODUCT_ID), ?) AS PRODUCT
+        FROM M_REQUISITIONLINE
+        WHERE NOT EXISTS ( SELECT 1 FROM M_PRODUCTPRICE
+                           WHERE M_REQUISITIONLINE.M_PRODUCT_ID = M_PRODUCTPRICE.M_PRODUCT_ID
+                           AND M_PRODUCTPRICE.M_PRICELIST_VERSION_ID = ? )
+          AND LOCKPRICE IS NULL
+          AND 1=1
+          ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="pricelistversion"/>
+    <Parameter name="parRequisitionLines" optional="true" type="argument" after="AND 1=1" text=" AND M_RequisitionLine_ID IN"/>
+  </SqlMethod>
+  <SqlMethod name="selectWarehouseDouble" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_ORG.AD_ORG_ID AS PADRE, M_WAREHOUSE.M_WAREHOUSE_ID AS ID, M_WAREHOUSE.NAME AS NAME
+        FROM M_WAREHOUSE, AD_ORG
+        WHERE AD_ISORGINCLUDED(AD_ORG.AD_ORG_ID, M_WAREHOUSE.AD_ORG_ID, ?) <> -1
+          AND AD_ORG.AD_ORG_ID IN ('1')
+          AND M_WAREHOUSE.AD_CLIENT_ID IN ('1')
+        ORDER BY PADRE, NAME
+      ]]></Sql>
+    <Parameter name="clientid"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND AD_ORG.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adclient" optional="true" type="replace" after="AND M_WAREHOUSE.AD_CLIENT_ID IN (" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="selectVendorData" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT p.InvoiceRule, p.DeliveryRule, DeliveryViaRule,
+        p.PaymentRulePO, p.PO_PaymentTerm_ID, p.PO_PaymentMethod_ID
+      FROM C_BPartner p
+      WHERE p.C_BPartner_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="bPartnerDescription" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN_IDENTIFIER(to_char('C_BPartner'), to_char(?), to_char(?)) AS VENDOR
+        FROM DUAL
+        ]]></Sql>
+    <Parameter name="partnerid"/>
+    <Parameter name="language"/>
+  </SqlMethod>
+  <SqlMethod name="mProductDescription" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN_IDENTIFIER(to_char('M_Product'), to_char(?), to_char(?)) AS PRODUCT
+        FROM DUAL
+        ]]></Sql>
+    <Parameter name="productid"/>
+    <Parameter name="language"/>
+  </SqlMethod>
+  <SqlMethod name="getPricelistVersion" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_GET_PRICELIST_VERSION(?, to_date(?)) AS PRICELISTID
+        FROM DUAL
+        ]]></Sql>
+    <Parameter name="pricelist"/>
+    <Parameter name="orderdate"/>
+  </SqlMethod>
+  <SqlMethod name="treeOrg" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_TREE_ORG_ID FROM AD_CLIENTINFO
+        WHERE AD_CLIENT_ID = ?
+        ]]></Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="cDoctypeTarget" type="preparedStatement" connection="true" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_GET_DOCTYPE(?, ?, 'POO', null) FROM DUAL
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  <SqlMethod name="cBPartnerLocationId" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) FROM C_BPARTNER_LOCATION
+        WHERE C_BPARTNER_ID = ?
+        AND C_BPartner_Location.IsActive='Y'
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="billto" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MAX(C_BPARTNER_LOCATION_ID) FROM C_BPARTNER_LOCATION
+        WHERE  C_BPartner_Location.IsBillTo='Y'
+        AND C_BPartner_Location.IsActive='Y'
+        AND C_BPARTNER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectCurrency" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_CURRENCY_ID
+        FROM M_PRICELIST
+        WHERE  M_PRICELIST_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="mPricelistId"/>
+  </SqlMethod>
+  <SqlMethod name="unlock" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE M_REQUISITIONLINE
+        SET LOCKEDBY = null,
+            LOCKPRICE = null,
+            LOCKQTY = null,
+            LOCKDATE = null,
+            LOCKCAUSE = null
+        WHERE M_REQUISITIONLINE_ID IN ('1')
+      ]]>
+    </Sql>
+    <Parameter name="requisitionlines" type="replace" optional="true" after="M_REQUISITIONLINE_ID IN " text="('1')"/>
+  </SqlMethod>
+  <SqlMethod name="lock" type="preparedStatement"  return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE M_REQUISITIONLINE
+        SET LOCKEDBY = ?,
+            LOCKDATE = now(),
+            LOCKQTY = null,
+            LOCKPRICE = null,
+            LOCKCAUSE = 'M'
+        WHERE M_REQUISITIONLINE_ID IN ('1')
+      ]]>
+    </Sql>
+    <Parameter name="userId"/>
+    <Parameter name="requisitionlines" type="replace" optional="true" after="M_REQUISITIONLINE_ID IN " text="('1')"/>
+  </SqlMethod>
+  <SqlMethod name="updateLock" type="preparedStatement"  return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE M_REQUISITIONLINE
+        SET LOCKQTY = to_number(?),
+            LOCKPRICE = to_number(?)
+        WHERE M_REQUISITIONLINE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="lockQty"/>
+    <Parameter name="lockPrice"/>
+    <Parameter name="mRequisitionLineId"/>
+  </SqlMethod>
+  <SqlMethod name="insertCOrder" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_ORDER (C_ORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, DOCUMENTNO,
+        DOCSTATUS, DOCACTION, C_DOCTYPE_ID, C_DOCTYPETARGET_ID,
+        DATEORDERED, DATEPROMISED, DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, BILLTO_ID, C_CURRENCY_ID, 
+        PAYMENTRULE, C_PAYMENTTERM_ID, INVOICERULE, DELIVERYRULE, FREIGHTCOSTRULE, 
+        DELIVERYVIARULE, M_WAREHOUSE_ID, M_PRICELIST_ID, 
+        C_PROJECT_ID, C_ACTIVITY_ID, C_CAMPAIGN_ID, PRIORITYRULE, ISSOTRX,
+        FIN_PAYMENTMETHOD_ID)
+        VALUES (?,?,?,now(),?,now(),?,?,?,?,?,?,TO_DATE(?),TO_DATE(?),TO_DATE(?),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'5', 'N',
+        ?)
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="documentNo"/>
+    <Parameter name="docStatus"/>
+    <Parameter name="docAction"/>
+    <Parameter name="cDoctypeId"/>
+    <Parameter name="cDoctypetargetId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="datepromised"/>
+    <Parameter name="dateacct"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cBpartnerLocationId"/>
+    <Parameter name="billtoId"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="paymentrule"/>
+    <Parameter name="cPaymenttermId"/>
+    <Parameter name="invoicerule"/>
+    <Parameter name="deliveryrule"/>
+    <Parameter name="freightcostrule"/>
+    <Parameter name="deliveryviarule"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="mPricelistId"/>
+    <Parameter name="cProjectId"/>
+    <Parameter name="cActivityId"/>
+    <Parameter name="cCampaignId"/>
+    <Parameter name="finPaymentMethodId"/>
+  </SqlMethod>
+  <SqlMethod name="insertCOrderline" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_ORDERLINE (C_ORDERLINE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ORDER_ID, LINE, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, DATEORDERED, DATEPROMISED, 
+        DESCRIPTION, M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE_ID,
+        M_WAREHOUSE_ID, M_PRODUCT_UOM_ID, C_UOM_ID, QUANTITYORDER, QTYORDERED, C_CURRENCY_ID, 
+        PRICELIST, 
+        PRICEACTUAL, 
+        PRICELIMIT, C_TAX_ID, S_RESOURCEASSIGNMENT_ID, DISCOUNT, 
+        PRICESTD) 
+        VALUES (?,?,?,now(),?,now(),?,
+        ?,TO_NUMBER(?),?,?,TO_DATE(?),TO_DATE(?),
+        ?,?,?,
+        ?, ?, ?,TO_NUMBER(?),TO_NUMBER(?),?,
+        TO_NUMBER(?), 
+        M_GET_OFFERS_PRICE(to_date(now()),?,?,TO_NUMBER(?),TO_NUMBER(?),?),
+        TO_NUMBER(?), ?, ?,TO_NUMBER(?), 
+        TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="cOrderlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="cOrderId"/>
+    <Parameter name="line"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="cBpartnerLocationId"/>
+    <Parameter name="dateordered"/>
+    <Parameter name="datepromised"/>
+    <Parameter name="description"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="mAttributeSetInstanceId"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="mProductUomId"/>
+    <Parameter name="cUomId"/>
+    <Parameter name="quantityorder"/>
+    <Parameter name="qtyordered"/>
+    <Parameter name="cCurrencyId"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="priceactual"/>
+    <Parameter name="qtyordered"/>
+    <Parameter name="pricelistid"/>
+    <Parameter name="pricelimit"/>
+    <Parameter name="cTaxId"/>
+    <Parameter name="sResourceassignmentId"/>
+    <Parameter name="discount"/>
+    <Parameter name="priceactual"/>
+  </SqlMethod>
+  <SqlMethod name="insertRequisitionOrder" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO M_REQUISITIONORDER (M_REQUISITIONORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISACTIVE,
+        M_REQUISITIONLINE_ID, C_ORDERLINE_ID, QTY)
+        VALUES (?,?,?,now(),?,now(),?,'Y',
+        ?,?,TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="mRequisitionOrderId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="mRequisitionLineId"/>
+    <Parameter name="cOrderLineId"/>
+    <Parameter name="qty"/>
+  </SqlMethod>
+  <SqlMethod name="cOrderPost0" connection="true" type="callableStatement" return="object" object="RequisitionToOrderData">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        CALL C_Order_Post(?)
+      ]]></Sql>
+      <Parameter name="adPinstanceId"></Parameter>
+   </SqlMethod>
+  <SqlMethod name="requisitionStatus" connection="true" type="callableStatement" return="object" object="RequisitionToOrderData">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        CALL M_RequisitionLine_Status(null, ?, ?)
+      ]]></Sql>
+      <Parameter name="requisitionLineId"></Parameter>
+      <Parameter name="userId"></Parameter>
+   </SqlMethod>
+</SqlClass>

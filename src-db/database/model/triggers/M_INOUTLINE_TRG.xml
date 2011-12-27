@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_INOUTLINE_TRG">
+    <trigger name="M_INOUTLINE_TRG" table="M_INOUTLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+  v_ID          varchar2(32);
+  v_RO    NUMBER;
+  v_movementtype  VARCHAR2(2);
+  v_qty    NUMBER;
+  v_qtyorder   NUMBER;
+  v_qtyold   NUMBER;
+  v_qtyorderold  NUMBER;
+  v_MatchInvCount  NUMBER;
+  v_STOCKED   NUMBER;
+  v_UOM_ID    varchar2(32);
+  v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+  V_COUNT  NUMBER;
+  v_ISSOTRX CHAR(1);
+/******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP &  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************/
+     
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+ IF (INSERTING) THEN
+  IF (:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+     SELECT C_UOM_ID INTO v_UOM_ID FROM M_PRODUCT WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+     IF (COALESCE(v_UOM_ID,'0') <> COALESCE(:NEW.C_UOM_ID,'0')) THEN
+       IF (:NEW.C_ORDERLINE_ID IS NOT NULL) THEN
+         SELECT C_UOM_ID INTO v_UOM_ID FROM C_ORDERLINE WHERE C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID;
+           IF (COALESCE(v_UOM_ID,'0') <> COALESCE(:NEW.C_UOM_ID,'0')) THEN
+             RAISE_APPLICATION_ERROR(-20111, 'Unit of Measure mismatch (product/transaction)');
+           END IF;
+       ELSE
+         RAISE_APPLICATION_ERROR(-20111, 'Unit of Measure mismatch (product/transaction)');
+       END IF;
+     END IF;
+  END IF;
+ END IF;
+
+ IF (UPDATING OR INSERTING) THEN
+  v_ID := :new.M_InOut_ID;
+
+  SELECT MOVEMENTTYPE INTO v_movementtype
+     FROM M_INOUT
+     WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+     IF v_movementtype = 'C-' THEN
+        v_qty := -:NEW.MOVEMENTQTY;
+        v_qtyorder := -:NEW.QUANTITYORDER;
+     ELSE
+         v_qty := :NEW.MOVEMENTQTY;
+         v_qtyorder := :NEW.QUANTITYORDER;
+     END IF;
+
+   SELECT ISSOTRX INTO v_ISSOTRX
+   FROM M_INOUT
+   WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+
+   IF (v_ISSOTRX = 'Y' AND :NEW.C_ORDERLINE_ID IS NOT NULL) THEN
+      SELECT COUNT(*) INTO V_COUNT FROM C_ORDERLINE ol 
+      WHERE ol.C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID 
+      AND ABS(:NEW.MOVEMENTQTY) > ABS(ol.QTYORDERED);
+          IF(V_COUNT <> 0) THEN
+	    RAISE_APPLICATION_ERROR(-20000, '@MovementQtyCheck@');
+	  END IF;
+   END IF;
+ END IF;  
+
+ IF (UPDATING) THEN
+  IF (COALESCE(:OLD.C_UOM_ID, '0') <> COALESCE(:NEW.C_UOM_ID, '0')) THEN
+    IF (:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+      SELECT C_UOM_ID INTO v_UOM_ID FROM M_PRODUCT WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+      IF (COALESCE(v_UOM_ID,'0') <> COALESCE(:NEW.C_UOM_ID,'0')) THEN
+        IF (:NEW.C_ORDERLINE_ID IS NOT NULL) THEN
+          SELECT C_UOM_ID INTO v_UOM_ID FROM C_ORDERLINE WHERE C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID;
+            IF (COALESCE(v_UOM_ID,'0') <> COALESCE(:NEW.C_UOM_ID,'0')) THEN
+              RAISE_APPLICATION_ERROR(-20111, 'Unit of Measure mismatch (product/transaction)');
+            END IF;
+        ELSE
+          RAISE_APPLICATION_ERROR(-20111, 'Unit of Measure mismatch (product/transaction)');
+        END IF;
+      END IF;
+  END IF;
+ END IF;
+   v_ID := :new.M_InOut_ID;
+
+   SELECT MOVEMENTTYPE INTO v_movementtype
+     FROM M_INOUT
+     WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
+     IF v_movementtype = 'C-' THEN
+           v_qty := -:NEW.MOVEMENTQTY;
+         v_qtyorder := -:NEW.QUANTITYORDER;
+        ELSE
+           v_qty := :NEW.MOVEMENTQTY;
+           v_qtyorder := :NEW.QUANTITYORDER;
+     END IF;
+
+     SELECT COUNT(*) INTO v_MatchInvCount
+     FROM M_MATCHINV MI
+     WHERE MI.QTY = :OLD.MOVEMENTQTY
+       AND MI.M_INOUTLINE_ID = :NEW.M_INOUTLINE_ID;
+     IF (:OLD.MOVEMENTQTY <> :NEW.MOVEMENTQTY AND v_MatchInvCount=1) THEN
+       UPDATE M_MATCHINV SET QTY=:NEW.MOVEMENTQTY
+       WHERE QTY = :OLD.MOVEMENTQTY
+         AND M_INOUTLINE_ID = :NEW.M_INOUTLINE_ID;
+     END IF;
+
+ END IF;
+
+
+ IF UPDATING OR DELETING THEN
+     v_ID := :old.M_InOut_ID;
+  SELECT MOVEMENTTYPE INTO v_movementtype
+  FROM M_INOUT
+  WHERE M_INOUT_ID = :OLD.M_INOUT_ID;
+  IF v_movementtype = 'C-' THEN
+       v_qtyold := :OLD.MOVEMENTQTY;
+     v_qtyorderold := :OLD.QUANTITYORDER;
+    ELSE
+       v_qtyold := -:OLD.MOVEMENTQTY;
+     v_qtyorderold := -:OLD.QUANTITYORDER;
+    END IF;
+ END IF;
+
+ -- ReadOnly Check
+ SELECT  COUNT(*)
+   INTO v_RO
+ FROM M_InOut
+ WHERE M_InOut_ID=v_ID
+   AND (Processed='Y' OR Posted='Y');
+ IF (v_RO > 0) THEN
+  IF (INSERTING OR DELETING) THEN
+   RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+  ELSIF (:new.M_Product_ID<>:old.M_Product_ID OR :new.MovementQty<>:old.MovementQty
+  OR COALESCE(:new.M_AttributeSetInstance_ID, '0') <> COALESCE(:old.M_AttributeSetInstance_ID, '0')
+  OR COALESCE(:new.M_Locator_ID,'-1') <> COALESCE(:old.M_Locator_ID,'-1'))
+ THEN
+  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+   END IF;
+ END IF;
+
+ 
+ -- UPDATING inventory
+ IF (UPDATING OR DELETING) THEN
+    IF (:old.M_PRODUCT_ID IS NOT NULL AND :OLD.M_LOCATOR_ID IS NOT NULL) THEN
+   SELECT COUNT(*) INTO V_STOCKED
+  FROM M_PRODUCT
+  WHERE M_Product_ID=:OLD.M_PRODUCT_ID
+  AND IsStocked = 'Y' AND ProductType = 'I';
+   IF V_STOCKED > 0 THEN
+       M_UPDATE_INVENTORY(:OLD.AD_CLIENT_ID, :OLD.AD_ORG_ID, :OLD.UPDATEDBY, :OLD.M_PRODUCT_ID, :OLD.M_LOCATOR_ID,
+    :OLD.M_ATTRIBUTESETINSTANCE_ID, :OLD.C_UOM_ID,
+       :OLD.M_PRODUCT_UOM_ID, NULL, NULL, NULL, v_qtyold, v_qtyorderold);
+   END IF;
+    END IF;
+  END IF;
+ IF (INSERTING OR UPDATING) THEN
+   IF (:NEW.M_PRODUCT_ID IS NOT NULL AND :NEW.M_LOCATOR_ID IS NOT NULL) THEN
+   SELECT COUNT(*) INTO V_STOCKED
+  FROM M_PRODUCT
+  WHERE M_Product_ID=:NEW.M_PRODUCT_ID
+  AND IsStocked = 'Y' AND ProductType = 'I';
+   IF V_STOCKED > 0 THEN
+       M_UPDATE_INVENTORY(:NEW.AD_CLIENT_ID, :NEW.AD_ORG_ID, :NEW.UPDATEDBY, :NEW.M_PRODUCT_ID, :NEW.M_LOCATOR_ID,
+    :NEW.M_ATTRIBUTESETINSTANCE_ID, :NEW.C_UOM_ID,
+       :NEW.M_PRODUCT_UOM_ID, NULL, NULL, NULL, v_qty, v_qtyorder);
+   END IF;
+    END IF;
+  END IF;
+  IF (INSERTING OR UPDATING) THEN
+   --Does not allow to change the attribute set value
+   -- for products which attribute set value type is Fixed
+   IF (:NEW.M_PRODUCT_ID IS NOT NULL AND COALESCE(:new.M_AttributeSetInstance_ID,'0')!='0') THEN
+    SELECT ATTRSETVALUETYPE 
+    INTO v_AttrSetValueType
+    FROM M_PRODUCT 
+    WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+    IF (v_AttrSetValueType='F') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@AttrSetValueFixed@');
+    END IF;
+   END IF;
+  END IF;
+END M_INOUTLINE_TRG
+]]></body>
+    </trigger>
+  </database>

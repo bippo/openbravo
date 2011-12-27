@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="EmailData" package="org.openbravo.erpCommon.utility.reporting.printing">
+   <SqlClassComment></SqlClassComment>
+   
+   <SqlMethod name="getEmail" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		select			
+			C_POC_EMAIL_ID, 
+			AD_CLIENT_ID ,
+			AD_ORG_ID ,
+			ISACTIVE ,
+			CREATED ,
+			CREATEDBY, 
+			UPDATED ,
+			UPDATEDBY, 
+			
+			EMAIL_TYPE,
+			ADDRESS_FROM ,
+			ADDRESS_TO ,
+			ADDRESS_CC ,
+			ADDRESS_BCC ,
+			DATEOFEMAIL, 
+			SUBJECT ,
+			BODY ,
+			C_BPARTNER_ID
+		from
+			C_POC_EMAIL
+		where
+			1=1
+        ]]>
+        </Sql>
+        <Parameter name="emailId" optional="false" type="argument" after="1=1">
+           <![CDATA[ and C_POC_EMAIL.C_POC_EMAIL_ID in ]]>
+        </Parameter>
+   </SqlMethod>
+      
+   <SqlMethod name="insertEmail" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        INSERT INTO
+        	C_POC_EMAIL
+        	(
+				C_POC_EMAIL_ID, 
+				AD_CLIENT_ID ,
+				AD_ORG_ID ,
+				ISACTIVE ,
+				CREATED ,
+				CREATEDBY, 
+				UPDATED ,
+				UPDATEDBY, 
+
+				EMAIL_TYPE,
+				ADDRESS_FROM ,
+				ADDRESS_TO ,
+				ADDRESS_CC ,
+				ADDRESS_BCC ,
+				DATEOFEMAIL, 
+				SUBJECT ,
+				BODY ,
+				C_BPARTNER_ID
+        	)
+        	VALUES
+        	(
+        		?,
+        		?,
+        		?, 
+        		'Y', 
+        		now(), 
+        		?,
+				now(),
+				?,
+				
+				?,
+				?,
+				?,
+				?,
+				?,
+				TO_DATE(?, 'YYYYMMDDHH24MISS'),
+				?,
+				?,
+				?
+			)
+      ]]></Sql>
+        <Parameter name="bmPocEmailId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="adUserId"/>
+        
+        <Parameter name="type"/>
+        <Parameter name="from"/>
+        <Parameter name="to"/>
+        <Parameter name="cc"/>
+        <Parameter name="bcc"/>
+        <Parameter name="dateOfEmail"/>
+        <Parameter name="subject"/>
+        <Parameter name="body"/>
+        <Parameter name="cBpartnerId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="insertEmailUser" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        INSERT INTO
+        	C_POC_EMAIL_USER
+        	(
+				C_POC_EMAIL_USER_ID, 
+				AD_CLIENT_ID ,
+				AD_ORG_ID ,
+				ISACTIVE ,
+				CREATED ,
+				CREATEDBY, 
+				UPDATED ,
+				UPDATEDBY, 
+
+				ADDRESS_TYPE,
+				C_POC_EMAIL_ID ,
+				AD_USER_ID
+        	)
+        	VALUES
+        	(
+        		TO_NUMBER(?),
+        		TO_NUMBER(?),
+        		TO_NUMBER(?), 
+        		'Y', 
+        		now(), 
+        		TO_NUMBER(?),
+				now(),
+				TO_NUMBER(?),
+				
+				TO_NUMBER(?),
+				TO_NUMBER(?),
+				TO_NUMBER(?)
+			)
+      ]]></Sql>
+        <Parameter name="bmPocEmailUserId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="adUserId"/>
+        
+        <Parameter name="type"/>
+        <Parameter name="bmPocEmailId"/>
+        <Parameter name="email_adUserId"/>
+   </SqlMethod>   
+
+   <SqlMethod name="getSenderAddress" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        select
+            C_poc_configuration.smtpServerSenderAddress
+        from
+            C_poc_configuration
+        where
+            C_poc_configuration.ad_client_id = ? AND
+            (C_poc_configuration.ad_org_id = ? OR C_poc_configuration.ad_org_id = '0') AND
+            C_poc_configuration.isActive = 'Y'
+        ]]>
+        </Sql>
+        <Parameter name="adClientId" />
+        <Parameter name="adOrgId" />
+   </SqlMethod>
+
+</SqlClass>

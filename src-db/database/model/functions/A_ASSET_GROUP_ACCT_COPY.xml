@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION A_ASSET_GROUP_ACCT_COPY">
+    <function name="A_ASSET_GROUP_ACCT_COPY" type="NULL">
+      <parameter name="pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --
+    v_A_Asset_Group_ID VARCHAR2(32);
+    v_C_Acctschema_ID VARCHAR2(32);
+    Cur_Acct RECORD;
+    --
+    v_Updated NUMBER:=0;
+    v_Created NUMBER:=0;
+    v_Updated_Total NUMBER:=0;
+    v_Created_Total NUMBER:=0;
+    rowcount NUMBER;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      IF(Cur_Parameter.ParameterName='A_Asset_Group_ID') THEN
+        v_A_Asset_Group_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  A_Asset_Group_ID=' || v_A_Asset_Group_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='C_AcctSchema_ID') THEN
+        v_C_Acctschema_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_AcctSchema_ID=' || v_C_Acctschema_ID) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    /**
+    * For all Accounting Schema of the Category
+    */
+    FOR Cur_Acct IN
+      (SELECT *
+      FROM A_Asset_Group_Acct
+      WHERE A_Asset_Group_ID=v_A_Asset_Group_ID
+      AND (A_Asset_Group_Acct.C_ACCTSCHEMA_ID = v_C_Acctschema_ID OR v_C_Acctschema_ID IS NULL)
+          AND EXISTS (SELECT 1 FROM AD_Org_AcctSchema oa
+	     WHERE A_Asset_Group_Acct.C_AcctSchema_ID = oa.C_AcctSchema_ID
+	    AND (AD_IsOrgIncluded(oa.AD_Org_ID, A_Asset_Group_Acct.AD_Org_ID, A_Asset_Group_Acct.AD_Client_ID)<>-1
+	    OR AD_IsOrgIncluded(A_Asset_Group_Acct.AD_Org_ID, oa.AD_Org_ID, A_Asset_Group_Acct.AD_Client_ID)<>-1))
+      )
+    LOOP
+      -- Update existing Assets
+      UPDATE A_Asset_Acct
+        SET A_DEPRECIATION_ACCT=Cur_Acct.A_DEPRECIATION_ACCT, A_ACCUMDEPRECIATION_ACCT=Cur_Acct.A_ACCUMDEPRECIATION_ACCT, A_DISPOSAL_LOSS=Cur_Acct.A_DISPOSAL_LOSS, A_DISPOSAL_GAIN=Cur_Acct.A_DISPOSAL_GAIN, updated=now(), UpdatedBy='0'
+      WHERE A_Asset_Acct.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID  AND exists
+        (SELECT 1
+        FROM A_Asset a
+        WHERE a.A_Asset_ID=A_Asset_Acct.A_Asset_ID  AND a.A_Asset_Group_ID=Cur_Acct.A_Asset_Group_ID
+        )
+        ;
+      rowcount:=SQL%ROWCOUNT;
+      v_Updated:=rowcount;
+      -- Insert new Assets
+      INSERT
+      INTO A_Asset_Acct
+        (
+          A_ASSET_ACCT_ID, A_ASSET_ID, C_ACCTSCHEMA_ID, AD_CLIENT_ID, AD_ORG_ID,
+          ISACTIVE, CREATED, CREATEDBY, UPDATED,
+          UPDATEDBY, A_DEPRECIATION_ACCT, A_ACCUMDEPRECIATION_ACCT, A_DISPOSAL_LOSS,
+          A_DISPOSAL_GAIN
+        )
+      SELECT GET_UUID(), a.A_ASSET_ID, Cur_Acct.C_ACCTSCHEMA_ID, a.AD_CLIENT_ID, a.AD_ORG_ID, 'Y', now(), '0', now(), '0', Cur_Acct.A_DEPRECIATION_ACCT, Cur_Acct.A_ACCUMDEPRECIATION_ACCT, Cur_Acct.A_DISPOSAL_LOSS, Cur_Acct.A_DISPOSAL_GAIN
+      FROM A_Asset a
+      WHERE a.A_Asset_Group_ID=Cur_Acct.A_Asset_Group_ID  
+      AND NOT EXISTS
+		(SELECT 1
+		FROM a_Asset_Acct aa
+		WHERE aa.A_Asset_ID=a.A_Asset_Id  AND aa.C_AcctSchema_ID=Cur_Acct.C_AcctSchema_ID
+		)
+      AND EXISTS
+	      (
+	      SELECT 1 
+	      FROM AD_Org_AcctSchema
+	      WHERE (AD_IsOrgIncluded(AD_Org_ID, a.AD_ORG_ID, a.AD_Client_ID)<>-1 OR AD_IsOrgIncluded(a.AD_ORG_ID, AD_Org_ID, a.AD_Client_ID)<>-1)
+	      AND IsActive = 'Y'
+	      AND AD_Org_AcctSchema.C_AcctSchema_ID = Cur_Acct.C_AcctSchema_ID
+	      )
+        ;
+      rowcount:=SQL%ROWCOUNT;
+      v_Created:=rowcount;
+      DBMS_OUTPUT.PUT_LINE('Asset = ' || v_Updated || ' / ' || v_Created) ;
+      v_Updated_Total:=v_Updated_Total + v_Updated;
+      v_Created_Total:=v_Created_Total + v_Created;
+    END LOOP;
+    v_Message:='@Created@=' || v_Created_Total || ', @Updated@=' || v_Updated_Total;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END A_ASSET_GROUP_ACCT_COPY
+]]></body>
+    </function>
+  </database>

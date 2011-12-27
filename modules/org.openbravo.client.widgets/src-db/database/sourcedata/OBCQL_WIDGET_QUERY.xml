@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<data>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573--><OBCQL_WIDGET_QUERY>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[CFDF8EE593F04CFE9709F5AD19A3A573]]></OBCQL_WIDGET_QUERY_ID>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[CD1B06C4ED974B5F905A5A01B097DF4E]]></OBKMO_WIDGET_CLASS_ID>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573-->  <HQL><![CDATA[select product.id as id,product.name as pname, sum(orderedQuantity) as qty, product.uOM.name as uom, product.uOM.id as uomid
+from OrderLine ol
+where ol.salesOrder.documentStatus = 'CO'
+and ol.salesOrder.salesTransaction = 'Y'
+and @optional_filters@
+and ol.client.id = :client
+and ol.product.name like :pname
+group by product.name, product.uOM.name, product.id, product.uOM.id 
+order by sum(orderedQuantity) desc]]></HQL>
+<!--CFDF8EE593F04CFE9709F5AD19A3A573--></OBCQL_WIDGET_QUERY>
+
+<!--D2003CD3F9984BF39457BA1F2FFF01C9--><OBCQL_WIDGET_QUERY>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9-->  <OBCQL_WIDGET_QUERY_ID><![CDATA[D2003CD3F9984BF39457BA1F2FFF01C9]]></OBCQL_WIDGET_QUERY_ID>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9-->  <AD_CLIENT_ID><![CDATA[0]]></AD_CLIENT_ID>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9-->  <AD_ORG_ID><![CDATA[0]]></AD_ORG_ID>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9-->  <ISACTIVE><![CDATA[Y]]></ISACTIVE>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9-->  <OBKMO_WIDGET_CLASS_ID><![CDATA[862EEC18D6FC4FA68E7867E3CF337CC7]]></OBKMO_WIDGET_CLASS_ID>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9-->  <HQL><![CDATA[select 
+       tel.expenseSheet.documentNo as documentNo,
+       tel.expenseSheet.id as expenseSheetId,
+       tel.description as description,
+       case when tel.expenseDate is not null then tel.expenseDate  else tel.expenseSheet.reportDate end as expenseDate,
+       tel.product.id as productId,
+       tel.product.name as productName,
+       tel.quantity as quantity,
+       tel.uOM.name as uomName,
+       p.id as projectId,
+       p.name as projectName,
+       tel.expenseSheet.processed as processed
+from
+	TimeAndExpenseSheetLine as tel
+	LEFT JOIN tel.project as p,
+	ADUser as u
+	where (month(current_date()) = month(tel.expenseDate) or (month(current_date()) = month(tel.expenseSheet.reportDate) and tel.expenseDate = null))
+	and (year(current_date()) = year(tel.expenseDate) or (year(current_date()) = year(tel.expenseSheet.reportDate) and tel.expenseDate = null))
+	and tel.timeSheet = 'Y'
+	and tel.client.id=:client
+	and tel.expenseSheet.businessPartner=u.businessPartner
+	and u.id=:user
+order by  tel.expenseSheet.reportDate, tel.expenseSheet.documentNo]]></HQL>
+<!--D2003CD3F9984BF39457BA1F2FFF01C9--></OBCQL_WIDGET_QUERY>
+
+</data>

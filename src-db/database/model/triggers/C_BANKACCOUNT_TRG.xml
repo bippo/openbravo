@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BANKACCOUNT_TRG">
+    <trigger name="C_BANKACCOUNT_TRG" table="C_BANKACCOUNT" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_BankAccount_Trg.sql,v 1.2 2002/01/04 04:29:54 jjanke Exp $
+    ***
+    * Title: New Accounting Defaults
+    * Description:
+    ************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  Cur_Defaults RECORD;
+
+BEGIN
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+    FOR Cur_Defaults IN
+      (
+      SELECT *
+      FROM C_AcctSchema_Default d
+      WHERE EXISTS
+        (
+      SELECT 1
+      FROM AD_Org_AcctSchema
+      WHERE (AD_IsOrgIncluded(AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
+          or AD_IsOrgIncluded(:new.AD_ORG_ID, AD_Org_ID, :new.AD_Client_ID)<>-1)
+      AND IsActive = 'Y'
+      AND AD_Org_AcctSchema.C_AcctSchema_ID = d.C_AcctSchema_ID
+        )
+      AND D.AD_CLIENT_ID = :new.AD_Client_ID
+      )
+    LOOP
+      INSERT
+      INTO C_BankAccount_Acct
+        (
+          C_BankAccount_Acct_ID, C_BankAccount_ID, C_AcctSchema_ID, AD_Client_ID,
+          AD_Org_ID, IsActive, Created,
+          CreatedBy, Updated, UpdatedBy,
+          B_InTransit_Acct, B_Asset_Acct, B_Expense_Acct,
+          B_InterestRev_Acct, B_InterestExp_Acct, B_UnIdentified_Acct,
+          B_SettlementGain_Acct, B_SettlementLoss_Acct, B_RevaluationGain_Acct,
+          B_RevaluationLoss_Acct, B_PaymentSelect_Acct, B_UnallocatedCash_Acct
+        )
+        VALUES
+        (
+          get_uuid(), :new.C_BankAccount_ID, Cur_Defaults.C_AcctSchema_ID, :new.AD_Client_ID,
+          :new.AD_ORG_ID,  'Y', now(),
+          :new.CreatedBy, now(), :new.UpdatedBy,
+          Cur_Defaults.B_InTransit_Acct, Cur_Defaults.B_Asset_Acct, Cur_Defaults.B_Expense_Acct,
+          Cur_Defaults.B_InterestRev_Acct, Cur_Defaults.B_InterestExp_Acct, Cur_Defaults.B_UnIdentified_Acct,
+          Cur_Defaults.B_SettlementGain_Acct, Cur_Defaults.B_SettlementLoss_Acct, Cur_Defaults.B_RevaluationGain_Acct,
+          Cur_Defaults.B_RevaluationLoss_Acct, Cur_Defaults.B_PaymentSelect_Acct, Cur_Defaults.B_UnallocatedCash_Acct
+        )
+        ;
+    END LOOP;
+  ELSIF (UPDATING) THEN
+    UPDATE C_BANKACCOUNT_ACCT SET AD_ORG_ID = :new.AD_ORG_ID
+    WHERE C_BANKACCOUNT_ID = :new.C_BANKACCOUNT_ID;
+  END IF;
+END C_BANKACCOUNT_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="InoutEditionData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_INOUT.DOCUMENTNO AS DOCUMENTNO, M_INOUT.MOVEMENTDATE AS MOVEMENTDATE, C_BPARTNER.NAME AS CLIENT_NAME, M_PRODUCT.NAME AS PRODUCT_NAME, SUM(M_INOUTLINE.MOVEMENTQTY) AS QUANTITYORDER, C_UOM.NAME AS UOMNAME,
+      (CASE M_INOUT.ISSOTRX 
+  		WHEN 'Y' THEN TO_CHAR(AD_MESSAGE_GET2('GOODSSHIPMENT',?))
+  		WHEN 'N' THEN TO_CHAR(AD_MESSAGE_GET2('GOODSRECEIPT',?))
+  		ELSE ''
+  		END) AS ISSOTRX,
+  		M_LOCATOR.VALUE AS LOCATORNAME,
+  		M_WAREHOUSE.NAME AS WAREHOUSENAME
+      FROM M_INOUT, M_INOUTLINE, C_BPARTNER, M_PRODUCT, C_UOM, M_LOCATOR, M_WAREHOUSE
+      WHERE M_INOUT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND M_INOUT.M_INOUT_ID = M_INOUTLINE.M_INOUT_ID
+      AND M_INOUTLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_INOUTLINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND M_INOUTLINE.M_LOCATOR_ID = M_LOCATOR.M_LOCATOR_ID
+      AND M_LOCATOR.M_WAREHOUSE_ID = M_WAREHOUSE.M_WAREHOUSE_ID
+      AND M_INOUT.AD_ORG_ID IN ('1')
+      AND M_INOUT.AD_CLIENT_ID IN ('1')
+      AND 1=1
+      GROUP BY C_BPARTNER.NAME, M_PRODUCT.NAME, C_UOM.NAME, M_INOUT.DOCUMENTNO, M_INOUT.MOVEMENTDATE, M_INOUT.ISSOTRX, M_LOCATOR.VALUE, M_WAREHOUSE.NAME
+      ORDER BY C_BPARTNER.NAME, M_INOUT.MOVEMENTDATE
+     ]]></Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND M_INOUT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_INOUT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="dateFrom" optional="true" after="1=1"><![CDATA[AND M_INOUT.MOVEMENTDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="1=1"><![CDATA[AND M_INOUT.MOVEMENTDATE <= TO_DATE(?)]]></Parameter>
+    <Parameter name="cBPartnerId" optional="true" after="1=1"><![CDATA[AND M_INOUT.C_BPARTNER_ID = ?]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="1=1"><![CDATA[AND M_INOUT.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="cProjectId" optional="true" after="1=1"><![CDATA[AND M_INOUT.C_PROJECT_ID = ?]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectShipment" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_INOUT.DOCUMENTNO AS DOCUMENTNO, M_INOUT.MOVEMENTDATE AS MOVEMENTDATE, C_BPARTNER.NAME AS CLIENT_NAME, M_PRODUCT.NAME AS PRODUCT_NAME, SUM(M_INOUTLINE.MOVEMENTQTY) AS QUANTITYORDER, C_UOM.NAME AS UOMNAME
+      FROM M_INOUT, M_INOUTLINE, C_BPARTNER, M_PRODUCT, C_UOM
+      WHERE M_INOUT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND M_INOUT.M_INOUT_ID = M_INOUTLINE.M_INOUT_ID
+      AND M_INOUTLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_INOUTLINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND M_INOUT.AD_ORG_ID IN ('1')
+      AND M_INOUT.AD_CLIENT_ID IN ('1')
+      AND 1=1
+      AND M_INOUT.ISSOTRX = ?
+      GROUP BY C_BPARTNER.NAME, M_PRODUCT.NAME, C_UOM.NAME, M_INOUT.DOCUMENTNO, M_INOUT.MOVEMENTDATE
+      ORDER BY C_BPARTNER.NAME, M_INOUT.MOVEMENTDATE, M_INOUT.DOCUMENTNO
+     ]]></Sql>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND M_INOUT.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_INOUT.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="dateFrom" optional="true" after="1=1"><![CDATA[AND M_INOUT.MOVEMENTDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="1=1"><![CDATA[AND M_INOUT.MOVEMENTDATE <= TO_DATE(?)]]></Parameter>
+    <Parameter name="cBPartnerId" optional="true" after="1=1"><![CDATA[AND M_INOUT.C_BPARTNER_ID = ?]]></Parameter>
+    <Parameter name="mWarehouseId" optional="true" after="1=1"><![CDATA[AND M_INOUT.M_WAREHOUSE_ID = ?]]></Parameter>
+    <Parameter name="cProjectId" optional="true" after="1=1"><![CDATA[AND M_INOUT.C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="issotrx"/>
+  </SqlMethod>
+  
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

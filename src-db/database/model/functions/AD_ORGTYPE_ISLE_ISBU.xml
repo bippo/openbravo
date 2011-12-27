@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_ORGTYPE_ISLE_ISBU">
+    <function name="AD_ORGTYPE_ISLE_ISBU" type="NUMERIC">
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_bu_count INTEGER;
+  v_le_count INTEGER;
+  v_isbusinessunit ad_orgtype.isbusinessunit%TYPE;
+  v_islegalentity ad_orgtype.islegalentity%TYPE;
+  v_parent_id ad_treenode.parent_id%TYPE;
+  v_node_id ad_treenode.parent_id%TYPE;
+  v_isready ad_org.isready%TYPE;
+
+  TYPE RECORD IS REF CURSOR;
+  cur_org RECORD;  
+   
+BEGIN
+  -- Every Ready Org without a child
+  FOR cur_org IN
+  (SELECT ad_org.ad_org_id AS ad_org_id
+   FROM ad_org
+   WHERE ISREADY='Y'
+   AND NOT EXISTS (SELECT 1
+                   FROM ad_treenode pp, ad_treenode hh
+                   WHERE pp.node_id = hh.parent_id
+                   AND hh.ad_tree_id = pp.ad_tree_id
+                   AND hh.parent_id=ad_org.ad_org_id 
+                   AND  EXISTS (SELECT 1 FROM ad_tree WHERE treetype='OO' AND hh.Ad_tree_id=ad_tree.ad_tree_id))
+  )
+
+  LOOP
+  
+    SELECT ad_orgtype.isbusinessunit 
+    INTO v_isbusinessunit
+    FROM ad_orgtype, ad_org
+    WHERE ad_org.ad_orgtype_id= ad_orgtype.ad_orgtype_id
+    AND ad_org.ad_org_id = cur_org.ad_org_id;
+
+    -- Is the Org a business unit 
+    v_bu_count:=0;
+    IF (v_isbusinessunit='Y') THEN
+      v_bu_count:=v_bu_count+1;
+    END IF;
+
+
+    v_le_count:=0;
+    v_node_id := cur_org.ad_org_id;
+    v_parent_id := 'XX'; 
+    -- Is any of the parents a business unit
+    WHILE (v_parent_id <> '0' AND v_node_id <> '0') LOOP      
+      SELECT parent_id
+      INTO v_parent_id
+      FROM ad_treenode t
+      WHERE node_id=v_node_id
+      AND EXISTS (SELECT 1 
+                  FROM ad_tree, ad_org
+                  WHERE ad_tree.ad_client_id = ad_org.ad_client_id
+                  AND ad_tree.ad_client_id=t.ad_client_id
+                  AND ad_tree.treetype='OO'
+                  AND t.ad_tree_id=ad_tree.ad_tree_id
+                  );
+                  
+      SELECT ad_orgtype.isbusinessunit, ad_orgtype.islegalentity, ad_org.isready 
+      INTO v_isbusinessunit, v_islegalentity, v_isready
+      FROM ad_orgtype, ad_org
+      WHERE ad_org.ad_orgtype_id= ad_orgtype.ad_orgtype_id
+      AND ad_org.ad_org_id = v_parent_id;
+    
+      IF (v_isbusinessunit='Y' AND v_isready='Y') THEN
+        v_bu_count:=v_bu_count+1;
+      END IF;
+      
+      IF (v_bu_count<2 AND v_islegalentity='Y' AND v_isready='Y') THEN
+        v_le_count:=v_le_count+1;
+      END IF;     
+      
+      v_node_id:=v_parent_id;
+    END LOOP; 
+    
+    IF (v_bu_count > 1 ) THEN
+      RETURN v_bu_count;
+    END IF;
+    
+    IF (v_bu_count=1 AND v_le_count <> 1) THEN
+      RETURN -1;
+    END IF;
+        
+  END LOOP;
+    
+  RETURN v_bu_count;
+END AD_ORGTYPE_ISLE_ISBU
+]]></body>
+    </function>
+  </database>

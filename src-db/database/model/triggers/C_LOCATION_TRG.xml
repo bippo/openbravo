@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_LOCATION_TRG">
+    <trigger name="C_LOCATION_TRG" table="C_LOCATION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  /*************************************************************************
+  * The contents of this file are subject to the Openbravo  Public  License
+  * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+  * Version 1.1  with a permitted attribution clause; you may not  use this
+  * file except in compliance with the License. You  may  obtain  a copy of
+  * the License at http://www.openbravo.com/legal/license.html
+  * Software distributed under the License  is  distributed  on  an "AS IS"
+  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+  * License for the specific  language  governing  rights  and  limitations
+  * under the License.
+  * The Original Code is Openbravo ERP.
+  * The Initial Developer of the Original Code is Openbravo SLU
+  * All portions are Copyright (C) 2001-2008 Openbravo SLU
+  * All Rights Reserved.
+  * Contributor(s):  ______________________________________.
+  ************************************************************************/
+  TYPE RECORD IS REF CURSOR;
+  cur_Bank RECORD;
+  cur_BankAccount RECORD;
+  v_IBANCount NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  FOR cur_Bank IN 
+    (SELECT C_BANK_ID
+    FROM C_BANK
+    WHERE C_LOCATION_ID=:NEW.C_LOCATION_ID)
+  LOOP
+    FOR cur_BankAccount IN
+      (SELECT C_BANKACCOUNT_ID
+      FROM C_BANKACCOUNT
+      WHERE C_BANK_ID=cur_Bank.C_BANK_ID)
+    LOOP
+      SELECT COUNT(IBAN)
+      INTO v_IBANCount
+      FROM C_BANKACCOUNT
+      WHERE C_BANKACCOUNT_ID=cur_BankAccount.C_BANKACCOUNT_ID;
+      IF (v_IBANCount > 0 AND :OLD.C_COUNTRY_ID <> :NEW.C_COUNTRY_ID) THEN
+        RAISE_APPLICATION_ERROR(-20259, 'An IBAN account is defined for this bank. Country must not be changed.') ;
+      END IF;
+    END LOOP;
+  END LOOP;
+END C_LOCATION_TRG
+]]></body>
+    </trigger>
+  </database>

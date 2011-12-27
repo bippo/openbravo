@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CopyFromOrderRecordData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_ORDER.AD_CLIENT_ID, C_ORDER.AD_ORG_ID, AD_ORG.NAME AS ORGNAME, C_ORDER.DOCUMENTNO, C_ORDER.POREFERENCE, C_ORDER.C_BPARTNER_ID, C_BPARTNER.NAME AS BPARTNERNAME, C_ORDER.C_BPARTNER_LOCATION_ID, C_BPARTNER_LOCATION.NAME AS LOCATIONNAME, DATEORDERED, M_PRICELIST.NAME AS PRICELISTNAME, C_ORDER.M_WAREHOUSE_ID, C_ORDER.M_PRICELIST_ID, C_ORDER.C_CURRENCY_ID, C_ORDER.AD_USER_ID, C_BPARTNER.LAST_DAYS
+        FROM C_ORDER, C_BPARTNER, M_PRICELIST, C_BPARTNER_LOCATION, AD_ORG
+        WHERE C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        AND C_ORDER.C_BPARTNER_LOCATION_ID = C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID
+        AND C_ORDER.M_PRICELIST_ID = M_PRICELIST.M_PRICELIST_ID
+        AND C_ORDER.AD_ORG_ID = AD_ORG.AD_ORG_ID
+        AND C_ORDER.C_ORDER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="pendingDeliverySales" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(ROUND(SUM(TOTALLINES),2),0) AS SHIPMENTAMOUNTPENDING
+        FROM M_INOUT_CANDIDATE_V
+        WHERE C_BPARTNER_ID = ?
+        AND AD_ORG_ID = ?
+        AND AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="pendingInvoiceSales" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(ROUND(SUM(NOTINVOICEDLINES),2),0) AS INVOICEAMOUNTPENDING
+        FROM C_INVOICE_CANDIDATE_V
+        WHERE C_BPARTNER_ID = ?
+        AND AD_ORG_ID = ?
+        AND AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="debtPending" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(ROUND(SUM(DP.AMOUNT),2),0) AS AMOUNTDEBT
+        FROM C_DEBT_PAYMENT DP, C_CURRENCY
+        WHERE DP.C_BPARTNER_ID = ?
+        AND DP.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID
+        AND DP.AD_ORG_ID = ?
+        AND DP.AD_CLIENT_ID = ?
+        AND C_DEBT_PAYMENT_STATUS(DP.C_Settlement_Cancel_ID, DP.CANCEL_PROCESSED, DP.GENERATE_PROCESSED, DP.ISPAID, DP.ISVALID, 
+        DP.C_CASHLINE_ID, DP.C_BANKSTATEMENTLINE_ID) = 'P'
+        AND DP.ISRECEIPT=?
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="issotrx"/>
+  </SqlMethod>
+  <SqlMethod name="contact" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT max(coalesce(to_char(FIRSTNAME),'')||' '||coalesce(to_char(LASTNAME),'')||(case coalesce(to_char(PHONE),'') when '' then '' else ' ('||to_char(PHONE)||')' end)) AS CONTACT
+        FROM AD_USER
+        WHERE AD_USER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="invoicing" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(SUM(ROUND(IL.LINENETAMT,2)),0) AS AMOUNTINVOICING
+        FROM C_INVOICE I, C_INVOICELINE IL
+        WHERE I.C_INVOICE_ID = IL.C_INVOICE_ID
+        AND I.DATEINVOICED< NOW()+1
+        AND I.DATEINVOICED >= TRUNC(TO_DATE(NOW()), 'YEAR') 
+        AND I.PROCESSED = 'Y'
+        AND I.ISSOTRX=?
+        AND I.C_BPARTNER_ID = ?
+        AND I.AD_ORG_ID = ?
+        AND I.AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="issotrx"/>
+    <Parameter name="c_bpartnerId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="invoicingTotal" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(SUM(ROUND(IL.LINENETAMT,2)),0) AS AMOUNT
+        FROM C_INVOICE I, C_INVOICELINE IL
+        WHERE I.C_INVOICE_ID = IL.C_INVOICE_ID
+        AND I.DATEINVOICED< NOW()+1
+        AND I.DATEINVOICED >= TRUNC(TO_DATE(NOW()), 'YEAR') 
+        AND I.PROCESSED = 'Y'
+        AND I.ISSOTRX=?
+        AND I.AD_ORG_ID = ?
+        AND I.AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="issotrx"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="maxDateordered" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TO_CHAR(MAX(DATEORDERED),to_char(?)) AS DATEORDERED
+        FROM C_ORDER
+        WHERE C_BPARTNER_ID = ?
+        AND DOCSTATUS = 'CO' 
+        AND ISSOTRX = ?
+        AND AD_ORG_ID = ?
+        AND AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="dateFormat"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="issotrx"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="materialReceiptPending" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(SUM(A.AMOUNT),0) FROM (
+        SELECT ROUND(((C_ORDERLINE.QTYORDERED - COALESCE(SUM(m.QTY),0))*PRICEACTUAL),2) AS AMOUNT
+        FROM C_ORDER, C_ORDERLINE left join M_MATCHPO m on  C_ORDERLINE.C_OrderLine_ID=m.C_OrderLine_ID
+                                                              and m.M_INOUTLINE_ID IS NOT NULL, C_CURRENCY
+        WHERE C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+        AND C_ORDER.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID
+        AND C_ORDER.ISSOTRX='N'
+        AND C_ORDER.DOCSTATUS = 'CO'
+        AND C_ORDER.C_BPARTNER_ID = ?
+        AND C_ORDER.AD_ORG_ID = ?
+        AND C_ORDER.AD_CLIENT_ID = ?
+        GROUP BY C_ORDERLINE.QTYORDERED, PRICEACTUAL) A
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="purchasePendingInvoice" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT coalesce(SUM(A.AMOUNT),0) FROM (
+        SELECT ROUND(((C_ORDERLINE.QTYORDERED - COALESCE(SUM(m.QTY),0))*PRICEACTUAL),2) AS AMOUNT
+        FROM C_ORDER, C_ORDERLINE left join M_MATCHPO m on  C_ORDERLINE.C_OrderLine_ID=m.C_OrderLine_ID
+                                                              and m.C_InvoiceLine_ID IS NOT NULL, C_CURRENCY
+        WHERE C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+        AND C_ORDER.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID
+        AND C_ORDER.ISSOTRX='N'
+        AND C_ORDER.DOCSTATUS = 'CO'
+        AND C_ORDER.C_BPARTNER_ID = ?
+        AND C_ORDER.AD_ORG_ID = ? 
+        AND C_ORDER.AD_CLIENT_ID = ?
+        GROUP BY C_ORDERLINE.QTYORDERED, PRICEACTUAL) A
+      ]]>
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+</SqlClass>

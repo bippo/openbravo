@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ExtractModuleData" package="org.openbravo.erpCommon.modules">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="selectDirectory" type="preparedStatement" return="single">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT JAVAPACKAGE, TYPE, AD_MODULE_ID, VERSION, '' AS TOTAL
+        FROM AD_MODULE
+       WHERE AD_MODULE_ID = ?
+    ]]></Sql>
+    <Parameter name="moduleID"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectContainedModules" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT JAVAPACKAGE, TYPE, M.AD_MODULE_ID, VERSION
+        FROM AD_MODULE_DEPENDENCY D, AD_MODULE M
+       WHERE D.AD_MODULE_ID = ?
+         AND M.AD_MODULE_ID = D.AD_DEPENDENT_MODULE_ID
+         AND D.ISINCLUDED = 'Y'
+    ]]></Sql>
+    <Parameter name="moduleID"/>
+  </SqlMethod>
+  
+  <SqlMethod name="hasReferenceData" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COUNT(*) AS TOTAL
+        FROM AD_MODULE M
+       WHERE AD_MODULE_ID = ?
+         AND HASREFERENCEDATA = 'Y'
+    ]]></Sql>
+    <Parameter name="moduleID"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectID" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT AD_MODULE_ID
+        FROM AD_MODULE M
+       WHERE JAVAPACKAGE = ?
+         AND ISACTIVE = 'Y' 
+    ]]></Sql>
+    <Parameter name="name"/>
+  </SqlMethod>
+</SqlClass>

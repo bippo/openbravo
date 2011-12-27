@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportInvoicesData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT NAMEBPARTNER,INVOICEID, INVOICEDOCUMENTNO, DOCNOORDER, DESCRIPTIONINVOICE, DATEINVOICED, LINE, NAMEPRODUCT, 
+	  QTYINVOICED, UOMSYMBOL, PRICEACTUAL, CONVPRICEACTUAL, TAX, BASE, CONVBASE, LINENETAMT, CONVLINENETAMT,
+	  C_CURRENCY_SYMBOL(?, 0, 'Y') AS CONVSYM, C_CURRENCY_ISOSYM(?) AS CONVISOSYM, INVOICECURRENCYSYM,
+	  TRANSCURRENCYID, TRANSDATE, TRANSCLIENTID, TRANSORGID
+	  FROM (      
+	  SELECT B.NAME AS NAMEBPARTNER, I.C_INVOICE_ID AS INVOICEID, I.DOCUMENTNO AS INVOICEDOCUMENTNO, O.DOCUMENTNO AS DOCNOORDER,
+	  I.DESCRIPTION AS DESCRIPTIONINVOICE, I.DATEINVOICED AS DATEINVOICED, C_INVOICELINE.LINE, COALESCE(P.NAME, C_GLITEM.NAME) AS NAMEPRODUCT,
+	  IL.QTYINVOICED AS QTYINVOICED, TO_CHAR(C_UOM.UOMSYMBOL) AS UOMSYMBOL,
+	  IL.PRICEACTUAL AS PRICEACTUAL,
+	  C_CURRENCY_CONVERT(IL.PRICEACTUAL, I.C_CURRENCY_ID, ?, TO_DATE(COALESCE(I.DATEINVOICED, NOW())), NULL, IL.AD_CLIENT_ID, IL.AD_ORG_ID) AS CONVPRICEACTUAL, 
+	  C_TAX.RATE AS TAX, IL.LINENETAMT AS LINENETAMT,
+	  C_CURRENCY_CONVERT(IL.LINENETAMT, I.C_CURRENCY_ID, ?, TO_DATE(COALESCE(I.DATEINVOICED, NOW())), NULL, IL.AD_CLIENT_ID, IL.AD_ORG_ID) AS CONVLINENETAMT,      
+	  NULL AS BASE, NULL AS CONVBASE,
+	  C_CURRENCY_SYMBOL(I.C_CURRENCY_ID, 0, 'Y') AS INVOICECURRENCYSYM,
+	  I.C_CURRENCY_ID AS TRANSCURRENCYID,
+	  TO_DATE(COALESCE(I.DATEINVOICED, NOW())) AS TRANSDATE,
+	  IL.AD_CLIENT_ID AS TRANSCLIENTID,
+	  IL.AD_ORG_ID AS TRANSORGID 
+      FROM C_INVOICE I left join C_ORDER O on I.C_ORDER_ID = O.C_ORDER_ID
+                       right join C_INVOICELINE_V2 IL on IL.C_INVOICE_ID = I.C_INVOICE_ID
+                       left join M_PRODUCT P ON IL.M_PRODUCT_ID = P.M_PRODUCT_ID
+                       left join C_GLITEM on IL.ACCOUNT_ID = C_GLITEM.C_GLITEM_ID,
+           C_BPARTNER B,  C_UOM, C_INVOICELINE, C_TAX
+      WHERE IL.C_BPARTNER_ID = B.C_BPARTNER_ID
+      AND IL.C_INVOICELINE_ID = C_INVOICELINE.C_INVOICELINE_ID
+      AND (C_INVOICELINE.M_PRODUCT_ID IS NOT NULL OR C_INVOICELINE.ACCOUNT_ID IS NOT NULL)
+      AND C_INVOICELINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND C_INVOICELINE.C_TAX_ID = C_TAX.C_TAX_ID
+      AND I.AD_Client_ID IN ('1')
+      AND I.AD_ORG_ID IN ('1')
+      AND 1=1
+      UNION 
+      SELECT B.NAME AS NAMEBPARTNER, I2.C_INVOICE_ID AS INVOICEID, I2.DOCUMENTNO AS INVOICEDOCUMENTNO, O.DOCUMENTNO AS DOCNOORDER, 
+	  I2.DESCRIPTION AS DESCRIPTIONINVOICE, I2.DATEINVOICED AS DATEINVOICED, NULL AS LINE, 
+	  C_TAX.NAME AS NAMEPRODUCT, NULL AS QTYINVOICED, '' AS UOMSYMBOL, NULL AS PRICEACTUAL, NULL AS CONVPRICEATUAL,
+	  NULL AS TAX, C_INVOICETAX.TAXAMT AS LINENETAMT, 
+	  C_CURRENCY_CONVERT(C_INVOICETAX.TAXAMT, I2.C_CURRENCY_ID, ?, TO_DATE(COALESCE(I2.DATEINVOICED, NOW())), NULL, C_INVOICETAX.AD_CLIENT_ID, C_INVOICETAX.AD_ORG_ID) AS CONVLINENETAMT, 
+	  C_INVOICETAX.TAXBASEAMT AS BASE,      
+	  C_CURRENCY_CONVERT(C_INVOICETAX.TAXBASEAMT, I2.C_CURRENCY_ID, ?, TO_DATE(COALESCE(I2.DATEINVOICED, NOW())), NULL, C_INVOICETAX.AD_CLIENT_ID, C_INVOICETAX.AD_ORG_ID) AS CONVBASE,
+	  C_CURRENCY_SYMBOL(I2.C_CURRENCY_ID, 0, 'Y') AS INVOICECURRENCYSYM,
+	  I2.C_CURRENCY_ID AS TRANSCURRENCYID,
+	  TO_DATE(COALESCE(I2.DATEINVOICED, NOW())) AS TRANSDATE,
+	  C_INVOICETAX.AD_CLIENT_ID AS TRANSCLIENTID,
+	  C_INVOICETAX.AD_ORG_ID AS TRANSORGID
+      FROM C_INVOICE I2 left join C_INVOICELINE_V2 IL on IL.C_INVOICE_ID = I2.C_INVOICE_ID
+                        left join M_PRODUCT p         on IL.M_PRODUCT_ID = P.M_PRODUCT_ID
+                        left join C_ORDER O           on I2.C_ORDER_ID = O.C_ORDER_ID,
+           C_BPARTNER B, C_TAX, C_INVOICETAX
+      WHERE IL.C_BPARTNER_ID = B.C_BPARTNER_ID
+      AND C_INVOICETAX.C_INVOICE_ID= I2.C_INVOICE_ID
+      AND (IL.M_PRODUCT_ID IS NOT NULL OR IL.ACCOUNT_ID IS NOT NULL)
+      AND C_INVOICETAX.C_TAX_ID = C_TAX.C_TAX_ID
+      AND I2.AD_Client_ID IN ('2')
+      AND I2.AD_ORG_ID IN ('2')
+      AND 2=2) A
+      ORDER BY NAMEBPARTNER, INVOICEDOCUMENTNO, LINE
+      ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="I.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND I.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parBGroupId" optional="true" after="AND 1=1">AND B.C_BP_GROUP_ID= ?</Parameter>
+    <Parameter name="parPCategoryId" optional="true" after="AND 1=1">AND P.M_PRODUCT_CATEGORY_ID = ?</Parameter>
+    <Parameter name="parBPartnerId" optional="true" after="AND 1=1">AND B.C_BPARTNER_ID = ?</Parameter>
+    <Parameter name="parMProductId" optional="true" after="AND 1=1">AND P.M_PRODUCT_ID = ?</Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[AND I.DATEINVOICED >= to_date(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[AND I.DATEINVOICED < to_date(?)]]></Parameter>
+    <Parameter name="parDocNo" optional="true" after="AND 1=1">AND I.DOCUMENTNO = ?</Parameter>
+    <Parameter name="sales" optional="true" type="none" after="1=1" text="AND I.ISSOTRX = 'Y'"/>
+    <Parameter name="purchase" optional="true" type="none" after="1=1" text="AND I.ISSOTRX = 'N'"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="I2.AD_Client_ID IN (" text="'2'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND I2.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="parBGroupId" optional="true" after="AND 2=2">AND B.C_BP_GROUP_ID= ?</Parameter>
+    <Parameter name="parPCategoryId" optional="true" after="AND 2=2">AND P.M_PRODUCT_CATEGORY_ID = ?</Parameter>
+    <Parameter name="parBPartnerId" optional="true" after="AND 2=2">AND B.C_BPARTNER_ID = ?</Parameter>
+    <Parameter name="parMProductId" optional="true" after="AND 2=2">AND P.M_PRODUCT_ID = ?</Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 2=2"><![CDATA[AND I2.DATEINVOICED >= to_date(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[AND I2.DATEINVOICED < to_date(?)]]></Parameter>
+    <Parameter name="parDocNo" optional="true" after="AND 2=2">AND I2.DOCUMENTNO = ?</Parameter>
+    <Parameter name="sales" optional="true" type="none" after="2=2" text="AND I2.ISSOTRX = 'Y'"/>
+    <Parameter name="purchase" optional="true" type="none" after="2=2" text="AND I2.ISSOTRX = 'N'"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="bPartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT NAME FROM C_BPARTNER 
+    WHERE C_BPARTNER_ID = ?
+    </Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="mProductDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT NAME FROM M_PRODUCT
+    WHERE M_PRODUCT_ID = ?
+    </Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+</SqlClass>

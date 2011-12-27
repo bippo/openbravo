@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="ProcessRequestData" package="org.openbravo.scheduling">
+   <SqlMethod name="select" type="preparedStatement" return="single">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	SELECT AD_Process_Request_ID AS Id, AD_Process_ID AS Process_Id,
+      	AD_Client_ID AS Client, AD_Org_Id AS Organization, AD_User_ID AS UserId,
+      	IsRoleSecurity, Status, Channel, Ob_Context, Params, AD_Process_Set_Id	 
+      	FROM AD_Process_Request
+      	WHERE AD_Process_Request_ID = ?
+    ]]></Sql>
+    <Parameter name="processRequestId"/>
+   </SqlMethod>
+   <SqlMethod name="selectByStatus" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	SELECT AD_Process_Request_ID AS Id, AD_Process_ID AS Process_Id,
+      	AD_Client_ID AS Client, AD_Org_Id AS Organization, AD_User_ID AS UserId,
+      	IsRoleSecurity, Status, Channel, Ob_Context, AD_Process_Set_Id	 
+      	FROM AD_Process_Request
+      	WHERE Status = ?
+    ]]></Sql>
+    <Parameter name="status"/>
+   </SqlMethod>
+   <SqlMethod name="insert" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	INSERT INTO AD_Process_Request
+        (AD_Org_ID, AD_Client_ID, Isactive, Created, Createdby, Updated, UpdatedBy,
+        AD_Process_Request_ID, AD_Process_ID, AD_User_ID, Status, Channel, Ob_Context, 
+        Params, Previous_Fire_Time, Next_Fire_Time, Scheduled_Finish)
+        VALUES (?, ?, 'Y', NOW(), ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?,
+        TO_TIMESTAMP(?, ?), TO_TIMESTAMP(?, ?),
+        TO_TIMESTAMP(?, ?))
+    ]]></Sql>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="createdby"/>
+    <Parameter name="updatedby"/>
+    <Parameter name="id"/>
+    <Parameter name="processId"/>
+    <Parameter name="user"/>
+    <Parameter name="status"/>
+    <Parameter name="channel"/>
+    <Parameter name="obContext"/>
+    <Parameter name="params"/>
+    <Parameter name="previousFireTime"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="nextFireTime"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="scheduledFinish"/>
+    <Parameter name="dateTimeFormat"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	UPDATE AD_Process_Request
+      	SET Status = ?
+      	WHERE AD_Process_Request_ID = ?
+    ]]></Sql>
+    <Parameter name="status"/>
+    <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	UPDATE AD_Process_Request
+      	SET Status = ?,
+      	Next_Fire_Time = TO_TIMESTAMP(?, ?),
+      	Scheduled_Finish = TO_TIMESTAMP(?, ?)
+      	WHERE AD_Process_Request_ID = ?
+    ]]></Sql>
+    <Parameter name="status"/>
+    <Parameter name="nextFireTime"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="scheduledFinish"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+      	UPDATE AD_Process_Request
+      	SET Updatedby = ?, AD_User_ID = ?, Status = ?, Channel = ?,
+      	Previous_Fire_Time = TO_TIMESTAMP(?, ?),
+      	Next_Fire_Time = TO_TIMESTAMP(?, ?),
+      	Scheduled_Finish = TO_TIMESTAMP(?, ?),
+      	Ob_Context = ?
+      	WHERE AD_Process_Request_ID = ?
+    ]]></Sql>
+    <Parameter name="updatedBy"/>
+    <Parameter name="user"/>
+    <Parameter name="status"/>
+    <Parameter name="channel"/>
+    <Parameter name="previousFireTime"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="nextFireTime"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="scheduledFinish"/>
+    <Parameter name="dateTimeFormat"/>
+    <Parameter name="obContext"/>
+    <Parameter name="id"/>
+   </SqlMethod>
+</SqlClass>

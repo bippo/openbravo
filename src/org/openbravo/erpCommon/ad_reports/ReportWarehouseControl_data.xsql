@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportWarehouseControlData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT A.DESCRIPTION, M_PRODUCT.NAME AS PRODUCTNAME, 
+      SUBSTR(M_ATTRIBUTESETINSTANCE.DESCRIPTION, 2, (LENGTH(M_ATTRIBUTESETINSTANCE.DESCRIPTION)-1)) AS REFERENTIAL, M_TRANSACTION.MOVEMENTDATE, SUM(M_TRANSACTION.MOVEMENTQTY) AS MOVEMENTQTY, A.UBICATION, A.ID, A.INP, C_UOM.NAME AS UOM
+      FROM (SELECT (M_INOUT.DOCUMENTNO||' '||M_INOUT.MOVEMENTDATE||' '||C_PROJECT.VALUE) AS DESCRIPTION, M_TRANSACTION.M_TRANSACTION_ID, M_INOUT.M_INOUT_ID AS ID, '../'|| (CASE M_INOUT.ISSOTRX WHEN 'Y' THEN 'GoodsShipment' ELSE 'GoodsReceipt' END) || '/' || 'Header_Relation.html' AS UBICATION, 'inpmInoutId' AS INP
+      FROM M_TRANSACTION, M_INOUTLINE, M_INOUT left join C_PROJECT on M_INOUT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      WHERE M_TRANSACTION.M_INOUTLINE_ID = M_INOUTLINE.M_INOUTLINE_ID
+      AND M_INOUTLINE.M_INOUT_ID = M_INOUT.M_INOUT_ID
+      UNION
+      SELECT (M_PRODUCTION.NAME||' '||M_PRODUCTION.MOVEMENTDATE||' '||C_PROJECT.VALUE) AS DESCRIPTION, M_TRANSACTION.M_TRANSACTION_ID, M_PRODUCTION.M_PRODUCTION_ID AS ID, '../BillofMaterialsProduction/BOMProduction_Edition.html' AS UBICATION, 'inpmProductionId' AS INP
+      FROM M_TRANSACTION, M_PRODUCTIONLINE, M_PRODUCTIONPLAN, M_PRODUCTION left join C_PROJECT on M_PRODUCTION.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      WHERE M_TRANSACTION.M_PRODUCTIONLINE_ID = M_PRODUCTIONLINE.M_PRODUCTIONLINE_ID
+      AND M_PRODUCTIONLINE.M_PRODUCTIONPLAN_ID = M_PRODUCTIONPLAN.M_PRODUCTIONPLAN_ID
+      AND M_PRODUCTIONPLAN.M_PRODUCTION_ID = M_PRODUCTION.M_PRODUCTION_ID
+      UNION
+      SELECT (M_INVENTORY.NAME||' '||M_INVENTORY.MOVEMENTDATE||' '||C_PROJECT.VALUE) AS DESCRIPTION, M_TRANSACTION.M_TRANSACTION_ID, M_INVENTORY.M_INVENTORY_ID AS ID, '../PhysicalInventory/Header_Edition.html' AS UBICATION, 'inpmInventoryId' AS INP
+      FROM M_TRANSACTION, M_INVENTORYLINE, M_INVENTORY left join C_PROJECT on M_INVENTORY.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      WHERE M_TRANSACTION.M_INVENTORYLINE_ID = M_INVENTORYLINE.M_INVENTORYLINE_ID
+      AND M_INVENTORYLINE.M_INVENTORY_ID = M_INVENTORY.M_INVENTORY_ID
+      UNION
+      SELECT (M_MOVEMENT.NAME||' '||M_MOVEMENT.MOVEMENTDATE||' '||C_PROJECT.VALUE) AS DESCRIPTION, M_TRANSACTION.M_TRANSACTION_ID, M_MOVEMENT.M_MOVEMENT_ID AS ID, '../GoodsMovements/Header_Edition.html' AS UBICATION, 'inpmMovementId' AS INP
+      FROM M_TRANSACTION, M_MOVEMENTLINE, M_MOVEMENT left join C_PROJECT on M_MOVEMENT.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID
+      WHERE M_TRANSACTION.M_MOVEMENTLINE_ID = M_MOVEMENTLINE.M_MOVEMENTLINE_ID
+      AND M_MOVEMENTLINE.M_MOVEMENT_ID = M_MOVEMENT.M_MOVEMENT_ID) A, M_TRANSACTION, M_PRODUCT, M_ATTRIBUTESETINSTANCE, C_UOM
+      WHERE M_TRANSACTION.M_TRANSACTION_ID = A.M_TRANSACTION_ID
+      AND M_TRANSACTION.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_TRANSACTION.M_ATTRIBUTESETINSTANCE_ID = M_ATTRIBUTESETINSTANCE.M_ATTRIBUTESETINSTANCE_ID
+      AND M_TRANSACTION.C_UOM_ID = C_UOM.C_UOM_ID
+      AND M_TRANSACTION.AD_CLIENT_ID IN ('1')
+      AND M_TRANSACTION.AD_ORG_ID IN ('1')
+      AND 1=1
+      GROUP BY A.DESCRIPTION, M_PRODUCT.NAME, M_ATTRIBUTESETINSTANCE.DESCRIPTION, M_TRANSACTION.MOVEMENTDATE, A.ID, A.UBICATION, A.INP, C_UOM.NAME
+      ORDER BY A.ID, M_PRODUCT.NAME
+     ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_TRANSACTION.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND M_TRANSACTION.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND M_TRANSACTION.MOVEMENTDATE >= to_date(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND M_TRANSACTION.MOVEMENTDATE < to_date(?)]]></Parameter>
+    <Parameter name="reference" optional="true" after="AND 1=1"><![CDATA[ AND UPPER(M_ATTRIBUTESETINSTANCE.DESCRIPTION) LIKE '%'||UPPER(?)||'%']]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

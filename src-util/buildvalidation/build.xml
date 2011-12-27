@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+
+<project name="openbravo-buildvalidation" default="compile" basedir=".">
+  <property name="build.validation" value="build/classes" />
+  <property name="build.validation.sqlc" value="build/javasqlc" />
+  <property name="build.validation.src" value="src" />
+  <property name="main.dir" value="${basedir}/../.." />
+
+  <path id="buildvalidation.class.path">
+    <pathelement path="build/classes/" />
+    <dirset dir="${base.modules}">
+      <include name="*/build/classes/" />
+    </dirset>
+    <fileset dir="${base.lib}">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+  <condition property="module.not.provided">
+    <equals arg1="${module}" arg2="%" />
+  </condition>
+  <condition property="checkCore">
+    <equals arg1="${module}" arg2="org.openbravo" />
+  </condition>
+  
+  <target name="createModuleFolder" unless="checkCore">
+    <mkdir dir="${base.modules}/${module}/build/" />
+    <mkdir dir="${base.modules}/${module}/build/javasqlc" />
+    <mkdir dir="${base.modules}/${module}/build/classes" />
+  </target>
+    
+  <target name="init" depends="createModuleFolder">
+    <mkdir dir="${build.validation}" />
+    <mkdir dir="${build.validation.sqlc}" />
+    <mkdir dir="${build.validation.sqlc}/src" />
+  </target>
+
+  <target name="clean">
+    <delete dir="${build.validation}" failonerror="false" includeemptydirs="true" />
+    <delete dir="${build.validation.sqlc}" failonerror="false" includeemptydirs="true" />
+  </target>
+
+  <target name="sqlcCore" depends="init" if="checkCore">
+    <java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql ./src/org '${build.validation.sqlc}'" />
+      <classpath refid="buildvalidation.class.path" />
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+    <javac srcdir="${build.validation.sqlc}/src" includes="**/*.java" destdir="${build.validation}" fork="true" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="buildvalidation.class.path" />
+    </javac>
+  </target>
+
+  <target name="sqlcModules" depends="init" unless="checkCore">
+    <java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql '${base.modules}' '${base.modules}'/'${module}'/src-util/buildvalidation/src '${module}'/src-util/buildvalidation" />
+      <classpath refid="buildvalidation.class.path" />
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+    <javac srcdir="${base.modules}/${module}/src-util/buildvalidation/src" includes="**/*.java" destdir="${base.modules}/${module}/build/classes" fork="true" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="buildvalidation.class.path" />
+    </javac>
+  </target>
+
+  <target name="javacCore" if="checkCore">
+    <javac srcdir="${main.dir}" includes="src-util/buildvalidation/src/**/*.java" destdir="${build.validation}" fork="true" deprecation="on" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="buildvalidation.class.path" />
+    </javac>
+  </target>
+
+  <target name="javacModule" unless="checkCore">
+    <javac srcdir="${main.dir}" includes="modules/${module}/src-util/buildvalidation/**/*.java" fork="true" destdir="${base.modules}/${module}/build/classes" deprecation="on" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="buildvalidation.class.path" />
+    </javac>
+  </target>
+  
+  <target name="compile" depends="checkmodule, sqlcCore, sqlcModules, javacCore, javacModule">
+  </target>
+
+  <target name="buildvalidation" if="buildValidation.var">
+    <java classname="org.openbravo.buildvalidation.BuildValidationHandler" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}" failonerror="yes">
+      <arg value="${base.src}/../"/>
+      <arg value="${module}"/>
+      <classpath refid="buildvalidation.class.path" />
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+  </target>
+  
+  <target name="checkmodule"  if="module.not.provided">
+    <fail>You need to specify a module</fail>
+  </target>
+  
+</project>

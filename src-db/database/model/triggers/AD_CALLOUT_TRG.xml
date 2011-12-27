@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_CALLOUT_TRG">
+    <trigger name="AD_CALLOUT_TRG" table="AD_CALLOUT" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_ClassName  VARCHAR2(60) ;
+  v_dir VARCHAR2(200);
+  v_package VARCHAR2(200);
+  v_ID VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(UPDATING) THEN
+    IF(NOT(COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+   OR COALESCE(:old.IsActive, '.') <> COALESCE(:NEW.IsActive, '.')))
+  THEN
+      RETURN;
+    END IF;
+  END IF;
+
+  IF(DELETING OR UPDATING) THEN
+    IF :OLD.ISACTIVE='Y' THEN
+      DELETE
+      FROM AD_MODEL_OBJECT_MAPPING
+      WHERE AD_MODEL_OBJECT_ID IN
+        (
+        SELECT AD_MODEL_OBJECT_ID
+        FROM AD_MODEL_OBJECT
+        WHERE AD_MODEL_OBJECT.AD_CALLOUT_ID=:old.AD_CALLOUT_ID
+          AND ACTION='C'
+        )
+        ;
+      DELETE
+      FROM AD_MODEL_OBJECT
+      WHERE ACTION='C'
+        AND AD_MODEL_OBJECT.AD_CALLOUT_ID=:OLD.AD_CALLOUT_ID;
+    END IF;
+  END IF;
+  IF(INSERTING OR UPDATING) THEN
+    IF :NEW.ISACTIVE='Y' THEN
+      IF :NEW.AD_MODULE_ID != '0' THEN
+        SELECT JavaPackage
+          INTO v_package
+          FROM AD_MODULE
+        WHERE AD_MODULE_ID = :NEW.AD_MODULE_ID;
+          v_dir := v_package||'.ad_callouts';
+      ELSE
+        v_package := 'org.openbravo.erpCommon.ad_callouts';
+        v_dir := 'ad_callouts';
+      END IF;
+    
+      v_ClassName:=AD_MAPPING_FORMAT(TO_CHAR(:new.NAME)) ;
+
+      v_ID := get_uuid();
+      
+      INSERT
+      INTO AD_MODEL_OBJECT
+        (
+          AD_MODEL_OBJECT_ID, AD_CLIENT_ID, AD_ORG_ID,
+          ISACTIVE, CREATED, CREATEDBY,
+          UPDATED, UPDATEDBY, ACTION,
+          AD_CALLOUT_ID, CLASSNAME, ISDEFAULT
+        )
+        VALUES
+        (
+          v_ID, :new.AD_CLIENT_ID, :new.AD_ORG_ID,  'Y',
+          now(), :new.CREATEDBY, now(),
+          :new.UPDATEDBY,  'C', :new.AD_CALLOUT_ID,
+           v_package || '.' || v_ClassName, 'Y'
+        )
+        ;
+
+      INSERT
+      INTO AD_MODEL_OBJECT_MAPPING
+        (
+          AD_MODEL_OBJECT_MAPPING_ID, AD_CLIENT_ID, AD_ORG_ID,
+          ISACTIVE, CREATED, CREATEDBY,
+          UPDATED, UPDATEDBY, AD_MODEL_OBJECT_ID,
+          MAPPINGNAME, ISDEFAULT
+        )
+        VALUES
+        (
+          get_uuid(), :new.AD_CLIENT_ID, :new.AD_ORG_ID,
+           'Y', now(), :new.CREATEDBY,
+          now(), :new.UPDATEDBY, v_ID,
+          ('/' || v_dir || '/' || v_ClassName || '.html'), 'Y'
+        )
+        ;
+    END IF;
+  END IF;
+END AD_CALLOUT_TRG
+]]></body>
+    </trigger>
+  </database>

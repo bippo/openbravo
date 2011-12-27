@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="GenerateShipmentsmanualData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT C_Order_ID, o.Name as adorgname, COALESCE(dttrl.Name, dt.Name) as cdoctypename, DocumentNo, bp.Name as cbpartnername, DateOrdered, 
+      amountlines, TotalLines 
+      FROM M_InOut_Candidate_v ic, AD_Org o, C_BPartner bp, C_DocType dt left join C_DocType_trl dttrl on dt.C_DocType_ID=dttrl.C_DocType_ID AND dttrl.ad_language=?
+      WHERE ic.AD_Org_ID=o.AD_Org_ID
+      AND ic.C_BPartner_ID=bp.C_BPartner_ID
+      AND ic.C_DocType_ID=dt.C_DocType_ID
+      AND dt.isreturn='N'
+      AND ic.ad_client_id in ('1')
+      AND ic.ad_org_id in ('1')
+      AND 1=1
+      AND 2=2 AND ic.ad_org_id in ('1')
+      ORDER BY o.Name,bp.Name,DateOrdered
+      ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND ic.ad_client_id in (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND ic.ad_org_id in (" text="'1'"/>
+    <Parameter name="parBPartner" optional="true" after="AND 1=1">AND ic.C_BPartner_ID= ?</Parameter>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1"><![CDATA[ AND ic.DateOrdered >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1"><![CDATA[ AND ic.DateOrdered < TO_DATE(?)]]></Parameter>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND 2=2 AND ic.ad_org_id in (" text="'1'"/>
+  </SqlMethod>
+    <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+    <SqlMethod name="update" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      UPDATE C_Order SET IsSelected = 'N'
+      WHERE IsSelected='Y'
+      ]]></Sql>
+  </SqlMethod>
+      <SqlMethod name="updateSelection" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      UPDATE C_Order SET IsSelected='Y' 
+      WHERE 1=1
+      ]]></Sql>
+    <Parameter name="parSalesOrders" optional="true" type="argument" after="WHERE 1=1" text="AND C_Order_ID IN"/>
+  </SqlMethod>
+      <SqlMethod name="updateReset" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      UPDATE C_Order SET IsSelected='N' 
+      WHERE 1=1
+      ]]></Sql>
+    <Parameter name="parSalesOrders" optional="true" type="argument" after="WHERE 1=1" text="AND C_Order_ID IN"/>
+  </SqlMethod>
+    <SqlMethod name="bPartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT NAME FROM C_BPARTNER 
+    WHERE C_BPARTNER_ID = ?
+    ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="treeOrg" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT AD_TREE_ORG_ID FROM AD_CLIENTINFO
+        WHERE AD_CLIENT_ID = ?
+    </Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+</SqlClass>

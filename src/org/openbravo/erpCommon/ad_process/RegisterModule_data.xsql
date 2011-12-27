@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="RegisterModuleData" package="org.openbravo.erpCommon.ad_process">
+  <SqlMethod name="selectModule" type="preparedStatement" return="single">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT M.NAME, JAVAPACKAGE, TYPE,
+                DESCRIPTION, P.NAME AS DB_PREFIX, M.AUTHOR, 
+                M.HELP                
+           FROM AD_MODULE M LEFT JOIN AD_MODULE_DBPREFIX P
+                                   ON P.AD_MODULE_ID = M.AD_MODULE_ID
+          WHERE M.AD_MODULE_ID = ?        
+          ]]>
+      </Sql>
+      <Parameter name="moduleId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="getHelp" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT COALESCE(T.HELP, P.HELP) AS NAME
+           FROM AD_PROCESS P LEFT JOIN AD_PROCESS_TRL T 
+                                       ON T.AD_PROCESS_ID = P.AD_PROCESS_ID
+                                      AND AD_LANGUAGE = ?
+          WHERE P.AD_PROCESS_ID = '4062D3F4448547C3A2BCDFB09D062BA2'
+           
+          ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+  </SqlMethod>
+  
+  <SqlMethod name="setRegistered" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+          UPDATE AD_MODULE
+            SET ISREGISTERED = 'Y'
+          WHERE AD_MODULE_ID = ?        
+          ]]>
+      </Sql>
+      <Parameter name="moduleId"/>
+  </SqlMethod>
+</SqlClass>

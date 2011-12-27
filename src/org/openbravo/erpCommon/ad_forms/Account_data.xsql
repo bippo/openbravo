@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<!--<!DOCTYPE SqlClass SYSTEM "SqlClass.dtd">-->
+<SqlClass name="AccountData" package="org.openbravo.erpCommon.ad_forms">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT AD_CLIENT_ID,AD_ORG_ID, ISACTIVE, UPDATED,UPDATEDBY,ALIAS, COMBINATION, DESCRIPTION, ISFULLYQUALIFIED,
+      C_ACCTSCHEMA_ID, ACCOUNT_ID, M_PRODUCT_ID, C_BPARTNER_ID,AD_ORGTRX_ID, C_LOCFROM_ID, C_LOCTO_ID, C_SALESREGION_ID,
+      C_PROJECT_ID, C_CAMPAIGN_ID, C_ACTIVITY_ID, USER1_ID,USER2_ID, '' as UseSuspenseBalancing, '' as SuspenseBalancing_Acct,
+      '' as UseSuspenseError, '' as SuspenseError_Acct, '' as UseCurrencyBalancing, '' as CurrencyBalancing_Acct, 
+      '' as RetainedEarning_Acct, '' as IncomeSummary_Acct, '' as InterCompanyDueTo_Acct, '' as InterCompanyDueFrom_Acct
+      FROM C_ValidCombination 
+      WHERE C_ValidCombination_ID=?
+      </Sql>
+    <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectConnection" connection="true" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT AD_CLIENT_ID,AD_ORG_ID, ISACTIVE, UPDATED,UPDATEDBY,ALIAS, COMBINATION, DESCRIPTION, ISFULLYQUALIFIED,
+      C_ACCTSCHEMA_ID, ACCOUNT_ID, M_PRODUCT_ID, C_BPARTNER_ID,AD_ORGTRX_ID, C_LOCFROM_ID, C_LOCTO_ID, C_SALESREGION_ID,
+      C_PROJECT_ID, C_CAMPAIGN_ID, C_ACTIVITY_ID, USER1_ID,USER2_ID, '' as UseSuspenseBalancing, '' as SuspenseBalancing_Acct,
+      '' as UseSuspenseError, '' as SuspenseError_Acct, '' as UseCurrencyBalancing, '' as CurrencyBalancing_Acct, 
+      '' as RetainedEarning_Acct, '' as IncomeSummary_Acct, '' as InterCompanyDueTo_Acct, '' as InterCompanyDueFrom_Acct
+      FROM C_ValidCombination 
+      WHERE C_ValidCombination_ID=?
+      </Sql>
+    <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectAcctSchemaGL" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT UseSuspenseBalancing,SuspenseBalancing_Acct, UseSuspenseError,SuspenseError_Acct, UseCurrencyBalancing,
+      CurrencyBalancing_Acct, RetainedEarning_Acct,IncomeSummary_Acct, InterCompanyDueTo_Acct,InterCompanyDueFrom_Acct 
+      FROM C_AcctSchema_GL 
+      WHERE C_AcctSchema_ID=?
+      </Sql>
+    <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="GetValidAccountCombination" connection="true" type="callableStatement" return="object" object="RespuestaCS">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        CALL C_ValidCombination_Get(?,?,?,?,
+                                    ?,?,?,?,
+                                    ?,?,?,?,?,?,?, ?,?,?,?,?)
+      </Sql>
+      <Parameter name="CValidCombinationId" type="out"/>
+      <Parameter name="AdClientId"/>
+      <Parameter name="AdOrgId"/>
+      <Parameter name="CAcctSchemaId"/>
+      
+      <Parameter name="AccountId"/>
+      <Parameter name="CInValidCombinationId"/>
+      <Parameter name="mustBeFullyQualified"/>
+      <Parameter name="alias"/>
+      
+      <Parameter name="createdBy"/>
+      <Parameter name="MProductId"/>
+      <Parameter name="CBPartnerId"/>
+      <Parameter name="AdOrgTrxId"/>
+      <Parameter name="CLocFromId"/>
+      <Parameter name="CLocToId"/>
+      <Parameter name="CSalesRegionId"/>
+      <Parameter name="CProjectId"/>
+      <Parameter name="CCampaignId"/>
+      <Parameter name="CActivityId"/>
+      <Parameter name="user1Id"/>
+      <Parameter name="user2Id"/>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ACCTSCHEMA_PROCESS_TRG">
+    <trigger name="C_ACCTSCHEMA_PROCESS_TRG" table="C_ACCTSCHEMA_PROCESS" fires="before" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_Count NUMBER;
+  v_Count2 NUMBER;
+  TYPE RECORD IS REF CURSOR;
+  cur_AcctSchemas RECORD;
+  v_c_ACCTSCHEMA_ID c_acctschema.c_acctschema_id%type;
+  
+BEGIN
+ 
+IF (:NEW.ISDATASET='Y') THEN
+  -- Present trigger manages the issue of inserting a row in c_acctschema_process
+  --table with no value for the c_acctschema_id column. In that case, one row will
+  --be inserted for each accounting schema of the client or organization.
+  -- Main scenario for this situation is that a dataset of a module tries to 
+  --insert a process for the accounting schema that is being created during an
+  --initial client/organization setup.
+
+  IF (:NEW.C_ACCTSCHEMA_ID IS NULL) THEN
+    SELECT COUNT(1)
+    INTO v_Count
+    FROM AD_ORG_ACCTSCHEMA
+    WHERE AD_CLIENT_ID = :NEW.AD_CLIENT_ID AND AD_ORG_ID = :NEW.AD_ORG_ID;
+    -- If there exists just one accounting schema for the organization, means trigger
+    --is launched due to a initial organization setup, or entity module management
+    IF (v_Count=1) THEN
+      SELECT C_ACCTSCHEMA_ID
+      INTO v_c_ACCTSCHEMA_ID
+      FROM AD_ORG_ACCTSCHEMA
+      WHERE AD_CLIENT_ID = :NEW.AD_CLIENT_ID AND AD_ORG_ID = :NEW.AD_ORG_ID;
+    ELSIF (v_Count=0) THEN
+      SELECT COUNT(1)
+      INTO v_Count2
+      FROM AD_ORG_ACCTSCHEMA
+      WHERE AD_CLIENT_ID=:NEW.AD_CLIENT_ID AND AD_ORG_ID='0';
+      -- If there exists just one schema for the client, means trigger was launched
+      --due to an initial client setup.
+      IF (v_Count2=1) THEN
+        SELECT C_ACCTSCHEMA_ID
+        INTO v_c_ACCTSCHEMA_ID
+        FROM AD_ORG_ACCTSCHEMA
+        WHERE AD_CLIENT_ID = :NEW.AD_CLIENT_ID AND AD_ORG_ID = :NEW.AD_ORG_ID;
+      ELSE
+        -- No accounting schema was found!
+        RAISE_APPLICATION_ERROR(-20000,'@NoAcctSchema@');
+      END IF;
+    ELSIF (v_Count>1) THEN
+      -- If there exists more than one accounting schema for the organization then
+      --one row is inserted in c_acctschema_process for each schema of the organization
+      --in except of one, which c_acctschema_id is assigned to the :new.c_acctschema_id
+      SELECT MAX(C_ACCTSCHEMA_ID)
+      INTO v_c_ACCTSCHEMA_ID
+      FROM AD_ORG_ACCTSCHEMA
+      WHERE AD_CLIENT_ID=:NEW.AD_CLIENT_ID AND AD_ORG_ID=:NEW.AD_ORG_ID;
+      FOR cur_AcctSchemas IN
+      (
+      SELECT C_ACCTSCHEMA_ID
+      FROM AD_ORG_ACCTSCHEMA
+      WHERE AD_CLIENT_ID=:NEW.AD_CLIENT_ID AND AD_ORG_ID=:NEW.AD_ORG_ID
+      )
+      LOOP
+        IF (cur_AcctSchemas.C_ACCTSCHEMA_ID <> v_c_ACCTSCHEMA_ID) THEN
+          INSERT INTO C_ACCTSCHEMA_PROCESS (C_ACCTSCHEMA_PROCESS_ID, 
+                                            C_ACCTSCHEMA_ID, 
+                                            AD_CLIENT_ID, 
+                                            AD_ORG_ID,
+                                            ISACTIVE,
+                                            AD_ACCTPROCESS_ID,
+                                            SEQNO)
+          VALUES (GET_UUID(),
+                  cur_AcctSchemas.C_ACCTSCHEMA_ID,
+                  :NEW.AD_CLIENT_ID,
+                  :NEW.AD_ORG_ID,
+                  :NEW.ISACTIVE,
+                  :NEW.AD_ACCTPROCESS_ID,
+                  :NEW.SEQNO);
+        END IF;
+      END LOOP;
+    END IF;
+    :NEW.C_ACCTSCHEMA_ID := v_c_ACCTSCHEMA_ID;
+  END IF;
+END IF;
+  
+END C_ACCTSCHEMA_PROCESS_TRG
+]]></body>
+    </trigger>
+  </database>

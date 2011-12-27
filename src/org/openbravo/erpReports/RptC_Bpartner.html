@@ -1,0 +1,748 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+<title>Business Partner Card</title>
+<link rel="SHORTCUT ICON" href="../../../../../web/images/favicon.ico" type="image/x-icon"/>
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"/>
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  var defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript">
+function callback(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  var id = "";
+  var imageId = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) strText = XMLHttpRequestObj.responseText;
+    } catch (e) {
+    }
+    if (paramXMLParticular!=null && paramXMLParticular.length>0) {
+      id = paramXMLParticular[0];
+      imageId = paramXMLParticular[1];
+    }
+    layer(id, strText, true, false);
+    showHideLayer(id, imageId);
+  }
+  return true;
+}
+
+function showHideLayer(id, imageId) {
+  var obj = getReference(imageId);
+  var spanObj = getStyle(id);
+  if (obj!=null) {
+    if (obj.className == "datawarehouseopen") {
+      obj.className = "datawarehouseclose";
+      if (spanObj!=null) spanObj.display = "none";
+    } else {
+      obj.className = "datawarehouseopen";
+      if (spanObj!=null) spanObj.display = "";
+    }
+  }
+}
+
+
+function updateData(CommandValue, id) {
+  var frm = document.frmMain;
+  frm.inpProductTemplate.value = id;
+  frm.inpTypeDocument.value = id;
+  var dataLayer = readLayer("returnText" + id, true);
+  if (dataLayer==null || dataLayer=="") {
+    var paramXMLReq = new Array('returnText' + id, 'buttonTree' + id);
+    return submitXmlHttpRequest(callback, frm, CommandValue, "RptC_Bpartner.pdf", false, null, paramXMLReq);
+  } else {
+    showHideLayer("returnText" + id, "buttonTree" + id);
+  }
+}
+
+
+function resizeAreaBpartner() {
+  var mnu = document.getElementById("AreaBpartner");
+  var body = document.getElementsByTagName("BODY");
+  var mTopSeparator = document.getElementById("tdSeparator");
+  var mTopNavigation = document.getElementById("tdNavigation");
+
+  var h = body[0].clientHeight;
+  var name = window.navigator.appName;
+  mnu.style.height = h -(mTopSeparator.clientHeight + mTopNavigation.clientHeight) - 2;
+
+  mnu.style.display = "";
+}
+
+function openPaymentPlanTab(tabid, recordid, windowid, tabtitle, mappingname, keyparameter) {
+	getFrame('LayoutMDI').OB.Layout.ViewManager.openView('OBClassicWindow',  {
+	   tabId: tabid,
+	   recordId: recordid,
+	   windowId: windowid,
+	   command: 'DIRECT',
+	   tabTitle: tabtitle,
+	   mappingName: mappingname,
+	   keyParameter: keyparameter
+	});
+}
+
+</script>
+
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="resizeAreaBpartner();" onresize="resizeAreaBpartner();">
+<form id="form" method="post" action="RptC_Bpartner.html" name="frmMain" >
+<input type="hidden" name="Command">
+<input type="hidden" name="IsPopUpCall" value="1"></input>
+<input type="hidden" name="inpcBpartnerId" value="" id="paramBpartner"></input>
+<input type="hidden" name="inpProductTemplate"></input>
+<input type="hidden" name="inpTypeDocument"></input>
+<input type="hidden" name="inpIsInvoice"></input>
+<input type="hidden" name="inpTableReferenceId"></input>
+<input type="hidden" name="inpAdTableId"></input>
+<input type="hidden" name="inpIsSOtrx"></input>
+<input type="hidden" name="inpRecordId"></input>
+<input type="hidden" value="FF80818129E9987E0129EA1F0BE30010" id="Fin_Payment_Detail_V_ID" name="inpfinPaymentDetailVId"></input>
+    <div class="Popup_ContentPane_CircleLogo">
+      <div class="Popup_WindowLogo">
+        <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_businessPartner" src="../../../../../web/images/blank.gif" border="0"></img>
+      </div>
+    </div>
+    <table cellspacing="0" cellpadding="0" width="100%">
+
+      <tr>
+        <td id="tdNavigation">
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+            <tr class="Popup_NavBar_bg"><td></td>
+              <td class="Popup_NavBar_separator_cell"></td>
+              <td class="Popup_NavBar_bg_logo_left"></td>
+              <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+              <td class="Popup_NavBar_bg_logo_right"></td>
+              <td class="Popup_NavBar_Popup_title_cell"><span>Business Partner Card</span></td>
+              <td class="Popup_NavBar_separator_cell"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td id="tdSeparator">
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+            <tr>
+              <td class="Popup_SeparatorBar_bg"></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+        <!-- USER CONTROLS -->
+
+      <div class="Popup_ContentPane_Client" style="overflow: auto; display: none;" id="AreaBpartner" >
+<table width="100%" border="0">
+<tr>
+<td colspan="6">
+  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+  <tbody>
+    <tr class="FieldGroup_TopMargin"/>
+    <tr>
+      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupTitle">General Information</td>
+      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupContent"/>
+    </tr>
+    <tr class="FieldGroup_BottomMargin"/>
+  </tbody>
+  </table>
+</td>
+</tr>
+</table>
+
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+  <tr VALIGN="top">
+    <td width="4%">&nbsp;</td>
+    <div id="sectionDetail">
+    <td width="32%">
+      <table width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td width="32%" colspan="2" >
+          <span class="Label_ReadOnly_Text">GENERAL DATA</span></td></tr>
+        <tr>
+          <td width="29%" >
+          <span class="LabelText">Identifier</span></td>
+          <td width="71%" id="fieldValuePartner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Commercial name</span></td>
+          <td id="fieldNamePartner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Fiscal name</span></td>
+          <td id="fieldName2Partner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">TIN/ID</span></td>
+          <td id="fieldTaxidPartner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Business Partner Group</span></td>
+          <td id="fieldGroupnamePartner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Registration date</span></td>
+          <td id="fieldCreatedPartner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Update</span></td>
+          <td id="fieldUpdatedPartner" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Commercial</span></td>
+          <td id="fieldIsemployee" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Employee</span></td>
+          <td id="fieldIssalesrep" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Asset</span></td>
+          <td id="fieldIsactivePartner" class="LabelText">&nbsp;</td></tr>
+      </table>
+    </td>
+    </div>
+    <td width="4%">&nbsp;</td>
+    <td width="27%" rowspan="10">
+      <div id="selDelete5">
+      <table width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td width="27%" colspan="2" >
+          <span class="Label_ReadOnly_Text">As customer</span></td></tr>
+        <tr>
+          <td width="30%" >
+          <span class="LabelText">Fact type</span></td>
+          <td width="70%" id="fieldInvoicerule" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Inv. Sched.</span></td>
+          <td id="fieldInvoiceschedule" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Payment method</span></td>
+          <td id="fieldPaymentmethod" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Terms</span></td>
+          <td id="fieldPaymenttermname" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Commercial</span></td>
+          <td id="fieldSalesrep" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Price list</span></td>
+          <td id="fieldPricelist" class="LabelText">&nbsp;</td></tr>        
+        <div id="sectionDetailCustomerAcct">
+        <tr>
+          <td >
+          <span class="LabelText">A. Account <span id="funcCountParts">xx1</span></span></td>
+          <td id="fieldAccount" class="LabelText">&nbsp;</td></tr>
+        </div>
+        <tr>
+          <td >
+          <span class="LabelText">Financial account</span></td>
+          <td id="fieldFinaccount" class="LabelText">&nbsp;</td></tr>  
+        <tr>
+          <td >
+          <span class="LabelText">Credit line limit</span></td>
+          <td id="fieldCreditlinelim" class="LabelText">&nbsp;</td></tr>  
+        <tr>
+          <td >
+          <span class="LabelText">Customer balance</span></td>
+          <td id="fieldCustomerbal" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Available credit</span></td>
+          <td id="fieldAvailablecredit" class="LabelText">&nbsp;</td></tr>       
+      </table>
+      </div>
+    </td>
+    <td width="4%">&nbsp;</td>
+    <td width="25%" rowspan="10">
+      <div id="selDelete6">
+      <table width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td width="25%" colspan="2" >
+          <span class="Label_ReadOnly_Text">As provider/creditor</span></td></tr>
+        <tr>
+          <td width="33%" >
+          <span class="LabelText">Payment method</span></td>
+          <td width="67%" id="fieldPaymentmethodpo" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Terms</span></td>
+          <td id="fieldPaymenttermnamepo" class="LabelText">&nbsp;</td></tr>
+        <tr>
+          <td >
+          <span class="LabelText">Price list</span></td>
+          <td id="fieldPricelistpo" class="LabelText">&nbsp;</td></tr>
+        <div id="sectionDetailVendorAcct">
+        <tr>
+          <td >
+          <span class="LabelText">A. Account <span id="funcCountParts2">xx2</span></span></td>
+          <td id="fieldAccountvendor" class="LabelText">&nbsp;</td></tr>
+          </div>
+        <tr>
+          <td >
+          <span class="LabelText">Financial account</span></td>
+          <td id="fieldFinaccountpo" class="LabelText">&nbsp;</td></tr>  
+        <tr>
+      </table>
+      </div>
+    </td>
+    <td width="4%">&nbsp;</td>
+  </tr>
+</table>
+
+<div id="selDelete5">
+<table width="100%" border="0">
+<tr>
+<td colspan="6">
+  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+  <tbody>
+    <tr class="FieldGroup_TopMargin"/>
+    <tr>
+      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupTitle">Customer Analysis</td>
+      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupContent"/>
+    </tr>
+    <tr class="FieldGroup_BottomMargin"/>
+  </tbody>
+  </table>
+</td>
+</tr>
+</table>
+<div id="selDelete9" class="LabelText">
+<table width="100%">
+<div id="sectionSalesorder">
+<tr>
+<td width="4%">&nbsp;</td>
+<td width="55%">
+<table width="100%" border="0" >
+<tr >
+<td width="33%" >
+<a href="#" onclick="updateData('OPENDOCUMENT', 'oo');return false;" onmouseover="window.status='Open';return true;" onmouseout="window.status='';return true;" id="fieldLeve2">
+<span id="buttonTreeoo" class="datawarehouseclose"></span></a>
+<span class="LabelText">Orders until</span>
+<span  id="paramSysdate" class="LabelText">21/03/2005</span></td>
+<td width="9%" >
+<span  id="fieldActualyear" class="LabelText">xx2006</span></td>
+<td width="13%" >
+<span  id="fieldAmount" class="LabelText">xx56789</span></td>
+<td width="8%" >
+<span id="fieldRefyear" class="LabelText">xx2005</span></td>
+<td width="16%" >
+<span id="fieldAmountref" class="LabelText">xx34566</span></td>
+<td width="12%" id="fieldTotalOrder" class="LabelText">xx4567</td>
+<td width="9%" >
+<span id="fieldTotalAvgOrder" class="LabelText">xx278.76<span>&nbsp;%</span></span></td></tr></table></td>
+<td width="41%">&nbsp;</td></tr></div></table>
+<span id="returnTextso" class="LabelText"></span></div>
+<div id="selDelete11">
+<table width="100%">
+<div id="sectionSalesinout">
+<tr>
+<td width="4%">&nbsp;</td>
+<td width="55%">
+<table width="100%" border="0" >
+<tr >
+<td width="33%" >
+<a href="#" onclick="updateData('OPENDOCUMENT', 'nn');return false;" onmouseover="window.status='Open';return true;" onmouseout="window.status='';return true;" id="fieldLeve4">
+<span id="buttonTreenn" class="datawarehouseclose"></span></a>
+<span class="LabelText">Shipments</span>
+<span  id="paramSysdate" class="LabelText">xx21/03/2005</span></td>
+<td width="9%" >
+<span  id="fieldActualyearInout" class="LabelText">xx2006</span></td>
+<td width="13%" >
+<span  id="fieldAmountInout" class="LabelText">xx56789</span></td>
+<td width="8%" >
+<span id="fieldRefyearInout" class="LabelText">xx2005</span></td>
+<td width="16%" >
+<span id="fieldAmountrefInout" class="LabelText">xx34566</span></td>
+<td width="12%" id="fieldTotalInout" class="LabelText">xx4567</td>
+<td width="9%" >
+<span id="fieldTotalAvgInout" class="LabelText">xx278.76<span>&nbsp;%</span></span></td></tr></table></td>
+<td width="41%">&nbsp;</td></tr></div></table>
+<span id="returnTextsn" class="LabelText"></span></div>
+<div id="selDelete10">
+<table width="100%">
+<div id="sectionSalesinvoice">
+<tr>
+<td width="4%">&nbsp;</td>
+<td width="55%">
+<table width="100%" border="0" >
+<tr >
+<td width="33%" >
+<a href="#" onclick="updateData('OPENDOCUMENT', 'ii');return false;" onmouseover="window.status='Open';return true;" onmouseout="window.status='';return true;" id="fieldLeve3">
+<span id="buttonTreeii" class="datawarehouseclose"></span></a>
+<span class="LabelText">Invoices to</span>
+<span  id="paramSysdate" class="LabelText">21/03/2005</span></td>
+<td width="9%" >
+<span  id="fieldActualyearInvoice" class="LabelText">xx2006</span></td>
+<td width="13%" >
+<span  id="fieldAmountInvoice" class="LabelText">xx56789</span></td>
+<td width="8%" >
+<span id="fieldRefyearInvoice" class="LabelText">xx2005</span></td>
+<td width="16%" >
+<span id="fieldAmountrefInvoice" class="LabelText">xx34566</span></td>
+<td width="12%" id="fieldTotalInvoice" class="LabelText">xx4567</td>
+<td width="9%" >
+<span id="fieldTotalAvgInvoice" class="LabelText">xx278.76<span>&nbsp;%</span></span></td></tr></table></td>
+<td width="41%">&nbsp;</td></tr></div></table>
+<span id="returnTextsi" class="LabelText"></span></div>
+<br></br>
+<table width="100%">
+<div id="sectionSalesABC">
+<tr>
+<td width="4%">&nbsp;</td>
+<td width="92%">
+<table width="100%" border="0">
+<tr >
+<td width="23%"></td>
+<td width="6%" >
+<span  id="fieldActualyearABC" class="LabelText">xx2006</span></td>
+<td width="7%" >
+<span  id="fieldAmountABC" class="LabelText">xx56789</span></td>
+<td width="8%" >
+<a href="#" onclick="updateData('OPENDOCUMENT', 'abc');return false;" onmouseover="window.status='Open';return true;" onmouseout="window.status='';return true;" id="fieldLeve5">
+<span id="buttonTreeabc" class="datawarehouseclose"></span></a>
+<span class="LabelText">Total</span>
+<span id="fieldTotalABC" class="LabelText">xx56789</span></td>
+<td width="13%" >
+<span class="LabelText">ABC PRODUCTS</span></td>
+<td width="6%" >
+<span  id="fieldRefyearABC" class="LabelText">xx2005</span></td>
+<td width="6%" >
+<span id="fieldAmountrefABC" class="LabelText">xx34566</span></td>
+<td width="8%" >
+<a href="#" onclick="updateData('OPENDOCUMENT', 'abcr');return false;" onmouseover="window.status='Open';return true;" onmouseout="window.status='';return true;" id="fieldLeve6">
+<span id="buttonTreeabcr" class="datawarehouseclose"></span></a>
+<span class="LabelText">Total</span>
+<span  id="fieldTotalRefABC" class="LabelText">xx56789</span></td>
+<td width="23%"></td></tr></table></td>
+<td width="4%">&nbsp;</td></tr></div></table>
+<table width="100%" border="0">
+<tr VALIGN="top">
+<td width="4%">&nbsp;</td>
+<td width="46%">
+<span id="returnTextabc" class="LabelText"></span></td>
+<td width="46%">
+<span id="returnTextabcr" class="LabelText"></span></td>
+<td width="4%">&nbsp;</td></tr></table></div>
+
+
+
+
+        <div id="selDeleteOpenItems" class="LabelText">
+        <table width="100%" border="0">
+            <tr>
+                <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                    <tbody>
+                        <tr class="FieldGroup_TopMargin" />
+                            <tr>
+                                <td class="FieldGroupTitle_Left"><img
+                                    class="FieldGroupTitle_Left_bg" border="0"
+                                    src="../../../../../web/images/blank.gif" /></td>
+                                <td class="FieldGroupTitle">Open Items</td>
+                                <td class="FieldGroupTitle_Right"><img
+                                    class="FieldGroupTitle_Right_bg" border="0"
+                                    src="../../../../../web/images/blank.gif" /></td>
+                                <td class="FieldGroupContent" />
+                            </tr>
+                            <tr class="FieldGroup_BottomMargin" />
+                    </tbody>
+                </table>
+                </td>
+            </tr>
+        </table>
+        <div id="selDeletePaymentin" class="LabelText">
+        <table width="100%">
+            <div id="sectionPaymentin">
+            <tr>
+                <td width="4%">&nbsp;</td>
+                <td width="70%">
+                <table width="100%" border="0">
+                    <tr>
+                        <td width="52%"><a href="#"
+                            onclick="updateData('OPENDOCUMENT', 'ww');return false;"
+                            onmouseover="window.status='Open';return true;"
+                            onmouseout="window.status='';return true;" id="fieldPaymentin">
+                        <span id="buttonTreeww" class="datawarehouseclose"></span></a> <span
+                            class="LabelText">Payments in until</span> <span
+                            id="paramSysdate" class="LabelText">21/03/2005</span></td>
+                        <td width="12%" style="text-align:right"><span id="fieldPlannedin" class="LabelText">xx2006</span></td>
+                        <td width="12%" style="text-align:right"><span id="fieldPaidin" class="LabelText">xx56789</span></td>
+                        <td width="12%" style="text-align:right"><span id="fieldOutstandingin"
+                            class="LabelText">xx2005</span></td>
+                    </tr>
+                </table>
+                </td>
+                <td width="26%">&nbsp;</td>
+            </tr>
+            </div>
+        </table>
+        <span id="returnTextww" class="LabelText"></span>
+        </div>
+        <div id="selDeletePaymentout" class="LabelText">
+        <table width="100%">
+            <div id="sectionPaymentout">
+            <tr>
+                <td width="4%">&nbsp;</td>
+                <td width="70%">
+                <table width="100%" border="0">
+                    <tr>
+                        <td width="52%"><a href="#"
+                            onclick="updateData('OPENDOCUMENT', 'yy');return false;"
+                            onmouseover="window.status='Open';return true;"
+                            onmouseout="window.status='';return true;" id="fieldPaymentout">
+                        <span id="buttonTreeyy" class="datawarehouseclose"></span></a> <span
+                            class="LabelText">Payments out until</span> <span
+                            id="paramSysdate" class="LabelText">21/03/2005</span></td>
+                        <td width="12%" style="text-align:right"><span id="fieldPlannedout" class="LabelText">xx2006</span></td>
+                        <td width="12%" style="text-align:right"><span id="fieldPaidout" class="LabelText">xx56789</span></td>
+                        <td width="12%" style="text-align:right"><span id="fieldOutstandingout"
+                            class="LabelText">xx2005</span></td>
+                    </tr>
+                </table>
+                </td>
+                <td width="26%">&nbsp;</td>
+            </tr>
+            </div>
+        </table>
+        </div>
+        <span id="returnTextyy" class="LabelText"></span>
+        </div>
+
+
+
+
+
+<table width="100%" border="0">
+<tr>
+<td colspan="6">
+  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+  <tbody>
+    <tr class="FieldGroup_TopMargin"/>
+    <tr>
+      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupTitle">Address</td>
+      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupContent"/>
+    </tr>
+    <tr class="FieldGroup_BottomMargin"/>
+  </tbody>
+  </table>
+</td>
+</tr>
+</table>
+
+<div id="selDelete7">
+<table width="100%" border="0">
+<tr>
+<td width="4%">&nbsp;</td>
+<td>
+<table width="100%" cellspacing="0" cellpadding="0" border="0" class="DataGrid_Header_Table DataGrid_Body_Table">
+<tr >
+<th width="43%" class="DataGrid_Header_Cell">Address</th>
+<th width="8%" class="DataGrid_Header_Cell">Postal Code</th>
+<th width="8%" class="DataGrid_Header_Cell">City</th>
+<th width="9%" class="DataGrid_Header_Cell">Province</th>
+<th width="7%" class="DataGrid_Header_Cell">Country</th>
+<th width="6%" class="DataGrid_Header_Cell">Phone</th>
+<th width="6%" class="DataGrid_Header_Cell">Phone 2</th>
+<th width="5%" class="DataGrid_Header_Cell">Fax</th>
+<th width="3%" class="DataGrid_Header_Cell">Delivery</th>
+<th width="2%" class="DataGrid_Header_Cell">Invo</th>
+<th width="3%" class="DataGrid_Header_Cell">Tax loc.</th></tr>
+<div id="sectionDetailLocation">
+<tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow4xx">
+<td id="fieldName" class="DataGrid_Body_Cell">xxCENTER-BURLADA - Hermanos Imaz nº1, 6ºD</td>
+<td id="fieldPostal" class="DataGrid_Body_Cell">xx31002</td>
+<td id="fieldCity" class="DataGrid_Body_Cell">xxPamplona</td>
+<td id="fieldLocationregionname" class="DataGrid_Body_Cell">xxNavarra</td>
+<td id="fieldLocationcountryname" class="DataGrid_Body_Cell">xxEspaña</td>
+<td id="fieldPhone" class="DataGrid_Body_Cell">xx678705554</td>
+<td id="fieldPhone2" class="DataGrid_Body_Cell">xx948281031</td>
+<td id="fieldFax" class="DataGrid_Body_Cell">948281031</td>
+<td id="fieldShipto" class="DataGrid_Body_Cell">xxSi</td>
+<td id="fieldBillto" class="DataGrid_Body_Cell">xxSi</td>
+<td id="fieldTaxlocation" class="DataGrid_Body_Cell">xxSi</td></tr></div></table></td>
+<td width="4%">&nbsp;</td></tr></table></div>
+
+<table width="100%" border="0">
+<tr>
+<td colspan="6">
+  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+  <tbody>
+    <tr class="FieldGroup_TopMargin"/>
+    <tr>
+      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupTitle">Contacts</td>
+      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupContent"/>
+    </tr>
+    <tr class="FieldGroup_BottomMargin"/>
+  </tbody>
+  </table>
+</td>
+</tr>
+</table>
+
+<div id="selDelete8">
+<table width="100%" border="0">
+<tr>
+<td width="4%">&nbsp;</td>
+<td>
+<table width="100%" cellspacing="0" cellpadding="0" border="0" class="DataGrid_Header_Table DataGrid_Body_Table">
+<tr >
+<th width="30%" class="DataGrid_Header_Cell">Name</th>
+<th width="15%" class="DataGrid_Header_Cell">Email</th>
+<th width="10%" class="DataGrid_Header_Cell">Phone</th>
+<th width="10%" class="DataGrid_Header_Cell">Phone 2</th>
+<th width="8%" class="DataGrid_Header_Cell">Fax</th>
+<th width="27%" class="DataGrid_Header_Cell">Address</th></tr>
+<div id="sectionDetailContact">
+<tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow5xx">
+<td id="fieldContactname" class="DataGrid_Body_Cell">xxPablo Sarobe Gonzáñez</td>
+<td id="fieldContactemail" class="DataGrid_Body_Cell">xxpssarobe@tecnicia.com</td>
+<td id="fieldContactphone" class="DataGrid_Body_Cell">xx678705554</td>
+<td id="fieldContactphone2" class="DataGrid_Body_Cell">xx948226913</td>
+<td id="fieldContactfax" class="DataGrid_Body_Cell">xx948281030</td>
+<td id="fieldContactadress" class="DataGrid_Body_Cell">xx6CENTER-BURLADA - Hermanos Imaz nº1, 6ºD</td></tr></div></table></td>
+<td width="4%">&nbsp;</td></tr></table></div>
+
+<table width="100%" border="0">
+<tr>
+<td colspan="6">
+  <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+  <tbody>
+    <tr class="FieldGroup_TopMargin"/>
+    <tr>
+      <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupTitle">Others</td>
+      <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+      <td class="FieldGroupContent"/>
+    </tr>
+    <tr class="FieldGroup_BottomMargin"/>
+  </tbody>
+  </table>
+</td>
+</tr>
+</table>
+
+<table width="100%" border="0">
+<tr>
+<td width="4%">&nbsp;</td>
+<td width="28%">
+<div id="selDelete1">
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td width="48%"  colspan="2" class="Label_ReadOnly_Text">Bank account</td></tr>
+<tr>
+<td>
+<table width="100%" cellspacing="0" cellpadding="0" class="DataGrid_Header_Table DataGrid_Body_Table">
+<tr >
+<th width="35%" class="DataGrid_Header_Cell">Bank</th>
+<th width="65%" class="DataGrid_Header_Cell">Account No.</th></tr>
+<div id="sectionDetailAccount">
+<tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow3xx">
+<td width="35%" id="fieldNameAccount" class="DataGrid_Body_Cell">xxCAJA NAVARRA</td>
+<td width="65%" id="fieldAccountno" class="DataGrid_Body_Cell">11111111111111111111</td></tr></div></table></td></tr></table></div></td>
+<td width="6%">&nbsp;</td>
+<td width="36%">
+<div id="selDelete3">
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td width="48%"  colspan="2" class="Label_ReadOnly_Text">Discounts</td></tr>
+<tr>
+<td>
+<table width="100%" cellspacing="0" cellpadding="0" class="DataGrid_Header_Table DataGrid_Body_Table">
+<tr >
+<th width="7%" class="DataGrid_Header_Cell">Seq.</th>
+<th width="77%" class="DataGrid_Header_Cell">Name</th>
+<th width="7%" class="DataGrid_Header_Cell">%</th>
+<th width="9%" class="DataGrid_Header_Cell">Casc.</th></tr>
+<div id="sectionDetailDiscount">
+<tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow1xx">
+<td width="7%" id="fieldSeqnoDiscount" class="LabelText">10</td>
+<td width="77%" id="fieldNameDiscount" class="LabelText">xxDEscuento por pronto pago 10%</td>
+<td width="7%" id="fieldDiscount" class="DataGrid_Body_Cell">10</td>
+<td width="9%" id="fieldCascade" class="DataGrid_Body_Cell">xxSi</td></tr></div></table></td></tr></table></div></td>
+<td width="26%">&nbsp;</td></tr></table>
+<br></br>
+<table width="100%" border="0">
+<tr>
+<td width="4%">&nbsp;</td>
+<td width="11%">
+<div id="selDelete2">
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td width="48%"  colspan="2" class="Label_ReadOnly_Text">Shipper</td></tr>
+<tr>
+<td>
+<table width="100%" cellspacing="0" cellpadding="0" class="DataGrid_Header_Table DataGrid_Body_Table">
+<tr >
+<th width="74%" class="DataGrid_Header_Cell">Shipper path</th>
+<th width="26%" class="DataGrid_Header_Cell">Seq.</th></tr>
+<div id="sectionDetailShipper">
+<tr class="DataGrid_Body_Row DataGrid_Body_Row_yy" id="funcEvenOddRow2xx">
+<td width="74%" id="fieldNameShipper" class="DataGrid_Body_Cell">xxRuta 1</td>
+<td width="26%" id="fieldSeqnoShipper" class="DataGrid_Body_Cell">10</td></tr></div></table></td></tr></table></div></td>
+<td width="23%">&nbsp;</td>
+<td width="26%">
+<div id="selDelete4">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="9%"  colspan="2">
+<span  class="Label_ReadOnly_Text">Template</span></td></tr></table>
+<div id="sectionTypeTemplate">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="91%" >
+<span  class="LabelText">
+<a href="#" onclick="updateData('OPEN', 'xx');return false;" onmouseover="window.status='Open';return true;" onmouseout="window.status='';return true;" id="fieldLevel">
+<span id="buttonTreexx" class="datawarehouseclose"></span></a>
+<span id="fieldNameTemplate" class="LabelText">xxAutoventa</span></span></td></tr></table>
+<span id="returnTextsx"></span></div></div></td>
+<td width="36%">&nbsp;</td></tr></table>
+</div>
+                      <!-- USER CONTROLS -->
+          </td>
+        </tr>
+      </table>
+</form>
+</body>
+</html>

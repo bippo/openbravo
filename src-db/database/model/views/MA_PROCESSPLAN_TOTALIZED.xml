@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+  <database name="VIEW MA_PROCESSPLAN_TOTALIZED">
+    <view name="MA_PROCESSPLAN_TOTALIZED"><![CDATA[SELECT ma_processplan_version.ma_processplan_id, ma_processplan_version.ma_processplan_version_id, m_product.m_product_id AS produced, sp1.qty AS proqty, sp2.m_product_id AS dependantproduct, sp2.qty AS depqty
+FROM m_product, ma_processplan, ma_processplan_version, (SELECT ma_sequence.ma_processplan_version_id, ma_sequenceproduct.m_product_id, sum(
+CASE ma_sequenceproduct.productiontype
+WHEN '+' THEN ma_sequenceproduct.quantity * ma_sequence.multiplier
+WHEN '-' THEN ma_sequenceproduct.quantity * ma_sequence.multiplier * (-1)
+ELSE NULL
+END) AS qty
+FROM ma_sequence, ma_sequenceproduct
+WHERE ma_sequence.ma_sequence_id = ma_sequenceproduct.ma_sequence_id AND ma_sequence.isactive = 'Y' AND ma_sequenceproduct.isactive = 'Y'
+GROUP BY ma_sequence.ma_processplan_version_id, ma_sequenceproduct.m_product_id) sp1, (SELECT ma_sequence.ma_processplan_version_id, ma_sequenceproduct.m_product_id, sum(
+CASE ma_sequenceproduct.productiontype
+WHEN '+' THEN ma_sequenceproduct.quantity * ma_sequence.multiplier
+WHEN '-' THEN ma_sequenceproduct.quantity * ma_sequence.multiplier * (-1)
+ELSE NULL
+END) AS qty
+FROM ma_sequence, ma_sequenceproduct
+WHERE ma_sequence.ma_sequence_id = ma_sequenceproduct.ma_sequence_id AND ma_sequence.isactive = 'Y' AND ma_sequenceproduct.isactive = 'Y'
+GROUP BY ma_sequence.ma_processplan_version_id, ma_sequenceproduct.m_product_id) sp2
+WHERE ma_processplan.ma_processplan_id = ma_processplan_version.ma_processplan_id AND m_product.ma_processplan_id = ma_processplan_version.ma_processplan_id AND ma_processplan.isactive = 'Y' AND ma_processplan_version.isactive = 'Y' AND ma_processplan_version.datefrom <= now() AND ma_processplan_version.dateto > now() AND ma_processplan_version.ma_processplan_version_id = sp1.ma_processplan_version_id AND ma_processplan_version.ma_processplan_version_id = sp2.ma_processplan_version_id AND sp1.m_product_id = m_product.m_product_id AND sp2.m_product_id <> m_product.m_product_id AND sp1.qty > 0 AND sp2.qty <> 0]]></view>
+  </database>

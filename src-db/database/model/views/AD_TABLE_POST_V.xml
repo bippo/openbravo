@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="VIEW AD_TABLE_POST_V">
+    <view name="AD_TABLE_POST_V"><![CDATA[SELECT ad_table.ad_table_id, (((ad_table.tablename || ' (') || (COALESCE(to_char(w2.name), '') || 
+CASE
+WHEN w2.name IS NULL THEN ''
+ELSE ' - '
+END)) || COALESCE(to_char(w1.name), ' - ')) || ')' AS name, w1.ad_language, ad_table.ad_client_id, ad_table.ad_org_id, ad_table.isactive, ad_table.created, ad_table.createdby, ad_table.updated, ad_table.updatedby
+FROM ad_table
+LEFT JOIN ad_window_trl w1 ON ad_table.ad_window_id = w1.ad_window_id
+LEFT JOIN ad_window_trl w2 ON ad_table.po_window_id = w2.ad_window_id
+WHERE (EXISTS (SELECT c.ad_column_id, c.ad_client_id, c.ad_org_id, c.isactive, c.created, c.updated, c.createdby, c.updatedby, c.name, c.description, c.help, c.columnname, c.ad_table_id, c.ad_reference_id, c.ad_reference_value_id, c.ad_val_rule_id, c.fieldlength, c.defaultvalue, c.iskey, c.isparent, c.ismandatory, c.isupdateable, c.readonlylogic, c.isidentifier, c.seqno, c.istranslated, c.isencrypted, c.callout, c.vformat, c.valuemin, c.valuemax, c.isselectioncolumn, c.ad_element_id, c.ad_process_id, c.issessionattr, c.issecondarykey, c.isdesencryptable, c.ad_callout_id, c.developmentstatus
+FROM ad_column c
+WHERE ad_table.ad_table_id = c.ad_table_id AND c.columnname = 'Posted')) AND w1.ad_language = COALESCE(w2.ad_language, w1.ad_language) AND ad_table.isactive = 'Y'
+UNION 
+SELECT ad_table.ad_table_id, (((ad_table.tablename || ' (') || (COALESCE(to_char(w2.name), '') || 
+CASE
+WHEN w2.name IS NULL THEN ''
+ELSE ' - '
+END)) || COALESCE(to_char(w1.name), ' - ')) || ')' AS name, 'en_US' AS ad_language, ad_table.ad_client_id, ad_table.ad_org_id, ad_table.isactive, ad_table.created, ad_table.createdby, ad_table.updated, ad_table.updatedby
+FROM ad_table
+LEFT JOIN ad_window w1 ON ad_table.ad_window_id = w1.ad_window_id
+LEFT JOIN ad_window w2 ON ad_table.po_window_id = w2.ad_window_id
+WHERE (EXISTS (SELECT c.ad_column_id, c.ad_client_id, c.ad_org_id, c.isactive, c.created, c.updated, c.createdby, c.updatedby, c.name, c.description, c.help, c.columnname, c.ad_table_id, c.ad_reference_id, c.ad_reference_value_id, c.ad_val_rule_id, c.fieldlength, c.defaultvalue, c.iskey, c.isparent, c.ismandatory, c.isupdateable, c.readonlylogic, c.isidentifier, c.seqno, c.istranslated, c.isencrypted, c.callout, c.vformat, c.valuemin, c.valuemax, c.isselectioncolumn, c.ad_element_id, c.ad_process_id, c.issessionattr, c.issecondarykey, c.isdesencryptable, c.ad_callout_id, c.developmentstatus
+FROM ad_column c
+WHERE ad_table.ad_table_id = c.ad_table_id AND c.columnname = 'Posted')) AND ad_table.isactive = 'Y']]></view>
+  </database>

@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+  <database name="TABLE C_BANKACCOUNT">
+    <table name="C_BANKACCOUNT" primaryKey="C_BANKACCOUNT_KEY">
+      <column name="C_BANKACCOUNT_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="C_BANK_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="C_CURRENCY_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="BANKACCOUNTTYPE" primaryKey="false" required="true" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ACCOUNTNO" primaryKey="false" required="false" type="NVARCHAR" size="20" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="CURRENTBALANCE" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREDITLIMIT" primaryKey="false" required="true" type="DECIMAL" autoIncrement="false">
+        <default><![CDATA[0]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="ISDEFAULT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CODEACCOUNT" primaryKey="false" required="false" type="NVARCHAR" size="10" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="DIGITCONTROL" primaryKey="false" required="false" type="NVARCHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="IBAN" primaryKey="false" required="false" type="NVARCHAR" size="34" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="GENERICACCOUNT" primaryKey="false" required="false" type="NVARCHAR" size="50" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="SHOWGENERIC" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault><![CDATA['N']]></onCreateDefault>
+      </column>
+      <column name="SHOWSPANISH" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault><![CDATA['Y']]></onCreateDefault>
+      </column>
+      <column name="SHOWIBAN" primaryKey="false" required="false" type="CHAR" size="1" autoIncrement="false">
+        <default/>
+        <onCreateDefault><![CDATA['N']]></onCreateDefault>
+      </column>
+      <column name="DISPLAYEDACCOUNT" primaryKey="false" required="false" type="NVARCHAR" size="50" autoIncrement="false">
+        <default/>
+        <onCreateDefault><![CDATA[SELECT SUBSTR(C_BANK.NAME,23) || '. ' || C_BANK.CODEBANK || '-' || C_BANK.CODEBRANCH || '-' || C_BANK.DIGITCONTROL || '-' || A.DIGITCONTROL || '-' || A.CODEACCOUNT FROM C_BANK, C_BANKACCOUNT A WHERE C_BANK.C_BANK_ID = A.C_BANK_ID AND C_BANKACCOUNT.C_BANKACCOUNT_ID=A.C_BANKACCOUNT_ID]]></onCreateDefault>
+      </column>
+      <foreign-key foreignTable="AD_CLIENT" name="C_BANKACCOUNT_AD_CLIENT">
+        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_ORG" name="C_BANKACCOUNT_AD_ORG">
+        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_BANK" name="C_BANKACCOUNT_C_BANK" onDelete="cascade">
+        <reference local="C_BANK_ID" foreign="C_BANK_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="C_CURRENCY" name="C_BANKACCOUNT_C_CURRENCY">
+        <reference local="C_CURRENCY_ID" foreign="C_CURRENCY_ID"/>
+      </foreign-key>
+      <index name="C_BANKACCT_BANK" unique="false">
+        <index-column name="C_BANK_ID"/>
+      </index>
+      <check name="C_BANKACC_SHOWGENERIC_CHECK"><![CDATA[(GENERICACCOUNT IS NOT NULL) OR (SHOWGENERIC = 'N')]]></check>
+      <check name="C_BANKACC_SHOWIBAN_CHECK"><![CDATA[(IBAN IS NOT NULL) OR (SHOWIBAN = 'N')]]></check>
+      <check name="C_BANKACC_SHOWONE_CHECK"><![CDATA[((((SHOWSPANISH = 'Y') AND (SHOWGENERIC = 'N')) AND (SHOWIBAN = 'N')) OR (((SHOWSPANISH = 'N') AND (SHOWGENERIC = 'Y')) AND (SHOWIBAN = 'N'))) OR (((SHOWSPANISH = 'N') AND (SHOWGENERIC = 'N')) AND (SHOWIBAN = 'Y'))]]></check>
+      <check name="C_BANKACC_SHOWSPANISH_CHECK"><![CDATA[((((DIGITCONTROL IS NOT NULL) AND (CODEACCOUNT IS NOT NULL)) AND (LENGTH((DIGITCONTROL)) = 1)) AND (LENGTH((CODEACCOUNT)) = 10)) OR (((DIGITCONTROL IS NULL) AND (CODEACCOUNT IS NULL)) AND (SHOWSPANISH = 'N'))]]></check>
+      <check name="C_BANKACCOUNT_ACCOUNTNO_CHECK"><![CDATA[((GENERICACCOUNT IS NOT NULL) OR (IBAN IS NOT NULL)) OR ((CODEACCOUNT IS NOT NULL) AND (DIGITCONTROL IS NOT NULL))]]></check>
+      <check name="C_BANKACCOUNT_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+    </table>
+  </database>

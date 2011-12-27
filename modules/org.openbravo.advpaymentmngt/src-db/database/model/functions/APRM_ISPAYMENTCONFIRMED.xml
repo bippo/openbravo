@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION APRM_ISPAYMENTCONFIRMED">
+    <function name="APRM_ISPAYMENTCONFIRMED" type="VARCHAR">
+      <parameter name="status" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="fin_payment_scheduledetail_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_Sql VARCHAR2(2000);
+  v_count NUMBER;
+  v_module   VARCHAR2(32);
+  v_dbprefix   VARCHAR2(7);
+  v_isPaymentConfirmed CHAR(1) := 'N';
+  TYPE RECORD IS REF CURSOR;
+  Cur_Dbprefix RECORD;
+
+BEGIN
+  -- Check if the status exists
+  SELECT count(*) INTO v_count FROM DUAL
+  WHERE EXISTS (SELECT 1 FROM ad_ref_list
+                WHERE ad_reference_id = '575BCB88A4694C27BC013DE9C73E6FE7'
+                      AND value = status);
+
+  IF (v_count = 0) THEN
+    RETURN 'N';
+  END IF;
+  IF (status IN ('PPM', 'RPR', 'PWNC', 'RDNC', 'RPPC')) THEN
+    -- core final statuses
+    v_isPaymentConfirmed := 'Y';
+  ELSIF (status IN ('RPAP', 'RPAE', 'RPVOID')) THEN
+    -- core intermediate statuses
+    v_isPaymentConfirmed := 'N';
+  ELSE
+    -- statuses implemented by other module
+    SELECT ad_module_id INTO v_module
+    FROM ad_ref_list
+    WHERE ad_reference_id = '575BCB88A4694C27BC013DE9C73E6FE7'
+      AND value = status;
+
+    -- if the module defines a merge can have several dbprefix
+    FOR Cur_Dbprefix IN ( 
+      SELECT name AS dbprefix
+      FROM ad_module_dbprefix
+      WHERE ad_module_id = v_module
+      ORDER BY name)
+    LOOP
+      BEGIN
+        v_Sql := 'SELECT ' || Cur_Dbprefix.dbprefix || '_ispaymentconfirmed' || '(''' || status || ''', ''' || fin_payment_scheduledetail_id || ''') FROM DUAL';
+
+        EXECUTE IMMEDIATE v_Sql INTO v_isPaymentConfirmed;
+        IF (v_ispaymentconfirmed = 'Y') THEN
+          EXIT;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE(Cur_Dbprefix.dbprefix || '_ispaymentconfirmed function not implemented');
+        -- do nothing
+      END;
+    END LOOP;
+  END IF;
+
+  RETURN v_isPaymentConfirmed;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('aprm_ispaymentconfirmed exception');
+  RAISE;
+END APRM_ISPAYMENTCONFIRMED
+]]></body>
+    </function>
+  </database>

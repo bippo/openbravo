@@ -1,0 +1,155 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_TAX_TRG">
+    <trigger name="C_TAX_TRG" table="C_TAX" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_Tax_Trg.sql,v 1.2 2003/02/18 03:33:22 jjanke Exp $
+    ***
+    * Title: Tax Changes
+    * Description:
+    *  - New Accounting Defaults
+    *  - Translation
+    ************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  Cur_Defaults RECORD;
+  v_count NUMBER;
+  v_AD_Client_ID VARCHAR2(32) := :new.AD_Client_ID;
+  v_AD_ORG_ID VARCHAR2(32) := :new.AD_ORG_ID;
+  v_C_Tax_ID VARCHAR2(32) := :new.C_Tax_ID;
+  v_CreatedBy VARCHAR2(32) := :new.CreatedBy;
+  v_UpdatedBy VARCHAR2(32) := :new.UpdatedBy;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+     --isTaxUndeductable and isTaxDeductable should not be true at the same time.
+     IF(:NEW.ISTAXUNDEDUCTABLE = 'Y' AND :NEW.ISTAXDEDUCTABLE='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@InvalidCombinationOfTaxDeductableFlag@') ;
+     END IF;
+    -- Tax Account Defaults
+    FOR Cur_Defaults IN
+      (
+      SELECT *
+      FROM C_AcctSchema_Default d
+      WHERE d.Ad_Client_Id = :new.AD_Client_ID
+        AND EXISTS
+        (
+      SELECT 1 
+      FROM AD_Org_AcctSchema
+      WHERE (AD_IsOrgIncluded(AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
+          OR AD_IsOrgIncluded(:new.AD_ORG_ID, AD_Org_ID, :new.AD_Client_ID)<>-1)
+      AND IsActive = 'Y'
+      AND AD_Org_AcctSchema.C_AcctSchema_ID = d.C_AcctSchema_ID
+        )
+      )
+    LOOP
+     SELECT count(*) INTO v_count
+   FROM DUAL
+   where exists (select 1 from ad_ep_procedures where ad_extension_points_id = '1D8D6974E6D64FDC8A6F2A7FE4C3F7FF');
+    IF (v_count=1) THEN
+         DECLARE
+                  v_ep_instance VARCHAR(32);
+                               
+                  v_extension_point_id VARCHAR(32) := '1D8D6974E6D64FDC8A6F2A7FE4C3F7FF';
+         BEGIN
+                  v_ep_instance := get_uuid();
+                  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'AD_Client_ID',
+                  v_AD_Client_ID, NULL, NULL, NULL, NULL, NULL, NULL); 
+                  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'AD_ORG_ID',
+                  v_AD_ORG_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'C_Tax_ID',
+                  v_C_Tax_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'CreatedBy',
+                  v_CreatedBy, NULL, NULL, NULL, NULL, NULL, NULL);
+                  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'UpdatedBy',
+                  v_UpdatedBy, NULL, NULL, NULL, NULL, NULL, NULL);
+                  AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+                  DELETE FROM ad_ep_instance_para
+                  WHERE ad_ep_instance_id = v_ep_instance;
+         END;
+    ELSE
+      INSERT
+      INTO C_Tax_Acct
+        (
+          C_Tax_Acct_ID, C_Tax_ID, C_AcctSchema_ID, AD_Client_ID,
+          AD_Org_ID, IsActive, Created,
+          CreatedBy, Updated, UpdatedBy,
+          T_Due_Acct, T_Liability_Acct, T_Credit_Acct,
+          T_Receivables_Acct, T_Expense_Acct
+        )
+        VALUES
+        (
+          get_uuid(), :new.C_Tax_ID, Cur_Defaults.C_AcctSchema_ID, :new.AD_Client_ID,
+          :new.AD_ORG_ID,  'Y', now(),
+          :new.CreatedBy, now(), :new.UpdatedBy,
+          Cur_Defaults.T_Due_Acct, Cur_Defaults.T_Liability_Acct, Cur_Defaults.T_Credit_Acct,
+          Cur_Defaults.T_Receivables_Acct, Cur_Defaults.T_Expense_Acct
+        )
+        ;
+    END IF;
+    END LOOP;
+    --  Create Translation Rows
+    INSERT
+    INTO C_Tax_Trl
+      (
+        C_Tax_Trl_ID, C_Tax_ID, AD_Language, AD_Client_ID,
+        AD_Org_ID, IsActive, Created,
+        CreatedBy, Updated, UpdatedBy,
+        Name, Description, TaxIndicator,
+        IsTranslated
+      )
+    SELECT get_uuid(), :new.C_Tax_ID,
+      AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+      :new.IsActive, :new.Created, :new.CreatedBy,
+      :new.Updated, :new.UpdatedBy, :new.Name,
+      :new.Description, :new.TaxIndicator,  'N'
+    FROM AD_Language
+    WHERE IsActive='Y'
+      AND IsSystemLanguage='Y';
+  END IF;
+  -- Inserting
+  IF(UPDATING) THEN
+    --isTaxUndeductable and isTaxDeductable should not be true at the same time.
+     IF(:NEW.ISTAXUNDEDUCTABLE = 'Y' AND :NEW.ISTAXDEDUCTABLE='Y') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@InvalidCombinationOfTaxDeductableFlag@') ;
+     END IF;
+    UPDATE C_TAX_ACCT SET AD_ORG_ID = :new.AD_ORG_ID
+    WHERE C_TAX_ID = :new.C_TAX_ID;
+    IF((COALESCE(:old.TaxIndicator, '.') <> COALESCE(:NEW.TaxIndicator, '.')
+   OR COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+   OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')))
+  THEN
+      UPDATE C_Tax_Trl
+        SET IsTranslated='N',
+        Updated=now()
+      WHERE C_Tax_ID=:new.C_Tax_ID;
+    END IF;
+  END IF;
+  -- Updating
+END C_TAX_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,176 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ELEMENT_TRL_TRG">
+    <trigger name="AD_ELEMENT_TRL_TRG" table="AD_ELEMENT_TRL" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: AD_Element_Trl_Trg.sql,v 1.4 2002/11/08 05:42:01 jjanke Exp $
+***
+* Title: AD_Element_Trl update trigger
+* Description:
+*   Synchronize name,... with  Field if centrally maintained
+************************************************************************/
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF UPDATING
+  THEN
+    IF (   COALESCE (:OLD.NAME, '.') <> COALESCE (:NEW.NAME, '.')
+        OR COALESCE (:OLD.Description, '.') <> COALESCE (:NEW.Description, '.')
+        OR COALESCE (:OLD.HELP, '.') <> COALESCE (:NEW.HELP, '.')
+        OR COALESCE (:OLD.PrintName, '.') <> COALESCE (:NEW.PrintName, '.')
+        OR COALESCE (:OLD.IsTranslated, '.') <> COALESCE (:NEW.IsTranslated, '.')
+        OR COALESCE (:OLD.PO_NAME, '.') <> COALESCE (:NEW.PO_NAME, '.')
+        OR COALESCE (:OLD.PO_Description, '.') <> COALESCE (:NEW.PO_Description, '.')
+        OR COALESCE (:OLD.PO_HELP, '.') <> COALESCE (:NEW.PO_HELP, '.')
+       )
+    THEN
+      -- Field
+      UPDATE AD_Field_Trl
+         SET NAME = :NEW.NAME,
+             Description = :NEW.Description,
+             HELP = :NEW.HELP,
+             IsTranslated = :NEW.IsTranslated
+      WHERE  AD_Language = :NEW.AD_Language
+         AND AD_Field_ID IN (
+               SELECT F.AD_Field_ID
+                 FROM AD_Field F, AD_Column C, AD_Module M
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                  AND C.AD_Element_ID = :NEW.AD_Element_ID
+                  AND F.IsCentrallyMaintained = 'Y'
+                  AND M.aD_Module_id = f.ad_module_id
+                  and m.AD_Language != :new.AD_Language);
+                  
+      UPDATE AD_Field
+         SET NAME = :NEW.NAME,
+             Description = :NEW.Description,
+             HELP = :NEW.HELP
+      WHERE  AD_Field_ID IN (
+               SELECT F.AD_Field_ID
+                 FROM AD_Field F, AD_Column C, AD_Module M
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                  AND C.AD_Element_ID = :NEW.AD_Element_ID
+                  AND F.IsCentrallyMaintained = 'Y'
+                  AND M.aD_Module_id = f.ad_module_id
+                  and m.AD_Language = :new.AD_Language)
+      AND exists (SELECT 1 from ad_module m
+              where m.ad_module_id=ad_field.ad_module_id
+              and m.isindevelopment='Y');
+
+      -- Field SO
+      UPDATE AD_Field_Trl
+         SET NAME = coalesce(:NEW.PO_NAME, :new.Name),
+             Description = coalesce(:NEW.PO_Description, :new.Description),
+             HELP = coalesce(:NEW.PO_HELP, :new.Help),
+             IsTranslated = :NEW.IsTranslated
+      WHERE  AD_Language = :NEW.AD_Language
+         AND AD_Field_ID IN (
+               SELECT F.AD_Field_ID
+                 FROM AD_Field F, AD_Column C, AD_Module M, 
+                      AD_Tab T, AD_Window w
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                  AND C.AD_Element_ID = :NEW.AD_Element_ID
+                  AND F.IsCentrallyMaintained = 'Y'
+                  AND M.aD_Module_id = f.ad_module_id
+                  and m.AD_Language != :new.AD_Language
+                  and f.AD_Tab_ID = T.AD_Tab_ID
+                  and w.AD_Window_ID = t.AD_Window_ID
+                  and w.IsSoTrx='N');
+                  
+      UPDATE AD_Field
+         SET NAME = coalesce(:NEW.PO_NAME, :new.Name),
+             Description = coalesce(:NEW.PO_Description, :new.Description), 
+             HELP = coalesce(:NEW.PO_HELP, :new.Help)
+      WHERE  AD_Field_ID IN (
+               SELECT F.AD_Field_ID
+                 FROM AD_Field F, AD_Column C, AD_Module M,
+                      AD_Tab T, AD_Window w
+                WHERE F.AD_Column_ID = C.AD_Column_ID
+                  AND C.AD_Element_ID = :NEW.AD_Element_ID
+                  AND F.IsCentrallyMaintained = 'Y'
+                  AND M.aD_Module_id = f.ad_module_id
+                  and m.AD_Language = :new.AD_Language
+		  and f.AD_Tab_ID = T.AD_Tab_ID
+                  and w.AD_Window_ID = t.AD_Window_ID
+                  and w.IsSoTrx='N')
+      AND exists (SELECT 1 from ad_module m
+              where m.ad_module_id=ad_field.ad_module_id
+              and m.isindevelopment='Y');
+                  
+       UPDATE AD_Column
+    SET Name=:new.Name,
+    Description=:new.Description,
+    Help=:new.Help
+  WHERE AD_Element_ID=:new.AD_Element_ID
+    AND exists (select 1
+                  from ad_module m
+                 where m.ad_module_id = ad_column.ad_module_id
+                   and m.ad_language = :new.ad_language)
+      AND exists (SELECT 1 from ad_module m
+                   where m.ad_module_id=ad_column.ad_module_id
+                   and m.isindevelopment='Y');
+
+
+
+
+      -- Parameter
+      UPDATE AD_Process_Para_Trl
+         SET NAME = :NEW.NAME,
+             Description = :NEW.Description,
+             HELP = :NEW.HELP,
+             IsTranslated = :NEW.IsTranslated
+      WHERE  AD_Language = :NEW.AD_Language
+         AND AD_Process_Para_ID IN (
+               SELECT f.AD_Process_Para_ID
+                 FROM AD_Process_Para f, AD_Process p, ad_module m
+               WHERE  f.AD_Element_ID = :NEW.AD_Element_ID
+                  AND f.IsCentrallyMaintained = 'Y'
+                  and p.ad_process_id = f.ad_process_id
+                  and m.ad_module_id = p.ad_module_id
+                  and m.ad_language != :NEW.AD_Language);
+                  
+      UPDATE AD_Process_Para
+         SET NAME = :NEW.NAME,
+             Description = :NEW.Description,
+             HELP = :NEW.HELP
+      WHERE  AD_Process_Para_ID IN (
+               SELECT f.AD_Process_Para_ID
+                 FROM AD_Process_Para f, AD_Process p, ad_module m
+               WHERE  f.AD_Element_ID = :NEW.AD_Element_ID
+                  AND f.IsCentrallyMaintained = 'Y'
+                  and p.ad_process_id = f.ad_process_id
+                  and m.ad_module_id = p.ad_module_id
+                  and m.ad_language = :NEW.AD_Language)
+      AND exists (SELECT 1 from ad_module m, ad_process p
+                   where m.ad_module_id=p.ad_module_id
+                   and p.ad_process_id = ad_process_para.ad_process_id
+                   and m.isindevelopment='Y');        
+
+    END IF;
+  END IF;
+END AD_ELEMENT_TRL_TRG
+]]></body>
+    </trigger>
+  </database>

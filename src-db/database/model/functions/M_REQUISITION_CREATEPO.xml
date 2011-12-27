@@ -1,0 +1,303 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_REQUISITION_CREATEPO">
+    <function name="M_REQUISITION_CREATEPO" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32):='0';
+  v_Client_ID VARCHAR2(32);
+  v_sales_rep_ID VARCHAR2(32);
+  v_Count NUMBER;
+  v_C_DOCTYPE_ID VARCHAR2(32);
+  v_C_Order_ID VARCHAR2(32);
+  v_DocumentNo NVARCHAR2(60);
+  v_Line NUMBER;
+  v_Vendor_Old VARCHAR2(32);
+  v_PriceList_Old VARCHAR2(32);
+  v_BPartner_Location_ID VARCHAR2(32);
+  v_BillTo_ID VARCHAR2(32);
+  v_Currency_ID VARCHAR2(32);
+  v_COrderLine_ID VARCHAR2(32);
+  v_NoRecords NUMBER:=0;
+  v_RequisitionOrder_ID VARCHAR2(32);
+  v_PaymentTerm_ID VARCHAR2(32);
+
+  v_PriceList NUMBER;
+  v_PriceLimit NUMBER;
+  v_PriceStd NUMBER;
+  v_PriceActual NUMBER;
+  v_Discount NUMBER;
+  v_Tax_ID VARCHAR2(32);
+
+  p_OrderDate DATE;
+  p_Vendor_ID VARCHAR2(32);
+  p_PriceList_ID VARCHAR2(32);
+  p_Org_ID VARCHAR2(32);
+  p_Warehouse_ID VARCHAR2(32);
+
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  Cur_Product RECORD;
+  Cur_Lines RECORD;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('BEGIN M_REQUISITION_ORDER ' || p_PInstance_ID) ;
+  v_ResultStr:='PInstanceNotFound';
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, i.AD_User_ID, i.AD_Client_ID, i.AD_Org_ID,
+        p.ParameterName, p.P_String, p.P_Number, p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo) LOOP
+      IF (Cur_Parameter.ParameterName = 'DateOrdered') THEN
+        p_OrderDate := Cur_Parameter.P_Date;
+      ELSIF (Cur_Parameter.ParameterName = 'C_BPartner_ID') THEN
+        p_Vendor_ID := Cur_Parameter.P_String;
+      ELSIF (Cur_Parameter.ParameterName = 'M_PriceList_ID') THEN
+        p_PriceList_ID := Cur_Parameter.P_String;
+      ELSIF (Cur_Parameter.ParameterName = 'AD_Org_ID') THEN
+        p_Org_ID := Cur_Parameter.P_String;
+      ELSIF (Cur_Parameter.ParameterName = 'M_Warehouse_ID') THEN
+        p_Warehouse_ID := Cur_Parameter.P_String;
+      END IF;
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+      v_Client_ID := Cur_Parameter.AD_Client_ID;
+    END LOOP; -- Get Parameter
+
+    v_ResultStr := 'Checking vendor';
+    IF (p_Vendor_ID IS NULL) THEN
+      FOR Cur_Product IN (
+          SELECT M_PRODUCT.NAME, M_REQUISITIONLINE.LINE
+          FROM M_REQUISITION, M_REQUISITIONLINE, M_PRODUCT
+          WHERE M_REQUISITION.M_REQUISITION_ID = M_REQUISITIONLINE.M_REQUISITION_ID
+            AND M_REQUISITIONLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+            AND M_REQUISITION.M_REQUISITION_ID = v_Record_ID
+            AND M_REQUISITIONLINE.C_BPARTNER_ID IS NULL
+            AND M_REQUISITION.C_BPARTNER_ID IS NULL
+            AND NOT EXISTS (SELECT 1
+                            FROM M_PRODUCT_PO
+                            WHERE M_PRODUCT_PO.M_PRODUCT_ID = M_REQUISITIONLINE.M_PRODUCT_ID
+                              AND M_PRODUCT_PO.ISACTIVE = 'Y'
+                              AND M_PRODUCT_PO.ISCURRENTVENDOR = 'Y'
+                              AND M_PRODUCT_PO.DISCONTINUED = 'N')) LOOP
+        v_Message := '@Inline@ ' || Cur_Product.line || ' @ForProduct@ ' || Cur_Product.Name || ' @BPartnerNotFound@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END LOOP;
+    END IF;
+
+    v_ResultStr:='Start lines cursor';
+    FOR Cur_Lines IN
+      (SELECT A.*,
+           COALESCE(A.A_PRICELIST_ID, C_BPARTNER.PO_PRICELIST_ID) AS PRICELIST_ID,
+           C_BPARTNER.PAYMENTRULEPO AS PAYMENTRULE, C_BPARTNER.PO_PAYMENTMETHOD_ID, C_BPARTNER.PO_PAYMENTTERM_ID AS C_PAYMENTTERM_ID,
+           C_BPARTNER.DELIVERYRULE, C_BPARTNER.DELIVERYVIARULE, C_BPARTNER.C_BPARTNER_ID AS C_BPID
+       FROM (SELECT COALESCE(p_Vendor_ID, M_REQUISITIONLINE.C_BPARTNER_ID, M_REQUISITION.C_BPARTNER_ID, PRODUCT_PO.C_BPARTNER_ID) AS VENDOR_ID,
+                 COALESCE(p_PriceList_ID, M_REQUISITIONLINE.M_PRICELIST_ID, M_REQUISITION.M_PRICELIST_ID) AS A_PRICELIST_ID,
+                 M_REQUISITIONLINE.*
+              FROM M_REQUISITION, M_REQUISITIONLINE LEFT JOIN (SELECT MAX(C_BPARTNER_ID) AS C_BPARTNER_ID, M_PRODUCT_ID
+                                                               FROM M_PRODUCT_PO
+                                                               WHERE ISCURRENTVENDOR = 'Y'
+                                                                 AND ISACTIVE = 'Y'
+                                                                 AND DISCONTINUED = 'N'
+                                                               GROUP BY M_PRODUCT_ID) PRODUCT_PO
+                                                              ON M_REQUISITIONLINE.M_PRODUCT_ID = PRODUCT_PO.M_PRODUCT_ID
+              WHERE M_REQUISITION.M_REQUISITION_ID = M_REQUISITIONLINE.M_REQUISITION_ID
+                AND M_REQUISITION.M_REQUISITION_ID = v_Record_ID
+                AND M_REQUISITIONLINE.REQSTATUS = 'O'
+                AND NOT (COALESCE(M_REQUISITIONLINE.LOCKEDBY, v_User_ID) <> v_User_ID
+                         AND COALESCE(M_REQUISITIONLINE.LOCKDATE, TO_DATE('01-01-1900', 'DD-MM-YYYY')) >= (now()-3))
+              ) A, C_BPARTNER
+       WHERE A.VENDOR_ID = C_BPARTNER.C_BPARTNER_ID
+       ORDER BY A.VENDOR_ID, COALESCE(A.A_PRICELIST_ID, C_BPARTNER.PO_PRICELIST_ID), A.NEEDBYDATE) LOOP
+      v_ResultStr:='Line start';
+
+      IF (Cur_Lines.PRICELIST_ID IS NULL ) THEN
+        v_Message := '@PriceListVersionNotFound@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+
+      IF (v_C_Order_ID IS NULL OR v_Vendor_Old <> Cur_Lines.Vendor_ID OR v_PriceList_Old <> Cur_Lines.PriceList_ID) THEN
+        IF (v_C_Order_ID IS NOT NULL) THEN
+          v_ResultStr := 'Post Order ' || v_C_Order_ID;
+          C_ORDER_POST1(null, v_C_Order_ID);
+          v_Message := v_Message || ', ' || '@OrderDocumentno@ ' || v_DocumentNo;
+        END IF;
+        v_ResultStr := 'Create new C_Order';
+        v_Vendor_Old := Cur_Lines.Vendor_ID;
+        v_PriceList_Old := Cur_Lines.PriceList_ID;
+        v_Line := 0;
+        v_NoRecords := v_NoRecords +1;
+        v_C_Order_ID:=Ad_Sequence_Nextno('C_Order') ;
+        v_C_DOCTYPE_ID:=Ad_Get_DocType(v_Client_ID, p_Org_ID, 'POO') ;
+        AD_Sequence_DocType(v_C_DOCTYPE_ID, v_Client_ID, 'Y', v_DocumentNo) ;
+        IF(v_DocumentNo IS NULL) THEN
+          AD_Sequence_Doc('DocumentNo_C_Order', v_Client_ID, 'Y', v_DocumentNo) ;
+        END IF;
+        SELECT MIN(C_BPARTNER_LOCATION_ID) INTO v_BPartner_Location_ID
+        FROM C_BPARTNER_LOCATION
+        WHERE ISACTIVE='Y'
+          AND ISSHIPTO='Y'
+          AND C_BPARTNER_ID=Cur_Lines.Vendor_ID;
+        SELECT MIN(AD_USER_ID) INTO v_sales_rep_ID
+         FROM AD_USER
+         WHERE ISACTIVE='Y'
+         AND C_BPARTNER_ID=Cur_Lines.Vendor_ID;  
+        SELECT MIN(C_BPARTNER_LOCATION_ID) INTO v_BillTo_ID
+        FROM C_BPARTNER_LOCATION
+        WHERE ISACTIVE='Y'
+          AND ISBILLTO='Y'
+          AND C_BPARTNER_ID=Cur_Lines.Vendor_ID;
+
+        SELECT C_CURRENCY_ID INTO v_Currency_ID
+        FROM M_PRICELIST
+        WHERE M_PRICELIST_ID = Cur_Lines.Pricelist_ID;
+
+        IF(Cur_Lines.C_PAYMENTTERM_ID IS NULL) THEN
+          SELECT c_paymentterm_id INTO v_PaymentTerm_ID
+          FROM c_paymentterm
+          WHERE isactive='Y'
+            AND isdefault='Y'
+            AND AD_Client_ID = v_Client_ID;
+        END IF;
+
+
+        v_ResultStr := 'Insert C_Order id: ' || v_C_Order_ID || ' No.: ' || v_DocumentNo;
+        INSERT INTO C_ORDER (
+            C_ORDER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATEDBY,CREATED,
+            UPDATEDBY, UPDATED, ISSOTRX, DOCUMENTNO, DOCSTATUS,
+            DOCACTION, C_DOCTYPE_ID, C_DOCTYPETARGET_ID, DATEORDERED,
+            DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, ISDISCOUNTPRINTED,
+            C_CURRENCY_ID, PAYMENTRULE, FIN_PAYMENTMETHOD_ID, C_PAYMENTTERM_ID, INVOICERULE,
+            DELIVERYRULE, FREIGHTCOSTRULE, DELIVERYVIARULE, PRIORITYRULE,
+            TOTALLINES, GRANDTOTAL, M_WAREHOUSE_ID, M_PRICELIST_ID,
+            ISTAXINCLUDED, POSTED, PROCESSING, BILLTO_ID,
+            AD_USER_ID, COPYFROM, DATEPROMISED
+        ) VALUES (
+            v_C_Order_ID, v_CLIENT_ID, p_Org_ID, v_User_ID,now(),
+            v_User_ID, now(), 'N', v_DocumentNo, 'DR',
+             'CO', '0', v_C_DOCTYPE_ID, p_OrderDate,
+            p_OrderDate, Cur_Lines.vendor_Id, v_BPartner_Location_ID, 'N',
+            v_Currency_ID, COALESCE(Cur_Lines.PAYMENTRULE, 'P'), Cur_Lines.PO_PAYMENTMETHOD_ID, COALESCE(Cur_Lines.C_PAYMENTTERM_ID, v_PaymentTerm_ID), 'D',
+            COALESCE(Cur_Lines.Deliveryrule, 'A'), 'I', 'D', '5',
+            0, 0, p_WAREHOUSE_ID, Cur_Lines.PRICELIST_ID,
+             'N', 'N', 'N', v_BillTo_ID,
+            v_sales_rep_ID, 'N', Cur_Lines.NEEDBYDATE
+        );
+      END IF;
+
+      v_ResultStr := 'Create C_Order_Line';
+      v_Line := v_Line + 10;
+      Ad_Sequence_Next('C_OrderLine', v_Client_ID, v_COrderLine_ID);
+
+      SELECT pp.PRICELIST, pp.PRICELIMIT, pp.PRICESTD,
+             ROUND(M_GET_OFFERS_PRICE(TO_DATE(p_OrderDate),Cur_Lines.C_BPID,Cur_Lines.M_Product_ID,COALESCE(Cur_Lines.PRICEACTUAL, pp.PRICESTD),Cur_Lines.QTY - Cur_Lines.ORDEREDQTY,Cur_Lines.PRICELIST_ID),CUR.PRICEPRECISION),
+             ROUND((pp.PRICELIST - pp.PRICESTD)/pp.PRICELIST*100,CUR.STDPRECISION)
+        INTO v_PriceList, v_PriceLimit, v_PriceStd, v_PriceActual, v_Discount
+      FROM
+        (SELECT COALESCE(Cur_Lines.PRICELIST, MAX(M_PRODUCTPRICE.PRICELIST), Cur_Lines.PRICEACTUAL) AS PRICELIST,
+             COALESCE(MAX(M_PRODUCTPRICE.PRICELIMIT), Cur_Lines.PRICEACTUAL) AS PRICELIMIT,
+             COALESCE(Cur_Lines.PRICEACTUAL, MAX(M_PRODUCTPRICE.PRICESTD)) AS PRICESTD
+         FROM M_PRODUCTPRICE
+         WHERE M_PRICELIST_VERSION_ID = M_GET_PRICELIST_VERSION(Cur_Lines.PRICELIST_ID, p_OrderDate)
+           AND M_PRODUCT_ID = Cur_Lines.M_PRODUCT_ID) pp, (SELECT PRICEPRECISION, STDPRECISION FROM C_CURRENCY WHERE C_CURRENCY_ID = v_Currency_ID) CUR;
+
+      IF (v_PriceActual IS NULL) THEN
+        v_Message := '@PriceNotFound@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+
+      v_Tax_ID := C_GetTax(Cur_Lines.M_Product_ID, p_OrderDate, p_Org_ID, p_Warehouse_ID, v_BillTo_ID, v_BPartner_Location_ID, null, 'N');
+
+      v_ResultStr:='Insert order line';
+      INSERT INTO C_OrderLine (
+          C_ORDERLINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+          CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+          C_ORDER_ID, LINE, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID,
+          DATEORDERED, DATEPROMISED, DESCRIPTION, M_PRODUCT_ID,
+          M_ATTRIBUTESETINSTANCE_ID,
+          M_WAREHOUSE_ID, C_UOM_ID, QTYORDERED, C_CURRENCY_ID,
+          PRICELIST, PRICEACTUAL, PRICELIMIT,
+          PRICESTD, LINENETAMT, DISCOUNT,
+          C_TAX_ID, M_PRODUCT_UOM_ID, QUANTITYORDER
+      ) VALUES (
+          v_COrderLine_ID,v_Client_ID, p_Org_ID,'Y',
+          now(), v_User_ID, now(), v_User_ID,
+          v_C_Order_ID, v_Line, Cur_Lines.Vendor_ID, v_BPartner_Location_ID,
+          p_OrderDate, Cur_Lines.NEEDBYDATE, Cur_Lines.SUPPLIERNOTES, Cur_Lines.M_Product_ID,
+          Cur_Lines.M_AttributeSetInstance_ID,
+          p_Warehouse_ID, Cur_Lines.C_UOM_ID, Cur_Lines.QTY - Cur_Lines.ORDEREDQTY, v_Currency_ID,
+          v_PriceList, v_PriceActual, v_PriceLimit,
+          v_PriceStd, v_PriceActual*(Cur_Lines.QTY - Cur_Lines.ORDEREDQTY),v_Discount,
+          v_Tax_ID, Cur_Lines.M_Product_UOM_ID, Cur_Lines.QuantityOrder
+      );
+
+      Ad_Sequence_Next('M_RequisitionOrder', v_User_ID, v_RequisitionOrder_ID);
+
+      INSERT INTO M_REQUISITIONORDER (
+        M_REQUISITIONORDER_ID, AD_CLIENT_ID, AD_ORG_ID,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISACTIVE,
+        M_REQUISITIONLINE_ID, C_ORDERLINE_ID, QTY
+      ) VALUES (
+        v_RequisitionOrder_ID, v_Client_ID, p_Org_ID,
+        now(), v_User_ID, now(), v_User_ID, 'Y',
+        Cur_Lines.M_RequisitionLine_ID, v_COrderLine_ID, Cur_Lines.QTY - Cur_Lines.ORDEREDQTY
+      );
+      M_REQUISITIONLINE_STATUS(NULL, Cur_Lines.M_RequisitionLine_ID, v_User_ID);
+    END LOOP;
+
+    v_ResultStr := 'Post last Order ' || v_C_Order_ID;
+    C_ORDER_POST1(null, v_C_Order_ID);
+    v_Message := v_Message || ', ' || '@OrderDocumentno@ ' || v_DocumentNo;
+
+
+
+
+
+  END; --BODY
+  v_Message:='@Created@: ' || v_NoRecords || v_Message;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message);
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('M_Requisition_Order error: ' || v_ResultStr);
+  IF (p_PInstance_ID IS NOT NULL) THEN
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr);
+  ELSE
+    RAISE;
+  END IF;
+END M_REQUISITION_CREATEPO
+]]></body>
+    </function>
+  </database>

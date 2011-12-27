@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DisplayHelpEditData" package="org.openbravo.erpCommon.ad_help">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_WINDOW_ID AS ID, NAME AS ORIGINALNAME, NAME, HELP, '' AS iscentrallymaintained
+        FROM AD_WINDOW
+        WHERE AD_WINDOW_ID = ?
+        AND ISACTIVE='Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_WINDOW.AD_WINDOW_ID AS ID, AD_WINDOW.NAME AS ORIGINALNAME, 
+        (CASE WHEN AD_WINDOW_TRL.NAME IS NULL THEN '*' || AD_WINDOW.NAME ELSE AD_WINDOW_TRL.NAME END) AS NAME, AD_WINDOW_TRL.HELP, '' AS iscentrallymaintained
+        FROM AD_WINDOW left join AD_WINDOW_TRL on AD_WINDOW.AD_WINDOW_ID = AD_WINDOW_TRL.AD_WINDOW_ID
+                                               and AD_WINDOW_TRL.AD_LANGUAGE = ?
+        WHERE AD_WINDOW.AD_WINDOW_ID = ?
+        AND AD_WINDOW.ISACTIVE= 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   <SqlMethod name="selectTab" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_TAB_ID AS ID, NAME AS ORIGINALNAME, NAME, HELP, '' AS iscentrallymaintained
+        FROM AD_TAB
+        WHERE AD_TAB_ID = ?
+        AND ISACTIVE='Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectTabTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_TAB.AD_TAB_ID AS ID, AD_TAB.NAME AS ORIGINALNAME, 
+        (CASE WHEN AD_TAB_TRL.NAME IS NULL THEN '*' || AD_TAB.NAME ELSE AD_TAB_TRL.NAME END) AS NAME, AD_TAB_TRL.HELP, '' AS iscentrallymaintained
+        FROM AD_TAB left join AD_TAB_TRL on AD_TAB.AD_TAB_ID = AD_TAB_TRL.AD_TAB_ID
+                                        AND AD_TAB_TRL.AD_LANGUAGE =?
+        WHERE AD_TAB.AD_TAB_ID = ?
+        AND AD_TAB.ISACTIVE = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="adLanguage"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectForm" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_FORM_ID AS ID, NAME AS ORIGINALNAME, NAME, HELP, '' AS iscentrallymaintained
+        FROM AD_FORM
+        WHERE AD_FORM_ID = ?
+        AND ISACTIVE='Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectFormTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_FORM.AD_FORM_ID AS ID, AD_FORM.NAME AS ORIGINALNAME, 
+        (CASE WHEN AD_FORM_TRL.NAME IS NULL THEN '***' || AD_FORM.NAME ELSE AD_FORM_TRL.NAME END) AS NAME, AD_FORM_TRL.HELP, '' AS iscentrallymaintained
+        FROM AD_FORM left join AD_FORM_TRL on AD_FORM.AD_FORM_ID = AD_FORM_TRL.AD_FORM_ID
+                                        AND AD_FORM_TRL.AD_LANGUAGE =?
+        WHERE AD_FORM.AD_FORM_ID = ?
+        AND AD_FORM.ISACTIVE = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="adLanguage"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectProcess" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_PROCESS_ID AS ID, NAME AS ORIGINALNAME, NAME, HELP, '' AS iscentrallymaintained
+        FROM AD_PROCESS
+        WHERE AD_PROCESS_ID = ?
+        AND ISACTIVE='Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectProcessTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_PROCESS.AD_PROCESS_ID AS ID, AD_PROCESS.NAME AS ORIGINALNAME, 
+        (CASE WHEN AD_PROCESS_TRL.NAME IS NULL THEN '***' || AD_PROCESS.NAME ELSE AD_PROCESS_TRL.NAME END) AS NAME, AD_PROCESS_TRL.HELP, '' AS iscentrallymaintained
+        FROM AD_PROCESS left join AD_PROCESS_TRL on AD_PROCESS.AD_PROCESS_ID = AD_PROCESS_TRL.AD_PROCESS_ID
+                                        AND AD_PROCESS_TRL.AD_LANGUAGE =?
+        WHERE AD_PROCESS.AD_PROCESS_ID = ?
+        AND AD_PROCESS.ISACTIVE = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="adLanguage"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectField" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_FIELD_ID AS ID, NAME AS ORIGINALNAME, NAME, HELP, iscentrallymaintained AS iscentrallymaintained
+        FROM AD_FIELD
+        WHERE AD_FIELD_ID = ? 
+        AND ISACTIVE='Y'
+        AND ISDISPLAYED = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectFieldTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_FIELD.AD_FIELD_ID AS ID, AD_FIELD.NAME AS ORIGINALNAME, 
+        (CASE WHEN AD_FIELD_TRL.NAME IS NULL THEN '*' || AD_FIELD.NAME ELSE AD_FIELD_TRL.NAME END) AS NAME, AD_FIELD_TRL.HELP, AD_FIELD.ISCENTRALLYMAINTAINED AS iscentrallymaintained
+        FROM AD_FIELD left join AD_FIELD_TRL on AD_FIELD.AD_FIELD_ID = AD_FIELD_TRL.AD_FIELD_ID
+                                            AND AD_FIELD_TRL.AD_LANGUAGE = ?
+        WHERE AD_FIELD.AD_FIELD_ID = ?
+        AND AD_FIELD.ISACTIVE='Y'
+        AND AD_FIELD.ISDISPLAYED = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="adLanguage"/>
+        <Parameter name="id"/>      
+   </SqlMethod>
+   <SqlMethod name="selectIsCentrally" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_FIELD_ID AS ID, NAME AS ORIGINALNAME, NAME, HELP, iscentrallymaintained AS iscentrallymaintained
+        FROM AD_FIELD
+        WHERE AD_FIELD_ID = ? 
+        AND ISACTIVE='Y'
+        AND ISDISPLAYED = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectElement" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN.AD_ELEMENT_ID AS ID, AD_ELEMENT.NAME AS ORIGINALNAME, AD_ELEMENT.NAME, AD_ELEMENT.HELP, '' AS iscentrallymaintained
+        FROM AD_COLUMN, AD_FIELD, AD_ELEMENT
+        WHERE AD_FIELD.AD_FIELD_ID = ? 
+        AND AD_FIELD.ISACTIVE='Y'
+        AND AD_FIELD.AD_COLUMN_ID = AD_COLUMN.AD_COLUMN_ID
+        AND AD_COLUMN.AD_ELEMENT_ID = AD_ELEMENT.AD_ELEMENT_ID
+        AND AD_FIELD.ISDISPLAYED = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="selectElementTrl" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN.AD_ELEMENT_ID AS ID, AD_ELEMENT.NAME AS ORIGINALNAME, 
+        (CASE WHEN AD_ELEMENT_TRL.NAME IS NULL THEN '*' || AD_ELEMENT.NAME ELSE AD_ELEMENT_TRL.NAME END) AS NAME, AD_ELEMENT_TRL.HELP, '' AS ISCENTRALLYMAINTAINED
+        FROM AD_ELEMENT left join AD_ELEMENT_TRL on AD_ELEMENT.AD_ELEMENT_ID = AD_ELEMENT_TRL.AD_ELEMENT_ID
+                                                 AND AD_ELEMENT_TRL.AD_LANGUAGE = ? ,     
+        AD_COLUMN, AD_FIELD
+        WHERE AD_FIELD.AD_FIELD_ID = ?
+        AND AD_FIELD.AD_COLUMN_ID = AD_COLUMN.AD_COLUMN_ID
+        AND AD_COLUMN.AD_ELEMENT_ID = AD_ELEMENT.AD_ELEMENT_ID
+        AND AD_ELEMENT.ISACTIVE = 'Y'        
+        AND AD_FIELD.ISDISPLAYED = 'Y'
+        ]]>
+      </Sql>
+        <Parameter name="adLanguage"/>
+        <Parameter name="id"/> 
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_WINDOW SET NAME=?, HELP=? WHERE AD_WINDOW_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_WINDOW_TRL SET NAME=?, HELP=?, updated=now(), updatEDBY = ? WHERE AD_WINDOW_ID=? AND AD_LANGUAGE=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   <SqlMethod name="updateTab" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_TAB SET NAME=?, HELP=? WHERE AD_TAB_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateTabTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_TAB_TRL SET NAME=?, HELP=?, updated=now(), updatEDBY = ? WHERE AD_TAB_ID=? AND AD_LANGUAGE=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   <SqlMethod name="updateForm" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_FORM SET NAME=?, HELP=? WHERE AD_FORM_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateFormTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_FORM_TRL SET NAME=?, HELP=?, updated=now(), updatEDBY = ? WHERE AD_FORM_ID=? AND AD_LANGUAGE=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   <SqlMethod name="updateProcess" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_PROCESS SET NAME=?, HELP=? WHERE AD_PROCESS_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateProcessTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_PROCESS_TRL SET NAME=?, HELP=?, updated=now(), updatEDBY = ? WHERE AD_PROCESS_ID=? AND AD_LANGUAGE=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   <SqlMethod name="updateField" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_FIELD SET NAME=?, HELP=? , ISCENTRALLYMAINTAINED=? WHERE AD_FIELD_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="centrally"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateFieldTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_FIELD_TRL SET NAME=?, HELP=?, updated=now(), updatEDBY = ? WHERE AD_FIELD_ID=? AND AD_LANGUAGE=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   <SqlMethod name="updateFieldTrlIscentrally" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_FIELD SET ISCENTRALLYMAINTAINED=?, updated=now(), updatEDBY = ? WHERE AD_FIELD_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="centrally"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateElement" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_ELEMENT SET NAME=?, HELP=? WHERE AD_ELEMENT_ID=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="id"/>
+   </SqlMethod>
+   <SqlMethod name="updateElementTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        UPDATE AD_ELEMENT_TRL SET NAME=?, HELP=?, updated=now(), updatEDBY = ? WHERE AD_ELEMENT_ID=? AND AD_LANGUAGE=?
+        ]]>
+      </Sql>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+        <Parameter name="adUser"/>
+        <Parameter name="id"/>
+        <Parameter name="adLanguage"/>
+   </SqlMethod>
+   
+
+
+   <SqlMethod name="insertTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO AD_WINDOW_TRL (AD_WINDOW_TRL_ID, AD_WINDOW_ID, AD_LANGUAGE, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, NAME, DESCRIPTION, HELP, ISTRANSLATED)
+        VALUES (get_uuid(), ?, ?, 0, 0, 'Y', now(), ?, now(), ?, ?, NULL, ?, 'Y')
+        ]]>
+      </Sql>
+        <Parameter name="adWindowId"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adUser"/>
+        <Parameter name="adUser"/>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+   </SqlMethod>
+   <SqlMethod name="insertTabTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO AD_TAB_TRL (AD_TAB_TRL_ID, AD_TAB_ID, AD_LANGUAGE, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, NAME, DESCRIPTION, HELP, ISTRANSLATED) 
+        VALUES (get_uuid(), ?, ?, 0, 0, 'Y', now(), ?, now(), ?, ?, NULL, ?, 'Y')
+        ]]>
+      </Sql>
+        <Parameter name="adTabId"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adUser"/>
+        <Parameter name="adUser"/>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+   </SqlMethod>
+   <SqlMethod name="insertFormTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO AD_FORM_TRL (AD_FORM_TRL_ID, AD_FORM_ID, AD_LANGUAGE, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, NAME, DESCRIPTION, HELP, ISTRANSLATED) 
+        VALUES (get_uuid(), ?, ?, 0, 0, 'Y', now(), ?, now(), ?, ?, NULL, ?, 'Y')
+        ]]>
+      </Sql>
+        <Parameter name="adFormId"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adUser"/>
+        <Parameter name="adUser"/>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+   </SqlMethod>
+   <SqlMethod name="insertProcessTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO AD_PROCESS_TRL( AD_PROCESS_TRL_ID, AD_PROCESS_ID, AD_LANGUAGE, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, NAME, DESCRIPTION, HELP, ISTRANSLATED) 
+        VALUES (get_uuid(), ?, ?, 0, 0, 'Y', now(), ?, now(), ?, ?, NULL, ?, 'Y')
+        ]]>
+      </Sql>
+        <Parameter name="adProcessId"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adUser"/>
+        <Parameter name="adUser"/>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+   </SqlMethod>
+   <SqlMethod name="insertFieldTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO AD_FIELD_TRL (AD_FIELD_TRL_ID, AD_FIELD_ID, AD_LANGUAGE, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, NAME, DESCRIPTION, HELP, ISTRANSLATED) 
+        VALUES (get_uuid(), ?, ?, 0, 0, 'Y', now(), ?, now(), ?, ?, NULL, ?, 'Y')
+        ]]>
+      </Sql>
+        <Parameter name="adFieldId"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adUser"/>
+        <Parameter name="adUser"/>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+   </SqlMethod>
+   <SqlMethod name="insertElementTrl" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        INSERT INTO AD_ELEMENT_TRL (AD_ELEMENT_TRL_ID, AD_ELEMENT_ID, AD_LANGUAGE, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, NAME, DESCRIPTION, HELP, ISTRANSLATED) 
+        VALUES (get_uuid(), ?, ?, 0, 0, 'Y', now(), ?, now(), ?, ?, NULL, ?, 'Y')
+        ]]>
+      </Sql>
+        <Parameter name="adElementId"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adUser"/>
+        <Parameter name="adUser"/>
+        <Parameter name="name"/>
+        <Parameter name="help"/>
+   </SqlMethod>
+</SqlClass>

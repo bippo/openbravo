@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DocOrderData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT it.C_Tax_ID, t.Name, t.Rate, it.TaxBaseAmt, it.TaxAmt, '' AS C_ORDER_ID, '' AS AD_CLIENT_ID, '' AS AD_ORG_ID, '' AS ISACTIVE,
+        '' AS CREATED, '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS ISSOTRX, '' AS DOCUMENTNO, '' AS DOCSTATUS, '' AS DOCACTION,
+        '' AS PROCESSING, '' AS PROCESSED, '' AS C_DOCTYPE_ID, '' AS C_DOCTYPETARGET_ID, '' AS DESCRIPTION, 
+        '' AS ISDELIVERED, '' AS ISPRINTED, '' AS ISSELECTED, '' AS SALESREP_ID, '' AS DATEORDERED, '' AS DATEPROMISED, '' AS DATEPRINTED,
+        '' AS DATEACCT, '' AS C_BPARTNER_ID, '' AS BILLTO_ID, '' AS C_BPARTNER_LOCATION_ID, '' AS POREFERENCE, '' AS ISDISCOUNTPRINTED,
+        '' AS C_CURRENCY_ID, '' AS PAYMENTRULE, '' AS C_PAYMENTTERM_ID, '' AS INVOICERULE, '' AS DELIVERYRULE, '' AS FREIGHTCOSTRULE,
+        '' AS FREIGHTAMT, '' AS DELIVERYVIARULE, '' AS M_SHIPPER_ID, '' AS C_CHARGE_ID, '' AS CHARGEAMT, '' AS PRIORITYRULE, '' AS TOTALLINES,
+        '' AS GRANDTOTAL, '' AS M_WAREHOUSE_ID, '' AS M_PRICELIST_ID, '' AS ISTAXINCLUDED, '' AS C_CAMPAIGN_ID, '' AS C_PROJECT_ID, '' AS C_ACTIVITY_ID,
+        '' AS POSTED, '' AS SENDEMAIL, '' AS AD_USER_ID, '' AS COPYFROM, '' AS DROPSHIP_BPARTNER_ID, '' AS DROPSHIP_LOCATION_ID,
+        '' AS DROPSHIP_USER_ID, '' AS ISSELFSERVICE, '' AS AD_ORGTRX_ID, '' AS USER1_ID, '' AS USER2_ID, '' AS DELIVERYNOTES, '' AS C_INCOTERMS_ID,
+        '' AS INCOTERMSDESCRIPTION, '' AS GENERATETEMPLATE, '' AS ISINVOICED, '' AS ISTRANSFERRED
+        FROM C_Tax t, C_OrderTax it 
+        WHERE t.C_Tax_ID=it.C_Tax_ID AND it.C_Order_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="C_Order_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT O.AD_CLIENT_ID, O.AD_ORG_ID, O.C_BPARTNER_ID, O.AD_ORGTRX_ID, O.C_PROJECT_ID, 
+        O.C_CAMPAIGN_ID, O.C_ACTIVITY_ID, O.USER1_ID, O.USER2_ID, O.DOCUMENTNO, O.DATEACCT,
+        O.C_CURRENCY_ID, O.C_DOCTYPE_ID, O.C_CHARGE_ID, O.CHARGEAMT, O.POSTED, O.DATEORDERED,
+        O.ISTAXINCLUDED, O.GRANDTOTAL, O.TOTALLINES
+        FROM C_ORDER O          
+        WHERE AD_Client_ID=? 
+        AND C_ORDER_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+  <SqlMethod name="updateProductPO" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+          UPDATE M_Product_PO SET PriceLastPO = (SELECT AVG(C_Currency_Convert(to_number(ol.PriceActual),ol.C_Currency_ID,M_Product_PO.C_Currency_ID,to_date(o.DateOrdered),to_char(null),o.AD_Client_ID,o.AD_Org_ID))
+                  FROM C_Order o, C_OrderLine ol 
+                  WHERE o.C_Order_ID = ol.C_Order_ID
+                  AND M_Product_PO.M_Product_ID = ol.M_Product_ID AND M_Product_PO.C_BPartner_ID=o.C_BPartner_ID
+                  AND o.C_Order_ID = ?)
+          WHERE EXISTS (SELECT * FROM C_Order o, C_OrderLine ol 
+                  WHERE o.C_Order_ID = ol.C_Order_ID
+                  AND M_Product_PO.M_Product_ID = ol.M_Product_ID AND M_Product_PO.C_BPartner_ID=o.C_BPartner_ID
+                  AND o.C_Order_ID = ?)
+     ]]>
+     </Sql>
+     <Parameter name="Record_ID"/>
+     <Parameter name="Record_ID"/>
+   </SqlMethod>
+   </SqlClass>

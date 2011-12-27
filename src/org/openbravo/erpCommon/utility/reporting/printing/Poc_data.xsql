@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="PocData" package="org.openbravo.erpCommon.utility.reporting.printing">
+   <SqlClassComment></SqlClassComment>
+   
+   <!-- 
+		This definition exists only to define all the fields used in all the queries.
+		This is needed because all the variables in the generated class are based upon
+		all the fields in the first query of the xsql.
+    -->
+   <SqlMethod name="dummy" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		select
+			'' as document_id,
+			'' as docstatus,
+			'' as ourreference,
+			'' as yourreference,
+			'' as salesrep_user_id,
+			'' as salesrep_email,
+			'' as salesrep_name,
+			'' as bpartner_id,
+			'' as bpartner_name,
+			'' as contact_user_id,
+			'' as contact_email,
+			'' as contact_name,
+			
+			'' as ad_user_id,
+			'' as user_email,
+			'' as user_name,
+			'' as report_location
+		from
+			dual
+        ]]>
+        </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="getContactDetailsForOrders" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		select
+			c_order.c_order_id as document_id,
+			c_order.docstatus as docstatus,
+			c_order.documentno as ourreference,
+			c_order.poreference as yourreference,
+			c_order.salesrep_id as salesrep_user_id,
+			salesrep.email as salesrep_email,
+			salesrep.name as salesrep_name,
+			c_order.c_bpartner_id as bpartner_id,
+			c_bpartner.name as bpartner_name,
+			c_order.ad_user_id as contact_user_id,
+			customercontact.email as contact_email,
+			customercontact.name as contact_name
+		from
+			c_order
+				left join ad_user customercontact on c_order.ad_user_id = customercontact.ad_user_id
+				left join ad_user salesrep on c_order.salesrep_id = salesrep.ad_user_id
+				left join c_bpartner on c_order.c_bpartner_id = c_bpartner.c_bpartner_id
+		where
+			1=1
+        ]]>
+        </Sql>
+        <Parameter name="cOrderId" optional="false" type="argument" after="1=1">
+           <![CDATA[ and c_order.c_order_id in ]]>
+        </Parameter>
+   </SqlMethod>
+   
+   
+   <SqlMethod name="getContactDetailsForInvoices" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		select
+			c_invoice.c_invoice_id as document_id,
+			c_invoice.docstatus as docstatus,
+			c_invoice.documentno as ourreference,
+			c_invoice.poreference as yourreference,
+			c_invoice.salesrep_id as salesrep_user_id,
+			salesrep.email as salesrep_email,
+			salesrep.name as salesrep_name,
+			c_invoice.c_bpartner_id as bpartner_id,
+			c_bpartner.name as bpartner_name,
+			c_invoice.ad_user_id as contact_user_id,
+			customercontact.email as contact_email,
+			customercontact.name as contact_name
+		from
+			c_invoice
+				left join ad_user customercontact on c_invoice.ad_user_id = customercontact.ad_user_id
+				left join ad_user salesrep on c_invoice.salesrep_id = salesrep.ad_user_id
+				left join c_bpartner on c_invoice.c_bpartner_id = c_bpartner.c_bpartner_id
+		where
+			1=1
+        ]]>
+        </Sql>
+        <Parameter name="cInvoiceId" optional="false" type="argument" after="1=1">
+           <![CDATA[ and c_invoice.c_invoice_id in ]]>
+        </Parameter>
+   </SqlMethod>
+  
+    <SqlMethod name="getContactDetailsForShipments" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+			select
+				m_inout.m_inout_id as document_id,
+				m_inout.docstatus as docstatus,
+				m_inout.documentno as ourreference,
+				m_inout.poreference as yourreference,
+				m_inout.salesrep_id as salesrep_user_id,
+				salesrep.email as salesrep_email,
+				salesrep.name as salesrep_name,
+				m_inout.c_bpartner_id as bpartner_id,
+				c_bpartner.name as bpartner_name,
+				m_inout.ad_user_id as contact_user_id,
+				customercontact.email as contact_email,
+				customercontact.name as contact_name
+			from
+				m_inout
+					left join ad_user customercontact on m_inout.ad_user_id = customercontact.ad_user_id
+					left join ad_user salesrep on m_inout.salesrep_id = salesrep.ad_user_id
+					left join c_bpartner on m_inout.c_bpartner_id = c_bpartner.c_bpartner_id
+			where
+				1=1
+        ]]>
+        </Sql>
+        <Parameter name="mInoutId" optional="false" type="argument" after="1=1">
+           <![CDATA[ and m_inout.m_inout_id in ]]>
+        </Parameter>
+   </SqlMethod>
+   
+   <SqlMethod name="getContactDetailsForPayments" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+            select
+                fin_payment.fin_payment_id as document_id,
+                fin_payment.status as docstatus,
+                fin_payment.documentno as ourreference,
+                fin_payment.referenceno as yourreference,
+                salesrep.ad_user_id as salesrep_user_id,
+                salesrep.email as salesrep_email,
+                salesrep.name as salesrep_name,
+                fin_payment.c_bpartner_id as bpartner_id,
+                bp.name as bpartner_name,
+                contact.ad_user_id as contact_user_id,
+                contact.email as contact_email,
+                contact.name as contact_name
+            from
+                fin_payment
+                    join c_bpartner bp on fin_payment.c_bpartner_id = bp.c_bpartner_id
+                    left join ad_user contact on bp.c_bpartner_id = contact.c_bpartner_id
+                    left join ad_user salesrep on bp.salesrep_id = salesrep.c_bpartner_id
+            where
+                1=1
+        ]]>
+        </Sql>
+        <Parameter name="finPaymentId" optional="false" type="argument" after="1=1">
+           <![CDATA[ and fin_payment.fin_payment_id in ]]>
+        </Parameter>
+   </SqlMethod>
+   
+   <SqlMethod name="getContactDetailsForUser" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		select
+			ad_user.ad_user_id,
+			ad_user.email as user_email,
+			ad_user.name as user_name
+		from
+			ad_user
+		where
+			ad_user.ad_user_id = ?
+        ]]>
+        </Sql>
+        <Parameter name="adUserId"/> 
+   </SqlMethod>   
+
+</SqlClass>
+

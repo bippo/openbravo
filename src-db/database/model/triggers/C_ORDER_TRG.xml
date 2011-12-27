@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ORDER_TRG">
+    <trigger name="C_ORDER_TRG" table="C_ORDER" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_Order_Trg.sql,v 1.4 2003/05/30 04:23:38 jjanke Exp $
+    ***
+    * Title: Order Trigger
+    * Description:
+    *  Update potentially existing Invoices with Payment Info
+    *  Sync Header Changes to Lines
+    ************************************************************************/
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF(UPDATING)
+    THEN  IF((COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')
+    OR COALESCE(:old.POReference, '.') <> COALESCE(:NEW.POReference, '.')
+    OR COALESCE(:old.C_BPartner_ID, '0') <> COALESCE(:NEW.C_BPartner_ID, '0')
+    OR COALESCE(:old.C_BPartner_Location_ID, '0') <> COALESCE(:NEW.C_BPartner_Location_ID, '0')
+    OR COALESCE(:old.M_Warehouse_ID, '0') <> COALESCE(:NEW.M_Warehouse_ID, '0')
+    OR COALESCE(:old.M_Shipper_ID, '0') <> COALESCE(:NEW.M_Shipper_ID, '0')
+    OR COALESCE(:old.C_Currency_ID, '0') <> COALESCE(:NEW.C_Currency_ID, '0') ))
+    THEN
+    -- If order is processed, is not allowed to change C_BPartner nor M_WareHouse nor AD_ORG_ID nor AD_CLIENT_ID
+    IF(:old.Processed='Y'
+    	AND ( (COALESCE(:old.C_BPartner_ID, '0') <> COALESCE(:new.C_BPartner_ID, '0'))
+    		OR (COALESCE(:old.M_WareHouse_ID, '0') <> COALESCE(:new.M_WareHouse_ID, '0'))
+    		OR (COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+            OR (COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+    	)
+    )
+    THEN  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  -- Propagate Description changes
+  UPDATE C_Invoice
+   SET Description=:new.Description,
+   POReference=:new.POReference
+  WHERE C_Order_ID=:new.C_Order_ID;
+  END IF;
+ END IF;
+END C_ORDER_TRG
+]]></body>
+    </trigger>
+  </database>

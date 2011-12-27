@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_CASHLINE_TRG">
+    <trigger name="C_CASHLINE_TRG" table="C_CASHLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  /*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_CashLine_Trg.sql,v 1.18 2003/03/17 20:32:24 jjanke Exp $
+  ***
+  * Title:  Manage Allocations
+  * Description:
+  *  Prevent changing invoice lines
+  *  When Inserting and we have an invoice
+  *   Create Allocation Line (Trigger updates C_BPartner.SO_CreditUsed)
+  *  Update C_Currency_ID of line
+  *  Update Cash Balance (Header)
+  ****
+ UPDATE C_CashLine cl SET C_Currency_ID = (SELECT C_Currency_ID FROM C_Invoice i WHERE i.C_Invoice_ID=cl.C_Invoice_ID) WHERE C_Currency_ID IS NULL AND C_Invoice_ID IS NOT NULL;
+ UPDATE C_CashLine cl SET C_Currency_ID = (SELECT C_Currency_ID FROM C_BankAccount b WHERE b.C_BankAccount_ID=cl.C_BankAccount_ID) WHERE C_Currency_ID IS NULL AND C_BankAccount_ID IS NOT NULL;
+ UPDATE C_CashLine cl SET C_Currency_ID = (SELECT b.C_Currency_ID FROM C_Cash c, C_CashBook b WHERE c.C_Cash_ID=cl.C_Cash_ID AND c.C_CashBook_ID=b.C_CashBook_ID) WHERE C_Currency_ID IS NULL;
+ ************************************************************************/
+
+ v_NextNo    VARCHAR2(32);
+ v_Currency_ID   varchar2(32) := NULL;
+ -- CashBook
+ v_CB_Currency_ID  varchar2(32);
+ v_CB_Date    DATE;
+ --
+ v_Difference NUMBER:= 0;
+ v_Client_ID   varchar2(32);
+ v_Org_ID    varchar2(32);
+ v_Cash_ID    varchar2(32);
+ v_Debt_Payment_ID  varchar2(32) := NULL;
+ v_RO     NUMBER;
+ --
+ v_Trace     VARCHAR2(2000) := 'CashLine: ';
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+ /** Cannot change generated invoice data  */
+ /* Correction by I. Ciordia: deleting and updating generated cashlines is allowed. Control is transfered to cashPost
+ IF (DELETING) THEN
+   IF (:old.C_Debt_Payment_ID IS NOT NULL
+   AND :old.IsGenerated = 'Y') THEN
+  RAISE_APPLICATION_ERROR(-20102, 'Cannot delete line with generated Invoice');
+ END IF;
+ END IF;
+ IF (UPDATING) THEN
+   IF (:old.C_Invoice_ID IS NOT NULL
+   AND :old.IsGenerated='Y' AND :new.IsGenerated='Y') THEN
+  RAISE_APPLICATION_ERROR(-20102, 'Cannot change line with generated Invoice');
+ END IF;
+ END IF;
+ End correction ICiordia*/
+
+ /**
+  * Fill Variables
+  */
+ IF (DELETING OR UPDATING) THEN
+  v_Difference := v_Difference - :old.Amount;
+  v_Client_ID := :old.AD_Client_ID;
+  v_Org_ID := :old.AD_Org_ID;
+  v_Cash_ID := :old.C_Cash_ID;
+  v_Debt_Payment_ID := :old.C_Debt_Payment_ID;
+ END IF;
+ IF (UPDATING OR INSERTING) THEN
+  v_Difference := v_Difference + :new.Amount;
+  v_Client_ID := :new.AD_Client_ID;
+  v_Org_ID := :new.AD_Org_ID;
+  v_Cash_ID := :new.C_Cash_ID;
+  v_Debt_Payment_ID := :new.C_Debt_Payment_ID;
+ END IF;
+
+
+ -- Get CashBook Currenncy, Date
+ SELECT cb.C_Currency_ID, c.DateAcct
+   INTO v_CB_Currency_ID, v_CB_Date
+ FROM C_CashBook cb, C_Cash c
+ WHERE cb.C_CashBook_ID=c.C_CashBook_ID
+   AND c.C_Cash_ID=v_Cash_ID;
+ -- Get Invoice Currency
+ IF (v_Debt_Payment_ID IS NOT NULL) THEN
+  SELECT C_Currency_ID
+    INTO v_Currency_ID
+  FROM C_Debt_Payment
+  WHERE C_Debt_Payment_ID = v_Debt_Payment_ID;
+ END IF;
+
+ -- Assume CashBook Currency for Charge
+ IF (v_Currency_ID IS NULL) THEN
+  v_Currency_ID := v_CB_Currency_ID;
+ END IF;
+
+-- v_Trace := v_Trace || ' Difference=' || v_Difference || ', Cash_ID=' || v_Cash_ID || ', Invoice_ID=' || v_Invoice_ID || ', Currency_ID=' || v_Currency_ID || ', CB_Currency_ID=' || v_CB_Currency_ID;
+ /**
+  * Update CashBook Line
+  */
+ IF (NOT DELETING) THEN
+  :new.C_Currency_ID := v_CB_Currency_ID;
+ END IF;
+
+ /**
+  * Update CashBook Header
+  */
+ -- Convert to CashBook Currency
+ IF (v_Currency_ID <> v_CB_Currency_ID) THEN
+  v_Difference := C_Currency_Convert(v_Difference, v_Currency_ID, v_CB_Currency_ID, v_CB_Date, null, v_Client_ID, v_Org_ID);
+ END IF;
+ -- Update header
+ UPDATE C_Cash
+   SET StatementDifference = StatementDifference + v_Difference,
+   EndingBalance = EndingBalance + v_Difference
+ WHERE C_Cash_ID = v_Cash_ID;
+
+-- v_Trace := v_Trace || ' > ' || SQL%ROWCOUNT || ' < Difference=' || v_Difference;
+-- INSERT INTO AD_TRACE (What) VALUES (v_Trace);
+
+END C_CASHLINE_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo Public License 
+ * Version 1.1 (the "License"), being the Mozilla Public License 
+ * version 1.1  with a permitted attribution clause ; you may not use 
+ * this file except in compliance with the License. 
+ * You may obtain a copy of the License at  
+ * http://www.openbravo.com/legal/license.txt 
+ * Software distributed under the License is distributed on an 
+ * "AS IS" basis, WITHOUT WARRANTY OF  ANY KIND, either express or 
+ * implied. See the License for the specific language governing rights 
+ * and  limitations under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2005-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s): Openbravo S.L.U.
+ ************************************************************************
+-->
+<!--
+List of targets:
+
+init: creates the needed folders.
+clean: removes all the created files and folders.
+sqlc: generates java files from xsql's files.
+compileSqlc: compile the java files generated from xsql's files.
+compile: compile the java files of the project.
+build.jar: generates the jar file in the lib folder.
+build: compile the project, including the xsql's files and generates the jar and doc.
+doc: generates the api for the project.
+-->
+<project name="openbravo-wad" default="compile" basedir=".">
+  <property name="build.wad" value="${basedir}/build/classes" />
+  <property name="build.wad.docs" value="${basedir}/docs" />
+  <property name="build.wad.sqlc" value="${basedir}/build/javasqlc" />
+  <property name="build.wad.src" value="${basedir}/src" />
+  <property name="main.dir" value="${basedir}/.." />
+
+  <path id="wad.class.path">
+    <pathelement path="../src-core/build/classes" />
+    <fileset dir="${base.lib}">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+  <target name="init">
+    <mkdir dir="${build.wad}" />
+    <mkdir dir="${build.wad.docs}" />
+    <mkdir dir="${build.wad.sqlc}" />
+  </target>
+
+  <target name="clean">
+    <delete dir="${build.wad}" failonerror="false" includeemptydirs="true" />
+    <delete dir="${build.wad.sqlc}" failonerror="false" includeemptydirs="true" />
+    <delete dir="${build.wad.docs}" failonerror="false" includeemptydirs="true" />
+    <delete failonerror="false" file="${build.wad.lib}/openbravo-wad.jar" />
+  </target>
+
+  <target name="sqlc" depends="init">
+    <java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql ./src/org '${build.wad.sqlc}'" />
+      <classpath refid="wad.class.path" />
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+  	
+  	<java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql '${base.modules}' '${build.wad.sqlc}'/src */src-wad" />
+  	  <classpath refid="wad.class.path" />
+      <syspropertyset>
+         <propertyref name="java.security.egd" />
+      </syspropertyset>
+  	</java>
+  </target>
+
+  <target name="compileSqlc" depends="sqlc">
+    <javac srcdir="${build.wad.sqlc}/src" includes="**/*.java" destdir="${build.wad}" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" fork="true" includeantruntime="false">
+      <classpath refid="wad.class.path" />
+    </javac>
+  </target>
+
+  <target name="compile" depends="compileSqlc">
+    <javac srcdir="${main.dir}" includes="src-wad/src/**/*.java,modules/*/src-wad/**/*.java" destdir="${build.wad}" deprecation="on" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" fork="true" includeantruntime="false">
+      <classpath refid="wad.class.path" />
+    </javac>
+    <copy todir="${build.wad}" encoding="UTF-8">
+      <fileset dir="${build.wad.src}" includes="**/*xml" />
+      <fileset dir="${build.wad.src}" includes="**/*html" />
+    </copy>
+    <copy todir="${build.wad}" encoding="UTF-8">
+      <fileset dir="${base.modules}">
+          <include name="*/src-wad/**/*" />
+          <exclude name="*/src-wad/**/*.java" />
+          <exclude name="*/src-wad/**/*.xsql" />
+      </fileset>
+      <mapper type="regexp" from="(.*\${file.separator}src-wad)(.*)" to="\2" />
+    </copy>
+  </target>
+
+  <target name="build.jar">
+    <jar destfile="${build.wad.lib}/openbravo-wad.jar">
+      <fileset dir="${build.wad}" />
+      <manifest>
+        <attribute name="Built-By" value="Openbravo S.L.U." />
+        <!--section name="common/class1.class">
+        <attribute name="Sealed" value="false"/>
+      </section-->
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="build" depends="compile, build.jar">
+  </target>
+
+  <target name="doc" depends="init" description="Generate api">
+    <javadoc packagenames="org.openbravo.*" sourcepath="${build.wad.sqlc}/src:${build.wad.src}" destdir="${build.wad.docs}" author="true" version="true" use="true" docencoding="UTF-8" encoding="UTF-8" failonerror="false" windowtitle="${ant.project.name}">
+      <classpath refid="wad.class.path" />
+    </javadoc>
+  </target>
+</project>

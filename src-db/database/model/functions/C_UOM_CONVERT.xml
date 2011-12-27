@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_UOM_CONVERT">
+    <function name="C_UOM_CONVERT" type="NUMERIC">
+      <parameter name="p_qty" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_uomfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_uomto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_stdprecision" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: C_UOM_Convert.sql,v 1.3 2002/10/21 04:49:45 jjanke Exp $
+***
+* Title: Convert Quantity
+* Description:
+*  from UOMFrom_ID to UOMTo_ID
+*  standard or costing precision based on target UOM
+* Test:
+*  SELECT C_UOM_Convert (11,101,102, 'Y') FROM DUAL => 1.38
+************************************************************************/
+  v_Result NUMBER:= NULL;
+  v_Rate NUMBER:= NULL;
+  v_StdPrecision     NUMBER;
+  v_CostingPrecision NUMBER;
+BEGIN
+  -- Nothing to do
+  IF(p_UOMFrom_ID = p_UOMTo_ID  OR p_UOMFrom_ID IS NULL OR p_UOMTo_ID IS NULL  OR p_Qty IS NULL OR p_Qty = 0) THEN
+    RETURN p_Qty;
+  END IF;
+  -- Get Multiply Rate
+  BEGIN
+    SELECT MultiplyRate
+    INTO v_Rate
+    FROM C_UOM_Conversion
+    WHERE C_UOM_ID = p_UOMFrom_ID
+    AND C_UOM_TO_ID = p_UOMTo_ID;
+    -- We have it
+    v_Result := p_Qty * v_Rate;
+  EXCEPTION
+  WHEN OTHERS THEN
+    NULL;
+  END;
+  -- Get Divide Rate
+  IF(v_Result IS NULL) THEN
+    BEGIN
+      SELECT DivideRate
+      INTO v_Rate
+      FROM C_UOM_Conversion
+      WHERE C_UOM_ID = p_UOMTo_ID
+      AND C_UOM_TO_ID = p_UOMFrom_ID;
+      -- We have it
+      v_Result := p_Qty * v_Rate;
+    EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+  -- Round
+  IF(v_Result IS NOT NULL) THEN
+    BEGIN
+      SELECT StdPrecision,
+        CostingPrecision
+      INTO v_StdPrecision,
+        v_CostingPrecision
+      FROM C_UOM
+      WHERE C_UOM_ID = p_UOMTo_ID;
+      -- We have a precision
+      IF(p_StdPrecision = 'Y') THEN
+        v_Result := ROUND(v_Result, v_StdPrecision) ;
+      ELSE
+        v_Result := ROUND(v_Result, v_CostingPrecision) ;
+      END IF;
+    EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+RETURN v_Result;
+END C_UOM_CONVERT
+]]></body>
+    </function>
+  </database>

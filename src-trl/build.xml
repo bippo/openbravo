@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<!--
+List of targets:
+
+init: creates all the needed folders.
+clean: removes all the files and folders.
+sqlc: generates java files from xsql's files.
+compileSqlc: compile the java files generated from xsql's files.
+compile: compile the java files of the project.
+build.jar: generates the jar file in the lib folder.
+build: compile the project, including the xsql's files and generates the jar and doc.
+doc: generates the api for the project.
+-->
+<project default="compile" basedir="." name="openbravo-trl">
+  <property name="build.trl" value="${basedir}/build/classes"/>
+  <property name="build.trl.docs" value="${basedir}/docs"/>
+  <property name="build.trl.sqlc" value="${basedir}/build/javasqlc"/>
+  <property name="build.trl.src" value="${basedir}/src"/>
+ 
+  <path id="trl.class.path">
+    <pathelement path="../src-core/build/classes"/>
+    <fileset dir="${base.lib}">
+     <include name="**/*.jar"/>
+    </fileset>
+  </path>   
+
+  <target name="init">
+    <mkdir dir="${build.trl}"/>
+    <mkdir dir="${build.trl.sqlc}"/>
+    <mkdir dir="${build.trl.docs}"/>
+  </target>
+  
+  <target name="clean">
+    <delete dir="${build.trl}" failonerror="false" includeemptydirs="true"/>
+    <delete dir="${build.trl.docs}" failonerror="false" includeemptydirs="true"/>
+    <delete dir="${build.trl.sqlc}" failonerror="false" includeemptydirs="true"/>
+    <delete failonerror="false" file="${build.trl.lib}/openbravo-trl.jar"/>
+  </target>
+
+  <target name="sqlc" depends="init">
+    <java classname="org.openbravo.data.Sqlc" jvm="${env.JAVA_HOME}/bin/java" fork="yes" maxmemory="${build.maxmemory}">
+      <arg line="'${base.config}'/Openbravo.properties .xsql ./src '${build.trl.sqlc}'"/>
+      <classpath refid="trl.class.path"/>
+      <syspropertyset>
+        <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+  </target>
+
+  <target name="compileSqlc" depends="sqlc">
+    <javac srcdir="${build.trl.sqlc}/src" destdir="${build.trl}" encoding="UTF-8" fork="true" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="trl.class.path"/>
+    </javac>
+  </target>
+
+  <target name="compile" depends="compileSqlc">
+    <javac srcdir="${build.trl.src}" destdir="${build.trl}" deprecation="on" fork="true" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="trl.class.path"/>  
+    </javac>
+  </target>
+
+  <target name="build.jar">
+    <jar destfile="${build.trl.lib}/openbravo-trl.jar">
+      <fileset dir="${build.trl}"/>
+      <manifest>
+        <attribute name="Built-By" value="Openbravo S.L.U."/>
+        <!--section name="common/class1.class">
+          <attribute name="Sealed" value="false"/>
+        </section-->
+      </manifest>
+    </jar>
+  </target>
+ 
+  <target name="build" depends="compile, build.jar">
+  </target>
+  
+  <target name="doc" depends="init" description="Generate api">
+    <javadoc packagenames="org.openbravo.*" 
+           sourcepath="${build.trl.sqlc}/src:${build.trl.src}"
+           destdir="${build.trl.docs}"
+           author="true"
+           version="true"
+           use="true"
+           docencoding="UTF-8"
+           encoding="UTF-8"
+           failonerror="false"
+           windowtitle="${ant.project.name}">
+      <classpath refid="trl.class.path"/>
+    </javadoc>
+  </target>
+</project>

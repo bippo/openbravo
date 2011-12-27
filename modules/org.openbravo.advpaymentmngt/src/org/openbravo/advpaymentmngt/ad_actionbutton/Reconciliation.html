@@ -1,0 +1,845 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ *************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Reconciliation</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+  var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  var defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/calculator.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+<script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/org.openbravo.advpaymentmngt/FIN_Utilities.js" type="text/javascript"></script>
+<script type="text/javascript">
+  window.onunload = reloadOpener; // reloads opener on closing
+</script>
+
+<script language="JavaScript" type="text/javascript">
+function showWarning(){
+    if(!document.frmMain.inpAfterDate.checked){
+      showJSMessage('APRM_DateWillBeUpdated');
+    } else initialize_MessageBox('messageBoxID');
+}
+
+function validate(action) {
+  var frm = document.frmMain;
+  if (frm.inpStatementDate.value==null || frm.inpStatementDate.value=="") {
+    setWindowElementFocus(frm.inpStatementDate);
+    showJSMessage(7);
+    return false;
+  } else if (frm.inpEndBalance.value==null || frm.inpEndBalance.value=="") {
+    setWindowElementFocus(frm.inpEndBalance);
+    showJSMessage(7);
+    return false;
+  }
+  if (action=='PROCESS') {
+    var chk = frm.inpTransactionId;
+    if (chk === undefined) {
+      showJSMessage('NoDataSelected');
+      return false;
+    } else if (chk.length === undefined) {
+      if (!chk.checked) {
+        showJSMessage('NoDataSelected');
+        return false;     
+      }
+    } else {
+      var isAnyChecked = false;
+      var total = chk.length;
+      for (var i=0;i<total;i++) {
+        if (chk[i].checked) {
+          isAnyChecked = true;
+        }
+      }
+      if (!isAnyChecked) {
+        showJSMessage('NoDataSelected');
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function closeThisPage() {
+    closePage();
+    return true;
+}
+
+function validateDate(element) {
+  if(isValidDate(element.value, element.getAttribute("displayformat")))
+    loadGrid();
+}
+
+function submitThisPage(strCommand) {
+  if (validate(strCommand)) {
+    submitCommandForm(strCommand, false, null, null);
+    return true;
+  }
+  return true;
+}
+
+function hideClearedTransactions(isChecked) {
+  var chk = document.frmMain.inpTransactionId;
+  if (chk === undefined) {
+    return true;
+  } else if (chk.length === undefined) {
+    if (chk.checked) {
+      var sel = document.getElementById('funcEvenOddRow'+chk.value);
+      sel.style.display = (isChecked) ? 'none' : '';
+    }
+  } else {
+    var total = chk.length;
+    for (var i=0;i<total;i++) {
+      if (chk[i].checked) {
+        var sel = document.getElementById('funcEvenOddRow'+chk[i].value);
+        sel.style.display = (isChecked) ? 'none' : '';
+      }
+    }
+  }
+  return true;
+}
+
+function updateAll(mark) {
+  var frm = document.frmMain;
+  var chk = document.frmMain.inpTransactionId;
+  if (chk === undefined) {
+    return true;
+  } else if (chk.length === undefined) {
+    if (mark && !chk.checked) {
+      updateAmounts(chk.value, !chk.checked);
+    } else if (!mark && chk.checked) {
+      updateAmounts(chk.value, !chk.checked);
+    }
+    saveTransactionLineStatus(mark, chk.value);
+  } else {
+    var total = chk.length;
+    for (var i=0;i<total;i++) {
+      if (mark && !chk[i].checked) {
+        updateAmounts(chk[i].value, !chk[i].checked);
+      } else if (!mark && chk[i].checked) {
+        updateAmounts(chk[i].value, !chk[i].checked);
+      }
+      saveTransactionLineStatus(mark, chk[i].value);
+    }
+  }
+  markAll(document.frmMain.inpTransactionId, mark);
+  return true;
+}
+
+function repaint() {
+  var frm = document.frmMain;
+  document.getElementById('paramTxtBeginningBalance').innerHTML = frm.inpCalcBeginnigBalance.value;
+  document.getElementById('paramTxtEndingBalance').innerHTML = frm.inpCalcEndingBalance.value;
+  document.getElementById('paramTxtDifferenceToClear').innerHTML = frm.inpCalcDifferenceToClear.value;
+  document.getElementById('paramTxtCurrentlyCleared').innerHTML = frm.inpCalcCurrentlyCleared.value;
+  document.getElementById('paramTxtDifference').innerHTML = frm.inpCalcDifference.value;
+  document.getElementById('paramTotalPayAmount').innerHTML = frm.inpCalcTotalPayment.value;
+  document.getElementById('paramTotalDepositAmount').innerHTML = frm.inpCalcTotalDeposit.value;
+}
+
+function updateWhenAjaxResponse() {
+  var frm = document.frmMain;   
+ 
+  frm.inpCalcDifferenceToClear.value = subtract(frm.inpEndBalance.value, frm.inpBeginBalance.value);
+  frm.inpCalcDifference.value = subtract(frm.inpCalcDifferenceToClear.value, frm.inpCalcCurrentlyCleared.value);
+
+  document.getElementById('paramTxtCurrentlyCleared').innerHTML = frm.inpCalcCurrentlyCleared.value;
+  document.getElementById('paramTxtDifference').innerHTML = frm.inpCalcDifference.value;
+  document.getElementById('paramTotalPayAmount').innerHTML = frm.inpCalcTotalPayment.value;
+  document.getElementById('paramTotalDepositAmount').innerHTML = frm.inpCalcTotalDeposit.value;
+      
+  return true;
+}
+
+function updateTotalAmounts() {
+  var frm = document.frmMain;
+  var chk = document.frmMain.inpTransactionId;
+  if (chk === undefined) {
+    return true;
+  } else if (chk.length === undefined) {
+    if (chk.checked) {
+      updateAmounts(chk.value, chk.checked);
+    }
+  } else {
+    var total = chk.length;
+    for (var i=0;i<total;i++) {
+      if (chk[i].checked) {
+        updateAmounts(chk[i].value, chk[i].checked);
+      }
+    }
+  }
+  return true;
+}
+
+function unselectClearAll(isChecked) {
+  if (!isChecked) document.frmMain.inpClearAll.checked = false;
+}
+
+function updateAmounts(transactionId, isChecked) {
+  var frm = document.frmMain;
+  var paymentAmt = frm.elements["inpRecordPaymentAmt" + transactionId].value;
+  var depositAmt = frm.elements["inpRecordDepositAmt" + transactionId].value;
+  var differenceToClear = frm.inpCalcDifferenceToClear.value;
+  var currentlyCleared = frm.inpCalcCurrentlyCleared.value;
+  var totalPayment = frm.inpCalcTotalPayment.value;
+  var totalDeposit = frm.inpCalcTotalDeposit.value;
+
+  if (isChecked) {
+    frm.inpCalcCurrentlyCleared.value = add(subtract(currentlyCleared, paymentAmt), depositAmt);
+    frm.inpCalcTotalPayment.value = add(totalPayment, paymentAmt);
+    frm.inpCalcTotalDeposit.value = add(totalDeposit, depositAmt);
+  } else {
+    frm.inpCalcCurrentlyCleared.value = subtract(add(currentlyCleared, paymentAmt), depositAmt);
+    frm.inpCalcTotalPayment.value = subtract(totalPayment, paymentAmt);
+    frm.inpCalcTotalDeposit.value = subtract(totalDeposit, depositAmt);
+  }
+  
+  document.getElementById('paramTxtCurrentlyCleared').innerHTML = frm.inpCalcCurrentlyCleared.value;
+  document.getElementById('paramTotalPayAmount').innerHTML = frm.inpCalcTotalPayment.value;
+  document.getElementById('paramTotalDepositAmount').innerHTML = frm.inpCalcTotalDeposit.value;
+
+  frm.inpCalcDifference.value = subtract(differenceToClear, frm.inpCalcCurrentlyCleared.value);
+  document.getElementById('paramTxtDifference').innerHTML = frm.inpCalcDifference.value;
+  
+  return true;
+}
+
+function updateEndingBalance() {
+  var frm = document.frmMain;
+  frm.inpCalcEndingBalance.value = frm.inpEndBalance.value;
+  document.getElementById('paramTxtEndingBalance').innerHTML = frm.inpCalcEndingBalance.value;
+  
+  frm.inpCalcDifferenceToClear.value = subtract(frm.inpCalcEndingBalance.value, frm.inpCalcBeginnigBalance.value);
+  document.getElementById('paramTxtDifferenceToClear').innerHTML = frm.inpCalcDifferenceToClear.value;
+
+  frm.inpCalcDifference.value = subtract(frm.inpCalcDifferenceToClear.value, frm.inpCalcCurrentlyCleared.value);
+  document.getElementById('paramTxtDifference').innerHTML = frm.inpCalcDifference.value;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+
+function saveTransactionLineStatus(isChecked, transLineId) {
+  document.frmMain.inpCurrentTransIdSelected.value = transLineId;
+  document.frmMain.inpIsCurrentTransSelected.value = isChecked;
+  try {
+    var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/Reconciliation.html";
+    var paramXMLReq = null;
+    return submitXmlHttpRequest(callBackLineStatus, document.frmMain, "UPDATESTATUS", url, false, null, paramXMLReq);
+  } catch (e) {
+    alert(e);
+  }
+}
+
+function callBackLineStatus(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+      } else {
+      }
+    } catch (e) {
+    }
+  }
+  return true;
+}
+
+function loadGrid() {
+  try {
+    var url = "../org.openbravo.advpaymentmngt.ad_actionbutton/Reconciliation.html";
+    var paramXMLReq = null;
+    return submitXmlHttpRequest(callBackGrid, document.frmMain, "GRID", url, false, null, paramXMLReq);
+  } catch (e) {
+    alert(e);
+  }
+}
+
+function callBackGrid(paramXMLParticular, XMLHttpRequestObj) {
+  var strText = "";
+  if (getReadyStateHandler(XMLHttpRequestObj)) {
+    try {
+      if (XMLHttpRequestObj.responseText) {
+        strText = XMLHttpRequestObj.responseText;
+        var aux = strText.substring(30, strText.length-9);
+        var tableBody = document.getElementById('sectionGrid');
+        var browserName = getBrowserInfo('name');
+        if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') != -1) {
+          var temp = document.createElement("span");
+          temp.id = 'temp';
+          temp.style.display = 'none';
+          var newRows = '<table><tbody id=\"sectionGrid\">'+ aux;
+          temp.innerHTML = newRows;
+          tableBody.parentNode.replaceChild(temp.firstChild.firstChild, tableBody);
+          temp.parentNode.removeChild(temp);
+        }
+        tableBody.innerHTML = aux;
+        
+        //initialize_MessageBox('messageBoxID');
+        if (document.frmMain.inpIsFirstLoad.value == "true") {
+          updateTotalAmounts();
+          document.frmMain.inpIsFirstLoad.value = "false";
+        }
+        updateWhenAjaxResponse();
+      } else {
+        document.getElementById('sectionGrid').innerHTML = '';
+      }
+    } catch (e) {
+    }
+  }
+  return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+  function onLoadDo(){
+    this.windowTables = new Array(
+      new windowTableId('client_middle', 'buttonProcess')
+    );
+
+    setWindowTableParentElement();
+    enableShortcuts('popup');
+    setBrowserAutoComplete(false);
+
+    initFIN_Utilities(document.frmMain);
+
+    try {
+      onloadFunctions();
+    } catch (e) {}
+    resizeAreaCreateFrom();
+    repaint();
+    loadGrid();
+  }
+
+  function onResizeDo(){
+    resizeAreaCreateFrom(true);
+  }
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form name="frmMain" method="post" action="Reconciliation.html">
+  <input type="hidden" name="Command" />
+  <input type="hidden" name="IsPopUpCall" value="1"/>
+  <input type="hidden" name="inpadOrgId" value="" id="fieldOrg"/>
+  <input type="hidden" name="inpadWindowId" value="" id="fieldWindowId"/>
+  <input type="hidden" name="inpTabId" value="" id="fieldTabId"/>
+  <input type="hidden" name="inpFinFinancialAccountId" value="" id="fieldFinFinancialAccountId"></input>
+  <input type="hidden" id="paramPrecision" name="curPrecision" value="2"/>
+  <input type="hidden" id="paramCurrentTransIdSelected" name="inpCurrentTransIdSelected" value=""/>
+  <input type="hidden" id="paramIsCurrentTransSelected" name="inpIsCurrentTransSelected" value=""/>
+  <input type="hidden" name="inpIsFirstLoad" value="true"/>
+  <input type="hidden" name="isReceipt" value="dummy" id="fieldReceipt"/>
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../../../../../web/images/blank.gif" border=0/></img>
+    </div>
+  </div>
+  <table cellspacing="0" cellpadding="0" width="100%" id="table_header">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span>Reconciliation</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+  </table>
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_messagebox">
+
+          <!-- MessageBox BEGIN-->
+          <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+            <tbody>
+            <tr class="MessageBox_TopMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr>
+              <td class="MessageBox_LeftMargin"></td>
+              <td>
+
+                <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                  <tbody>
+                  <tr>
+                    <td class="MessageBox_LeftTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopLeft"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Left"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                    <td class="MessageBox_bg">
+
+                      <table class="MessageBox_Top">
+                      <tbody>
+                        <tr>
+                          <td>
+                            <span>
+                            <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_Icon_ContentCell">
+                                  <div class="MessageBox_Icon"></div>
+                                </td>
+                                <td style="vertical-align: top;" id="messageBoxIDContent">
+                                  <span>
+                                    <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                      xxInfo: AccessTableWithNoView
+                                    </div>
+                                    <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                      xxThe current information is empty.
+                                    </div>
+                                    <div class="MessageBox_TextSeparator"></div>
+                                  </span>
+                                </td>
+                              </tr>
+                              </tbody>
+                            </table>
+                            </span>
+                          </td>
+                        </tr>
+                        </tbody>
+                      </table>
+
+                    </td>
+                    <td class="MessageBox_RightTrans">
+                      <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                        <tbody>
+                        <tr>
+                          <td class="MessageBox_TopRight"></td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Right"></td>
+                        </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td rowspan="2" class="MessageBox_BottomLeft">
+                    </td>
+                    <td class="MessageBox_BottomTrans MessageBox_bg">
+                    </td>
+                    <td rowspan="2" class="MessageBox_BottomRight">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="MessageBox_Bottom">
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+
+              </td>
+              <td class="MessageBox_RightMargin"></td>
+            </tr>
+            <tr class="MessageBox_BottomMargin">
+              <td class="MessageBox_LeftMargin"></td>
+              <td></td>
+                <td class="MessageBox_RightMargin"></td>
+              </tr>
+            </tbody>
+          </table>
+        <!-- MessageBox END -->
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_top">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+                      
+            <tr class="FieldGroup_BottomMargin"></tr>
+            
+            <!-- Account -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Account</span></td>
+              <td class="Combo_ContentCell" colspan="2">
+                <input type="text" id="paramAccount" value="" name="inpAccount" class="readonly dojoValidateValid_focus required_focus TextBox_TwoCells_width TextBox_focus" readonly="true"/>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <!-- Statement Date -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Statement Date</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="TextBox_ContentCell">
+                      <input type="text" id="paramStatementDate" class="dojoValidateValid TextBox_btn_OneCell_width required" value="" maxlength="10" name="inpStatementDate" onkeyup="autoCompleteDate(this);" onkeydown="changeToEditingMode('onkeydown');" onkeypress="changeToEditingMode('onkeypress');" oncut="changeToEditingMode('oncut');" onpaste="changeToEditingMode('onpaste');" oncontextmenu="changeToEditingMode('oncontextmenu');" onblur="expandDateYear(this.id);" onchange="validateDate(this);return true;" displayFormat="xx" saveFormat="yy"></input>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpStatementDate', document.frmMain.inpStatementDate.value, false);return false;">
+                        <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                          <tr>
+                            <td class="FieldButton_bg">
+                              <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                            </td>
+                          </tr>
+                        </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <!-- Beginning Balance -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Beginning Balance</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table cellspacing="0" cellpadding="0" border="0" summary="" style="padding-top: 0px;">
+                  <tbody><tr>
+                    <td class="TextBox_btn_ContentCell">
+                      <table cellspacing="0" cellpadding="0" border="0" summary="" style="padding-top: 0px;">
+                        <tbody><tr>
+                          <td class="TextBox_ContentCell">
+                            <input type="text" class="readonly dojoValidateValid required TextBox_OneCell_width number" id="paramBeginBalance" name="inpBeginBalance" value="" onchange="" readonly="true"/>
+                          </td>
+                        </tr></tbody>
+                      </table>
+                    </td>
+                  </tr></tbody>
+                </table>
+              </td>
+              <td align="left"><span class="LabelText">(this is the result of the last reconciliation)</span></td>
+              <td class="TitleCell"/>
+              <td class="TitleCell"/>
+              <td class="TitleCell"/>
+            </tr>
+            
+            <!-- Ending Balance -->
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Ending Balance</span></td>
+              <td class="TextBox_btn_ContentCell">
+                <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                  <tr>
+                    <td class="Textbox_ContentCell">
+                      <table style="border: 0px none; border-collapse: collapse;">
+                        <tr><td style="padding-top: 0px;">
+                          <input type="text" onblur="numberInputEvent('onblur', this);" onfocus="numberInputEvent('onfocus', this);" outputformat="euroEdition" onchange="updateEndingBalance(); return true;" onpaste="changeToEditingMode('onpaste');" oncut="changeToEditingMode('oncut');" onkeypress="changeToEditingMode('onkeypress');" onkeydown="changeToEditingMode('onkeydown'); numberInputEvent('onkeydown', this, event);" onkeyup="" name="inpEndBalance" maxlength="22" value="" required="true" class="dojoValidateValid required TextBox_btn_OneCell_width number" id="paramEndBalance"/>
+                        </td></tr>
+                      </table>
+                      <span id="paramEndBalanceinvalidSpan" style="display: none;" class="TextBox_MsgContainer_span">
+                        <table class="TextBox_MsgContainer_table">
+                          <tbody><tr class="TextBox_MsgContainer_tr">
+                            <td class="TextBox_MsgContainer_td"><div class="TextBox_MsgContainer_div"></div></td><td></td>
+                          </tr>
+                          <tr>
+                            <td class="invalid" colspan="2"><div name="invalidText" id="paramEndBalanceinvalidSpanText" class="TextBox_MsgContainer_div2">* The value entered is not valid.</div></td>
+                          </tr>
+                        </tbody></table>
+                      </span>
+                    </td>
+                    <td class="FieldButton_ContentCell">
+                      <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Ending Balance'; return true;" onblur=" window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="calculator('frmMain.inpEndBalance', document.frmMain.inpEndBalance.value, false);return false;">
+                      <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;" id="NoPackageslinkCalc">
+                        <tr>
+                          <td class="FieldButton_bg">
+                            <img alt="Calculator" class="FieldButton_Icon FieldButton_Icon_Calc" title="Amount" src="../../../../../web/images/blank.gif" border="0" id="buttonCalc"></img>
+                          </td>
+                        </tr>
+                      </table>
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td align="left"><span class="LabelText">(this is what the statement says)</span></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+              <td class="TitleCell"></td>
+            </tr>
+            
+            <tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                <tbody>
+                  <tr class="FieldGroup_TopMargin"/>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupTitle">Details</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"/></td>
+                    <td class="FieldGroupContent"/>
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"/>
+                </tbody>
+                </table>
+              </td>
+            </tr>
+            
+            <!-- Filters for Grid START-->
+            <tr>              
+              <td class="TableEdition_OneCell_width TitleCell">
+                <span class="LabelText"><label for="paramHideCleared">Hide cleared</label></span>
+              </td>
+              <td class="Radio_Check_ContentCell">
+                <SPAN class="Checkbox_container_NOT_Focused">
+                  <INPUT type="checkbox" name="inpHideCleared" id="paramHideCleared" value="N" onchange="" onclick="hideClearedTransactions(this.checked); return true;" required="false" />
+                </SPAN>
+              </td>
+              <td colspan="2" class="TableEdition_OneCell_width TitleCell">
+                <span class="LabelText"><label for="paramAfterDate">Hide Transactions after statement date</label></span>
+              </td>
+              <td class="Radio_Check_ContentCell">
+                <SPAN class="Checkbox_container_NOT_Focused">
+                  <INPUT type="checkbox" name="inpAfterDate" id="paramAfterDate" value="Y" onchange="" onclick="showWarning();loadGrid(); return true;" required="false" checked="" />
+                </SPAN>
+              </td>
+              <td class="TableEdition_OneCell_width TitleCell">
+                <span class="LabelText">
+                  <label for="paramClearAll">Clear all</label>
+                </span>
+              </td>
+              <td class="Radio_Check_ContentCell">
+                <SPAN class="Checkbox_container_NOT_Focused">
+                  <INPUT type="checkbox" name="inpClearAll" id="paramClearAll" value="N" onchange="" onclick="updateAll(this.checked); markAll(document.frmMain.inpTransactionId, this.checked); return true;" required="false" />
+                </SPAN>
+              </td>
+            </tr>
+            <!-- Filters for grid END-->
+            
+          </table>
+        </div>
+      </td>
+    </tr>
+    
+    <!-- GRID TABLE START -->
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_middle">
+          <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+            <tr>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_LeftMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdleftSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_LeftMargin"></td></tr>
+                </table>
+              </td>
+              <td valign="top">
+                <div id="client2" style="overflow: auto;">
+                  <table cellspacing="0" cellpadding="0" width="100%" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;">
+                    <thead>
+                      <tr class="DataGrid_Body_Row">
+                        <th class="DataGrid_Header_LineNoCell" width="25"></th>
+                        <th class="DataGrid_Header_Cell" width="70">Date</th>
+                        <th class="DataGrid_Header_Cell" width="160">Business Partner</th>
+                        <th class="DataGrid_Header_Cell" width="100">Payment In/Out Ref.</th>
+                        <th class="DataGrid_Header_Cell" width="220">Description</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Paid out</th>
+                        <th class="DataGrid_Header_Cell DataGrid_Header_Cell_Inverse" width="100">Received in</th>
+                        <th class="DataGrid_Header_Cell" width="70">Cleared</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sectionGrid">
+                    </tbody>
+                    <tr class="DataGrid_Body_Row" id="totalsRow">
+                      <td colspan="4"></td>
+                      <th width="220" class="DataGrid_Header_Cell">Item you have marked as cleared</th>
+                      <th width="100" class="DataGrid_Header_Cell_Amount" id="paramTotalPayAmount">xx30.04</th>
+                      <th width="100" class="DataGrid_Header_Cell_Amount" id="paramTotalDepositAmount">xx30.04</th>
+                      <td width="70"></td>
+                    </tr>
+                  </table>
+                </div>
+              </td>
+              <td valign="top" class="Popup_Client_Selector_DataGrid_RightMargin">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" id="tdrightSeparator">
+                  <tr><td class="Popup_Client_Selector_DataGrid_RightMargin"></td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    
+    <!-- Buttons START -->
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto; padding-bottom: 5px;" id="client_bottom">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+            <tr>
+              <input type="hidden" id="inpCalcBeginnigBalance" name="inpCalcBeginnigBalance" value="" outputformat="euroEdition"/>
+              <input type="hidden" id="inpCalcEndingBalance" name="inpCalcEndingBalance" value="" outputformat="euroEdition"/>
+              <input type="hidden" id="inpCalcDifferenceToClear" name="inpCalcDifferenceToClear" value="" outputformat="euroEdition"/>
+              <input type="hidden" id="inpCalcCurrentlyCleared" name="inpCalcCurrentlyCleared" value="" outputformat="euroEdition"/>
+              <input type="hidden" id="inpCalcDifference" name="inpCalcDifference" value="" outputformat="euroEdition"/>
+              <input type="hidden" id="inpCalcTotalPayment" name="inpCalcTotalPayment" value="" outputformat="euroEdition"/>
+              <input type="hidden" id="inpCalcTotalDeposit" name="inpCalcTotalDeposit" value="" outputformat="euroEdition"/>
+              <td colspan="2">
+                <table border="0" cellspacing="0" cellpadding="0" summary="" style="padding-top: 0px;">
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" style="font-weight: bold;">Beginning Balance</span></td>
+                  <td class="TitleCell" width="100"><span class="LabelText" id="paramTxtBeginningBalance">xx1.0</span></td>
+                </tr>
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" style="font-weight: bold;">Ending Balance</span></td>
+                  <td class="TitleCell" width="100"><span class="LabelText" id="paramTxtEndingBalance">xx2.0</span></td>
+                </tr>
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" style="font-weight: bold;">Difference to clear</span></td>
+                  <td class="TitleCell" width="100"><span class="LabelText" id="paramTxtDifferenceToClear">xx3.0</span></td>
+                </tr>
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" style="font-weight: bold;">Currently cleared</span></td>
+                  <td class="TitleCell" width="100"><span class="LabelText" id="paramTxtCurrentlyCleared">xx4.0</span></td>
+                </tr>
+                <tr>
+                  <td class="TitleCell"><span class="LabelText" style="font-weight: bold;">Difference</span></td>
+                  <td class="TitleCell" width="100"><span class="LabelText" id="paramTxtDifference">xx5.0</span></td>
+                </tr>
+                </table>
+              </td>
+              <td class="Button_RightAlign_ContentCell" style="padding-top:25;">
+                <div>
+                  <button type="button" 
+                    id="buttonSave" 
+                    class="ButtonLink" 
+                    onclick="submitThisPage('SAVE');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Save'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_save" alt="Save" title="Save" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Save</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_RightAlign_ContentCell" style="padding-top:25;">
+                <div>
+                  <button type="button" 
+                    id="buttonProcess"
+                    class="ButtonLink" 
+                    onclick="submitThisPage('PROCESS');return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Create'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Create'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Process" title="Process" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Reconcile</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_LeftAlign_ContentCell" style="padding-top:25;">
+                <div>
+                  <button type="button" 
+                    id="buttonCancel" 
+                    class="ButtonLink" 
+                    onclick="closeThisPage();return false;"
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;"
+                    onblur="buttonEvent('onblur', this);"
+                    onkeyup="buttonEvent('onkeyup', this);"
+                    onkeydown="buttonEvent('onkeydown', this);"
+                    onkeypress="buttonEvent('onkeypress', this);"
+                    onmouseup="buttonEvent('onmouseup', this);"
+                    onmousedown="buttonEvent('onmousedown', this);"
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;"
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <!-- Buttons END -->
+  </table>
+</form>
+</body>
+</html>

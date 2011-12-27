@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DocCashData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+	SELECT cb.C_CashBook_ID, cb.AD_Org_ID, cb.C_Currency_ID, '' AS C_CASH_ID, '' AS AD_CLIENT_ID, '' AS ISACTIVE,
+	'' AS CREATED, '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS NAME, '' AS DESCRIPTION, '' AS STATEMENTDATE,
+	'' AS DATEACCT,'' AS STATEMENTDIFFERENCE,
+	'' AS POSTED, '' AS AD_ORGTRX_ID, '' AS C_PROJECT_ID, '' AS C_CAMPAIGN_ID, '' AS C_ACTIVITY_ID, '' AS USER1_ID, '' AS USER2_ID,
+	'' as ISSOTRX, '' AS C_BPARTNER_ID, '' AS ISRECEIPT, '' AS ACCOUNT_ID
+	FROM C_Cash c, C_CashBook cb 
+	WHERE c.C_CashBook_ID=cb.C_CashBook_ID AND c.C_Cash_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="cash"/>
+   </SqlMethod>
+  <SqlMethod name="selectBPartner" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+	SELECT O.C_BPARTNER_ID as C_BPARTNER_ID, o.ISSOTRX AS ISSOTRX 
+	FROM C_CASHLINE C, C_ORDER O
+	WHERE C.C_ORDER_ID = O.C_ORDER_ID
+	AND C.C_CASHLINE_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="cashLine"/>
+   </SqlMethod>
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C.AD_CLIENT_ID, C.AD_ORG_ID, C.AD_ORGTRX_ID, C.C_PROJECT_ID, C.C_CAMPAIGN_ID,
+        C.C_ACTIVITY_ID, C.USER1_ID, C.USER2_ID, C.NAME, C.DATEACCT, C.POSTED, C.STATEMENTDATE,
+        C.STATEMENTDIFFERENCE
+        FROM C_CASH C
+        WHERE AD_CLIENT_ID=? 
+        AND C_CASH_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+  <!--SqlMethod name="selectCashLineAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+		SELECT CB_INTRANSIT_ACCT  AS ACCOUNT_ID
+		FROM C_CASHLINE, C_CASH, C_CASHBOOK, C_CASHBOOK_ACCT
+		WHERE C_CASHLINE.C_CASH_ID = C_CASH.C_CASH_ID
+		AND C_CASH.C_CASHBOOK_ID = C_CASHBOOK.C_CASHBOOK_ID
+		AND C_CASHBOOK.C_CASHBOOK_ID = C_CASHBOOK_ACCT.C_CASHBOOK_ID
+		AND C_CASHLINE_ID = ?
+		AND C_CASHBOOK_ACCT.C_ACCTSCHEMA_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_CASHLINE_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>     
+   </SqlMethod-->
+  <SqlMethod name="selectBankInTransitAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+		SELECT B_INTRANSIT_ACCT  AS ACCOUNT_ID
+		FROM C_BANKACCOUNT_ACCT
+		WHERE C_BANKACCOUNT_ID = ?
+		AND C_BANKACCOUNT_ACCT.C_ACCTSCHEMA_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_BANKACCOUNT_ID"/>
+     <Parameter name="C_ACCTSCHEMA_ID"/>     
+   </SqlMethod>
+   </SqlClass>

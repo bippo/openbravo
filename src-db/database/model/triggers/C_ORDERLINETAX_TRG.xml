@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ORDERLINETAX_TRG">
+    <trigger name="C_ORDERLINETAX_TRG" table="C_ORDERLINETAX" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2010 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************/
+
+v_Count NUMBER;
+v_LineNo  NUMBER;
+v_C_Order_ID C_ORDERLINETAX.C_ORDER_ID%TYPE;
+v_C_Tax_ID C_ORDERLINETAX.C_TAX_ID%TYPE;
+v_Prec C_CURRENCY.STDPRECISION%TYPE;
+v_DocTaxAmount C_TAX.DOCTAXAMOUNT%TYPE;
+v_Rate  C_TAX.RATE%TYPE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    IF(INSERTING OR UPDATING) THEN
+      v_C_Tax_ID:=:NEW.C_Tax_ID;
+      v_C_Order_ID:=:NEW.C_ORDER_ID;
+    ELSE
+      v_C_Tax_ID:=:OLD.C_Tax_ID;
+      v_C_Order_ID:=:OLD.C_ORDER_ID;
+    END IF;
+
+    SELECT C_CURRENCY.STDPRECISION
+    INTO v_Prec
+    FROM C_ORDER, C_CURRENCY
+    WHERE C_ORDER.C_CURRENCY_ID = C_CURRENCY.C_CURRENCY_ID
+    AND C_ORDER_ID = v_C_Order_ID;
+    
+    SELECT DOCTAXAMOUNT, RATE
+    INTO v_DocTaxAmount, v_Rate
+    FROM C_TAX
+    WHERE C_TAX_ID = v_C_Tax_ID;
+    
+  IF (INSERTING OR UPDATING) THEN
+    SELECT COUNT(C_TAX_ID) INTO v_Count
+    FROM C_ORDERTAX
+    WHERE C_ORDER_ID = :NEW.C_Order_ID
+    AND C_TAX_ID = :NEW.C_TAX_ID;
+    IF(v_Count>0) THEN
+      UPDATE C_ORDERTAX SET TAXAMT = (CASE WHEN v_DocTaxAmount='D' THEN ROUND((TAXBASEAMT + :NEW.TAXBASEAMT) * v_Rate/100, v_Prec) ELSE (TAXAMT + :NEW.TAXAMT) END), TAXBASEAMT=TAXBASEAMT + :NEW.TAXBASEAMT
+      WHERE C_ORDER_ID = :NEW.C_Order_ID
+      AND C_TAX_ID = :NEW.C_TAX_ID;
+    ELSE
+      SELECT COALESCE(MAX(LINE),0) + 10
+      INTO v_LineNo
+      FROM C_ORDERTAX
+      WHERE C_ORDER_ID = :NEW.C_Order_ID;
+      INSERT
+      INTO C_ORDERTAX (
+      C_OrderTax_ID, C_Order_ID, C_Tax_ID, AD_Client_ID, AD_Org_ID,
+      IsActive, Created, CreatedBy, Updated,
+      UpdatedBy, TaxBaseAmt, TaxAmt, Line)
+      VALUES (
+      GET_UUID(), :NEW.C_Order_ID, :NEW.C_TAX_ID, :NEW.AD_CLIENT_ID, :NEW.AD_ORG_ID,
+      'Y', now(), :NEW.UPDATEDBY, now(),
+      :NEW.UPDATEDBY, :NEW.TAXBASEAMT, :NEW.TAXAMT, v_LineNo);
+    END IF;
+  ELSE
+    
+    UPDATE C_ORDERTAX SET TAXAMT = (CASE WHEN v_DocTaxAmount='D' THEN ROUND((TAXBASEAMT - :OLD.TAXBASEAMT) * v_Rate/100, v_Prec) ELSE (TAXAMT - :OLD.TAXAMT) END), TAXBASEAMT=TAXBASEAMT - :OLD.TAXBASEAMT
+    WHERE C_ORDER_ID = :OLD.C_Order_ID
+    AND C_TAX_ID = :OLD.C_TAX_ID;
+    
+    DELETE FROM C_ORDERTAX 
+    WHERE C_ORDER_ID = :OLD.C_Order_ID
+    AND C_TAX_ID = :OLD.C_TAX_ID
+    AND TAXAMT=0 AND TAXBASEAMT=0;
+  END IF;
+END C_ORDERLINETAX_TRG
+]]></body>
+    </trigger>
+  </database>

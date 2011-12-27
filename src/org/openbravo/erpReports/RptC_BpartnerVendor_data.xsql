@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptCBpartnerVendorData" package="org.openbravo.erpReports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT PR.NAME AS PAYMENTRULEPO, P.NAME AS PRICELISTPO, C_ELEMENTVALUE.VALUE||' - '||C_ELEMENTVALUE.NAME AS ACCOUNTVENDOR, PT.NAME AS PAYMENTTERMNAMEPO,
+        FA.NAME AS FINACCOUNTPO, FPM.NAME AS FINPAYMMETHODPO
+        FROM C_BPARTNER BP left join C_PAYMENTTERM PT on  BP.PO_PAYMENTTERM_ID = PT.C_PAYMENTTERM_ID
+                           left join  (SELECT VALUE, NAME from AD_REF_LIST_V WHERE AD_REFERENCE_ID='195' AND AD_LANGUAGE= ?) PR on BP.PAYMENTRULEPO = PR.VALUE
+                           left join M_PRICELIST P on BP.PO_PRICELIST_ID = P.M_PRICELIST_ID
+                           left join C_BP_VENDOR_ACCT on BP.C_BPARTNER_ID = C_BP_VENDOR_ACCT.C_BPARTNER_ID 
+                           left join C_VALIDCOMBINATION on C_BP_VENDOR_ACCT.V_LIABILITY_ACCT = C_VALIDCOMBINATION.C_VALIDCOMBINATION_ID 
+                           left join C_ELEMENTVALUE on C_VALIDCOMBINATION.ACCOUNT_ID = C_ELEMENTVALUE.C_ELEMENTVALUE_ID
+                           left join FIN_FINANCIAL_ACCOUNT FA on FA.FIN_FINANCIAL_ACCOUNT_ID = BP.PO_FINANCIAL_ACCOUNT_ID
+                           left join FIN_PAYMENTMETHOD FPM on FPM.FIN_PAYMENTMETHOD_ID = BP.FIN_PAYMENTMETHOD_ID
+        WHERE 
+        BP.ISVENDOR = 'Y'
+     ]]></Sql>
+	<Parameter name="adLanguage"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="BP.ISVENDOR = 'Y'">
+        <![CDATA[ AND BP.C_BPARTNER_ID IN ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

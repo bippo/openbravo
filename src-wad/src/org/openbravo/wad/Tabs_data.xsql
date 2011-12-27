@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="TabsData" package="org.openbravo.wad">
+  <SqlMethod name="selectTabs" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Tabs of windows with name like parameter</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT AD_TAB.ad_tab_id AS tabId, AD_TAB.NAME AS tabName, AD_WINDOW.NAME AS windowName, 
+        AD_TAB.seqno AS seqNo, AD_TAB.tablevel AS tabLevel, AD_TAB.NAME AS tabNameCompact, 
+        AD_TAB.AD_WINDOW_ID AS KEY, '' AS TD_Class, '' AS href, '' AS Td_Height, '' AS Parent_Key, 
+        AD_WINDOW.NAME AS realWindowName, AD_TAB.whereclause, AD_WINDOW.windowtype, ad_tab.issorttab, ad_tab.AD_COLUMNSORTORDER_ID, 
+        ad_tab.AD_COLUMNSORTYESNO_ID,
+        AD_TABLE.ACCESSLEVEL, AD_TAB.ad_process_id, AD_TAB.UIPATTERN, AD_TAB.NAME AS realTabName, AD_TAB.ORDERBYCLAUSE, 
+        '' as tabNameTrl, AD_TABLE.ad_table_id AS table_Id, ad_tab.isInfoTab, ad_tab.isTranslationTab, '' AS NameTab, 
+        replace(replace(AD_TAB.FILTERCLAUSE, CHR(10), ' '), CHR(13), ' ') AS FILTERCLAUSE, AD_TAB.EDITREFERENCE,
+        (CASE WHEN M1.AD_MODULE_ID='0' THEN NULL ELSE M1.JavaPackage END) AS JAVAPACKAGE, AD_TAB.AD_MODULE_ID as tabmodule,
+        AD_TABLE.ISDELETEABLE
+        FROM AD_TAB, AD_WINDOW, AD_TABLE, AD_MODULE M1
+        WHERE AD_TAB.AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID
+        AND AD_TAB.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND AD_WINDOW.IsActive = 'Y'
+        AND AD_WINDOW.WindowType IN ('M', 'Q', 'T')
+        AND UPPER(AD_WINDOW.NAME) LIKE '%' || UPPER(?) || '%' 
+        AND AD_TAB.ad_table_id IN
+        (SELECT AD_TABLE.ad_table_id FROM AD_COLUMN, AD_TABLE 
+         WHERE AD_COLUMN.ad_table_id = AD_TABLE.ad_table_id
+         AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        AND AD_TAB.ISACTIVE = 'Y'
+        AND EXISTS (SELECT 1 FROM AD_TAB, AD_COLUMN 
+        WHERE AD_TAB.AD_TABLE_ID = AD_COLUMN.ad_table_id
+        AND AD_TAB.TABLEVEL = 0 
+        AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        )
+        AND AD_TAB.ad_window_id = AD_WINDOW.ad_window_id)
+        AND M1.AD_MODULE_ID = AD_WINDOW.AD_Module_ID
+        AND 1=1
+        ORDER BY AD_WINDOW.name, AD_TAB.tablevel, AD_TAB.seqno
+          ]]>
+      </Sql>
+      <Parameter name="name"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectTabsinModules" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Tabs of windows with name like parameter</SqlMethodComment>
+      <Sql><![CDATA[
+      SELECT distinct AD_TAB.ad_tab_id AS tabId, AD_TAB.NAME AS tabName, AD_WINDOW.NAME AS windowName, 
+        AD_TAB.seqno AS seqNo, AD_TAB.tablevel AS tabLevel, AD_TAB.NAME AS tabNameCompact, 
+        AD_TAB.AD_WINDOW_ID AS KEY, '' AS TD_Class, '' AS href, '' AS Td_Height, '' AS Parent_Key, 
+        AD_WINDOW.NAME AS realWindowName, AD_TAB.whereclause, AD_WINDOW.windowtype, ad_tab.issorttab, ad_tab.AD_COLUMNSORTORDER_ID, 
+        ad_tab.AD_COLUMNSORTYESNO_ID,
+        AD_TABLE.ACCESSLEVEL, AD_TAB.ad_process_id, AD_TAB.UIPATTERN, AD_TAB.NAME AS realTabName, AD_TAB.ORDERBYCLAUSE, 
+        '' as tabNameTrl, AD_TABLE.ad_table_id AS table_Id, ad_tab.isInfoTab, ad_tab.isTranslationTab, '' AS NameTab, 
+        replace(replace(AD_TAB.FILTERCLAUSE, CHR(10), ' '), CHR(13), ' ') AS FILTERCLAUSE, AD_TAB.EDITREFERENCE, 
+        (CASE WHEN M1.AD_MODULE_ID='0' THEN NULL ELSE M1.JavaPackage END) AS JAVAPACKAGE, AD_TAB.AD_MODULE_ID as tabmodule,
+        AD_TABLE.ISDELETEABLE
+        FROM AD_TAB, AD_WINDOW, AD_TABLE, AD_MODULE M1, AD_MODULE M
+        WHERE AD_TAB.AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID
+        AND AD_TAB.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND AD_WINDOW.IsActive = 'Y'
+        AND AD_WINDOW.WindowType IN ('M', 'Q', 'T')
+        AND UPPER(AD_WINDOW.NAME) LIKE '%' || UPPER(?) || '%' 
+        AND AD_TAB.ad_table_id IN
+        (SELECT AD_TABLE.ad_table_id FROM AD_COLUMN, AD_TABLE 
+         WHERE AD_COLUMN.ad_table_id = AD_TABLE.ad_table_id
+         AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        AND AD_TAB.ISACTIVE = 'Y'
+        AND EXISTS (SELECT 1 FROM AD_TAB, AD_COLUMN 
+        WHERE AD_TAB.AD_TABLE_ID = AD_COLUMN.ad_table_id
+        AND AD_TAB.TABLEVEL = 0 
+        AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        )
+        AND AD_TAB.ad_window_id = AD_WINDOW.ad_window_id)
+        AND M1.AD_MODULE_ID = AD_WINDOW.AD_Module_ID
+        AND M.JAVAPACKAGE IN ('1')
+        AND EXISTS (SELECT 1
+                      FROM AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND M.AD_MODULE_ID = W.AD_MODULE_ID
+                    UNION
+                    SELECT 1
+                      FROM AD_TAB T,
+                           AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND M.AD_MODULE_ID = T.AD_MODULE_ID
+                       AND W.AD_WINDOW_ID = T.AD_WINDOW_ID
+                    UNION
+                    SELECT 1                     
+                      FROM AD_FIELD F,
+                           AD_TAB TB, AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND M.AD_MODULE_ID = F.AD_MODULE_ID
+                       AND F.AD_TAB_ID = TB.AD_TAB_ID
+                       AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                    UNION
+                    SELECT 1
+                      FROM AD_TABLE T,
+                           AD_TAB TB, AD_WINDOW W, AD_PACKAGE P
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND M.AD_MODULE_ID = P.AD_MODULE_ID
+                       AND P.AD_PACKAGE_ID = T.AD_PACKAGE_ID
+                       AND T.AD_TABLE_ID = TB.AD_TABLE_ID
+                       AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                    UNION
+                     SELECT 1
+                       FROM AD_COLUMN C,
+                            AD_TAB TB, AD_WINDOW W
+                      WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                        AND M.AD_MODULE_ID = C.AD_MODULE_ID
+                        AND C.AD_TABLE_ID = TB.AD_TABLE_ID
+                        AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                       )
+        ORDER BY AD_WINDOW.name, AD_TAB.tablevel, AD_TAB.seqno
+      ]]>
+      </Sql>
+      <Parameter name="name"/>
+      <Parameter name="ModuleName" type="replace" optional="true" after="AND M.JAVAPACKAGE IN (" text="'1'"/>
+  </SqlMethod>
+
+
+  <SqlMethod name="selectQuick" type="preparedStatement" return="multiple">
+      <Sql><![CDATA[
+        SELECT distinct AD_TAB.ad_tab_id AS tabId, AD_TAB.NAME AS tabName, AD_WINDOW.NAME AS windowName, 
+        AD_TAB.seqno AS seqNo, AD_TAB.tablevel AS tabLevel, AD_TAB.NAME AS tabNameCompact, 
+        AD_TAB.AD_WINDOW_ID AS KEY, '' AS TD_Class, '' AS href, '' AS Td_Height, '' AS Parent_Key, 
+        AD_WINDOW.NAME AS realWindowName, AD_TAB.whereclause, AD_WINDOW.windowtype, ad_tab.issorttab, ad_tab.AD_COLUMNSORTORDER_ID, 
+        ad_tab.AD_COLUMNSORTYESNO_ID,
+        AD_TABLE.ACCESSLEVEL, AD_TAB.ad_process_id, AD_TAB.UIPATTERN, AD_TAB.NAME AS realTabName, AD_TAB.ORDERBYCLAUSE, 
+        '' as tabNameTrl, AD_TABLE.ad_table_id AS table_Id, ad_tab.isInfoTab, ad_tab.isTranslationTab, '' AS NameTab, 
+        replace(replace(AD_TAB.FILTERCLAUSE, CHR(10), ' '), CHR(13), ' ') AS FILTERCLAUSE, AD_TAB.EDITREFERENCE, 
+        (CASE WHEN M1.AD_MODULE_ID='0' THEN NULL ELSE M1.JavaPackage END) AS JAVAPACKAGE, AD_TAB.AD_MODULE_ID as tabmodule,
+        AD_TABLE.ISDELETEABLE
+        FROM AD_TAB, AD_WINDOW, AD_TABLE, AD_SYSTEM_INFO SI, AD_MODULE M1
+        WHERE AD_TAB.AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID
+        AND AD_TAB.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND AD_WINDOW.IsActive = 'Y'
+        AND AD_WINDOW.WindowType IN ('M', 'Q', 'T')
+        AND M1.AD_MODULE_ID = AD_WINDOW.AD_Module_ID
+        AND AD_TAB.ad_table_id IN
+        (SELECT AD_TABLE.ad_table_id FROM AD_COLUMN, AD_TABLE 
+         WHERE AD_COLUMN.ad_table_id = AD_TABLE.ad_table_id
+         AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        AND AD_TAB.ISACTIVE = 'Y'
+        AND EXISTS (SELECT 1 FROM AD_TAB, AD_COLUMN 
+        WHERE AD_TAB.AD_TABLE_ID = AD_COLUMN.ad_table_id
+        AND AD_TAB.TABLEVEL = 0 
+        AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        )
+        AND AD_TAB.ad_window_id = AD_WINDOW.ad_window_id)
+        AND EXISTS (SELECT 1
+                      FROM AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND W.UPDATED > SI.LAST_BUILD
+                    UNION
+                    SELECT 1
+                      FROM AD_TAB T,
+                           AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND T.UPDATED > SI.LAST_BUILD
+                       AND W.AD_WINDOW_ID = T.AD_WINDOW_ID
+                    UNION
+                    SELECT 1                     
+                      FROM AD_FIELD F,
+                           AD_TAB TB, AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND F.UPDATED > SI.LAST_BUILD
+                       AND F.AD_TAB_ID = TB.AD_TAB_ID
+                       AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                    UNION
+                    SELECT 1
+                      FROM AD_TABLE T,
+                           AD_TAB TB, AD_WINDOW W
+                     WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND T.UPDATED > SI.LAST_BUILD
+                       AND T.AD_TABLE_ID = TB.AD_TABLE_ID
+                       AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                    UNION
+                     SELECT 1
+                       FROM AD_COLUMN C,
+                            AD_TAB TB, AD_WINDOW W
+                      WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                       AND C.UPDATED > SI.LAST_BUILD
+                        AND C.AD_TABLE_ID = TB.AD_TABLE_ID
+                        AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                    UNION
+                      SELECT 1
+                        FROM AD_COLUMN C, AD_TAB TB, AD_WINDOW W, AD_COLUMN C2, AD_REF_SEARCH R
+                       WHERE AD_WINDOW.AD_WINDOW_ID = W.AD_WINDOW_ID
+                         AND R.AD_TABLE_ID = C.AD_TABLE_ID
+                         AND C.UPDATED > SI.LAST_BUILD
+                         AND C2.AD_REFERENCE_ID = '30'
+                         AND C2.AD_REFERENCE_VALUE_ID = R.AD_REFERENCE_ID
+                         AND C2.AD_TABLE_ID = TB.AD_TABLE_ID
+                         AND W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                    UNION
+                      SELECT 1
+                        FROM AD_AUXILIARINPUT A, AD_TAB TB
+                       WHERE AD_WINDOW.AD_WINDOW_ID = TB.AD_WINDOW_ID
+                         AND A.AD_TAB_ID = TB.AD_TAB_ID
+                         AND A.UPDATED > SI.LAST_BUILD
+                       )
+        ORDER BY AD_WINDOW.name, AD_TAB.tablevel, AD_TAB.seqno
+          ]]>
+      </Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectTabParent" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Parent Tab for the window</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ad_tab_id as tabId, ad_tab.NAME as tabName, ad_window.NAME as windowName, 
+        ad_tab.seqno as seqNo, ad_tab.tablevel as tabLevel, ad_tab.name as tabNameCompact, ad_tab.isInfoTab, ad_tab.isTranslationTab, 
+        ad_tab.AD_WINDOW_ID as key, '' as TD_Class, '' as href, '' as Td_Height, '' as Parent_Key, ad_tab.NAME as tabNameTrl, 
+        ad_tab.EDITREFERENCE, AD_TAB.AD_MODULE_ID as tabmodule
+        FROM ad_tab, ad_window
+        WHERE ad_tab.AD_WINDOW_ID = ad_window.AD_WINDOW_ID
+          AND ad_tab.tablevel = 0 
+          AND ad_tab.isactive = 'Y'
+          AND ad_tab.AD_WINDOW_ID = ?
+          ]]>
+          <!-- No se procesan de momento las que no tienen key en la tabla -->
+      </Sql>
+      <Parameter name="windowId"/>
+  </SqlMethod>
+
+
+<!-- method copied to src/src/org/openbravo/erpCommon/businessUtility/AuditTrailPopup_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="selectSubtabs" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Subtabs of the tab of the parameter</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT a2.ad_tab_id AS tabId, a2.seqno AS seqNo, a2.tablevel AS tabLevel, a2.NAME AS tabName, a2.NAME AS tabNameCompact, '' AS TD_Class, a2.NAME AS tabNameTrl, 
+        (SELECT MAX(AD_COLUMN.columnname) 
+        FROM AD_TABLE, AD_COLUMN 
+        WHERE AD_TABLE.ad_table_id = AD_COLUMN.ad_table_id 
+        AND iskey='Y' 
+        AND AD_TABLE.ad_table_id = a2.ad_table_id) AS KEY, '' AS href, '' AS Td_Height, 
+        COALESCE(a1.ad_tab_id,'-1') AS Parent_Key, a2.isInfoTab, a2.isTranslationTab, AD_ShortName(a2.Name) as NameTab, 
+        a2.EDITREFERENCE, a2.AD_MODULE_ID as tabmodule
+        FROM AD_TAB a1, AD_TAB a2
+        WHERE a1.ad_tab_id = ?
+        AND a1.ad_window_id = a2.ad_window_id
+        AND a2.seqno > a1.seqno
+        AND a2.isactive = 'Y'
+        AND a2.seqno < (SELECT COALESCE(MIN(a3.seqno),1000)
+                     FROM AD_TAB a3 
+                     WHERE a3.ad_window_id = a1.ad_window_id 
+                     AND a3.tablevel = a1.tablevel
+                     AND a3.seqno > a1.seqno)
+        AND a2.tablevel = (a1.tablevel + 1)
+        AND a2.ad_table_id IN 
+        (SELECT AD_TABLE.ad_table_id FROM AD_COLUMN, AD_TABLE 
+        WHERE AD_COLUMN.ad_table_id = AD_TABLE.ad_table_id
+        AND (AD_COLUMN.iskey='Y' OR AD_COLUMN.issecondarykey='Y')
+        AND (isparent='N' OR NOT EXISTS (
+        SELECT c.ad_column_id FROM AD_TAB at1, AD_FIELD f, AD_COLUMN c
+        WHERE at1.ad_table_id = c.ad_table_id
+        AND at1.ad_window_id = a2.ad_window_id
+        AND f.ad_column_id = c.ad_column_id
+        AND at1.tablevel=a2.tablevel -1
+        AND at1.ad_tab_id=COALESCE(a1.ad_tab_id,'-1')
+        AND c.columnname = AD_COLUMN.columnname 
+        AND (c.isKey = 'Y' OR c.isSecondaryKey='Y')
+        ))
+        )
+        ORDER BY a2.seqno
+       ]]>
+      </Sql>
+      <Parameter name="parentId"/>
+  </SqlMethod>
+
+
+  <SqlMethod name="processName" type="preparedStatement" return="string" default="">
+    <SqlMethodComment>Subtabs of the tab of the parameter</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT coalesce(mom.mappingname, TO_CHAR(ad_process.value) || '.pdf') as name FROM ad_process 
+                              left join ad_model_object mo on ad_process.ad_process_id = mo.ad_process_id 
+                                    and mo.action IN ('P', 'R')
+                                    and mo.isactive = 'Y'
+                                    and mo.isdefault = 'Y'
+                              left join ad_model_object_mapping mom on mo.ad_model_object_id = mom.ad_model_object_id 
+                                    and mom.isactive = 'Y' 
+                                    and mom.isdefault = 'Y'
+        WHERE ad_process.ad_process_id = ?
+        ]]>
+      </Sql>
+      <Parameter name="adProcessId"/>
+  </SqlMethod>
+  <SqlMethod name="directPrint" type="preparedStatement" return="string" default="N">
+    <SqlMethodComment>Subtabs of the tab of the parameter</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT isdirectprint as name FROM ad_process 
+        WHERE ad_process_id = ?
+        ]]>
+      </Sql>
+      <Parameter name="adProcessId"/>
+  </SqlMethod>
+  <SqlMethod name="formClassName" type="preparedStatement" return="string" default="">
+    <SqlMethodComment>Subtabs of the tab of the parameter</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT mappingname as name FROM ad_model_object mo, ad_model_object_mapping mom
+        WHERE mo.ad_form_id = ? 
+        AND mo.isactive = 'Y' 
+        AND mo.isdefault = 'Y' 
+        AND mo.ad_model_object_id = mom.ad_model_object_id 
+        AND mom.isactive = 'Y' 
+        AND mom.isdefault = 'Y' 
+        ]]>
+      </Sql>
+      <Parameter name="adFormId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="isTabActive" type="preparedStatement" return="boolean">
+      <Sql><![CDATA[
+        SELECT COUNT(*) as ad_tab_id
+          FROM AD_TAB
+         WHERE AD_TAB_ID = ?
+           AND ISACTIVE = 'Y' 
+        ]]>
+      </Sql>
+      <Parameter name="adTabId"/>
+  </SqlMethod>
+  
+<!-- method copied to src/src/org/openbravo/erpCommon/businessUtility/AuditTrailPopup_data.xsql, both copies need to stay in sync -->
+  <SqlMethod name="selectParentTab" type="preparedStatement" return="string">
+      <Sql><![CDATA[
+        select t.ad_tab_id
+         from ad_tab t, ad_tab t1
+        where t1.ad_window_id = t.ad_window_id
+          and t1.ad_tab_id = ?
+          and t.seqno < t1.seqno
+          and t.tablevel < t1.tablevel
+          and t.seqno = (select max(t2.seqno)
+                           from ad_tab t2, ad_tab t3
+                          where t3.ad_window_id = t2.ad_window_id
+                            and t3.ad_tab_id = t1.ad_tab_id
+                            and t2.seqno < t3.seqno
+                            and t2.tablevel < t3.tablevel) 
+        ]]>
+      </Sql>
+      <Parameter name="adTabId"/>
+  </SqlMethod>
+  
+</SqlClass>

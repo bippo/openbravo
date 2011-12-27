@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportProductionRunData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT wr.DocumentNo AS wrname, AD_MESSAGE_GET2(wr.CLOSED, to_char(?)) AS wrclosed, wr.LAUNCHDATE AS wrlaunch, wr.STARTDATE AS wrstart, wr.ENDDATE AS wrend,
+        wrp.SeqNo AS wrpname, wrp.QUANTITY AS wrpqty, wrp.DONEQUANTITY AS wrpdone, (wrp.QUANTITY - wrp.DONEQUANTITY ) AS wrpleft,
+        p.NAME AS pname, wrp.COSTCENTERUSE AS wrpph, wrp.PREPTIME AS wrppt, AD_MESSAGE_GET2(wrp.CLOSED, to_char(?)) AS wrpclosed,
+        pr.LINE AS prname, we.DocumentNo AS wename, pr.NEEDEDQUANTITY AS prneeded, pr.PRODUCTIONQTY AS prdone, pr.REJECTEDQUANTITY As prrej,
+        wrp.SEQNO AS wrpseq, we.MOVEMENTDATE AS wedate, wr.MA_WorkRequirement_ID AS wrid, wrp.MA_WRPhase_ID AS wrpid
+      FROM MA_WorkRequirement wr, MA_WRPhase wrp, M_ProductionPlan pr, M_Production we, MA_Process p
+      WHERE wr.MA_WORKREQUIREMENT_ID = wrp.MA_WORKREQUIREMENT_ID
+        AND wrp.MA_PROCESS_ID = p.MA_PROCESS_ID
+        AND pr.MA_WRPHASE_ID = wrp.MA_WRPHASE_ID
+        AND pr.M_PRODUCTION_ID = we.M_PRODUCTION_ID
+        AND pr.AD_CLIENT_ID IN ('1')
+        AND pr.AD_ORG_ID IN ('1')
+        AND 1=1
+      ORDER BY wrlaunch, wr.MA_WorkRequirement_ID, wrpseq, wename, prname 
+      ]]></Sql>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND pr.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND pr.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parLaunchDateFrom" optional="true" after="AND 1=1"><![CDATA[AND wr.LAUNCHDATE > to_date(?)]]></Parameter>
+    <Parameter name="parLaunchDateTo" optional="true" after="AND 1=1"><![CDATA[AND wr.LAUNCHDATE < to_date(?)]]></Parameter>
+    <Parameter name="parStartDateFrom" optional="true" after="AND 1=1"><![CDATA[AND wr.STARTDATE > to_date(?)]]></Parameter>
+    <Parameter name="parStartDateTo" optional="true" after="AND 1=1"><![CDATA[AND wr.STARTDATE < to_date(?)]]></Parameter>
+    <Parameter name="parEndDateFrom" optional="true" after="AND 1=1"><![CDATA[AND wr.ENDDATE > to_date(?)]]></Parameter>
+    <Parameter name="parEndDateTo" optional="true" after="AND 1=1"><![CDATA[AND wr.ENDDATE < to_date(?)]]></Parameter>
+    <Parameter name="parWorkRequirement" optional="true" after="AND 1=1"><![CDATA[AND wr.MA_WORKREQUIREMENT_ID = ?]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

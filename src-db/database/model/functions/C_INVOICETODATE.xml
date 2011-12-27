@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_INVOICETODATE">
+    <function name="C_INVOICETODATE" type="TIMESTAMP">
+      <parameter name="p_invoicefrecuency" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_invoiceday" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_invoicecutoff" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_date" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Description: return the last DATE that is allowed to invoice orders
+************************************************************************/
+  v_invoiceToDate DATE;
+  v_auxDate DATE;
+  v_date DATE;
+  v_invoiceDay    NUMBER;
+  v_invoiceCutOff NUMBER;
+BEGIN
+  v_invoiceDay:=p_invoiceDay;
+  v_invoiceCutOff:=p_invoiceCutOff;
+  v_date:=TRUNC(p_date) ;
+  IF(p_invoiceFrecuency IN('T')) THEN
+    IF(TO_NUMBER(TO_CHAR(v_date, 'DD')) < v_invoiceDay) THEN
+      v_invoiceDay:=v_invoiceDay + 15;
+    END IF;
+    IF((v_invoiceDay < v_invoiceCutOff) OR((v_invoiceCutOff+15) <= v_invoiceDay)) THEN
+      v_invoiceCutOff:=v_invoiceCutOff + 15;
+    END IF;
+  END IF;
+  IF(p_invoiceFrecuency IN('M', 'T')) THEN
+    -- If date before invoiceDay (and date is not last month day) go to last month
+    IF((TO_NUMBER(TO_CHAR(v_date, 'DD')) < p_invoiceDay) AND(v_date < LAST_DAY(v_date))) THEN
+      v_auxDate:=C_DATEDAYINMONTH(v_invoiceDay, TO_DATE(ADD_MONTHS(v_date, -1))) ;
+    ELSE
+      v_auxDate:=C_DATEDAYINMONTH(v_invoiceDay, TO_DATE(v_date)) ;
+    END IF;
+    IF((TO_NUMBER(TO_CHAR(v_auxDate, 'DD')) < v_invoiceCutOff) AND(v_auxDate < LAST_DAY(v_auxDate))) THEN
+      v_invoiceToDate:=C_DATEDAYINMONTH(v_invoiceCutOff, TO_DATE(ADD_MONTHS(v_auxDate, -1))) ;
+    ELSE
+      v_invoiceToDate:=C_DATEDAYINMONTH(v_invoiceCutOff, TO_DATE(v_auxDate)) ;
+    END IF;
+  ELSIF(p_invoiceFrecuency IN('W')) THEN
+    v_auxDate:=v_date;
+    WHILE(TO_NUMBER(TO_CHAR(v_auxDate, 'D')) <> v_invoiceDay)
+    LOOP
+      v_auxDate:=v_auxDate - 1;
+    END LOOP;
+    v_invoiceToDate:=v_auxDate;
+    WHILE(TO_NUMBER(TO_CHAR(v_invoiceToDate, 'D')) <> v_invoiceCutOff)
+    LOOP
+      v_invoiceToDate:=v_invoiceToDate - 1;
+    END LOOP;
+  ELSIF(p_invoiceFrecuency='D') THEN
+    v_invoiceToDate:=v_date;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('InvoiceFrecuency not valid: ' || p_invoiceFrecuency) ;
+  END IF;
+  RETURN v_invoiceToDate;
+END C_INVOICETODATE
+]]></body>
+    </function>
+  </database>

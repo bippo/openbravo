@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_GETBPLOCATIONID">
+    <function name="C_GETBPLOCATIONID" type="VARCHAR">
+      <parameter name="p_bpartnerid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_locationtype" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Title:   Return the first BPLocationID of the BPartner and LocationType (BillTo, ...)
+* Description:
+*
+************************************************************************/
+  v_BPLocationID VARCHAR2(32):=NULL;
+  TYPE RECORD IS REF CURSOR;
+    Cur_BPLocationBillCursor RECORD;
+    Cur_BPLocationShipCursor RECORD;
+    Cur_BPLocationPayCursor RECORD;
+    Cur_BPLocationRemitCursor RECORD;
+    Cur_BPLocationTaxCursor RECORD;
+  BEGIN
+    IF(p_LocationType='B') THEN
+      FOR Cur_BPLocationBillCursor IN
+        (SELECT C_BPartner_Location_ID
+        FROM C_BPartner_Location
+        WHERE C_BPartner_ID=p_BPartnerID
+          AND IsBillTo='Y'
+          AND IsActive='Y'
+        )
+      LOOP
+        v_BPLocationID:=Cur_BPLocationBillCursor.C_BPartner_Location_ID;
+        EXIT;
+      END LOOP;
+    END IF;
+    IF(p_LocationType='S') THEN
+      FOR Cur_BPLocationShipCursor IN
+        (SELECT C_BPartner_Location_ID
+        FROM C_BPartner_Location
+        WHERE C_BPartner_ID=p_BPartnerID
+          AND IsShipTo='Y'
+          AND IsActive='Y'
+        )
+      LOOP
+        v_BPLocationID:=Cur_BPLocationShipCursor.C_BPartner_Location_ID;
+        EXIT;
+      END LOOP;
+    END IF;
+    IF(p_LocationType='P') THEN
+      FOR Cur_BPLocationPayCursor IN
+        (SELECT C_BPartner_Location_ID
+        FROM C_BPartner_Location
+        WHERE C_BPartner_ID=p_BPartnerID
+          AND IsPayFrom='Y'
+          AND IsActive='Y'
+        )
+      LOOP
+        v_BPLocationID:=Cur_BPLocationPayCursor.C_BPartner_Location_ID;
+        EXIT;
+      END LOOP;
+    END IF;
+    IF(p_LocationType='R') THEN
+      FOR Cur_BPLocationRemitCursor IN
+        (SELECT C_BPartner_Location_ID
+        FROM C_BPartner_Location
+        WHERE C_BPartner_ID=p_BPartnerID
+          AND IsRemitTo='Y'
+          AND IsActive='Y'
+        )
+      LOOP
+        v_BPLocationID:=Cur_BPLocationRemitCursor.C_BPartner_Location_ID;
+        EXIT;
+      END LOOP;
+    END IF;
+    IF(p_LocationType='T') THEN
+      FOR Cur_BPLocationTaxCursor IN
+        (SELECT C_BPartner_Location_ID
+        FROM C_BPartner_Location
+        WHERE C_BPartner_ID=p_BPartnerID
+          AND IsTaxLocation='Y'
+          AND IsActive='Y'
+        )
+      LOOP
+        v_BPLocationID:=Cur_BPLocationTaxCursor.C_BPartner_Location_ID;
+        EXIT;
+      END LOOP;
+    END IF;
+    RETURN v_BPLocationID;
+END C_GETBPLOCATIONID
+]]></body>
+    </function>
+  </database>

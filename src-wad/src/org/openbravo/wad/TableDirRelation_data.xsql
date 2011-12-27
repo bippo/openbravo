@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="TableDirRelationData" package="org.openbravo.wad">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table dir references</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT columnname, '' as tablename, '' as columndescriptionname, '' as code, '' as AD_VAL_RULE_ID, 
+      '' as clause, '' as parameters, '' as reference_id, '' as fromclause
+      FROM AD_column  
+      WHERE AD_reference_id='19'
+      AND columnname not in ('Node_ID')
+        GROUP BY columnname
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="selectValidation" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table dir references</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DISTINCT A.COLUMNNAME, A.tablename, A.columndescriptionname, A.code, 
+        A.AD_VAL_RULE_ID, A.clause, A.PARAMETERS, A.reference_id, '' as fromclause 
+        FROM (
+        SELECT DISTINCT c.COLUMNNAME, '' AS tablename, '' AS columndescriptionname, v.code, 
+        v.AD_VAL_RULE_ID, '' AS clause, '' AS PARAMETERS, '' AS reference_id, '' as fromclause 
+        FROM AD_COLUMN c, AD_VAL_RULE v, AD_REFERENCE r
+        WHERE c.AD_VAL_RULE_ID = v.AD_VAL_RULE_ID 
+        AND c.AD_REFERENCE_ID = r.AD_REFERENCE_ID 
+        AND c.AD_VAL_RULE_ID IS NOT NULL 
+        AND r.AD_REFERENCE_ID = '19'
+        UNION
+        SELECT DISTINCT c.COLUMNNAME, '' AS tablename, '' AS columndescriptionname, v.code, 
+        v.AD_VAL_RULE_ID, '' AS clause, '' AS PARAMETERS, '' AS reference_id, '' as fromclause
+        FROM AD_PROCESS_PARA c, AD_VAL_RULE v, AD_REFERENCE r
+        WHERE c.AD_VAL_RULE_ID = v.AD_VAL_RULE_ID 
+        AND c.AD_REFERENCE_ID = r.AD_REFERENCE_ID 
+        AND c.AD_VAL_RULE_ID IS NOT NULL 
+        AND r.AD_REFERENCE_ID = '19') A
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

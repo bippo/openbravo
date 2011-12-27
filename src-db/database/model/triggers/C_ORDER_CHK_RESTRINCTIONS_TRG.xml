@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ORDER_CHK_RESTRINCTIONS_TRG">
+    <trigger name="C_ORDER_CHK_RESTRINCTIONS_TRG" table="C_ORDER" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+v_n NUMBER;
+v_OrderLine_Offer_ID VARCHAR2(32);
+v_Price NUMBER;
+v_lineNo NUMBER;
+v_PriceNew NUMBER;
+v_amt NUMBER;
+v_DateNull DATE := TO_DATE('01-01-1900','DD-MM-YYYY');
+
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF UPDATING THEN
+    IF(:OLD.Processed='Y' AND :OLD.Docaction <> 'CL'
+          AND(
+               (COALESCE(:OLD.C_BPartner_ID, '0') <> COALESCE(:NEW.C_BPartner_ID, '0'))
+               OR(COALESCE(:OLD.DOCUMENTNO, '.') <> COALESCE(:NEW.DOCUMENTNO, '.'))
+               OR(COALESCE(:OLD.C_DOCTYPE_ID, '0') <> COALESCE(:NEW.C_DOCTYPE_ID, '0'))
+               OR(COALESCE(:OLD.C_DOCTYPETARGET_ID, '0') <> COALESCE(:NEW.C_DOCTYPETARGET_ID, '0'))
+               OR(COALESCE(:OLD.DATEORDERED, v_DateNull) <> COALESCE(:NEW.DATEORDERED, v_DateNull))
+               OR(COALESCE(:OLD.C_BPARTNER_LOCATION_ID, '0') <> COALESCE(:NEW.C_BPARTNER_LOCATION_ID, '0'))
+               OR(COALESCE(:OLD.PAYMENTRULE, '.') <> COALESCE(:NEW.PAYMENTRULE, '.'))
+               OR(COALESCE(:OLD.C_PAYMENTTERM_ID, '0') <> COALESCE(:NEW.C_PAYMENTTERM_ID, '0'))
+               OR(COALESCE(:OLD.C_CHARGE_ID, '0') <> COALESCE(:NEW.C_CHARGE_ID, '0'))
+               OR(COALESCE(:OLD.CHARGEAMT, 0) <> COALESCE(:NEW.CHARGEAMT, 0))
+               OR(COALESCE(:OLD.TOTALLINES, 0) <> COALESCE(:NEW.TOTALLINES, 0))
+               OR(COALESCE(:OLD.GRANDTOTAL, 0) <> COALESCE(:NEW.GRANDTOTAL, 0))
+               OR(COALESCE(:OLD.DATEPROMISED, v_DateNull) <> COALESCE(:NEW.DATEPROMISED, v_DateNull))
+               OR(COALESCE(:OLD.BILLTO_ID, '0') <> COALESCE(:NEW.BILLTO_ID, '0'))
+               OR(COALESCE(:OLD.DELIVERYRULE, '.') <> COALESCE(:NEW.DELIVERYRULE, '.'))
+               OR(COALESCE(:OLD.M_PRICELIST_ID, '0') <> COALESCE(:NEW.M_PRICELIST_ID, '0'))
+               OR(COALESCE(:OLD.AD_USER_ID, '0') <> COALESCE(:NEW.AD_USER_ID, '0'))
+               OR(COALESCE(:OLD.AD_ORGTRX_ID, '0') <> COALESCE(:NEW.AD_ORGTRX_ID, '0'))
+               OR(COALESCE(:OLD.USER1_ID, '0') <> COALESCE(:NEW.USER1_ID, '0'))
+               OR(COALESCE(:OLD.M_WAREHOUSE_ID, '0') <> COALESCE(:NEW.M_WAREHOUSE_ID, '0'))
+               OR(COALESCE(:OLD.DROPSHIP_USER_ID, '0') <> COALESCE(:NEW.DROPSHIP_USER_ID, '0'))
+               OR(COALESCE(:OLD.USER2_ID, '0') <> COALESCE(:NEW.USER2_ID, '0'))
+               OR(COALESCE(:OLD.DROPSHIP_BPARTNER_ID, '0') <> COALESCE(:NEW.DROPSHIP_BPARTNER_ID, '0'))
+               OR(COALESCE(:OLD.DROPSHIP_LOCATION_ID, '0') <> COALESCE(:NEW.DROPSHIP_LOCATION_ID, '0'))
+               OR(COALESCE(:OLD.DELIVERYVIARULE, '.') <> COALESCE(:NEW.DELIVERYVIARULE, '.'))
+               OR(COALESCE(:OLD.PRIORITYRULE,'.') <> COALESCE(:NEW.PRIORITYRULE, '.'))
+               OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+               OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0'))
+          )
+    )THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+    IF(:OLD.Posted='Y' AND ((COALESCE(:OLD.DATEACCT, v_DateNull) <> COALESCE(:NEW.DATEACCT, v_DateNull)) OR(COALESCE(:OLD.C_CAMPAIGN_ID, '0') <> COALESCE(:NEW.C_CAMPAIGN_ID, '0')) OR(COALESCE(:OLD.C_PROJECT_ID, '0') <> COALESCE(:NEW.C_PROJECT_ID, '0')) OR(COALESCE(:OLD.C_ACTIVITY_ID, '0') <> COALESCE(:NEW.C_ACTIVITY_ID, '0')))) THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+
+
+
+    IF (COALESCE(:OLD.C_BPartner_ID, '0')!=COALESCE(:NEW.C_BPartner_ID, '0')) OR (COALESCE(:OLD.M_PriceList_ID,'0') != COALESCE(:NEW.M_PriceList_ID,'0'))  THEN
+      SELECT COUNT(*)
+        INTO v_n
+        FROM C_ORDERLINE
+       WHERE C_Order_ID = :NEW.C_Order_ID;
+
+       IF v_n>0 THEN
+         RAISE_APPLICATION_ERROR(-20502, 'Cannot change bussiness partner or price list if there are lines') ;
+       END IF;
+     END IF;
+  END IF;
+
+
+  IF(DELETING) THEN
+    IF :OLD.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    IF :NEW.Processed='Y' THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+END C_ORDER_CHK_RESTRINCTIONS_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CreateFromMultipleShipmentData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT S.M_STORAGE_DETAIL_ID, P.NAME, ad_column_identifier(TO_CHAR('M_LOCATOR'),TO_CHAR(S.M_LOCATOR_ID),TO_CHAR(?)) as M_LOCATOR_ID, A.DESCRIPTION, U1.NAME AS UOM1, U2.NAME AS UOM2, 
+        S.QTYONHAND, S.QTYORDERONHAND as QTYORDERONHAND
+        FROM M_STORAGE_DETAIL S left join M_ATTRIBUTESETINSTANCE A on S.M_ATTRIBUTESETINSTANCE_ID = A.M_ATTRIBUTESETINSTANCE_Id
+                                left join M_PRODUCT_UOM PU         on S.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
+                                left join C_UOM U2                 ON  PU.C_UOM_ID  = U2.C_UOM_ID ,
+        M_PRODUCT P,  C_UOM U1,  
+        M_LOCATOR L 
+        WHERE S.M_PRODUCT_ID = P.M_PRODUCT_ID 
+        AND S.C_UOM_ID = U1.C_UOM_ID 
+        AND S.M_LOCATOR_ID = L.M_LOCATOR_ID 
+        AND S.AD_CLIENT_ID IN ('1') 
+        AND S.QTYONHAND <> 0
+        ORDER BY P.NAME, L.PRIORITYNO, L.X, L.Y, L.Z 
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="bpartner" optional="true" after="WHERE " text=" P.C_BPARTNER_ID = ? AND "/>
+    <Parameter name="product" optional="true" after="WHERE " text=" S.M_PRODUCT_ID = ? AND "/>
+    <Parameter name="warehouse" optional="true" after="WHERE " text=" L.M_WAREHOUSE_ID = ? AND "/>
+    <Parameter name="x" optional="true" after="WHERE " text=" L.X = ? AND "/>
+    <Parameter name="y" optional="true" after="WHERE " text=" L.Y = ? AND "/>
+    <Parameter name="z" optional="true" after="WHERE " text=" L.Z = ? AND "/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="S.AD_CLIENT_ID IN (" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="bpartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID = ?
+    ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="productDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT NAME FROM M_PRODUCT WHERE M_PRODUCT_ID = ?
+    ]]></Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+  <SqlMethod name="insert" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO M_INOUTLINE (M_INOUTLINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, LINE, 
+        DESCRIPTION, M_INOUT_ID, C_ORDERLINE_ID, M_LOCATOR_ID, M_PRODUCT_ID, C_UOM_ID, MOVEMENTQTY, ISINVOICED,
+        M_ATTRIBUTESETINSTANCE_ID, ISDESCRIPTION, QUANTITYORDER, M_PRODUCT_UOM_ID) 
+        SELECT ?,?,?,'Y',now(),?,now(),?,(SELECT COALESCE(MAX(LINE),0) + 10 FROM M_INOUTLINE WHERE M_INOUT_ID=?),
+        NULL,?,NULL,M_LOCATOR_ID,M_PRODUCT_ID,C_UOM_ID,TO_NUMBER(?),'N',
+        M_ATTRIBUTESETINSTANCE_ID,'N',TO_NUMBER(?),M_PRODUCT_UOM_ID
+        FROM M_STORAGE_DETAIL 
+        WHERE M_STORAGE_DETAIL_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="mInoutlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="mInoutId"/>
+    <Parameter name="mInoutId"/>
+    <Parameter name="movementqty"/>
+    <Parameter name="quantityorder"/>
+    <Parameter name="mStorageDetailId"/>
+  </SqlMethod>
+  </SqlClass>

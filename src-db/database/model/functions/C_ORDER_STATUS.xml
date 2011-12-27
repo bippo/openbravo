@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_ORDER_STATUS">
+    <function name="C_ORDER_STATUS" type="CHAR">
+      <parameter name="p_orderid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_Status            VARCHAR(60) ;
+  v_OrderStatus       VARCHAR(60) ;
+  v_CountNotDelivered NUMBER;
+  v_CountNotInvoiced  NUMBER;
+  v_CountNotPaid      varchar2(32);
+BEGIN
+  SELECT MAX(Docstatus)
+  INTO v_OrderStatus
+  FROM C_Order
+  WHERE C_Order.C_Order_ID = p_OrderID;
+  IF(v_OrderStatus IS NULL) THEN
+    v_Status := '1'; -- In transit
+  ELSIF(v_OrderStatus = 'VO') THEN
+    v_Status := '0'; -- Cancelled
+  ELSIF(v_OrderStatus = 'DR') THEN
+    v_Status := '8'; -- Draft
+  ELSE
+    --delivered
+    SELECT COUNT(*)
+    INTO v_CountNotDelivered
+    FROM C_OrderLine
+    WHERE C_ORDER_ID = p_OrderID
+      AND QtyOrdered <> QtyDelivered;
+    --Invoiced
+    SELECT COUNT(*)
+    INTO v_CountNotInvoiced
+    FROM C_OrderLine
+    WHERE C_ORDER_ID = p_OrderID
+      AND QtyOrdered <> QtyInvoiced;
+    --paid
+    IF(v_CountNotInvoiced = 0) THEN
+      SELECT COUNT(*)
+      INTO v_CountNotPaid
+      FROM C_Invoice
+      WHERE EXISTS
+        (SELECT 1
+        FROM C_InvoiceLine,
+          C_OrderLine
+        WHERE C_InvoiceLine.C_OrderLine_ID = C_OrderLine.C_OrderLine_ID
+          AND C_InvoiceLine.C_Invoice_ID = C_Invoice.C_Invoice_ID
+          AND C_OrderLine.C_Order_ID = p_OrderID
+        )
+        AND grandtotal <>
+        (SELECT SUM(C_Currency_Convert(Amount, C_Debt_Payment.C_Currency_ID, C_Invoice.C_Currency_ID, C_Invoice.DateInvoiced, null, null, null))
+        FROM C_Debt_Payment
+        WHERE C_Invoice_ID = C_Invoice.C_Invoice_ID
+          AND C_Debt_Payment_Paid(C_Debt_Payment_ID) = 'Y'
+        )
+        ;
+    ELSE
+      SELECT COUNT(*)
+      INTO v_CountNotPaid
+      FROM C_Order
+      WHERE C_Order_ID = p_OrderID
+        AND grandtotal <>
+        (SELECT SUM(C_Currency_Convert(Amount, C_Debt_Payment.C_Currency_ID, C_Order.C_Currency_ID, TO_DATE(now()), null, null, null))
+        FROM C_Debt_Payment
+        WHERE C_Order_ID = p_OrderID
+          AND C_Debt_Payment_Paid(C_Debt_Payment_ID) = 'Y'
+        )
+        ;
+    END IF;
+    IF(v_CountNotDelivered <> 0 AND v_CountNotInvoiced <> 0 AND v_CountNotPaid <> 0) THEN
+      v_Status := '2'; --Pending
+    ELSIF(v_CountNotDelivered <> 0 AND v_CountNotInvoiced <> 0 AND v_CountNotPaid = 0) THEN
+      v_Status := '3'; --Paid and not delivered
+    ELSIF(v_CountNotDelivered = 0 AND v_CountNotInvoiced <> 0 AND v_CountNotPaid <> 0) THEN
+      v_Status := '4'; --Delivered, not invoiced nor paid
+    ELSIF(v_CountNotDelivered = 0 AND v_CountNotInvoiced = 0 AND v_CountNotPaid <> 0) THEN
+      v_Status := '5'; --Invoiced not paid
+    ELSIF(v_CountNotDelivered = 0 AND v_CountNotInvoiced <> 0 AND v_CountNotPaid = 0) THEN
+      v_Status := '6'; --Pending to invoice
+    ELSIF(v_CountNotDelivered = 0 AND v_CountNotInvoiced = 0 AND v_CountNotPaid = 0) THEN
+      v_Status := '9'; --Finished
+    END IF;
+  END IF;
+  RETURN v_Status;
+END C_ORDER_STATUS
+]]></body>
+    </function>
+  </database>

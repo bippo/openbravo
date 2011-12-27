@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2009-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+ <SqlClass name="SLInventoryLocatorData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT COALESCE(qtyorderonhand,0) AS qtyorder, COALESCE(qtyonhand,0) AS qty
+      FROM M_storage_detail 
+      WHERE m_product_id=? AND m_locator_id=? AND c_uom_id=? AND 1=1 AND m_attributesetinstance_id=?
+      ]]>
+    </Sql>
+     <Parameter name="product"/>
+     <Parameter name="locator"/>
+     <Parameter name="uom"/>
+     <Parameter name="mProductUomId" optional="true" after="AND 1=1"><![CDATA[ AND M_PRODUCT_UOM_ID = ?]]></Parameter>
+     <Parameter name="productuom" optional="true" type="none" after="AND 1=1" text=" AND M_PRODUCT_UOM_ID IS NULL"/>
+     <Parameter name="attribute"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql></Sql>
+   </SqlMethod>
+</SqlClass>
+

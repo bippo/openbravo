@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_GLOBALUSE_DISTRIBUTE">
+    <function name="MA_GLOBALUSE_DISTRIBUTE" type="NULL">
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_production_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  --  Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_Result NUMBER:=1; --  Success
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    --  Record Info
+    v_UpdatedBy VARCHAR2(32);
+    --  v_Processing        CHAR;
+    --  v_Processed         CHAR;
+    v_Count NUMBER;
+    v_Total NUMBER;
+    v_Factor NUMBER;
+    v_ProductionLine_ID VARCHAR2(32);
+    v_Line NUMBER;
+    v_ProductName VARCHAR2(100);
+    Cur_GlobalUse RECORD;
+    Cur_ProductionPlan RECORD;
+    v_AD_Client_ID VARCHAR2(32);
+  BEGIN
+    --  Get Parameters
+    v_ResultStr:='ReadingParameters';
+    DBMS_OUTPUT.PUT_LINE('--<<MA_GlobalUse_Distribute>>') ;
+
+  BEGIN --BODY
+    --It should only be generated products in M_ProductionLine in GlobalUse case.
+    DELETE
+    FROM M_PRODUCTIONLINE
+    WHERE M_ProductionPlan_ID IN
+      (SELECT M_ProductionPlan_ID
+      FROM M_PRODUCTIONPLAN pp,
+        MA_WRPHASE wp
+      WHERE pp.MA_WRPHASE_ID=wp.MA_WRPHASE_ID
+        AND pp.M_PRODUCTION_ID=p_Production_ID
+        AND wp.GROUPUSE='Y'
+        AND ProductionType='-' );
+    v_ResultSTR:='checking products';
+    SELECT COUNT(*), MAX(p.NAME)
+    INTO v_Count, v_ProductName
+    FROM MA_WRPHASEPRODUCT wpp, MA_WRPHASE wp, M_PRODUCTIONPLAN pp, M_PRODUCT p
+    WHERE pp.MA_WRPHASE_ID=wp.MA_WRPHASE_ID
+      AND wp.MA_WRPHASE_ID=wpp.MA_WRPHASE_ID
+      AND wpp.M_PRODUCT_ID = p.M_PRODUCT_ID
+      AND pp.M_PRODUCTION_ID=p_Production_ID
+      AND wp.GROUPUSE='Y'
+      AND wpp.PRODUCTIONTYPE='-'
+      AND wpp.M_PRODUCT_ID NOT IN (SELECT M_Product_ID
+                                   FROM MA_GLOBALUSE
+                                   WHERE M_Production_ID=p_Production_ID);
+    IF(v_count<>0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@ProductMissing@ ' || v_ProductName);
+    END IF;
+    v_ResultSTR:='Distributing Products';
+    FOR Cur_GlobalUse IN
+      (SELECT *  FROM MA_GLOBALUSE  WHERE M_Production_ID=p_Production_ID)
+    LOOP
+      SELECT SUM(wpp.MOVEMENTQTY*pp.PRODUCTIONQTY)
+      INTO v_Total
+      FROM MA_WRPHASEPRODUCT wpp,
+        MA_WRPHASE wp,
+        M_PRODUCTIONPLAN pp
+      WHERE pp.MA_WRPHASE_ID=wp.MA_WRPHASE_ID
+        AND wp.MA_WRPHASE_ID=wpp.MA_WRPHASE_ID
+        AND pp.M_PRODUCTION_ID=p_Production_ID
+        AND wp.GROUPUSE='Y'
+        AND wpp.M_PRODUCT_ID=Cur_GlobalUse.M_Product_ID;
+      FOR Cur_ProductionPlan IN
+        (SELECT pp.*
+        FROM M_PRODUCTIONPLAN pp,
+          MA_WRPHASEPRODUCT wrpp
+        WHERE M_Production_ID=p_Production_ID
+          AND pp.MA_WRPHASE_ID=wrpp.MA_WRPHASE_ID
+          AND wrpp.M_PRODUCT_ID=Cur_GlobalUse.M_Product_ID
+        )
+      LOOP
+        v_ResultSTR:='Calculate factor';
+        SELECT ROUND(COALESCE(wpp.MOVEMENTQTY*pp.PRODUCTIONQTY, 0) /v_Total, 4)
+        INTO v_Factor
+        FROM MA_WRPHASEPRODUCT wpp,
+          MA_WRPHASE wp,
+          M_PRODUCTIONPLAN pp
+        WHERE pp.MA_WRPHASE_ID=wp.MA_WRPHASE_ID
+          AND wp.MA_WRPHASE_ID=wpp.MA_WRPHASE_ID
+          AND pp.M_PRODUCTIONPLAN_ID=Cur_ProductionPlan.M_ProductionPlan_ID
+          AND wp.GROUPUSE='Y'
+          AND wpp.M_PRODUCT_ID=Cur_GlobalUse.M_Product_ID;
+        IF(v_Factor<>0) THEN
+          SELECT MAX(Line) +10
+          INTO v_Line
+          FROM M_PRODUCTIONLINE
+          WHERE M_ProductionPlan_ID=Cur_ProductionPlan.M_ProductionPlan_ID;
+          Ad_Sequence_Next('M_ProductionLine', p_Client_ID, v_ProductionLine_ID) ;
+          INSERT
+          INTO M_PRODUCTIONLINE
+            (
+              M_ProductionLine_ID, AD_Client_ID, AD_Org_ID, Created,
+              Createdby, Isactive, M_ProductionPlan_ID, M_Product_ID,
+              Productiontype, M_AttributesetInstance_ID, MovementQty, Updated,
+              Updatedby, C_UOM_ID, M_Locator_ID, Line,
+              M_Product_UOM_ID, quantityorder
+            )
+            VALUES
+            (
+              v_ProductionLine_ID, Cur_GlobalUse.AD_Client_ID, Cur_GlobalUse.AD_Org_ID, now(),
+              p_User_ID, 'Y', Cur_ProductionPlan.M_ProductionPlan_ID, Cur_GlobalUse.M_Product_ID,
+               '-', Cur_GlobalUse.M_AttributeSetInstance_ID, Cur_GlobalUse.MovementQty*v_Factor, now(),
+              p_User_ID, Cur_GlobalUse.C_UOM_ID, Cur_GlobalUse.M_Locator_ID, v_Line,
+              Cur_GlobalUse.M_Product_UOM_ID, Cur_GlobalUse.quantityorder*v_Factor
+            )
+            ;
+        END IF;
+      END LOOP;
+    END LOOP;
+    --  End Processing --------------------------------------------------------
+    --<<END_PROCESSING>>
+    --<<FINISH_PROCESS>>
+    DBMS_OUTPUT.PUT_LINE('--<<MA_GlobalUse_Distribute finished>> ' || v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MA_GLOBALUSE_DISTRIBUTE exception: ' || v_ResultStr) ;
+  RAISE;
+END MA_GLOBALUSE_DISTRIBUTE
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,132 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_INVOICELINETAX_INSERT">
+    <function name="C_INVOICELINETAX_INSERT" type="NULL">
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_invoice_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_invoiceline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_originaltax_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_tax_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_linenetamt" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_alternatetaxbaseamt" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_stdprecision" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_IsSummary C_TAX.ISSUMMARY%TYPE;
+  v_Cascade C_TAX.CASCADE%TYPE;
+  v_TaxBaseAmount NUMBER;
+  v_BaseAmount C_TAX.BASEAMOUNT%TYPE;
+  v_AlreadyExists NUMBER;
+  v_C_TaxBase_ID C_TAX.C_TAXBASE_ID%TYPE;
+  v_LineNet NUMBER;
+  v_AlternateTaxBaseAmt NUMBER;
+  v_LineNo C_INVOICETAX.LINE%TYPE;
+  v_Rate C_TAX.RATE%TYPE;
+  v_Client_ID VARCHAR2(32) ;
+  TYPE RECORD IS REF CURSOR;
+    Cur_Taxes RECORD;
+    FINISH_PROCESS BOOLEAN:=false;
+  BEGIN --BODY
+    v_TaxBaseAmount:=0;
+    SELECT ISSUMMARY, CASCADE, RATE, BASEAMOUNT, AD_CLIENT_ID, C_TAXBASE_ID
+    INTO v_IsSummary, v_Cascade, v_Rate, v_BaseAmount, v_Client_ID, v_C_TaxBase_ID
+    FROM C_TAX
+    WHERE C_TAX_ID = p_tax_id;
+    IF(v_BaseAmount='LNA' OR v_BaseAmount='LNATAX') THEN
+      v_TaxBaseAmount:=p_LineNetAmt;
+    ELSIF (v_BaseAmount='TBA' OR v_BaseAmount='TBATAX') THEN
+      v_TaxBaseAmount:=p_AlternateTaxBaseAmt;
+    END IF;
+    IF (v_TaxBaseAmount IS NULL) THEN
+      v_TaxBaseAmount:=0;
+    END IF;
+    IF (v_BaseAmount='TAX' OR v_BaseAmount='LNATAX' OR v_BaseAmount='TBATAX') THEN
+      SELECT COALESCE(SUM(TAXAMT),0) + v_TaxBaseAmount
+      INTO v_TaxBaseAmount
+      FROM C_INVOICELINETAX, C_TAX
+      WHERE C_INVOICELINETAX.C_TAX_ID = C_TAX.C_TAX_ID
+      AND C_TAX_ISMEMBER(v_C_TaxBase_ID,C_TAX.C_TAX_ID) = 1
+      AND C_INVOICELINE_ID = p_invoiceline_id
+      AND C_TAX.ISSUMMARY='N';
+    END IF;
+    IF(v_Cascade='Y') THEN
+      SELECT COALESCE(SUM(TAXAMT), 0) + v_TaxBaseAmount
+      INTO v_TaxBaseAmount
+      FROM C_INVOICELINETAX
+      WHERE C_INVOICELINE_ID = p_invoiceline_id;
+    END IF;
+    IF(v_IsSummary='N') THEN
+      SELECT COALESCE(MAX(LINE),0) + 10
+      INTO v_LineNo
+      FROM C_INVOICELINETAX
+      WHERE C_INVOICELINE_ID = p_invoiceline_id;
+      IF(p_invoice_id IS NULL OR p_invoiceline_id IS NULL) THEN
+         RAISE_APPLICATION_ERROR(-20200, 'Null ORDER OR LINE ID');
+      END IF;
+      INSERT
+      INTO C_INVOICELINETAX (
+      C_InvoiceLineTax_ID, C_InvoiceLine_ID, C_Invoice_ID, C_Tax_ID, AD_Client_ID, AD_Org_ID,
+      IsActive, Created, CreatedBy, Updated,
+      UpdatedBy, TaxBaseAmt, TaxAmt, Line)
+      VALUES (
+      GET_UUID(), p_invoiceline_id, p_invoice_id, p_tax_id, v_Client_ID, p_org_id,
+      'Y', now(), p_user_id, now(),
+      p_user_id, v_TaxBaseAmount, ROUND(v_TaxBaseAmount*v_Rate / 100, p_StdPrecision), v_LineNo);
+    ELSE
+      FOR Cur_Taxes IN
+        (SELECT C_Tax_ID, RATE
+         FROM C_TAX
+        WHERE Parent_Tax_ID=p_tax_id
+        ORDER BY Line)
+      LOOP
+        C_INVOICELINETAX_INSERT(p_org_id, p_invoice_id, p_invoiceline_id, p_user_id, p_originaltax_id, Cur_Taxes.C_Tax_ID, p_LineNetAmt, p_AlternateTaxBaseAmt, p_StdPrecision);
+      END LOOP;
+    END IF;
+    RETURN;
+    --<<FINISH_PROCESS>>
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  RAISE;
+END C_INVOICELINETAX_INSERT
+]]></body>
+    </function>
+  </database>

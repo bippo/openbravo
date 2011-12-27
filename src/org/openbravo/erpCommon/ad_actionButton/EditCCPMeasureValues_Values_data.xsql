@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="EditCCPMeasureValuesValuesData" package="org.openbravo.erpCommon.ad_actionButton">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        select measurehour, name, max(value) as value, identific, seqno, valueid, type, valuec, validatetype
+        from (
+            select t.MEASUREHOUR, v.seqno, c.name || (CASE c.CRITICAL WHEN 'Y' THEN ' (PC)' ELSE '' END) AS name, COALESCE((CASE v.VALUETYPE WHEN 'N' THEN TO_CHAR(v_number) WHEN 
+                'C' THEN 'Y' ELSE TO_CHAR(v_string) END),' ') AS value, 0 as identific, v.MA_Measure_Values_ID as valueid, (CASE v.VALUETYPE WHEN 'C' THEN 'checkbox' ELSE 'text' END) as type, (CASE v.VALUETYPE WHEN 'N' THEN 'number' ELSE '' END) as validatetype, v_char as valuec
+            from MA_MEASURE_TIME t, MA_MEASURE_VALUES v, MA_CCP c
+            where t.MA_MEASURE_TIME_ID = v.MA_MEASURE_TIME_ID
+              and v.MA_CCP_ID = c.MA_CCP_ID 
+              and t.MA_MEASURE_GROUP_ID = ?
+            union all
+              select to_date('31/12/9999'), v.seqno, c.name || (CASE c.CRITICAL WHEN 'Y' THEN ' (PC)' ELSE '' END) AS name, ' ' as value, identific, '0' as valueid, 'hidden' as type,  'hidden' as validatetype, 'N' as valuec
+              from ma_measure_time t, ma_measure_values v, ma_ccp c, 
+                (select VALUE-1 as identific from ad_INTEGER 
+                 where VALUE<=(
+                   select 10-count(*) from MA_Measure_time
+                   where ma_measure_group_id=?)) AAA
+              where t.ma_measure_group_id = ?
+                and t.MA_MEASURE_TIME_ID = v.MA_MEASURE_TIME_ID
+                and v.MA_CCP_ID = c.MA_CCP_ID
+        ) AA
+        group by  seqno,measurehour, name, identific, valueid, type, valuec, validatetype
+        order by seqno, name, measurehour
+      ]]>
+      </Sql>
+      <Parameter name="maMeasureGroupId"/>
+      <Parameter name="maMeasureGroupId"/>
+      <Parameter name="maMeasureGroupId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

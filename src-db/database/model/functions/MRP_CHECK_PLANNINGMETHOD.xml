@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_CHECK_PLANNINGMETHOD">
+    <function name="MRP_CHECK_PLANNINGMETHOD" type="NUMERIC">
+      <parameter name="p_planningmethod_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_type" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_days" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_timehorizon" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  p_Days_Aux NUMBER:= 0;
+  v_Return NUMBER:= -1;
+BEGIN
+    if p_Days < 0 THEN
+      p_Days_Aux := 0;
+    ELSE
+      p_Days_Aux := p_Days;
+    END IF;
+
+    SELECT p.WEIGHTING
+    INTO v_Return
+    FROM MRP_PLANNINGMETHODLINE p
+    WHERE p.MRP_PLANNINGMETHOD_ID = p_PlanningMethod_ID
+    AND p.INOUTTRXTYPE = p_Type
+    AND p_Days_Aux BETWEEN COALESCE(p.DaysFrom, 0) AND COALESCE(p.DaysTo, 999999999)
+    AND p_Days_Aux <= p_TimeHorizon;
+    RETURN v_Return;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN -1;
+END MRP_CHECK_PLANNINGMETHOD
+]]></body>
+    </function>
+  </database>

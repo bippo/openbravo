@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ************************************************************************************
+ * Copyright (C) 2010-2011 Openbravo S.L.U.
+ * Licensed under the Openbravo Commercial License version 1.0
+ * You may obtain a copy of the License at http://www.openbravo.com/legal/obcl.html
+ * or in the legal folder of this module distribution.
+ ************************************************************************************
+-->
+<SqlClass name="CreateDocumentNoSequenceData" package="org.openbravo.advpaymentmngt.modulescript">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT tablename, ad_client.ad_client_id as client
+      FROM ad_table, ad_client
+      WHERE EXISTS (SELECT 1 FROM ad_column
+                    WHERE ad_column.ad_table_id = ad_table.ad_table_id
+                      AND columnname IN ('DocumentNo', 'Value'))
+      AND NOT EXISTS (SELECT 1 FROM ad_sequence
+                      WHERE name LIKE 'DocumentNo_' || ad_table.tablename
+                        AND ad_sequence.ad_client_id = ad_client.ad_client_id)
+      AND ad_client.ad_client_id  <> '0'
+      ]]>
+    </Sql>
+  </SqlMethod>
+<SqlMethod name="insertDocumentNoSequence" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      INSERT INTO AD_Sequence (
+        AD_Sequence_ID, AD_Client_ID, AD_Org_ID, IsActive, 
+        Created, CreatedBy, Updated, UpdatedBy,
+        Name, Description, 
+        VFormat, IsAutoSequence, IncrementNo, 
+        StartNo, CurrentNext, CurrentNextSys, 
+        IsTableID, Prefix, Suffix, StartNewYear
+      ) VALUES (
+        get_uuid(), ?, '0', 'Y',
+        now(), '0', now(), '0',
+        'DocumentNo_' || ?,  'DocumentNo/Value for Table ' || ?,
+        NULL,  'Y', 1,
+        10000000, 10000000, 10000000,
+        'N', NULL, NULL, 'N'
+      )
+      ]]>
+    </Sql>
+    <Parameter name="clientId"/>
+    <Parameter name="tablename"/>
+    <Parameter name="tablename"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_PAYMENTTERM_TRG">
+    <trigger name="C_PAYMENTTERM_TRG" table="C_PAYMENTTERM" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    */
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    -- Insert C_PaymentTerm Trigger
+    --  for Translation
+    IF INSERTING
+    THEN
+    --  Create Translation Row
+  INSERT
+  INTO C_PaymentTerm_Trl
+    (
+      C_PaymentTerm_Trl_ID, C_PaymentTerm_ID, AD_Language, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      Name, Description, DocumentNote,
+      IsTranslated
+    )
+  SELECT get_uuid(), :new.C_PaymentTerm_ID,
+    AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+    :new.IsActive, :new.Created, :new.CreatedBy,
+    :new.Updated, :new.UpdatedBy, :new.Name,
+    :new.Description, :new.DocumentNote, 'N'
+  FROM AD_Language
+  WHERE IsActive='Y'
+    AND IsSystemLanguage='Y';
+ END IF;
+ -- Inserting
+ -- C_PaymentTerm update trigger
+ --  synchronize name,...
+ IF(UPDATING) THEN
+  IF((COALESCE(:old.DocumentNote, '.') <> COALESCE(:NEW.DocumentNote, '.')
+  OR COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+  OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')))
+ THEN
+    UPDATE C_PaymentTerm_Trl
+      SET IsTranslated='N',
+      Updated=now()
+    WHERE C_PaymentTerm_ID=:new.C_PaymentTerm_ID;
+  END IF;
+ END IF;
+-- Updating
+END C_PAYMENTTERM_TRG
+]]></body>
+    </trigger>
+  </database>

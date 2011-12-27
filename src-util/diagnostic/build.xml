@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<project name="openbravo-diagnostics" basedir="." default="check.all">
+
+  <property file="config/diagnostics.properties" />
+  <property file="config/Openbravo.properties" />
+  <property environment="env" />
+
+  <condition property="context.running">
+    <http url="${tomcat.manager.url}/../OpenbravoDiagnostics/Check.html" />
+  </condition>
+
+  <condition property="isCheckPerms">
+    <and>
+      <os family="unix" />
+      <equals arg1="${chekPerms}" arg2="true" />
+    </and>
+  </condition>
+
+
+
+  <path id="diagnostic.class.path">
+    <pathelement path="build/classes" />
+    <pathelement path="config"/>
+    <fileset dir="WebContent/WEB-INF/lib">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+
+  <taskdef name="compareVersion" classname="org.openbravo.task.CompareVersion">
+    <classpath refid="diagnostic.class.path" />
+  </taskdef>
+
+  <target name="check.all">
+    <antcall target="check.permissions" />
+    <antcall target="check.properties.configuration" />
+    <antcall target="check.environment.variables" />
+    <antcall target="check.db" />
+    <antcall target="check.ant" />
+    <antcall target="check.tomcat" />
+    <antcall target="undeploy.context" />
+  </target>
+
+  <target name="check.properties.configuration">
+    <antcall target="check.properties" />
+    <antcall target="check.log4j" />
+  </target>
+
+  <target name="check.environment.variables">
+    <taskdef name="checkEnv" classname="org.openbravo.task.CheckEnvironmentVariables">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkEnv />
+  </target>
+
+  <target name="check.properties">
+    <echo message="Checking for Openbravo.properties file..." />
+    <available file="../../config/Openbravo.properties" property="isProperties" />
+    <fail unless="isProperties" message="Openbravo.properties file not available. Tip: move config/Openbravo.properties.template file to config/Openbravo.properties and configure it" />
+    <echo message="Openbravo.properties file OK" />
+
+    <echo message="Checking for source.path in Openbravo.properties file..." />
+    <condition property="isSourcePath">
+      <and>
+        <isset property="source.path" />
+        <available file="${source.path}" type="dir" />
+      </and>
+    </condition>
+    <fail unless="isSourcePath" message="source.path property is not properly set in Openbravo.properties file" />
+    <echo message="source.path OK" />
+  </target>
+
+  <target name="check.log4j">
+    <echo message="Checking for log4j.lcf file..." />
+    <available file="../../config/log4j.lcf" property="isLog4j" />
+    <fail unless="isLog4j" message="log4j.lcf file not available. Tip: move config/log4j.lcf.template file to config/log4j.lcf and configure it" />
+    <echo message="log4j.lcf file OK" />
+  </target>
+
+  <target name="check.permissions" if="isCheckPerms">
+    <echo message="Checking file permissions for current user, (this will take a while)..." />
+    <exec executable="./check-ob-perms.sh" failonerror="true">
+      <arg value=".." />
+    </exec>
+    <echo message="Permissions OK" />
+  </target>
+
+  <target name="check.ant">
+    <antcall target="check.ant.version" />
+    <antcall target="check.ant.jvm.size" />
+    <antcall target="check.ant.jvm.version" />
+  </target>
+
+  <target name="check.tomcat">
+    <antcall target="deploy.context" />
+
+    <antcall target="check.tomcat.version" />
+    <antcall target="check.tomcat.jvm.size" />
+    <antcall target="check.tomcat.jvm.version" />
+    <antcall target="check.tomcat.ant" />
+    <antcall target="check.tomcat.permissions" />
+  </target>
+
+  <target name="check.db">
+    <taskdef name="checkDB" classname="org.openbravo.task.CheckDB">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkDB />
+  </target>
+
+  <target name="check.ant.version">
+    <echo message="Checking ant version..." />
+    <echo message="Minimun ${ant.min.version}, current ${ant.version}" />
+    <condition property="antversion">
+      <antversion atleast="${ant.min.version}" />
+    </condition>
+    <fail unless="antversion" message="Minimum ant version: ${ant.min.version}, current version ${ant.version}. Tip: check http://wiki.openbravo.com/wiki/Development_Stack_Setup#Apache_Ant" />
+    <echo message="Version OK" />
+  </target>
+
+  <target name="check.ant.jvm.version">
+    <echo message="Checking ant's JVM version..." />
+    <compareVersion v1="${ant.java.version}" v2="${jvm-version}" />
+  </target>
+
+  <target name="check.ant.jvm.size">
+    <taskdef name="checkAntMem" classname="org.openbravo.task.CheckMemory">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkAntMem />
+  </target>
+
+
+
+  <target name="check.tomcat.version">
+    <taskdef name="checkTomcatVersion" classname="org.openbravo.task.CheckTomcatVersion">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkTomcatVersion />
+  </target>
+
+  <target name="check.tomcat.jvm.size">
+    <taskdef name="checkMem" classname="org.openbravo.task.CheckTomcatMemory">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkMem />
+  </target>
+
+  <target name="check.tomcat.jvm.version">
+    <taskdef name="checkJVMversion" classname="org.openbravo.task.CheckJVMVersion">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkJVMversion />
+  </target>
+
+  <target name="check.tomcat.ant">
+    <taskdef name="checkTomcatAnt" classname="org.openbravo.task.CheckTomcatAntExecution">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkTomcatAnt />
+  </target>
+
+  <target name="check.tomcat.x">
+    <taskdef name="CheckX" classname="org.openbravo.task.CheckX">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <CheckX />
+  </target>
+
+
+  <target name="deploy.context" unless="context.running">
+    <ant antfile="build-create.xml" target="war" />
+    <taskdef name="deploy.war" classname="org.apache.catalina.ant.DeployTask">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <taskdef name="start" classname="org.apache.catalina.ant.StartTask">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+
+    <deploy.war url="${tomcat.manager.url}" username="${tomcat.manager.username}" password="${tomcat.manager.password}" path="/OpenbravoDiagnostics" war="file:src-util${file.separator}diagnostic${file.separator}OpenbravoDiagnostics.war" />
+
+    <start url="${tomcat.manager.url}" username="${tomcat.manager.username}" password="${tomcat.manager.password}" path="/OpenbravoDiagnostics" />
+
+
+  </target>
+
+  <target name="check.tomcat.permissions" if="isCheckPerms">
+    <taskdef name="checkTomcatPermissions" classname="org.openbravo.task.CheckTomcatFilePermissions">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <checkTomcatPermissions />
+  </target>
+
+  <target name="undeploy.context">
+    <taskdef name="undeploy" classname="org.apache.catalina.ant.UndeployTask">
+      <classpath refid="diagnostic.class.path" />
+    </taskdef>
+    <undeploy url="${tomcat.manager.url}" username="${tomcat.manager.username}" password="${tomcat.manager.password}" path="/OpenbravoDiagnostics" failonerror="false" />
+  </target>
+
+  <target name="test1" description="simple ant task to be called from tomcat">
+    <echo message="testing..." />
+  </target>
+
+  <target name="test2" description="simple compilation task">
+    <delete file="build/classes/Test.class" failonerror="false" />
+    <javac srcdir="src" destdir="build/classes" includes="**/Test*" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" deprecation="on" includeantruntime="false" />
+  </target>
+</project>

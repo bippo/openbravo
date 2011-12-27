@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SqlClass id="class" name="OrganizationData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment>Organization Data</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select Organization</SqlMethodComment>
+    <Sql><![CDATA[
+ SELECT 
+  AD_OrgInfo.AD_Client_ID, 
+  (CASE WHEN AD_OrgInfo.AD_Client_ID IS NULL THEN '' ELSE  (TO_CHAR(client.Name) ) END) AS AD_Client_IDR, 
+  AD_OrgInfo.AD_Org_ID, 
+  (CASE WHEN AD_OrgInfo.AD_Org_ID IS NULL THEN '' ELSE  (TO_CHAR(org.Name) ) END) AS AD_Org_IDR, 
+  COALESCE(AD_OrgInfo.IsActive, 'N') AS IsActive, 
+  AD_OrgInfo.C_Location_ID, 
+  (CASE WHEN AD_OrgInfo.C_Location_ID IS NULL THEN '' ELSE  (TO_CHAR(loc.Address1)  || ' - ' || TO_CHAR(loc.Address2)  || ' - ' || TO_CHAR(loc.Postal)  || ' - ' || TO_CHAR(loc.City)  || ' - ' || TO_CHAR(reg.Name)  || ' - ' || TO_CHAR((CASE WHEN countryTrl.Name IS NULL THEN TO_CHAR(country.Name) ELSE TO_CHAR(countryTrl.Name) END)) ) END) AS C_Location_IDR, 
+  AD_OrgInfo.DUNS, 
+  AD_OrgInfo.TaxID, 
+  AD_OrgInfo.C_BPartner_ID, 
+  (CASE WHEN AD_OrgInfo.C_BPartner_ID IS NULL THEN '' ELSE  (TO_CHAR(bpart.Name) ) END) AS C_BPartner_IDR, 
+  AD_OrgInfo.Logo, 
+  COALESCE(AD_OrgInfo.Reference_Order, 'N') AS Reference_Order, 
+  '' AS TR_BGCOLOR , 
+  AD_OrgInfo.Created, 
+  AD_OrgInfo.CreatedBy, 
+  AD_OrgInfo.Updated, 
+  AD_OrgInfo.UpdatedBy, ? AS LANGUAGE  
+ FROM 
+  AD_OrgInfo 
+  left join (select AD_Client_ID, Name from AD_Client) client on (AD_OrgInfo.AD_Client_ID = client.AD_Client_ID) 
+  left join (select AD_Org_ID, Name from AD_Org) org on (AD_OrgInfo.AD_Org_ID = org.AD_Org_ID) 
+  left join (select C_Location_ID, Address1, Address2, Postal, City, C_Region_ID, C_Country_ID from C_Location) loc on (AD_OrgInfo.C_Location_ID = loc.C_Location_ID) 
+  left join (select C_Region_ID, Name from C_Region) reg on (loc.C_Region_ID = reg.C_Region_ID) 
+  left join (select C_Country_ID, Name from C_Country) country on (loc.C_Country_ID = country.C_Country_ID) 
+  left join (select C_Country_ID,AD_Language, Name from C_Country_TRL) countryTrl on (country.C_Country_ID = countryTrl.C_Country_ID and countryTrl.AD_Language = ?)  
+  left join (select C_BPartner_ID, Name from C_BPartner) bpart on (AD_OrgInfo.C_BPartner_ID = bpart.C_BPartner_ID)
+ WHERE 
+  AD_OrgInfo.AD_Client_ID IN ('1') 
+  AND AD_OrgInfo.AD_Org_ID IN ('1')
+
+    ]]></Sql>
+    <Parameter name="paramLanguage"></Parameter>
+    <Parameter name="paramLanguage"></Parameter>
+    <Parameter name="adUserClient"  type="replace" optional="true"  after="AD_OrgInfo.AD_Client_ID IN (" text="'1'"></Parameter>
+    <Parameter name="adOrgClient"   type="replace" optional="true"  after="AD_OrgInfo.AD_Org_ID IN (" text="'1'"></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment>Create a registry</SqlMethodComment>
+      <Sql></Sql>
+    <Parameter name="adOrgId" id="paramKeyParent"></Parameter>
+<Parameter name="adClientId"></Parameter><Parameter name="isactive"></Parameter><Parameter name="cLocationId"></Parameter><Parameter name="cLocationIdr"></Parameter><Parameter name="duns"></Parameter><Parameter name="taxid"></Parameter><Parameter name="paGoalId"></Parameter><Parameter name="cBpartnerId"></Parameter><Parameter name="cBpartnerIdr"></Parameter><Parameter name="logo"></Parameter><Parameter name="referenceOrder"></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="selectOrgName" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NAME FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      </Sql>
+      <Parameter name="org"/>
+   </SqlMethod>
+   
+</SqlClass>

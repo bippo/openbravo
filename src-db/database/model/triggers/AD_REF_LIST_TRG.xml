@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_REF_LIST_TRG">
+    <trigger name="AD_REF_LIST_TRG" table="AD_REF_LIST" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: AD_Ref_List_Trg.sql,v 1.2 2003/02/18 03:33:22 jjanke Exp $
+    ***
+    * Title: Ref List Translation
+    * Description:
+    ************************************************************************/
+    v_aux NUMBER;    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  --In case the value is in a different module than its reference check the value
+  --starts with that module's dbprefix or in case it is a value for skins list
+  --it starts with the module's java package.
+  SELECT count(*)
+    INTO v_Aux
+    FROM AD_REFERENCE R
+   WHERE R.AD_REFERENCE_ID = :new.AD_REFERENCE_ID
+     AND R.AD_MODULE_ID != :new.AD_Module_ID
+     AND NOT EXISTS (SELECT 1 
+                      FROM AD_MODULE_DBPREFIX P
+                      WHERE P.AD_MODULE_ID = :new.AD_Module_ID 
+                      AND instr(upper(:new.value), upper(P.name)||'_') = 1)
+     AND NOT (:new.AD_REFERENCE_ID = '800102'
+             AND EXISTS (SELECT 1
+                           FROM AD_MODULE M2
+                          WHERE M2.AD_MODULE_ID = :NEW.AD_MODULE_ID
+                          AND instr(upper(:new.VALUE), upper(M2.JAVAPACKAGE))=1));
+  
+  IF v_Aux != 0 THEN
+    RAISE_APPLICATION_ERROR(-20000, '@ListValueDBPrefix@') ;
+  END IF;
+  
+
+
+    -- Insert AD_Ref_List Trigger
+    --  for Translation
+    IF INSERTING
+    THEN
+    --  Create Translation Row
+  INSERT
+  INTO AD_Ref_List_Trl
+    (
+      AD_Ref_List_Trl_ID, AD_Ref_List_ID, AD_Language, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      Name, Description, IsTranslated
+    )
+  SELECT get_uuid(), :new.AD_Ref_List_ID,
+    AD_Language.AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+    :new.IsActive, :new.Created, :new.CreatedBy,
+    :new.Updated, :new.UpdatedBy, :new.Name,
+    :new.Description,  'N'
+  FROM AD_Language, AD_Module M, ad_reference r
+  WHERE AD_Language.IsActive='Y'
+    AND AD_Language.IsSystemLanguage='Y'
+    AND M.AD_Module_ID = r.AD_Module_ID
+    and r.ad_reference_id = :new.ad_reference_id
+    AND M.AD_Language != AD_Language.AD_Language;
+ END IF;
+ -- Inserting
+ -- AD_Ref_List update trigger
+ --  synchronize name,...
+ IF UPDATING THEN
+  IF(COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+  OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.'))
+ THEN
+    UPDATE AD_Ref_List_Trl
+      SET IsTranslated='N',
+      Updated=now()
+    WHERE AD_Ref_List_ID=:new.AD_Ref_List_ID;
+  END IF;
+ END IF;
+-- Updating
+END AD_REF_LIST_TRG
+]]></body>
+    </trigger>
+  </database>

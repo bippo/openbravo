@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_PERIOD_TRG">
+    <trigger name="C_PERIOD_TRG" table="C_PERIOD" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Fill Period Control
+    */
+    v_NextNo VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    CUR_DocType RECORD;
+      
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    FOR CUR_DocType IN
+      (SELECT Value , a.AD_Org_ID AS Organization
+       FROM AD_Ref_List , (SELECT o.AD_Org_ID 
+                           FROM AD_Org o
+                           WHERE o.ISREADY='Y'
+                           AND o.ISPERIODCONTROLALLOWED='Y'
+                           and exists (SELECT 1
+                                                  FROM C_Year, c_calendar, ad_org
+                                                  WHERE C_Year.c_calendar_id = c_calendar.c_calendar_id
+                                                  and c_calendar.c_calendar_id = ad_org.c_calendar_id
+                                                  and C_Year.C_Year_ID=:new.C_Year_ID
+                                                  and ad_org.ad_org_id = ad_org_getcalendarowner(o.AD_ORG_ID))
+                          ) a
+       WHERE AD_Reference_ID='183'
+       ORDER BY 1)
+    LOOP
+      AD_Sequence_Next('C_PeriodControl', :new.AD_Client_ID, v_NextNo) ;
+      INSERT
+      INTO C_PeriodControl
+        (
+          C_PeriodControl_ID, AD_Client_ID, AD_Org_ID,
+          IsActive, Created, CreatedBy,
+          Updated, UpdatedBy, C_Period_ID,
+          DocBaseType, PeriodStatus, PeriodAction,
+          Processing
+        )
+        VALUES
+        (
+          v_NextNo, :new.AD_Client_ID, CUR_DocType.Organization,
+           'Y', now(),  '0',
+          now(), '0', :new.C_Period_ID,
+          CUR_DocType.Value, 'N', 'N',
+          NULL
+        )
+        ;
+      -- NeverOpened, NoAction
+    END LOOP;
+END C_PERIOD_TRG
+]]></body>
+    </trigger>
+  </database>

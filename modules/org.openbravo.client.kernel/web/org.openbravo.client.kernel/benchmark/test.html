@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Expires" content="Tue, 24 Apr 1979 00:00:01 GMT">
+<meta http-equiv="Content-type" content="text/html;charset=utf-8">
+<title>Openbravo - Client Benchmark</title>
+</head>
+<body>
+<p id="summary">Loading...</p>
+<script type="text/javascript" src="js/benchmark.js"></script>
+<script type="text/javascript" src="../js/LAB.min.js"></script>
+<script type="text/javascript">
+$LAB.setGlobalDefaults({AppendTo: 'body'});
+var isomorphicDir='../../org.openbravo.userinterface.smartclient/isomorphic/',
+    dummy = 1979;
+$LAB.script('../../org.openbravo.userinterface.smartclient/isomorphic/ISC_Combined.js',
+            'https://ajax.googleapis.com/ajax/libs/ext-core/3.1.0/ext-core.js',
+            'https://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.min.js',
+            'https://ajax.googleapis.com/ajax/libs/yui/3.3.0/build/yui/yui-min.js')
+    .wait(function() {
+      var Y = YUI(), suite = new Benchmark.Suite, summary = '',
+          s = document.getElementById('summary');
+
+      s.innerHTML = 'Executing...';
+
+      suite.add('YUI', function() {
+        Y.Lang.isNumber(dummy);
+      })
+      .add('isc', function() {
+        isc.isA.Number(dummy);
+      })
+      .add('Ext', function() {
+        Ext.isNumber(dummy);
+      })
+      .on('cycle', function(bench) {
+        summary += String(bench) + '<br />';
+        summary += 'Elapsed time: ' + bench.times.elapsed + '<br /><br />';
+      })
+      .on('complete', function() {
+        summary += 'Client platform: ' + String(Benchmark.platform) + '<br /><br />';
+        summary += 'Fastest: <b>' + this.filter('fastest').pluck('name') + '</b><br/>';
+        summary += 'Slowest: <b>' + this.filter('slowest').pluck('name') + '</b>';
+        s.innerHTML = summary;
+      })
+      .run(true);
+    });
+</script>
+</body>
+</html>

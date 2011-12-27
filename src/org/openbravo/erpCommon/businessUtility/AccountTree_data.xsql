@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2011 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="AccountTreeData" package="org.openbravo.erpCommon.businessUtility" accessModifier="public">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_ElementValue_ID AS ID, ((CASE ? WHEN 'Y' THEN TO_CHAR(m.Value) || ' - ' ELSE '' END) || m.Name) AS NAME,m.Description, m.IsSummary, 
+        m.ACCOUNTSIGN, m.ShowElement, 0 as element_level, 0 as qty, 0 as qty_ref, 0 as qty_operation, 0 as qty_operation_ref, 
+        0 as QTYCREDIT, 0 as QTYCREDIT_REF, m.ShowValueCond, m.ElementLevel, m.Value, 'N' AS CALCULATED, 'N' AS SVCRESET, 'N' AS SVCRESETREF, m.isalwaysshown
+        FROM AD_TreeNode tn, C_ElementValue m
+        WHERE tn.IsActive='Y' 
+        AND m.isActive='Y' 
+        AND tn.Node_ID = m.C_ElementValue_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo
+      ]]></Sql>
+        <Parameter name="conCodigo"/>
+        <Parameter name="adTreeId"/>
+  </SqlMethod>
+  <SqlMethod name="selectTrl" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT tn.Node_ID,tn.Parent_ID,tn.SeqNo, m.C_ElementValue_ID AS ID, ((CASE ? WHEN 'Y' THEN TO_CHAR(m.Value) || ' - ' ELSE '' END) || COALESCE(mt.Name, m.Name)) as Name, 
+        COALESCE(mt.Description, m.Description) as description ,m.IsSummary, m.ACCOUNTSIGN, 
+        m.ShowElement, 0 as element_level, 0 as qty, 0 as qty_ref, 0 as qty_operation, 0 as qty_operation_ref, 
+        m.ShowValueCond, m.ElementLevel, m.Value, 'N' AS CALCULATED, 'N' AS SVCRESET, 'N' AS SVCRESETREF, m.isalwaysshown
+        FROM C_ElementValue m left join C_ElementValue_Trl mt on m.C_ElementValue_ID = mt.C_ElementValue_ID 
+                                                              and mt.AD_Language = ? ,
+              AD_TreeNode tn
+        WHERE tn.IsActive='Y' 
+        AND m.isActive='Y' 
+        AND tn.Node_ID = m.C_ElementValue_ID 
+        AND tn.AD_Tree_ID = ? 
+        ORDER BY COALESCE(tn.Parent_ID, '-1'), tn.SeqNo 
+      ]]></Sql>
+        <Parameter name="conCodigo"/>
+        <Parameter name="adLanguage"/>
+        <Parameter name="adTreeId"/>        
+  </SqlMethod>
+  <SqlMethod name="selectAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ID, SUM(QTY) AS QTY, SUM(QTYCREDIT) AS QTYCREDIT, SUM(QTY_REF) AS QTY_REF, SUM(QTYCREDIT_REF) AS QTYCREDIT_REF 
+        FROM (
+        SELECT m.C_ElementValue_ID as id, (COALESCE(f.AMTACCTDR,0) - COALESCE(f.AMTACCTCR, 0)) AS qty, 
+        (COALESCE(f.AMTACCTCR,0) - COALESCE(f.AMTACCTDR, 0)) AS qtyCredit, 0 as qty_ref, 0 as qtyCredit_ref
+                FROM C_ElementValue m, Fact_Acct f, C_Period p, C_Year y 
+                WHERE m.isActive='Y' 
+                AND m.AD_Org_ID IN ('1') 
+                AND m.AD_Client_ID IN ('1') 
+                AND 1=1 
+                AND f.FACTACCTTYPE <> 'R'
+                AND f.FACTACCTTYPE <> 'C'
+                AND m.C_ElementValue_ID = f.Account_ID
+            AND 0=0 AND f.AD_ORG_ID IN ('1')
+            AND f.C_PERIOD_ID = p.C_PERIOD_ID 
+            AND p.C_YEAR_ID = y.C_YEAR_ID
+            AND Y.YEAR IN ('1') 
+        UNION ALL
+        SELECT m.C_ElementValue_ID as id, 0 AS QTY, 0 as qtyCredit, (COALESCE(f.AMTACCTDR,0) - COALESCE(f.AMTACCTCR, 0)) AS qty_ref, 
+                (COALESCE(f.AMTACCTCR,0) - COALESCE(f.AMTACCTDR, 0)) AS qtyCredit_ref 
+                FROM C_ElementValue m, Fact_Acct f, C_Period p, C_Year y 
+                WHERE m.isActive='Y' 
+                AND m.AD_Org_ID IN('2') 
+                AND m.AD_Client_ID IN('2') 
+                AND 2=2 
+                AND f.FACTACCTTYPE <> 'R'
+                AND f.FACTACCTTYPE <> 'C'
+                AND m.C_ElementValue_ID = f.Account_ID
+            AND 1=1 AND f.AD_ORG_ID IN ('1')
+            AND f.C_PERIOD_ID = p.C_PERIOD_ID 
+            AND p.C_YEAR_ID = y.C_YEAR_ID
+            AND y.YEAR IN ('1') 
+        ) AA
+        GROUP BY ID
+      ]]></Sql>
+        <Parameter name="adOrgClient" type="replace" optional="true" after="m.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="dateFrom" optional="true" after="AND 1=1 "><![CDATA[ AND f.DATEACCT >= to_date(?)]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND 1=1 "><![CDATA[ AND f.DATEACCT < to_date(?)]]></Parameter>
+        <Parameter name="acctschema" optional="true" after="AND 1=1 "><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+        <Parameter name="org" optional="true" type="replace" after="AND 0=0 AND f.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="agno" optional="true" type="replace" after="AND Y.YEAR IN (" text="'1'"/>
+        <Parameter name="adOrgClient" type="replace" optional="true" after="m.AD_Org_ID IN(" text="'2'"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_Client_ID IN(" text="'2'"/>
+        <Parameter name="dateFromRef" optional="true" after="AND 2=2 "><![CDATA[ AND f.DATEACCT >= to_date(?)]]></Parameter>
+        <Parameter name="dateToRef" optional="true" after="AND 2=2 "><![CDATA[ AND f.DATEACCT < to_date(?)]]></Parameter>
+        <Parameter name="acctschema" optional="true" after="AND 2=2 "><![CDATA[ AND f.C_ACCTSCHEMA_ID = ?]]></Parameter>
+        <Parameter name="org" optional="true" type="replace" after="AND 1=1 AND f.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="agnoRef" optional="true" type="replace" after="AND y.YEAR IN (" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="selectForms" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT m.C_ElementValue_ID as id, o.account_id as node_id, o.sign as ACCOUNTSIGN
+        FROM C_ElementValue m, C_ELEMENTVALUE_OPERAND o  
+        WHERE m.isActive='Y' 
+        AND m.AD_Org_ID IN('1') 
+        AND m.AD_Client_ID IN('1') 
+        AND m.C_ElementValue_ID = o.C_ElementValue_ID
+        AND o.isactive = 'Y' 
+        order by m.C_elementvalue_id, o.seqno
+      ]]></Sql>
+        <Parameter name="adOrgClient" type="replace" optional="true" after="m.AD_Org_ID IN(" text="'1'"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="m.AD_Client_ID IN(" text="'1'"/>
+  </SqlMethod>
+</SqlClass>

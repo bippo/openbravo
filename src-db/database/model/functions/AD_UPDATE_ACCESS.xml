@@ -1,0 +1,151 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_UPDATE_ACCESS">
+    <function name="AD_UPDATE_ACCESS" type="NULL">
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2007-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+ v_ExtensionPointID varchar2(32) := '8261F79453B64AC7998873A9F81A1E5A';
+ v_count NUMBER;
+BEGIN
+--AD_FORM_ACCESS
+  INSERT INTO AD_Form_Access
+    (
+      AD_Form_Access_ID, AD_Form_ID, AD_Role_ID, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy, IsReadWrite
+    )
+  SELECT get_uuid(), AD_FORM.AD_FORM_ID, AD_ROLE.AD_ROLE_ID, AD_ROLE.AD_CLIENT_ID,
+    AD_ROLE.AD_ORG_ID, 'Y', now(),
+    '0', now(), '0', 'Y'
+  FROM AD_FORM, AD_ROLE
+  WHERE AD_ROLE.ISMANUAL = 'N'
+  AND AD_FORM.IsActive='Y'
+    AND (
+      (AD_ROLE.USERLEVEL = 'S' AND AD_FORM.ACCESSLEVEL IN ('4','7','6'))
+      OR
+      (AD_ROLE.USERLEVEL IN (' CO', ' C') AND AD_FORM.ACCESSLEVEL IN ('7','6','3','1'))
+      OR
+      (AD_ROLE.USERLEVEL = '  O' AND AD_FORM.ACCESSLEVEL IN ('3','1','7'))
+    )
+    AND NOT EXISTS (SELECT 1
+                     FROM AD_FORM_ACCESS
+                    WHERE AD_FORM_ID = AD_FORM.AD_FORM_ID
+                      AND AD_ROLE_ID = AD_ROLE.AD_ROLE_ID
+                      AND (AD_ROLE.ISADVANCED = 'Y' OR AD_FORM.ISADVANCEDFEATURE = 'N'));
+
+--AD_PROCESS_ACCESS
+  INSERT INTO AD_Process_Access
+    (AD_Process_Access_ID, AD_Process_ID, AD_Role_ID, AD_Client_ID,
+     AD_Org_ID, IsActive, Created,
+     CreatedBy, Updated, UpdatedBy, IsReadWrite)
+  SELECT get_uuid(), AD_PROCESS.AD_PROCESS_ID, AD_ROLE.AD_ROLE_ID, AD_ROLE.AD_CLIENT_ID,
+    AD_ROLE.AD_ORG_ID, 'Y', now(),
+    '0', now(), '0', 'Y'
+  FROM AD_PROCESS, AD_ROLE
+  WHERE AD_ROLE.ISMANUAL = 'N'
+  AND AD_PROCESS.IsActive='Y'
+    AND (
+      (AD_ROLE.USERLEVEL = 'S' AND AD_PROCESS.ACCESSLEVEL IN ('4','7','6'))
+      OR
+      (AD_ROLE.USERLEVEL IN (' CO', ' C') AND AD_PROCESS.ACCESSLEVEL IN ('7','6','3','1'))
+      OR
+      (AD_ROLE.USERLEVEL = '  O' AND AD_PROCESS.ACCESSLEVEL IN ('3','1','7'))
+    )
+    AND NOT EXISTS (SELECT 1 
+                      FROM AD_PROCESS_ACCESS
+                     WHERE AD_PROCESS_ID = AD_PROCESS.AD_PROCESS_ID
+                       AND AD_ROLE_ID    = AD_ROLE.AD_ROLE_ID
+                       AND (AD_ROLE.ISADVANCED = 'Y' OR AD_PROCESS.ISADVANCEDFEATURE = 'N'));
+
+ --Add org 0 to role 0                
+ INSERT INTO AD_Role_OrgAccess
+    (
+       AD_Role_OrgAccess_ID, AD_Role_ID, AD_Client_ID, AD_Org_ID,
+      IsActive, Created, CreatedBy,
+      Updated, UpdatedBy, is_org_admin
+    )
+  SELECT get_uuid(), AD_ROLE.AD_ROLE_ID, AD_ORG.AD_CLIENT_ID, AD_ORG.AD_ORG_ID,
+    'Y', now(), '0',
+    now(), '0', 'N'
+  FROM AD_ROLE, AD_ORG
+  WHERE AD_ROLE.AD_ROLE_ID = '0'
+    AND AD_ROLE.AD_CLIENT_ID = AD_ORG.AD_CLIENT_ID
+    AND AD_ORG.AD_ORG_ID ='0'
+    AND NOT EXISTS (SELECT 1 FROM AD_ROLE_ORGACCESS
+                    WHERE AD_ROLE_ID = AD_ROLE.AD_ROLE_ID
+                      AND AD_ORG_ID = AD_ORG.AD_ORG_ID);                      
+                      
+
+--AD_WINDOW_ACCESS
+  INSERT INTO aD_Window_Access
+    (
+      aD_Window_Access_ID, AD_Window_ID, AD_Role_ID, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy, IsReadWrite
+    )
+  SELECT DISTINCT get_uuid(), AD_WINDOW.AD_WINDOW_ID, AD_ROLE.AD_ROLE_ID, AD_ROLE.AD_CLIENT_ID,
+    AD_ROLE.AD_ORG_ID, 'Y', now(),
+    '0', now(), '0', 'Y'
+  FROM AD_WINDOW, AD_ROLE, AD_TAB, AD_TABLE
+  WHERE AD_ROLE.ISMANUAL = 'N'
+  AND AD_WINDOW.IsActive='Y'
+    AND AD_WINDOW.AD_WINDOW_ID = AD_TAB.AD_WINDOW_ID
+    AND AD_TAB.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID
+    AND (
+      (AD_ROLE.USERLEVEL = 'S' AND AD_TABLE.ACCESSLEVEL IN ('4','7','6'))
+      OR
+      (AD_ROLE.USERLEVEL IN (' CO', ' C') AND AD_TABLE.ACCESSLEVEL IN ('7','6','3','1'))
+      OR
+      (AD_ROLE.USERLEVEL = '  O' AND AD_TABLE.ACCESSLEVEL IN ('3','1','7'))
+    )
+    AND AD_TAB.SEQNO = (SELECT MIN(SEQNO) FROM AD_TAB t WHERE t.AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID)
+    AND NOT EXISTS (SELECT 1 
+                       FROM AD_WINDOW_ACCESS
+                      WHERE AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID
+                        AND AD_ROLE_ID = AD_ROLE.AD_ROLE_ID
+                        AND (AD_ROLE.ISADVANCED = 'Y' OR AD_WINDOW.ISADVANCEDFEATURE = 'N'));
+
+  --Add role 0 to user 100 (Openbravo)
+  INSERT INTO AD_USER_ROLES
+    (AD_USER_ROLES_ID , AD_USER_ID , AD_ROLE_ID, 
+     AD_CLIENT_ID     , AD_ORG_ID  , ISACTIVE  , 
+     CREATED          , CREATEDBY  , UPDATED   , 
+     UPDATEDBY, is_role_admin) 
+    SELECT get_uuid(), AD_USER_ID, '0',
+           '0', '0', 'Y',
+           now(), '0', now(),
+           '0', 'Y'
+      FROM AD_USER
+    WHERE AD_USER_ID IN ('0', '100')
+    AND NOT EXISTS (SELECT 1
+                    FROM AD_USER_ROLES
+                    WHERE AD_USER_ID = AD_USER.AD_USER_ID
+                      AND AD_ROLE_ID = '0');
+                      
+ 
+  --Extension point to add access to additional tables defined within modules 
+  SELECT count(*) INTO v_count
+  FROM DUAL
+  WHERE EXISTS (SELECT 1 FROM ad_ep_procedures WHERE ad_extension_points_id = v_ExtensionPointID);
+  
+  IF (v_count != 0) THEN
+   AD_EXTENSION_POINT_HANDLER(get_uuid(), v_ExtensionPointID);
+  END IF;
+END AD_UPDATE_ACCESS
+]]></body>
+    </function>
+  </database>

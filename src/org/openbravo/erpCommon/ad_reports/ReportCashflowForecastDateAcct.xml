@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html 
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License. 
+* The Original Code is Openbravo ERP. 
+* The Initial Developer of the Original Code is Openbravo SLU 
+* All portions are Copyright (C) 2001-2006 Openbravo SLU 
+* All Rights Reserved. 
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <template file="ReportCashflowForecastDateAcct.srpt"/>
+
+  <PARAMETER id="param0" name="Param0" default="0"/>
+  <PARAMETER id="param2" name="param2" default="2"/>
+
+  <structure name="structureAccount">
+  	<FIELD id="fieldRownum1">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow1xx" name="MODULE" arg1="fieldRownum1" arg2="param2" format="integerEdition" attribute="class" replace="yy"/>
+	
+    <FIELD id="fieldTypePayment">isreceiptmessage</FIELD>
+    <FIELD id="fieldClassType" attribute="class">classType</FIELD>
+
+    <FIELD id="fieldDatePlanned">dateplanned</FIELD>
+
+    <FIELD id="fieldDateInvoiced">dateinvoiced</FIELD>
+    <FIELD id="fieldInvoiceNo">invoiceno</FIELD>
+    <FIELD id="fieldCDebtPaymentId" attribute="onClick" replace="xx">cDebtPaymentId</FIELD>
+    <FIELD id="fieldCDebtPaymentId" attribute="onClick" replace="yy">url</FIELD>
+    <FIELD id="fieldBP">bpartner</FIELD>
+    <FIELD id="fieldDescription">description</FIELD>
+    <FIELD id="fieldAmountLine" format="euroInform">amount</FIELD>
+    <FIELD id="fieldInitialBalanceHidden" attribute="value">initialbalance</FIELD>
+
+    <FUNCTION id="fieldSumAmount" name="SUM" format="euroInform" attribute="value">amount</FUNCTION>
+    <FUNCTION id="fieldAmtDatePlanned" name="SUM" format="euroInform">amount</FUNCTION>
+
+    <FUNCTION id="fieldBalanceDatePlanned" name="ADD" arg1="fieldInitialBalanceHidden" arg2="fieldSumAmount" format="euroInform"/>
+    <FUNCTION id="fieldAmountfinal" name="ADD" arg1="fieldInitialBalanceHidden" arg2="fieldSumAmount" format="euroInform"/>
+
+
+    <FUNCTION id="fieldAmountLine" name="LT" arg1="fieldAmountLine" arg2="param0" attribute="class" replace="xx"/>
+    <FUNCTION id="fieldSumAmount" name="LT" arg1="fieldSumAmount" arg2="param0" attribute="class" replace="xx"/>
+    <FUNCTION id="fieldAmtDatePlanned" name="LT" arg1="fieldAmtDatePlanned" arg2="param0" attribute="class" replace="xx"/>
+    <FUNCTION id="fieldAmountfinal" name="LT" arg1="fieldAmountfinal" arg2="param0" attribute="class" replace="xx"/>
+    <FUNCTION id="fieldBalanceDatePlanned" name="LT" arg1="fieldBalanceDatePlanned" arg2="param0" attribute="class" replace="xx"/>
+
+
+    <SECTION id="sectionTotal"/>
+    <SECTION id="sectionDatePlanned" field="dateplanned"/>
+    <SECTION id="sectionTypePayment" field="isreceipt"/>
+    <SECTION id="sectionDetail"/>    
+
+  </structure>
+</REPORT>   

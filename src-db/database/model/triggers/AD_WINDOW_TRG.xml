@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_WINDOW_TRG">
+    <trigger name="AD_WINDOW_TRG" table="AD_WINDOW" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: AD_Window_Trg.sql,v 1.2 2002/08/26 05:23:32 jjanke Exp $
+    ***
+    * Title: Window Changes
+    * Description:
+    *   - Transaltion
+    *   - Sync Name (Workflow, Menu)
+    *   - Active State (Menu)
+    ************************************************************************/
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    -- Insert AD_Window Trigger
+    --  for Translation
+    --  Access
+    IF INSERTING
+    THEN
+    --  Create Translation Row
+  INSERT
+  INTO AD_Window_Trl
+    (
+      AD_Window_Trl_ID, AD_Window_ID, AD_Language, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      Name, Description, Help,
+      IsTranslated
+    )
+  SELECT get_uuid(), :new.AD_Window_ID,
+    AD_Language.AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+    :new.IsActive, :new.Created, :new.CreatedBy,
+    :new.Updated, :new.UpdatedBy, :new.Name,
+    :new.Description, :new.Help, 'N'
+  FROM AD_Language, AD_Module M
+  WHERE AD_Language.IsActive='Y'
+    AND IsSystemLanguage='Y'
+     AND M.AD_Module_ID = :new.AD_Module_ID
+    AND M.AD_Language != AD_Language.AD_Language;
+  -- Access for all
+  INSERT
+  INTO AD_Window_Access
+    (
+      AD_Window_Access_ID, AD_Window_ID, AD_Role_ID, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      IsReadWrite
+    )
+  SELECT DISTINCT get_uuid(), :new.AD_Window_ID,
+    r.AD_Role_ID, r.AD_CLIENT_ID, r.AD_ORG_ID,
+     'Y', now(), '0',
+    now(), '0',  'Y'
+  FROM AD_Role r
+   WHERE isManual='N';
+ END IF;
+ -- Inserting
+ -- AD_Window update trigger
+ --  synchronize name,...
+ IF UPDATING THEN
+  IF(COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+  OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')
+  OR COALESCE(:old.Help, '.') <> COALESCE(:NEW.Help, '.'))
+ THEN
+       UPDATE AD_Menu
+          SET Name=:new.Name,
+          Description=:new.Description
+        WHERE AD_Window_ID=:new.AD_Window_ID
+          and exists (select 1 
+                       from ad_module m, ad_module m1
+                       where m.ad_module_id = ad_menu.ad_module_id
+                       and m1.ad_module_id = :new.ad_module_id
+                       and m1.ad_language = m.ad_language);
+                       
+     UPDATE AD_Menu_Trl
+          SET Name=:new.Name,
+          Description=:new.Description,
+          IsTranslated ='Y'
+        WHERE exists (select 1 
+                       from ad_module m, ad_module m1, ad_menu
+                       where m.ad_module_id = ad_menu.ad_module_id
+                       and m1.ad_module_id = :new.ad_module_id
+                       and ad_menu.AD_WINDOW_ID = :new.AD_Window_ID
+                       and AD_Menu_Trl.ad_language = m1.ad_language
+                       and AD_Menu_Trl.ad_menu_id = ad_menu.ad_menu_id);
+        
+    -- Translation
+    UPDATE AD_Window_Trl
+      SET IsTranslated='N',
+      Updated=now()
+    WHERE AD_Window_ID=:new.AD_Window_ID;
+  END IF;
+ END IF;
+-- Updating
+END AD_WINDOW_TRG
+]]></body>
+    </trigger>
+  </database>

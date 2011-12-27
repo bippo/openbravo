@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER S_TIMEEXPENSELINE_TRG">
+    <trigger name="S_TIMEEXPENSELINE_TRG" table="S_TIMEEXPENSELINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+
+
+
+  v_UOM_ID VARCHAR2(32) ;
+  v_TimeExpense_ID VARCHAR2(32);
+  v_RO NUMBER;
+  v_need_verification BOOLEAN := true;
+  v_BP_PriceList_ID VARCHAR2(32);
+  v_BP_PL_Currency_ID VARCHAR2(32);
+  v_Count NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF (INSERTING OR UPDATING) THEN
+    v_TimeExpense_ID := :NEW.S_TIMEEXPENSE_ID;
+  ELSE
+    v_TimeExpense_ID := :OLD.S_TIMEEXPENSE_ID;
+  END IF;
+
+  -- Added in order to fix bug 1798120
+  -- Verification added in order to let work process ExpenseAPInvoice
+  -- Verification will be skipped in UPDATING when:
+  --   * There is not Invoice Line and is going to be OR
+  --   * There is not Order Line and is going to be
+   IF (UPDATING) THEN
+    IF ((:OLD.C_INVOICELINE_ID IS NOT NULL OR :NEW.C_INVOICELINE_ID IS NULL) AND (:OLD.C_ORDERLINE_ID IS NOT NULL OR :NEW.C_ORDERLINE_ID IS NULL)) THEN
+      v_need_verification := true;
+    ELSE
+      v_need_verification := false;
+    END IF;
+   END IF;
+
+   IF (v_need_verification) THEN
+   -- ReadOnly Check
+    SELECT  COUNT(*)
+     INTO v_RO
+    FROM S_TIMEEXPENSE
+    WHERE S_TIMEEXPENSE_ID=v_TimeExpense_ID
+      AND Processed='Y';
+    IF (v_RO > 0) THEN
+      IF (INSERTING OR DELETING) THEN
+        RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+      ELSIF (:NEW.Line<>:OLD.Line
+            OR :NEW.IsTimeReport<>:OLD.IsTimeReport
+            OR :NEW.ISInvoiced<>:OLD.ISInvoiced
+     OR :NEW.S_TimeExpense_ID<>:OLD.S_TimeExpense_ID
+     OR :NEW.AD_ORG_ID<>:OLD.AD_ORG_ID
+     OR COALESCE(:NEW.DateExpense, '1-1-3000')<>COALESCE(:OLD.DateExpense,'1-1-3000')
+     OR COALESCE(:NEW.M_Product_ID,'0')<>COALESCE(:OLD.M_Product_ID,'0')
+     OR COALESCE(:NEW.qty,0)<>COALESCE(:OLD.qty,0)
+     OR COALESCE(:NEW.expenseamt,0)<>COALESCE(:OLD.expenseamt,0)
+     OR COALESCE(:NEW.C_Currency_ID,'0')<>COALESCE(:OLD.C_Currency_ID,'0')
+     OR COALESCE(:NEW.S_Resourceassignment_ID,'0')<>COALESCE(:OLD.S_Resourceassignment_ID,'0')
+     OR COALESCE(:NEW.C_BPartner_ID,'0')<>COALESCE(:OLD.C_BPartner_ID,'0')
+     OR COALESCE(:NEW.C_Project_ID,'0')<>COALESCE(:OLD.C_Project_ID,'0')
+     OR COALESCE(:NEW.C_Activity_ID,'0')<>COALESCE(:OLD.C_Activity_ID,'0')
+     OR COALESCE(:NEW.C_Campaign_ID,'0')<>COALESCE(:OLD.C_Campaign_ID,'0')
+     OR COALESCE(:NEW.C_InvoiceLine_ID,'0')<>COALESCE(:OLD.C_InvoiceLine_ID,'0')
+     OR COALESCE(:NEW.InvoicePrice,0)<>COALESCE(:OLD.InvoicePrice,0)
+     OR COALESCE(:NEW.C_Uom_ID,'0')<>COALESCE(:OLD.C_Uom_ID,'0')
+     OR COALESCE(:NEW.C_OrderLine_ID,'0')<>COALESCE(:OLD.C_OrderLine_ID,'0')
+     OR COALESCE(:NEW.C_ProjectPhase_ID,'0')<>COALESCE(:OLD.C_ProjectPhase_ID,'0')
+     OR COALESCE(:NEW.C_ProjectTask_ID,'0')<>COALESCE(:OLD.C_ProjectTask_ID,'0')
+     OR COALESCE(:NEW.S_TimeType_ID,'0')<>COALESCE(:OLD.S_TimeType_ID,'0')) THEN
+        RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+      END IF;
+    END IF;
+
+    -- Difference, ID
+    IF(UPDATING OR INSERTING) THEN
+      IF(:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+        -- Checks UOM match
+        SELECT C_UOM_ID
+        INTO v_UOM_ID
+        FROM M_PRODUCT
+        WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+        IF(COALESCE(v_UOM_ID, '0') <> COALESCE(:NEW.C_UOM_ID, '0')) THEN
+          RAISE_APPLICATION_ERROR(-20111, 'Unit of Measure mismatch (product/transaction)') ;
+        END IF;
+        
+        -- Looks for a price for current product and business partner
+        IF(:NEW.C_BPARTNER_ID IS NOT NULL AND :NEW.INVOICEPRICE IS NULL) THEN
+          -- Looks for business partner price list
+          SELECT PL.M_PRICELIST_ID, PL.C_CURRENCY_ID 
+          INTO v_BP_PriceList_ID, v_BP_PL_Currency_ID
+          FROM C_BPARTNER BP, M_PRICELIST PL
+          WHERE BP.M_PRICELIST_ID = PL.M_PRICELIST_ID
+          AND BP.C_BPARTNER_ID = :NEW.C_BPARTNER_ID;
+          IF(v_BP_PriceList_ID IS NULL OR v_BP_PL_Currency_ID IS NULL) THEN
+            -- Looks for expense sheet header price list
+            SELECT PL.M_PRICELIST_ID, PL.C_CURRENCY_ID 
+            INTO v_BP_PriceList_ID, v_BP_PL_Currency_ID
+            FROM S_TIMEEXPENSE E, M_PRICELIST PL
+            WHERE E.M_PRICELIST_ID = PL.M_PRICELIST_ID
+            AND PL.M_PRICELIST_ID = (SELECT M_PriceList_ID FROM S_TimeExpense WHERE S_TimeExpense_ID = :NEW.S_TimeExpense_ID);
+            IF(v_BP_PriceList_ID IS NULL OR v_BP_PL_Currency_ID IS NULL) THEN
+              RAISE_APPLICATION_ERROR(-20555, 'Price not found for current partner and product.') ;
+            END IF;
+          END IF;
+          -- Looks for price
+          SELECT COUNT(M_BOM_PriceStd(p.M_Product_ID,pv.M_PriceList_Version_ID))
+          INTO v_Count
+          FROM M_Product p, M_ProductPrice pp, M_Pricelist pl, M_PriceList_Version pv 
+          WHERE p.M_Product_ID=pp.M_Product_ID
+          AND pp.M_PriceList_Version_ID=pv.M_PriceList_Version_ID
+          AND pv.M_PriceList_ID=pl.M_PriceList_ID
+          AND pv.IsActive='Y'
+          AND p.M_Product_ID = :NEW.M_PRODUCT_ID
+          AND pl.M_PriceList_ID = v_BP_PriceList_ID
+          AND pl.C_Currency_ID = v_BP_PL_Currency_ID
+          AND SIGN(TO_NUMBER(TO_DATE(COALESCE(:NEW.DateExpense, (SELECT DateReport FROM S_TimeExpense WHERE S_TimeExpense_ID = :NEW.S_TimeExpense_ID), now()))- TO_DATE(pv.ValidFrom))) <> -1 ;
+          IF(v_Count = 0) THEN
+            RAISE_APPLICATION_ERROR(-20555, 'Price not found for current partner and product.') ;
+          END IF;
+        END IF;      
+      END IF;
+    END IF;
+  END IF;
+
+END S_TIMEEXPENSELINE_TRG
+]]></body>
+    </trigger>
+  </database>

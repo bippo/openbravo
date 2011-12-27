@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptCSettlementHeaderData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT CS.DOCUMENTNO, CS.DATETRX, CS.DATEACCT, AD_CLIENT.NAME AS ENTITY, AD_ORGINFO.TAXID AS CIF, C_BANK.NAME AS NAME_BANK, C_BANK.CODEBANK||' '||C_BANK.CODEBRANCH||' '||C_BANK.DIGITCONTROL||' '||C_BANKACCOUNT.CODEACCOUNT||' '||C_BANKACCOUNT.DIGITCONTROL AS ACCOUNT
+        FROM C_SETTLEMENT CS, C_DEBT_PAYMENT_GENERATE CDG, C_BANKACCOUNT, C_BANK, C_BPARTNER, AD_CLIENT, AD_ORGINFO
+        WHERE CS.C_SETTLEMENT_ID = CDG.C_SETTLEMENT_ID
+        AND CDG.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        AND CDG.C_BANKACCOUNT_ID = C_BANKACCOUNT.C_BANKACCOUNT_ID
+        AND C_BANKACCOUNT.C_BANK_ID = C_BANK.C_BANK_ID 
+        AND CS.AD_CLIENT_ID = AD_CLIENT.AD_CLIENT_ID
+        AND CS.AD_ORG_ID = AD_ORGINFO.AD_ORG_ID
+        AND CS.C_SETTLEMENT_ID = ?
+        ]]>
+        </Sql>
+        <Parameter name="cSettlementId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+</SqlClass>

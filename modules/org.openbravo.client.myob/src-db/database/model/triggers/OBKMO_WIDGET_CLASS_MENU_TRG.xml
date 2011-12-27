@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBKMO_WIDGET_CLASS_MENU_TRG">
+    <trigger name="OBKMO_WIDGET_CLASS_MENU_TRG" table="OBKMO_WIDGET_CLASS_MENU" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+BEGIN
+
+  IF (INSERTING) THEN
+    INSERT INTO obkmo_widget_class_menu_trl
+             (obkmo_widget_class_menu_trl_id , obkmo_widget_class_menu_id, ad_language,
+              ad_client_id                   , ad_org_id            , isactive   ,
+              created                        , createdby            , updated    ,
+              updatedby                      , title                ,
+              istranslated)
+      SELECT get_uuid()                      , :new.obkmo_widget_class_menu_id, l.ad_language,
+             :new.ad_client_id               , :new.ad_org_id                 , :new.isactive,
+             now()                           , :new.createdby                 , now()        ,
+             :new.updatedby                  , :new.title                     ,
+             'N'
+      FROM ad_language l, ad_module m, obkmo_widget_class_menu wm, obkmo_widget_class wc
+      WHERE l.isactive = 'Y'
+        AND l.issystemlanguage = 'Y'
+        AND wm.obkmo_widget_class_menu_id = :new.obkmo_widget_class_menu_id
+        AND wc.obkmo_widget_class_id = wm.obkmo_widget_class_id
+        AND m.ad_module_id = wc.ad_module_id
+        AND m.ad_language != l.ad_language;
+  END IF;
+
+  IF (UPDATING) THEN
+    IF (COALESCE(:new.title,'.') != COALESCE(:old.title,'.')) THEN
+      UPDATE obkmo_widget_class_menu_trl
+      SET istranslated = 'N',
+          updated = now()
+      WHERE obkmo_widget_class_menu_id=:new.obkmo_widget_class_menu_id;
+    END IF;
+  END IF;
+END OBKMO_WIDGET_CLASS_MENU_TRG
+]]></body>
+    </trigger>
+  </database>

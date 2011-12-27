@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_GET_PARETO_ABC">
+    <function name="M_GET_PARETO_ABC" type="VARCHAR">
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_percentageactual" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_orgList VARCHAR2(4000) ;
+  VARaCUM NUMBER:=0;
+  VARaCUMB NUMBER:=0;
+  v_limitA NUMBER:=80;
+  v_limitB NUMBER:=15;
+  v_percentange NUMBER:=0;
+  varComprobadoA NUMBER:=0;
+  varComprobadoB NUMBER:=0;
+  TYPE RECORD IS REF CURSOR;
+  Cur_Cursor RECORD;
+BEGIN
+  v_percentange := trunc(p_percentageactual,6);
+  varAcum :=0;
+  varComprobadoA := 0;
+  for Cur_Cursor in (
+   SELECT
+  100*SUM(msd.qtyonhand*M_GET_PRODUCT_COST(MSD.M_PRODUCT_ID,TO_DATE(now()),'AV'))/ (select SUM(msd1.qtyonhand*M_GET_PRODUCT_COST(MSD1.M_PRODUCT_ID,TO_DATE(now()),'AV'))
+                                                       from M_WAREHOUSE MW1
+                                                       LEFT JOIN M_LOCATOR ML1 ON ML1.M_WAREHOUSE_ID=MW1.M_WAREHOUSE_ID
+                                                       LEFT JOIN M_STORAGE_DETAIL MSD1 ON ML1.M_LOCATOR_ID=MSD1.M_LOCATOR_ID
+                                                       WHERE (p_warehouse_ID IS NULL OR MW1.M_WAREHOUSE_ID=p_warehouse_ID)
+                                                       AND (p_org_ID IS NULL OR MW1.AD_ORG_ID=p_org_ID)
+                                                       AND (p_client_id IS NULL OR MW1.AD_CLIENT_ID=p_client_id) 
+                                                       AND MSD1.QTYONHAND>0) as PERCENTAGE
+  FROM
+   M_WAREHOUSE MW
+     LEFT JOIN M_LOCATOR ML ON ML.M_WAREHOUSE_ID=MW.M_WAREHOUSE_ID
+     LEFT JOIN M_STORAGE_DETAIL MSD ON ML.M_LOCATOR_ID=MSD.M_LOCATOR_ID
+  WHERE (p_warehouse_ID IS NULL OR MW.M_WAREHOUSE_ID=p_warehouse_ID)
+     AND (p_org_ID IS NULL OR MW.AD_ORG_ID=p_org_ID)
+     AND (p_client_id IS NULL OR MW.AD_CLIENT_ID=p_client_id)
+     AND MSD.QTYONHAND>0
+     AND M_GET_PRODUCT_COST(MSD.M_PRODUCT_ID,TO_DATE(now()),null) IS NOT NULL
+     AND M_GET_PRODUCT_COST(MSD.M_PRODUCT_ID,TO_DATE(now()),null) <> 0
+  GROUP BY MSD.M_PRODUCT_ID
+  ORDER BY PERCENTAGE DESC) loop
+  varAcum := varAcum+Cur_Cursor.percentage;
+   if(varComprobadoA=0)then
+     if (varAcum>=v_limitA) then
+       if (v_percentange>=Cur_Cursor.percentage) then
+	     return 'A';
+       else
+         varComprobadoA:=-1;
+         varAcumB:=-1*Cur_Cursor.percentage;
+       end if;
+     end if;
+   end if;
+
+  if (varComprobadoA=-1 and varComprobadoB=0) then
+  varAcumB:=varAcumB+Cur_Cursor.percentage;
+   if (varAcumB>=v_limitB) then
+     if (v_percentange>=Cur_Cursor.percentage) then return 'B';
+	 else varComprobadoB:=-1;
+     end if;
+   end if;
+  end if;
+
+ end loop;
+ return 'C';
+END M_GET_PARETO_ABC
+]]></body>
+    </function>
+  </database>

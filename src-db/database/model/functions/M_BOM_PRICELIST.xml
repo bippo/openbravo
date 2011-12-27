@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_BOM_PRICELIST">
+    <function name="M_BOM_PRICELIST" type="NUMERIC">
+      <parameter name="product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="pricelist_version_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/******************************************************************************
+* The contents of this file are subject to the   Compiere License  Version 1.1
+* ("License"); You may not use this file except in compliance with the License
+* You may obtain a copy of the License at http://www.compiere.org/license.html
+* Software distributed under the License is distributed on an  "AS IS"  basis,
+* WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+* the specific language governing rights and limitations under the License.
+* The Original Code is                  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+* created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2006 Openbravo S.L.U.
+******************************************************************************/
+  v_Price        NUMBER;
+  v_ProductPrice NUMBER;
+  v_IsVerified   CHAR(1);
+  v_currency VARCHAR2(32);
+  -- Get BOM Product info
+  TYPE RECORD IS REF CURSOR;
+    CUR_BOM RECORD;
+    --
+  BEGIN
+  
+    SELECT c_currency_id into v_currency
+    from ad_client left join M_Product on ad_client.ad_client_id= m_product.ad_client_id
+    where m_product.m_product_id=product_id;
+    -- Try to get price from pricelist directly
+    SELECT COALESCE(SUM(PriceList), 0)
+    INTO v_Price
+    FROM M_ProductPrice
+    WHERE M_PriceList_Version_ID=PriceList_Version_ID
+      AND M_Product_ID=Product_ID;
+    SELECT ISVERIFIED INTO v_IsVerified FROM M_PRODUCT WHERE M_PRODUCT_ID=Product_ID;  
+    -- DBMS_OUTPUT.PUT_LINE('Price=' || v_Price);
+    -- No Price - Check if BOM and check if BOM has been verified
+    IF(v_Price = 0 AND v_IsVerified = 'Y') THEN
+      FOR CUR_BOM IN
+        (SELECT b.M_ProductBOM_ID,
+          b.BOMQty,
+          p.IsBOM
+        FROM M_Product_BOM b,
+          M_Product p
+        WHERE b.M_ProductBOM_ID=p.M_Product_ID
+          AND b.M_Product_ID=Product_ID
+        )
+      LOOP
+        v_ProductPrice:=M_BOM_PriceList(CUR_BOM.M_ProductBOM_ID, PriceList_Version_ID) ;
+        v_Price:=v_Price +(CUR_BOM.BOMQty * v_ProductPrice) ;
+        -- DBMS_OUTPUT.PUT_LINE('Qry=' || CUR_BOM.BOMQty || ' @ ' || v_ProductPrice || ', Price=' || v_Price);
+      END LOOP; -- BOM
+    END IF;
+    --
+    RETURN ROUND(v_price,C_GET_CURRENCY_PRECISION(v_currency,'P'));
+END M_BOM_PRICELIST
+]]></body>
+    </function>
+  </database>

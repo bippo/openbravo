@@ -1,0 +1,350 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CREATE_PINVOICE_FROM_OUTS">
+    <function name="C_CREATE_PINVOICE_FROM_OUTS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  /*************************************************************************
+  * Description:
+  * - Create purchase invoice from sales shipments and inventory movements
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    v_DateFrom DATE;
+    v_DateTo DATE;
+    v_Warehouse_ID VARCHAR2(32) ;
+    v_BPartner_ID VARCHAR2(32) ;
+    v_ReferenceNo NVARCHAR2(40) ;
+    v_DateInvoiced DATE;
+    v_User_ID VARCHAR2(32) ;
+    --
+    v_Project_ID VARCHAR2(32):='0';
+    v_Doctype_ID VARCHAR2(32) ;
+    v_Invoice_ID VARCHAR2(32) ;
+    v_DocumentNo NVARCHAR2(60) ;
+    v_PaymentRule VARCHAR(60) ;
+    v_PaymentTerm_ID VARCHAR2(32) ;
+    v_Currency_ID VARCHAR2(32) ;
+    v_IsTaxIncluded CHAR(1) ;
+    v_NoRecords NUMBER:=0;
+    v_InvoiceLine_ID VARCHAR2(32) ;
+    v_auxQty NUMBER;
+    v_auxQtyTotal NUMBER;
+    v_line NUMBER;
+    v_priceList NUMBER;
+    v_priceActual NUMBER;
+    v_priceLimit NUMBER;
+    v_Tax_ID VARCHAR2(32) ;
+    v_BPLocation_ID VARCHAR2(32) ;
+    -- Outs: shipments and inventory movements
+    Cur_Outs RECORD;
+    -- Pend: orderlines-inoutlines not invoiced
+    Cur_Pend RECORD;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date,
+        i.UpdatedBy
+      FROM AD_PINSTANCE i
+      LEFT JOIN AD_PINSTANCE_PARA p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_User_ID:=Cur_Parameter.UpdatedBy;
+      IF(Cur_Parameter.ParameterName='DateFrom') THEN
+        v_DateFrom:=Cur_Parameter.P_Date;
+        DBMS_OUTPUT.PUT_LINE('  DateFrom=' || v_DateFrom) ;
+      ELSIF(Cur_Parameter.ParameterName='DateTo') THEN
+        v_DateTo:=Cur_Parameter.P_Date;
+        DBMS_OUTPUT.PUT_LINE('  DateTo=' || v_DateTo) ;
+      ELSIF(Cur_Parameter.ParameterName='M_Warehouse_ID') THEN
+        v_Warehouse_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  M_Warehouse_ID=' || v_Warehouse_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='C_BPartner_ID') THEN
+        v_BPartner_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_BPartner_ID=' || v_BPartner_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='ReferenceNo') THEN
+        v_ReferenceNo:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  ReferenceNo=' || v_ReferenceNo) ;
+      ELSIF(Cur_Parameter.ParameterName='DateInvoiced') THEN
+        v_DateInvoiced:=Cur_Parameter.P_Date;
+        DBMS_OUTPUT.PUT_LINE('  DateInvoiced=' || v_DateInvoiced) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    FOR Cur_Outs IN
+      (SELECT s.AD_Client_ID,
+        s.AD_Org_ID,
+        p.C_Project_ID,
+        pv.M_PriceList_ID,
+        sl.M_Product_ID,
+        sl.MovementQty,
+        sl.C_UOM_ID,
+        sl.M_AttributeSetInstance_ID,
+        sl.quantityOrder,
+        sl.M_Product_UOM_ID
+      FROM M_INOUT s,
+        M_INOUTLINE sl,
+        C_PROJECT p,
+        C_PROJECT_VENDOR pv,
+        M_LOCATOR l
+      WHERE s.M_InOut_ID=sl.M_InOut_ID
+        AND s.C_Project_ID=p.C_Project_ID
+        AND p.C_Project_ID=pv.C_Project_ID
+        AND sl.M_Locator_ID=l.M_Locator_ID
+        AND s.IsSOTrx='Y'
+        AND s.MovementDate>=v_DateFrom
+        AND s.MovementDate<v_DateTo + 1
+        AND l.M_Warehouse_ID=v_Warehouse_ID
+        AND pv.C_BPartner_ID=v_BPartner_ID
+        AND sl.MovementQty<>0
+      UNION ALL
+      SELECT s.AD_Client_ID,
+        s.AD_Org_ID,
+        p.C_Project_ID,
+        pv.M_PriceList_ID,
+        sl.M_Product_ID,
+        sl.MovementQty,
+        sl.C_UOM_ID,
+        sl.M_AttributeSetInstance_ID,
+        sl.quantityOrder,
+        sl.M_Product_UOM_ID
+      FROM M_MOVEMENT s,
+        M_MOVEMENTLINE sl,
+        C_PROJECT p,
+        C_PROJECT_VENDOR pv,
+        M_LOCATOR l
+      WHERE s.M_Movement_ID=sl.M_Movement_ID
+        AND s.C_Project_ID=p.C_Project_ID
+        AND p.C_Project_ID=pv.C_Project_ID
+        AND sl.M_Locator_ID=l.M_Locator_ID
+        AND s.MovementDate>=v_DateFrom
+        AND s.MovementDate<v_DateTo + 1
+        AND l.M_Warehouse_ID=v_Warehouse_ID
+        AND pv.C_BPartner_ID=v_BPartner_ID
+        AND sl.MovementQty<>0
+      ORDER BY C_Project_ID,
+        M_Product_ID,
+        C_UOM_ID,
+        M_Product_UOM_ID
+      )
+    LOOP
+      v_BPLocation_ID:=C_Getbplocationid(v_BPartner_ID, 'B') ;
+      IF(v_Project_ID<>Cur_Outs.C_Project_ID) THEN
+        v_NoRecords:=v_NoRecords + 1;
+        v_Project_ID:=Cur_Outs.C_Project_ID;
+        v_line:=0;
+        v_DocType_ID:=Ad_Get_Doctype(Cur_Outs.AD_Client_ID, Cur_Outs.AD_Org_ID, 'API') ;
+        --
+        Ad_Sequence_Next('C_Invoice', Cur_Outs.AD_Client_ID, v_Invoice_ID) ;
+        Ad_Sequence_Doctype(v_DocType_ID, Cur_Outs.AD_Client_ID, 'Y', v_DocumentNo) ;
+        IF(v_DocumentNo IS NULL) THEN
+          Ad_Sequence_Doc('DocumentNo_C_Invoice', Cur_Outs.AD_Client_ID, 'Y', v_DocumentNo) ;
+        END IF;
+        SELECT PAYMENTRULEPO,
+          PO_PAYMENTTERM_ID
+        INTO v_PaymentRule,
+          v_PaymentTerm_ID
+        FROM C_BPARTNER
+        WHERE C_BPartner_ID=v_BPartner_ID;
+        SELECT C_Currency_ID,
+          IsTaxIncluded
+        INTO v_Currency_ID,
+          v_IsTaxIncluded
+        FROM M_PRICELIST
+        WHERE M_PriceList_ID=Cur_Outs.M_PriceList_ID;
+        --
+        DBMS_OUTPUT.PUT_LINE('  Invoice_ID=' || v_Invoice_ID || ' DocumentNo=' || v_DocumentNo) ;
+        v_ResultStr:='InsertInvoice ' || v_Invoice_ID;
+        INSERT
+        INTO C_INVOICE
+          (
+            C_INVOICE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            ISSOTRX, DOCUMENTNO, DOCSTATUS, DOCACTION,
+            PROCESSING, PROCESSED, POSTED, C_DOCTYPE_ID,
+            C_DOCTYPETARGET_ID, C_ORDER_ID, DESCRIPTION,
+            ISPRINTED, SALESREP_ID, DATEINVOICED, TAXDATE,
+            DATEPRINTED, DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID,
+            POREFERENCE, ISDISCOUNTPRINTED, DATEORDERED, C_CURRENCY_ID,
+            PAYMENTRULE, C_PAYMENTTERM_ID, C_CHARGE_ID, CHARGEAMT,
+            TOTALLINES, GRANDTOTAL, M_PRICELIST_ID, ISTAXINCLUDED,
+            C_CAMPAIGN_ID, C_PROJECT_ID, C_ACTIVITY_ID,
+            CREATEFROM, GENERATETO, AD_USER_ID,
+            COPYFROM, ISSELFSERVICE
+          )
+          VALUES
+          (
+            v_Invoice_ID, Cur_Outs.AD_Client_ID, Cur_Outs.AD_Org_ID, 'Y',
+            now(), v_User_ID, now(), v_User_ID,
+             'N', v_DocumentNo, 'DR', 'CO',
+             'N', 'N', 'N', '0',
+            v_DocType_ID, NULL, NULL,
+            'N', NULL, v_DateInvoiced, v_DateInvoiced,
+            NULL, v_DateInvoiced, v_BPartner_ID, v_BPLocation_ID,
+            v_ReferenceNo, 'Y', NULL, v_Currency_ID,
+            v_PaymentRule, v_PaymentTerm_ID, NULL, 0,
+            0, 0, Cur_Outs.M_PriceList_ID, v_IsTaxIncluded,
+            NULL, v_Project_ID, NULL,
+             'N', 'N', NULL,
+             'N', 'N'
+          )
+          ;
+      END IF;
+      v_auxQtyTotal:=0;
+      SELECT MAX(PRICELIST), MAX(PRICESTD),  MAX(PRICELIMIT)
+      INTO v_priceList, v_priceActual,  v_priceLimit
+      FROM M_PRODUCTPRICE
+      WHERE M_PriceList_Version_ID=
+        (SELECT MIN(M_PriceList_Version_ID)
+        FROM M_PRICELIST_VERSION
+        WHERE M_PriceList_ID=Cur_Outs.M_PriceList_ID
+        )
+        AND M_Product_ID=Cur_Outs.M_Product_ID;
+      v_Tax_ID:=C_Gettax(Cur_Outs.M_Product_ID, v_DateInvoiced, Cur_Outs.AD_Org_ID, v_Warehouse_ID, v_BPLocation_ID, v_BPLocation_ID, v_Project_ID, 'N') ;
+      FOR Cur_Pend IN
+        (SELECT dl.M_INOUTLINE_ID,
+          ol.C_ORDERLINE_ID,
+          (dl.MovementQty - COALESCE(A.QTY, 0)) AS qty
+        FROM M_INOUTLINE dl
+        LEFT JOIN C_ORDERLINE ol
+          ON dl.C_OrderLine_ID=ol.C_OrderLine_ID
+        LEFT JOIN C_ORDER o
+          ON ol.C_Order_ID=o.C_Order_ID
+        LEFT JOIN
+          (SELECT M_InOutLine_ID,
+            COALESCE(SUM(QTY), 0) AS QTY
+          FROM M_MATCHINV
+          WHERE C_InvoiceLine_ID IS NOT NULL
+          GROUP BY M_InOutLine_ID
+          )
+          A
+          ON dl.M_InOutLine_ID=A.M_InOutLine_ID,
+          M_INOUT d
+        WHERE d.M_InOut_ID=dl.M_InOut_ID
+          AND d.IsSOTrx='N'
+          AND dl.MovementQty<>COALESCE(A.QTY, 0)
+          AND d.C_BPartner_ID=v_BPartner_ID
+          AND dl.M_Product_ID=Cur_Outs.M_Product_ID
+          AND(dl.M_ATTRIBUTESETInstance_ID=Cur_Outs.M_AttributeSetInstance_ID
+          OR Cur_Outs.M_AttributeSetInstance_ID IS NULL)
+        ORDER BY d.MOVEMENTDATE,
+          d.M_InOut_ID
+        )
+      LOOP
+        v_auxQty:=LEAST(Cur_Outs.MovementQty-v_auxQtyTotal, Cur_Pend.qty) ;
+        v_auxQtyTotal:=v_auxQtyTotal + v_auxQty;
+        v_line:=v_line + 10;
+        Ad_Sequence_Next('C_InvoiceLine', Cur_Outs.AD_Client_ID, v_InvoiceLine_ID) ;
+        INSERT
+        INTO C_INVOICELINE
+          (
+            C_INVOICELINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            C_INVOICE_ID, C_ORDERLINE_ID, M_INOUTLINE_ID, LINE,
+            DESCRIPTION, M_PRODUCT_ID, QTYINVOICED,
+   PRICELIST, PRICEACTUAL,
+   PRICELIMIT, LINENETAMT,
+   C_CHARGE_ID, CHARGEAMT, C_UOM_ID, C_TAX_ID, S_RESOURCEASSIGNMENT_ID,
+            TAXAMT, M_ATTRIBUTESETINSTANCE_ID, ISDESCRIPTION,
+            QUANTITYORDER, M_PRODUCT_UOM_ID, PriceStd
+          )
+          VALUES
+          (
+            v_InvoiceLine_ID, Cur_Outs.AD_Client_ID, Cur_Outs.AD_Org_ID, 'Y',
+            now(), v_User_ID, now(), v_User_ID,
+            v_Invoice_ID, Cur_Pend.C_OrderLine_ID, Cur_Pend.M_InOutLine_ID,
+            v_line, NULL, Cur_Outs.M_Product_ID, v_auxQty,
+            v_priceList, M_Get_Offers_Price(v_DateInvoiced, v_BPartner_ID, Cur_Outs.M_Product_ID, v_priceActual, v_auxQty, Cur_Outs.M_PriceList_ID),
+   v_priceLimit, ROUND(M_Get_Offers_Price(v_DateInvoiced, v_BPartner_ID, Cur_Outs.M_Product_ID, v_priceActual, v_auxQty, Cur_Outs.M_PriceList_ID) *v_auxQty, 2),
+            NULL, 0, Cur_Outs.C_UOM_ID, v_Tax_ID, NULL,
+            0, Cur_Outs.M_AttributeSetInstance_ID, 'N',
+            Cur_Outs.quantityOrder*(v_auxQty/Cur_Outs.MovementQty), Cur_Outs.M_Product_UOM_ID, v_priceActual
+          )
+          ;
+        IF(v_auxQtyTotal>=Cur_Outs.MovementQty) THEN
+          EXIT;
+        END IF;
+      END LOOP;
+      IF(v_auxQtyTotal<Cur_Outs.MovementQty) THEN
+        v_line:=v_line + 10;
+        v_auxQty:=Cur_Outs.MovementQty - v_auxQtyTotal;
+        Ad_Sequence_Next('C_InvoiceLine', Cur_Outs.AD_Client_ID, v_InvoiceLine_ID) ;
+        INSERT
+        INTO C_INVOICELINE
+          (
+            C_INVOICELINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+            CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            C_INVOICE_ID, C_ORDERLINE_ID, M_INOUTLINE_ID, LINE,
+            DESCRIPTION, M_PRODUCT_ID, QTYINVOICED, PRICELIST,
+            PRICEACTUAL, PRICELIMIT,
+   LINENETAMT, C_CHARGE_ID,
+            CHARGEAMT, C_UOM_ID, C_TAX_ID, S_RESOURCEASSIGNMENT_ID,
+            TAXAMT, M_ATTRIBUTESETINSTANCE_ID, ISDESCRIPTION,
+            QUANTITYORDER, M_PRODUCT_UOM_ID, PriceStd
+          )
+          VALUES
+          (
+            v_InvoiceLine_ID, Cur_Outs.AD_Client_ID, Cur_Outs.AD_Org_ID, 'Y',
+            now(), v_User_ID, now(), v_User_ID,
+            v_Invoice_ID, NULL, NULL, v_line,
+            NULL, Cur_Outs.M_Product_ID, v_auxQty, v_priceList,
+            M_Get_Offers_Price(v_DateInvoiced, v_BPartner_ID, Cur_Outs.M_Product_ID, v_priceActual, v_auxQty, Cur_Outs.M_PriceList_ID), v_priceLimit,
+   ROUND(M_Get_Offers_Price(v_DateInvoiced, v_BPartner_ID, Cur_Outs.M_Product_ID, v_priceActual, v_auxQty, Cur_Outs.M_PriceList_ID) *v_auxQty, 2), NULL,
+            0, Cur_Outs.C_UOM_ID, v_Tax_ID, NULL,
+            0, Cur_Outs.M_AttributeSetInstance_ID, 'N',
+            Cur_Outs.quantityOrder*(v_auxQty/Cur_Outs.MovementQty), Cur_Outs.M_Product_UOM_ID, v_priceActual
+          )
+          ;
+      END IF;
+    END LOOP;
+    --<<FINISH_PROCESS>>
+    v_Message:=v_Message || '@Created@: ' || v_NoRecords;
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_Message) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_Message) ;
+END C_CREATE_PINVOICE_FROM_OUTS
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER GL_JL_CHK_RESTRICTIONS_TRG">
+    <trigger name="GL_JL_CHK_RESTRICTIONS_TRG" table="GL_JOURNALLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  v_Processed VARCHAR(60) ;
+  v_Posted        VARCHAR(60) ;
+  v_GL_JOURNAL_ID VARCHAR2(32) ;
+  v_DateNull DATE :=TO_DATE('01-01-1900','DD-MM-YYYY');
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_GL_JOURNAL_ID:=:new.GL_JOURNAL_ID;
+  ELSE
+    v_GL_JOURNAL_ID:=:old.GL_JOURNAL_ID;
+  END IF;
+
+  IF(UPDATING) THEN
+    IF((COALESCE(:old.AMTSOURCEDR, 0) <> COALESCE(:NEW.AMTSOURCEDR, 0) OR COALESCE(:old.AMTSOURCECR, 0) <> COALESCE(:NEW.AMTSOURCECR, 0) OR COALESCE(:old.C_CURRENCY_ID, '0') <> COALESCE(:NEW.C_CURRENCY_ID, '0'))) THEN
+      SELECT PROCESSED,
+        POSTED
+      INTO v_Processed,
+        v_Posted
+      FROM GL_JOURNAL
+      WHERE GL_JOURNAL_ID=v_GL_JOURNAL_ID;
+      IF(v_Processed='Y'
+        AND ((COALESCE(:old.LINE, 0) <> COALESCE(:new.LINE, 0))
+        OR (COALESCE(:old.C_DEBT_PAYMENT_ID, '0') <> COALESCE(:new.C_DEBT_PAYMENT_ID, '0'))
+        OR(COALESCE(:old.AMTSOURCEDR, 0) <> COALESCE(:new.AMTSOURCEDR, 0))
+        OR(COALESCE(:old.AMTSOURCECR, 0) <> COALESCE(:new.AMTSOURCECR, 0))
+        OR(COALESCE(:old.C_CURRENCY_ID, '0') <> COALESCE(:new.C_CURRENCY_ID, '0'))
+        OR(COALESCE(:old.C_UOM_ID, '0') <> COALESCE(:new.C_UOM_ID, '0'))
+        OR(COALESCE(:old.AD_ORG_ID, '0') <> COALESCE(:new.AD_ORG_ID, '0'))
+        OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')))) THEN
+        RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+      END IF;
+
+      IF(v_Posted='Y'
+        AND ((COALESCE(:old.C_VALIDCOMBINATION_ID, '0') <> COALESCE(:new.C_VALIDCOMBINATION_ID, '0'))
+        OR(COALESCE(:old.AMTACCTDR, 0) <> COALESCE(:new.AMTACCTDR, 0))
+        OR(COALESCE(:old.AMTACCTCR, 0) <> COALESCE(:new.AMTACCTCR, 0)))) THEN
+        RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+      END IF;
+    END IF;
+  END IF;
+  IF(DELETING) THEN
+    SELECT PROCESSED,
+      POSTED
+    INTO v_Processed,
+      v_Posted
+    FROM GL_JOURNAL
+    WHERE GL_JOURNAL_ID=v_GL_JOURNAL_ID;
+    IF (v_Processed='Y') THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF(INSERTING) THEN
+    SELECT PROCESSED,
+      POSTED
+    INTO v_Processed,
+      v_Posted
+    FROM GL_JOURNAL
+    WHERE GL_JOURNAL_ID=v_GL_JOURNAL_ID;
+    IF (v_Processed='Y') THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+END GL_JL_CHK_RESTRICTIONS_TRG
+]]></body>
+    </trigger>
+  </database>

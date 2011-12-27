@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_PROJECTLINE_TRG">
+    <trigger name="C_PROJECTLINE_TRG" table="C_PROJECTLINE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_ProjectLine_Trg.sql,v 1.3 2003/09/05 04:58:07 jjanke Exp $
+    ***
+    * Title:       Update Planned Line Totals
+    * Description:
+    *      Set Line PlannedAmt, PlannedMarginAmt
+    ************************************************************************/
+    v_PriceLimit NUMBER:=NULL;
+  v_PriceStd NUMBER:=NULL;
+  v_PlannedMargin NUMBER:=NULL;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Calculate PlannedAmt
+  IF(:new.PlannedQty <> 0 AND :new.PlannedPrice <> 0) THEN
+    :new.PlannedAmt:=:new.PlannedQty * :new.PlannedPrice;
+  END IF;
+  -- Get Margin from Product
+  IF(:new.M_Product_ID IS NOT NULL AND :new.PlannedPrice <> 0) THEN
+    SELECT COALESCE(MAX(PriceLimit), 0),
+      COALESCE(MAX(PriceStd), 0)
+    INTO v_PriceLimit,
+      v_PriceStd
+    FROM M_ProductPrice
+    WHERE M_Product_ID=:new.M_Product_ID
+      AND M_PriceList_Version_ID=
+      (
+      SELECT M_PriceList_Version_ID
+      FROM C_Project
+      WHERE C_Project_ID=:new.C_Project_ID
+      )
+      ;
+    IF(v_PriceLimit <> 0) THEN
+      :new.PlannedMarginAmt:=:new.PlannedQty *(:new.PlannedPrice - v_PriceLimit) ;
+    END IF;
+    -- Get Margin from Product Category
+  ELSIF(:new.M_Product_Category_ID IS NOT NULL AND :new.PlannedPrice <> 0) THEN
+    SELECT COALESCE(MAX(PlannedMargin), 0)
+    INTO v_PlannedMargin
+    FROM M_Product_Category
+    WHERE M_Product_Category_ID=:new.M_Product_Category_ID;
+    IF(v_PlannedMargin <> 0) THEN
+      :new.PlannedMarginAmt:=:new.PlannedAmt * v_PlannedMargin;
+    END IF;
+  ELSIF (:new.PlannedPrice = 0) THEN
+    :new.PlannedPOPrice := 0;
+    :new.PlannedMarginAmt := 0;
+  END IF;
+END C_PROJECTLINE_TRG
+]]></body>
+    </trigger>
+  </database>

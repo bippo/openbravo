@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="UsedByLinkData" package="org.openbravo.erpCommon.utility">
+   <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_PARENT_MENU_ELEMENT(M.AD_MENU_ID, ?, ?) AS ELEMENT_NAME, 
+        ((case when Wt.NAME IS NULL then W.NAME else  Wt.NAME end) || ' - ' || 
+        (case when TBt.NAME IS NULL then TB.NAME else TBt.NAME end)) AS NAME, 
+        a.referenced_column_id,
+        T.TABLENAME, C.COLUMNNAME, TB.AD_TAB_ID, '' AS HASTREE, '' AS ID, '' AS WHERECLAUSE, 0 AS TOTAL, 
+        (case when Wt.NAME IS NULL then W.NAME else  Wt.NAME end) AS WINDOWNAME, 
+        (case when TBt.NAME IS NULL then TB.NAME else TBt.NAME end) AS TABNAME,
+        (CASE WHEN (SELECT COUNT(*)
+                     FROM AD_WINDOW_ACCESS WA
+                    WHERE W.AD_WINDOW_ID = WA.AD_WINDOW_ID
+                      AND WA.AD_ROLE_ID = ?)=0 THEN 'N'
+                                               ELSE 'Y' 
+                                               END) AS ACCESSIBLE,
+        W.AD_WINDOW_ID as AD_WINDOW_ID,
+        '' as AD_MENU_NAME
+        FROM  (
+          SELECT AD_COLUMN_ID, ? as referenced_column_id 
+            FROM AD_COLUMN
+           WHERE UPPER(COLUMNNAME) = UPPER(?) 
+             AND (ISPARENT='Y' OR AD_REFERENCE_ID IN ('19', '35'))
+        UNION 
+          SELECT AD_COLUMN.AD_COLUMN_ID, ? as referenced_column_id  
+            FROM AD_COLUMN, AD_ELEMENT 
+           WHERE AD_COLUMN.AD_ELEMENT_ID = AD_ELEMENT.AD_ELEMENT_ID 
+             AND UPPER(REPLACE(REPLACE(REPLACE(AD_ELEMENT.columnname, 'Substitute_ID', 'M_Product_ID'),'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID')) = UPPER(?) 
+             AND AD_REFERENCE_ID IN ('30', '31')
+             AND AD_REFERENCE_VALUE_ID IS NULL
+        UNION
+          SELECT C.AD_COLUMN_ID, s.ad_column_id as referenced_column_id
+            FROM AD_COLUMN C, AD_REF_SEARCH S
+           WHERE C.AD_REFERENCE_ID = '30'
+             AND S.AD_TABLE_ID = ?
+             AND C.AD_REFERENCE_VALUE_ID = S.AD_REFERENCE_ID
+        UNION 
+           SELECT C.AD_COLUMN_ID, r.ad_key as referenced_column_id 
+             FROM AD_COLUMN C, AD_REF_TABLE R 
+            WHERE C.AD_REFERENCE_ID = '18' 
+              AND C.AD_REFERENCE_VALUE_ID = R.AD_REFERENCE_ID
+              AND R.AD_TABLE_ID = ?
+        UNION 
+          SELECT AD_COLUMN_ID, ? as referenced_column_id 
+            FROM AD_COLUMN 
+           WHERE AD_REFERENCE_ID = '21' 
+             AND UPPER(?) = 'C_LOCATION_ID'
+        UNION
+            SELECT AD_COLUMN_ID, AD_COLUMN_ID as referenced_column_id 
+              FROM AD_COLUMN
+             WHERE AD_COLUMN_ID IN ('1')
+        ) A, AD_TABLE T, AD_COLUMN C, AD_MENU M, 
+        AD_WINDOW W left join  AD_WINDOW_TRL Wt on W.AD_WINDOW_ID = Wt.AD_WINDOW_ID 
+                                                AND Wt.AD_LANGUAGE  = ?,
+        AD_TAB TB left join AD_TAB_TRL TBt on TB.AD_TAB_ID = TBt.AD_TAB_ID 
+                                          AND TBt.AD_LANGUAGE  = ?,
+        AD_FIELD F left join AD_FIELD_TRL Ft on F.AD_FIELD_ID = Ft.AD_FIELD_ID
+                                            AND Ft.AD_LANGUAGE  = ? 
+        WHERE W.AD_WINDOW_ID = TB.AD_WINDOW_ID
+        AND TB.AD_TABLE_ID = T.AD_TABLE_ID 
+        AND T.AD_TABLE_ID = C.AD_TABLE_ID 
+        AND C.AD_COLUMN_ID = A.AD_COLUMN_ID 
+        AND C.AD_COLUMN_ID = F.AD_COLUMN_ID 
+        AND W.AD_WINDOW_ID = M.AD_WINDOW_ID 
+        AND TB.ISACTIVE = 'Y' 
+        AND W.ISACTIVE = 'Y' 
+        AND (TB.WHERECLAUSE IS NULL OR TB.WHERECLAUSE NOT LIKE '%@%') 
+        GROUP BY M.AD_MENU_ID, (case when Wt.NAME IS NULL then W.NAME else  Wt.NAME end), 
+        (case when TBt.NAME IS NULL then TB.NAME else TBt.NAME end), a.referenced_column_id, T.TABLENAME, C.COLUMNNAME, TB.AD_TAB_ID, W.AD_WINDOW_ID
+        ORDER BY 1, (case when Wt.NAME IS NULL then W.NAME else  Wt.NAME end), 
+        (case when TBt.NAME IS NULL then TB.NAME else TBt.NAME end), T.TABLENAME, C.COLUMNNAME, TB.AD_TAB_ID
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="role"/>
+    <Parameter name="columnnId"/>
+    <Parameter name="columnname"/>
+    <Parameter name="columnnId"/>
+    <Parameter name="columnname"/>
+    <Parameter name="adTableId"/>
+    <Parameter name="adTableId"/>
+    <Parameter name="columnnId"/>
+    <Parameter name="columnname"/>
+    <Parameter name="colList" type="replace" optional="true" after="WHERE AD_COLUMN_ID IN (" text="'1'"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+  </SqlMethod>
+  
+  
+  <SqlMethod name="tabName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT W.NAME || ' - ' || TB.NAME AS NAME 
+        FROM AD_WINDOW W, AD_TAB TB 
+        WHERE W.AD_WINDOW_ID = TB.AD_WINDOW_ID 
+        AND TB.AD_TAB_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="tabNameLanguage" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ((case when Wt.NAME IS NULL then W.NAME else Wt.NAME end) || ' - ' || 
+        (case when TBt.NAME IS NULL then TB.NAME else TBt.NAME end)) AS NAME 
+        FROM AD_WINDOW W left join AD_WINDOW_TRL Wt on W.AD_WINDOW_ID = Wt.AD_WINDOW_ID 
+                                                    AND Wt.AD_LANGUAGE  = ? , 
+             AD_TAB TB left join AD_TAB_TRL TBt on TB.AD_TAB_ID = TBt.AD_TAB_ID 
+                                                AND TBt.AD_LANGUAGE  = ? 
+        WHERE W.AD_WINDOW_ID = TB.AD_WINDOW_ID 
+        AND TB.AD_TAB_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="keyColumns" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C.COLUMNNAME AS NAME 
+        FROM AD_COLUMN C, AD_FIELD F 
+        WHERE C.AD_COLUMN_ID = F.AD_COLUMN_ID 
+        AND C.ISACTIVE = 'Y' 
+        AND (C.ISKEY = 'Y' OR ISSECONDARYKEY = 'Y')
+        AND F.AD_TAB_ID = ? 
+        ORDER BY C.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="windowRef" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT W.NAME AS WINDOWNAME, T.NAME AS TABNAME, T.HASTREE, T.WHERECLAUSE 
+        FROM AD_WINDOW W, AD_TAB T
+        WHERE W.AD_WINDOW_ID = T.AD_WINDOW_ID 
+        AND T.AD_TAB_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="identifiers" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C.COLUMNNAME AS NAME
+        FROM AD_FIELD F, AD_COLUMN C 
+        WHERE F.AD_TAB_ID = ? 
+        AND F.AD_COLUMN_ID = C.AD_COLUMN_ID 
+        AND C.ISIDENTIFIER = 'Y' 
+        AND C.ISACTIVE = 'Y'
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="selectLinks" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT (AD_WINDOW.AD_WINDOW_ID) AS ID,
+        (AD_COLUMN_IDENTIFIER(TO_CHAR(?),TO_CHAR(AD_WINDOW.AD_WINDOW_ID),TO_CHAR(?))) AS NAME,
+        tab1.AD_TAB_ID AS AD_TAB_ID,
+        tab1.AD_WINDOW_ID AS AD_WINDOW_ID,
+        table1.NAME AS TABLENAME,
+        menu1.NAME AS AD_MENU_NAME
+        FROM AD_WINDOW
+        LEFT OUTER JOIN AD_TAB   tab1 ON (tab1.AD_TAB_ID = TO_CHAR(?))
+        LEFT OUTER JOIN AD_TABLE table1 ON (tab1.AD_TABLE_ID = table1.AD_TABLE_ID)
+        LEFT OUTER JOIN AD_MENU  menu1 ON (menu1.AD_WINDOW_ID = tab1.AD_WINDOW_ID)
+        WHERE TO_CHAR(AD_WINDOW.AD_WINDOW_ID) = TO_CHAR(?) 
+        AND 1=1 
+        ORDER BY 2
+      ]]>
+    </Sql>
+    <Parameter name="fields" optional="true" type="replace" after="SELECT (" text="AD_WINDOW.AD_WINDOW_ID"/>
+    <Parameter name="tablename"/>
+    <Parameter name="keyColumn" optional="true" type="replace" after="AD_COLUMN_IDENTIFIER(TO_CHAR(?),TO_CHAR(" text="AD_WINDOW.AD_WINDOW_ID"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="tablename" optional="true" type="replace" after="FROM " text="AD_WINDOW"/>
+    <Parameter name="tabid" />     
+    <Parameter name="columnname" optional="true" type="replace" after="WHERE TO_CHAR(" text="AD_WINDOW.AD_WINDOW_ID"/>
+    <Parameter name="keyId"/>
+    <Parameter name="whereclause" optional="true" type="replace" after="AND 1=1 " text=""/>
+  </SqlMethod>
+  <SqlMethod name="countLinks" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*) AS ID
+        FROM AD_WINDOW 
+        WHERE AD_WINDOW_ID = ? AND 1=1 
+      ]]>
+    </Sql>
+    <Parameter name="tablename" optional="true" type="replace" after="FROM " text="AD_WINDOW"/>
+    <Parameter name="columnname" optional="true" type="replace" after="WHERE " text="AD_WINDOW_ID"/>
+    <Parameter name="keyId"/>
+    <Parameter name="whereclause" optional="true" type="replace" after="? " text="AND 1=1"/>
+  </SqlMethod>
+  <SqlMethod name="parentTabTableName" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT T2.AD_TAB_ID, AD_TABLE.TABLENAME 
+        FROM AD_TAB T1, AD_TAB T2, AD_TABLE 
+        WHERE T1.AD_TAB_ID = ? 
+        AND T2.AD_WINDOW_ID = T1.AD_WINDOW_ID 
+        AND T2.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND T2.TABLEVEL = T1.TABLEVEL-1
+        AND T2.SEQNO < T1.SEQNO
+        ORDER BY T2.SEQNO DESC
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="parentsColumnName" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ColumnName AS NAME
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_tab_id = ? AND isParent='Y' 
+        AND EXISTS(SELECT 1 FROM AD_COLUMN c, AD_FIELD f WHERE c.ad_column_id = f.ad_column_id AND c.iskey='Y'
+        AND ad_tab_id=? AND UPPER(c.columnname) = UPPER(AD_COLUMN.columnname))
+      ]]></Sql>
+      <Parameter name="tab"/>
+      <Parameter name="parentTab"/>
+  </SqlMethod>
+  <SqlMethod name="parentsColumnReal" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql>
+        SELECT ColumnName AS NAME 
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id AND ad_tab_id = ?
+        AND UPPER(columnname) IN (SELECT UPPER(columnname) FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+        AND AD_COLUMN.iskey='Y' 
+        AND AD_FIELD.ad_tab_id=?)
+      </Sql>
+      <Parameter name="tab"/>
+      <Parameter name="parentTab"/>
+  </SqlMethod>
+  <SqlMethod name="getTabTableName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TABLENAME FROM AD_TABLE 
+        WHERE AD_TABLE_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+  </SqlMethod>
+  <SqlMethod name="selectIdentifier" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN_IDENTIFIER(tablename, to_char(?), to_char(?)) as recordidentifier
+        FROM AD_TABLE
+        WHERE AD_TABLE_ID = ? 
+      ]]>
+    </Sql>
+    <Parameter name="keyid"/>
+    <Parameter name="language"/>
+    <Parameter name="adTableId"/>
+  </SqlMethod>
+  <SqlMethod name="getCountOfSelfReference" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(*) as ID 
+        FROM AD_TABLE 
+        WHERE AD_TABLE_ID = ? 
+        AND TABLENAME = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+    <Parameter name="tableName"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectTableName" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TABLENAME as ID
+        FROM AD_TABLE
+        WHERE AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="key"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectKeyValue" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TABLENAME as ID
+        FROM AD_TABLE
+        WHERE AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="columnnname" optional="true" type="replace" after="SELECT " text="TABLENAME"/>
+    <Parameter name="tablename" optional="true" type="replace" after="FROM " text="AD_TABLE"/>
+    <Parameter name="keyColumn" optional="true" type="replace" after="WHERE " text="AD_TABLE_ID"/>
+    <Parameter name="key"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectKeyColumnId" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN_ID as ID
+        FROM AD_COLUMN
+        WHERE AD_TABLE_ID = ?
+          AND ISKEY='Y'
+      ]]>
+    </Sql>
+    <Parameter name="key"/>
+  </SqlMethod>
+  
+   <SqlMethod name="selectColumnName" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COLUMNNAME as ID
+        FROM AD_COLUMN
+        WHERE AD_column_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="key"/>
+  </SqlMethod>
+</SqlClass>

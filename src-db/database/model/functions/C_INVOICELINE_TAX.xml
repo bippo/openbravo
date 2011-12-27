@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_INVOICELINE_TAX">
+    <function name="C_INVOICELINE_TAX" type="NUMERIC">
+      <parameter name="p_invoiceline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  _______________________________________.
+************************************************************************/
+v_INVOICELINE_ID VARCHAR2(32) ;
+  v_Tax_ID VARCHAR2(32) ;
+  v_IsTaxIncluded VARCHAR(1);
+  v_LineNet NUMBER;
+  v_Rate NUMBER;
+  xTaxAmt NUMBER:=0;
+  v_IsSummary VARCHAR(1);
+  v_StdPrecision NUMBER;
+  xTaxBaseAmt NUMBER;
+  v_GrandTotal NUMBER:=0;
+  v_FirstLine BOOLEAN:=FALSE;
+  v_ActualBaseAmt NUMBER:=0;
+  TYPE RECORD IS REF CURSOR;
+  Cur_MultiTax RECORD;
+BEGIN
+--Calculates for each line, its tax info
+SELECT l.C_INVOICELINE_ID, 
+  l.C_Tax_ID,
+  i.IsTaxIncluded,
+  COALESCE(l.LineNetAmt, 0) + COALESCE(l.ChargeAmt, 0) AS LineNet,
+  t.Rate,
+  t.IsSummary,
+  c.StdPrecision
+INTO
+  v_INVOICELINE_ID,
+  v_Tax_ID,
+  v_IsTaxIncluded,
+  v_LineNet,
+  v_Rate,
+  v_IsSummary,
+  v_StdPrecision
+FROM C_INVOICE i,
+  C_INVOICELINE l,
+  C_TAX t,
+  C_CURRENCY c
+WHERE i.C_Invoice_ID=l.C_Invoice_ID
+  AND l.C_InvoiceLine_ID=p_InvoiceLine_ID
+  AND l.C_Tax_ID=t.C_Tax_ID
+  AND i.C_Currency_ID=c.C_Currency_ID
+  AND UPPER(T.NAME) NOT LIKE '%I%R%P%F%'
+  AND UPPER(T.NAME) NOT LIKE '%RETEN%'
+ORDER BY 4 DESC
+;
+
+--Process line
+xTaxBaseAmt:=v_LineNet;
+IF(v_IsSummary='N') THEN
+  xTaxAmt:=ROUND(xTaxBaseAmt * v_Rate / 100, v_StdPrecision) ;
+  RETURN xTaxAmt;
+ELSE -- Multiple Taxes
+  v_GrandTotal:=v_GrandTotal + xTaxBaseAmt;
+  v_FirstLine := TRUE;
+  FOR Cur_MultiTax IN
+    (SELECT C_Tax_ID, Rate, CASCADE
+       FROM C_TAX
+      WHERE Parent_Tax_ID=v_Tax_ID
+        AND UPPER(NAME) NOT LIKE '%I%R%P%F%'
+        AND UPPER(NAME) NOT LIKE '%RETEN%'
+      ORDER BY Line)
+  LOOP
+    IF ((Cur_MultiTax.CASCADE = 'Y') AND (NOT v_FirstLine)) THEN   --cannot apply cascade to the first line
+      v_ActualBaseAmt := v_GrandTotal;
+    ELSE
+      v_ActualBaseAmt := xTaxBaseAmt;
+    END IF;
+    v_FirstLine := FALSE;
+
+    xTaxAmt:=xTaxAmt + ROUND(v_ActualBaseAmt * Cur_MultiTax.Rate / 100, v_StdPrecision) ;
+    v_GrandTotal:=v_GrandTotal + xTaxAmt;
+    --
+  END LOOP;
+  RETURN xTaxAmt;
+END IF;
+END C_INVOICELINE_TAX
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CopyFromSettlementData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT c_debt_payment_id,isreceipt, description, c_bpartner_id, c_cashbook_id, paymentrule,
+        amount, writeoffamt, glitemamt, c_glitem_id, isdirectposting, 0 as amountdebit, status_initial as status, 
+        0 as amountcredit, c_currency_id, c_bankaccount_id, ismanual, '' as client, '' as org, '' as datetrx,
+        '' as c_settlement_id, '' as documentno,  '' AS C_DEBT_PAYMENT_BALANCING_ID, '' AS TERCERO, '' AS EFECTO,
+        '' AS CONCEPTO, '' AS DATEPLANNED, '' AS DATEFORMAT, '' AS SCRIPTDATE
+        FROM C_DEBT_PAYMENT
+        WHERE c_settlement_generate_id = ?
+        AND isactive='Y' 
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="cSettlementId"/>
+  </SqlMethod>
+  <SqlMethod name="selectSettlement" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT ad_org_id as org, ad_client_id as client, datetrx
+        FROM C_Settlement
+        WHERE c_settlement_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="cSettlementId"/>
+  </SqlMethod>
+  <SqlMethod name="selectRelation" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT c_settlement_id, description, datetrx, documentno
+        FROM C_Settlement
+        WHERE settlementtype = 'I'
+        and processed = 'Y'
+        and upper(coalesce(description,' ')) like upper(?)
+        and upper(documentno) like upper(?)
+        and coalesce(IsTemplate,'N') = 'Y'
+        AND AD_ORG_ID IN ('1')
+        AND AD_CLIENT_ID IN ('1') 
+        AND 1=1 
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="description"/>
+    <Parameter name="documentno"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND 1=1 "><![CDATA[AND datetrx >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 1=1 "><![CDATA[AND datetrx <= TO_DATE(?)]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="insertDebtPayment" type="preparedStatement" connection="true" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      INSERT INTO C_DEBT_PAYMENT 
+        ( C_DEBT_PAYMENT_ID, AD_CLIENT_ID, AD_ORG_ID,
+          CREATEDBY, UPDATEDBY, ISRECEIPT, 
+          C_SETTLEMENT_GENERATE_ID,DESCRIPTION, C_BPARTNER_ID, 
+          C_CURRENCY_ID, C_BANKACCOUNT_ID,C_CASHBOOK_ID, 
+          PAYMENTRULE, AMOUNT, WRITEOFFAMT, 
+          DATEPLANNED, ISMANUAL,GLITEMAMT,
+          C_GLITEM_ID, ISDIRECTPOSTING, ISPAID,
+          ISVALID, STATUS, STATUS_INITIAL) 
+      VALUES     
+        (?,?,?,
+         ?,?,?,
+         ?,?,?,
+         ?,?,?,
+         ?,TO_NUMBER(?),TO_NUMBER(?),
+         TO_DATE(?),?,0,
+         ?,?,'N',
+         'N',?,?)
+      ]]>
+    </Sql>
+    <Parameter name="cDebtPeymentId"/>
+    <Parameter name="client"/>
+    <Parameter name="org"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="isreceipt"/>
+    <Parameter name="settlement"/>
+    <Parameter name="description"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="currency"/>
+    <Parameter name="bankaccount"/>
+    <Parameter name="cashbook"/>
+    <Parameter name="paymentrule"/>
+    <Parameter name="amount"/>
+    <Parameter name="writeoffamt"/>
+    <Parameter name="dateplanned"/>
+    <Parameter name="ismanual"/>
+    <Parameter name="glitemid"/>
+    <Parameter name="isdirectposting"/>
+    <Parameter name="status"/>
+    <Parameter name="status"/>
+  </SqlMethod>
+  <SqlMethod name="selectDebtPaymentBalancing" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AMOUNTDEBIT, AMOUNTCREDIT, C_GLITEM_ID, C_DEBT_PAYMENT_BALANCING_ID
+        FROM C_DEBT_PAYMENT_BALANCING
+        WHERE c_debt_payment_id = ?
+        AND isactive = 'Y'
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="cDebtPeymentId"/>
+  </SqlMethod>
+  <SqlMethod name="insert" type="preparedStatement" connection="true" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      INSERT INTO C_DEBT_PAYMENT_BALANCING ( C_DEBT_PAYMENT_BALANCING_ID, AD_CLIENT_ID, AD_ORG_ID,
+      ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, C_DEBT_PAYMENT_ID, 
+      AMOUNTDEBIT, AMOUNTCREDIT,C_GLITEM_ID) 
+      VALUES ( ?, ?, ?, 'Y',  now(), ?,  now(), ?, ?, 
+              TO_NUMBER(?), TO_NUMBER(?), ?)
+      ]]>
+    </Sql>
+    <Parameter name="cDebtPeymentBalancingId"/>
+    <Parameter name="client"/>
+    <Parameter name="org"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="cDebtPeymentId"/>
+    <Parameter name="amountdebit"/>
+    <Parameter name="amountcredit"/>
+    <Parameter name="cGLItemId"/>
+  </SqlMethod>
+  <SqlMethod name="selectDebtPaymentBalancingF4" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Principal select</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID, C_SETTLEMENT.C_SETTLEMENT_ID, C_DEBT_PAYMENT_BALANCING.C_DEBT_PAYMENT_BALANCING_ID,
+        C_BPARTNER.NAME AS TERCERO, C_BPARTNER.NAME || ' - ' ||AD_REF_LIST_V.NAME ||' - ' || TO_CHAR(C_DEBT_PAYMENT.DATEPLANNED, ?) AS EFECTO,
+        C_GLITEM.NAME AS CONCEPTO, C_DEBT_PAYMENT.DATEPLANNED AS DATEPLANNED, 
+        C_DEBT_PAYMENT_BALANCING.AMOUNTCREDIT, C_DEBT_PAYMENT_BALANCING.AMOUNTDEBIT,
+        C_BPARTNER.C_BPARTNER_ID, C_DEBT_PAYMENT.AMOUNT, to_char(?) AS dateformat, 
+        'djConfig.searchIds.push(\"paramfieldDate' || C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID || '\");' AS SCRIPTDATE
+        FROM (C_SETTLEMENT LEFT JOIN C_DEBT_PAYMENT ON C_DEBT_PAYMENT.C_SETTLEMENT_GENERATE_ID = C_SETTLEMENT.C_SETTLEMENT_ID) 
+        LEFT JOIN C_DEBT_PAYMENT_BALANCING ON C_DEBT_PAYMENT_BALANCING.C_DEBT_PAYMENT_ID = C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID
+        LEFT JOIN C_GLITEM ON C_DEBT_PAYMENT_BALANCING.C_GLITEM_ID = C_GLITEM.C_GLITEM_ID
+        LEFT JOIN C_BPARTNER ON C_DEBT_PAYMENT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        LEFT JOIN AD_REF_LIST_V ON C_DEBT_PAYMENT.PAYMENTRULE = AD_REF_LIST_V.VALUE AND AD_REF_LIST_V.AD_LANGUAGE = ? AND AD_REF_LIST_V.AD_REFERENCE_ID = '195'
+        WHERE C_DEBT_PAYMENT.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID	
+        AND C_SETTLEMENT.C_SETTLEMENT_ID = ?
+        ORDER BY C_DEBT_PAYMENT.DATEPLANNED, TERCERO, EFECTO
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="dateformat"/>
+    <Parameter name="dateformat"/>
+	<Parameter name="adLanguage"/>
+    <Parameter name="cSettlementId"/>
+  </SqlMethod>
+</SqlClass>

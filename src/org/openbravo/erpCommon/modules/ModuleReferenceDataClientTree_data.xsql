@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="ModuleReferenceDataClientTreeData" package="org.openbravo.erpCommon.modules" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+         SELECT Type, M.AD_Module_ID as Node_ID, RPAD(AD_MODULE_IDENTIFIER(M.AD_Module_ID, ?), 90)  as Name,
+                 (SELECT CASE WHEN COUNT(*)>0 THEN 'block' ELSE 'none' END
+                    FROM AD_Module_Dependency
+                   WHERE AD_Module_ID = M.AD_Module_ID
+                     AND IsIncluded = 'Y')                as display,
+                     AD_MODULE_CHECKED(M.AD_Module_ID)    as defaultchecked,
+                     '' as linkClick,
+                     '' as linkName,
+                     '' as Description,
+                     '' as Version,
+                     '' as Status_Name,
+                     Status,
+                     Update_Available,
+                     help,
+                     author,
+                     url,
+                     M.SeqNo,
+                     '' as levelno,
+                     '' as leveltree,
+                     '' as icon,
+                     '' as icon2,
+                     '' as endline,
+                     '' as updateversion,
+                     '' as updatedescription,
+                     '' as position
+           FROM AD_Module M
+          WHERE M.TYPE = 'M'
+            AND M.ISACTIVE = 'Y'
+            AND 1=1
+            AND ((EXISTS (SELECT 1 FROM ad_dataset
+						WHERE M.ad_module_id = AD_DATASET.ad_module_id
+						AND AD_DATASET.ACCESSLEVEL IN ('3','6')
+						AND AD_DATASET.EXPORTALLOWED = 'Y')
+					AND M.HASREFERENCEDATA = 'Y')
+					OR M.haschartofaccounts = 'Y')
+          ORDER BY M.SeqNo
+      </Sql>
+      <Parameter name="lang"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectSubTree" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT Type, AD_Module_ID as Node_ID, AD_Column_Identifier('AD_Module',AD_Module_ID, ?) as Name,
+                 (SELECT CASE WHEN COUNT(*)>0 THEN 'block' ELSE 'none' END
+                    FROM AD_Module_Dependency
+                   WHERE AD_Module_ID = M.AD_Module_ID
+                     AND IsIncluded = 'Y')                as display,
+                     Status,
+                     Update_Available
+            FROM AD_MODULE M
+           WHERE EXISTS (SELECT 1
+                           FROM AD_Module_Dependency
+                          WHERE AD_Module_ID = ?
+                            AND AD_Dependent_Module_ID = M.AD_Module_ID
+                            AND IsIncluded = 'Y')
+            AND ISACTIVE = 'Y'
+            AND EXISTS (SELECT 1 FROM AD_DATASET
+                        WHERE AD_DATASET.AD_MODULE_ID = M.AD_MODULE_ID
+                        AND EXPORTALLOWED = 'Y')
+     </Sql>
+     <Parameter name="lang"/>
+     <Parameter name="rootNode"/>
+   </SqlMethod>
+
+
+   <SqlMethod name="selectDescription" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT M.Name,
+                 M.Version,
+                 COALESCE(T.ReferenceDataInfo, M.ReferenceDataInfo) as Description,
+                 COALESCE(T.help, M.Help) as Help,
+                 M.author,
+                 M.url,
+                 M.status,
+                 M.Update_Available,
+                 M.AD_Module_ID as Node_ID,
+                 COALESCE(RT.Name, R.Name) as Status_Name,
+                 COALESCE(T.UpdateInfo, M.UpdateInfo) as UpdateDescription,
+                 M.Update_Available as UpdateVersion
+            FROM AD_MODULE M LEFT JOIN AD_MODULE_TRL T
+                                     ON T.AD_Module_ID = M.AD_Module_ID
+                                    AND T.AD_Language = ?,
+                 AD_REF_LIST R LEFT JOIN AD_REF_LIST_TRL RT
+                                     ON RT.AD_Ref_List_ID = R.AD_Ref_list_ID
+                                     AND RT.AD_Language = ?
+           WHERE M.AD_Module_ID = ?
+             AND R.AD_REFERENCE_ID = '725CD8C6882C40AFB4D1C27B1AEF8BB4'
+             AND R.Value = M.Status
+     </Sql>
+     <Parameter name="lang"/>
+     <Parameter name="lang"/>
+     <Parameter name="node"/>
+   </SqlMethod>
+
+
+
+    <SqlMethod name="selectParent" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT MAX(AD_Module_ID) as Node_ID
+            FROM AD_MODULE_DEPENDENCY
+           WHERE AD_Dependent_Module_ID = ?
+             AND IsIncluded = 'Y'
+     </Sql>
+     <Parameter name="node"/>
+   </SqlMethod>
+</SqlClass>

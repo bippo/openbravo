@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<!--<!DOCTYPE SqlClass SYSTEM "SqlClass.dtd">-->
+<SqlClass name="AcctSchemaData" package="org.openbravo.erpCommon.ad_forms">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT Name,GAAP,IsAccrual,CostingMethod,C_Currency_ID,HasAlias, IsTradeDiscountPosted,
+      IsDiscountCorrectsTax, AD_Client_ID, '' as UseSuspenseBalancing, '' as SuspenseBalancing_Acct,
+      '' as UseSuspenseError, '' as SuspenseError_Acct, '' as UseCurrencyBalancing, '' as CurrencyBalancing_Acct,
+      '' as RetainedEarning_Acct, '' as IncomeSummary_Acct, '' as InterCompanyDueTo_Acct, '' as InterCompanyDueFrom_Acct,
+      '' as C_AcctSchema_ID
+      FROM C_AcctSchema
+      WHERE C_AcctSchema_ID=?
+      </Sql>
+    <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectAcctSchemaGL" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT UseSuspenseBalancing,SuspenseBalancing_Acct, UseSuspenseError,SuspenseError_Acct, UseCurrencyBalancing,
+      CurrencyBalancing_Acct, RetainedEarning_Acct,IncomeSummary_Acct, InterCompanyDueTo_Acct,InterCompanyDueFrom_Acct
+      FROM C_AcctSchema_GL
+      WHERE C_AcctSchema_ID=?
+      </Sql>
+    <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectAcctSchemas" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		SELECT distinct ad_org_acctschema.C_AcctSchema_ID
+		FROM ad_org_acctschema, c_acctschema
+		WHERE ad_org_acctschema.c_acctschema_id = c_acctschema.c_acctschema_id
+		 and ad_org_acctschema.AD_Client_ID=?
+		 and (ad_isorgincluded(?, ad_org_acctschema.AD_org_ID, ad_org_acctschema.AD_Client_ID) <> -1 OR ? = '0')
+		 and c_acctschema.isactive = 'Y'
+		 and ad_org_acctschema.isactive = 'Y'
+      ]]>
+      </Sql>
+    <Parameter name="AD_Client_ID"/>
+    <Parameter name="AD_Org_ID"/>
+    <Parameter name="AD_Org_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectAcctSchemaTable" type="preparedStatement" return="boolean" default="false">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(C_ACCTSCHEMA_TABLE_ID) AS TOTAL FROM C_ACCTSCHEMA_TABLE
+        WHERE C_ACCTSCHEMA_ID = ?
+        AND AD_TABLE_ID = ?
+        AND ISACTIVE = 'Y'
+     ]]>
+     </Sql>
+     <Parameter name="c_acctschema_id"/>
+     <Parameter name="ad_table_id"/>
+   </SqlMethod>
+   <SqlMethod name="selectAcctSchemaTable2" type="preparedStatement" return="boolean" default="false">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(C_ACCTSCHEMA_TABLE_ID) AS TOTAL FROM C_ACCTSCHEMA_TABLE
+        WHERE C_ACCTSCHEMA_ID = ?
+        AND AD_TABLE_ID = ?
+        AND ISACTIVE = 'Y'
+        AND EXISTS ( SELECT 1
+                     FROM AD_ORG_ACCTSCHEMA
+                     WHERE AD_IsOrgIncluded(?, C_ACCTSCHEMA_TABLE.AD_org_ID, C_ACCTSCHEMA_TABLE.AD_Client_ID) <> -1
+                   )
+     ]]>
+     </Sql>
+     <Parameter name="c_acctschema_id"/>
+     <Parameter name="ad_table_id"/>
+     <Parameter name="ad_org_id"/>
+   </SqlMethod>
+</SqlClass>

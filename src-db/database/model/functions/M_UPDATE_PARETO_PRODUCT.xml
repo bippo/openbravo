@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_UPDATE_PARETO_PRODUCT">
+    <function name="M_UPDATE_PARETO_PRODUCT" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_ResultStr VARCHAR2(2000):='';
+  v_Result NUMBER:= 1;
+  v_Message VARCHAR2(2000):='';
+  v_exist NUMBER:=0;
+  v_M_Product_Org_ID VARCHAR2(32);
+  v_warehouse_ID VARCHAR2(32);
+  v_org_ID VARCHAR2(32);
+  v_client_ID VARCHAR2(32);
+  v_count_update NUMBER:= 0;
+  v_count_insert NUMBER:= 0;
+  TYPE RECORD IS REF CURSOR;
+  Cur_Cursor RECORD;
+  Cur_Parameter RECORD;
+  v_AD_Client_ID VARCHAR2(32);
+BEGIN
+
+  IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date, i.UpdatedBy
+                            FROM AD_PINSTANCE i LEFT JOIN AD_PINSTANCE_PARA p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+                            WHERE i.AD_PInstance_ID=p_PInstance_ID
+                            ORDER BY p.SeqNo) LOOP
+        IF (Cur_Parameter.ParameterName = 'm_warehouse_id') THEN
+          v_warehouse_ID := Cur_Parameter.P_String;
+          DBMS_OUTPUT.PUT_LINE('  m_warehouse_id=' || v_warehouse_ID) ;
+        ELSIF (Cur_Parameter.ParameterName = 'ad_org_id') THEN
+          v_org_ID := Cur_Parameter.P_String;
+          DBMS_OUTPUT.PUT_LINE('  ad_org_id=' || v_org_ID) ;
+        ELSIF (Cur_Parameter.ParameterName = 'ad_client_id') THEN
+          v_client_ID := Cur_Parameter.P_String;
+          DBMS_OUTPUT.PUT_LINE('  ad_client_id=' || v_client_ID) ;
+        END IF;
+      END LOOP; --Get Parameter
+
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<M_UPDATE_PARETO_PRODUCT>>') ;
+      v_warehouse_ID:=p_warehouse_ID;
+      v_org_ID:=p_org_ID;
+      v_client_ID := p_client_id;
+    END IF;
+    BEGIN --BODY
+
+  for Cur_Cursor in (
+     SELECT M_GET_PARETO_ABC(v_warehouse_ID, AD_ORG_ID, v_client_ID, PERCENTAGE) AS ISABC,
+     AD_ORG_ID, AD_CLIENT_ID, M_PRODUCT_ID
+     FROM
+     (
+     SELECT
+      100*SUM(MSD.QTYONHAND)*(M_GET_PRODUCT_COST(MSD.M_PRODUCT_ID,TO_DATE(now()),'AV')/ (SELECT SUM(msd1.qtyonhand*M_GET_PRODUCT_COST(MSD1.M_PRODUCT_ID,TO_DATE(now()),'AV'))
+                                                           from M_WAREHOUSE MW1
+                                                           LEFT JOIN M_LOCATOR ML1 ON ML1.M_WAREHOUSE_ID=MW1.M_WAREHOUSE_ID
+                                                           LEFT JOIN M_STORAGE_DETAIL MSD1 ON ML1.M_LOCATOR_ID=MSD1.M_LOCATOR_ID
+                                                           WHERE MSD1.QTYONHAND>0
+                                                           AND (v_warehouse_ID IS NULL OR MW1.M_WAREHOUSE_ID = v_warehouse_ID)
+                                                           AND (v_org_ID IS NULL OR MW1.AD_ORG_ID = v_org_ID)
+                                                           AND (v_client_ID IS NULL OR MW1.AD_CLIENT_ID = v_client_ID)
+                                                           ) ) as PERCENTAGE,
+      MW.AD_ORG_ID,
+      MW.AD_CLIENT_ID,
+      MSD.M_PRODUCT_ID
+     FROM
+     M_WAREHOUSE MW
+       LEFT JOIN M_LOCATOR ML ON ML.M_WAREHOUSE_ID=MW.M_WAREHOUSE_ID
+       LEFT JOIN M_STORAGE_DETAIL MSD ON ML.M_LOCATOR_ID=MSD.M_LOCATOR_ID
+     WHERE (v_warehouse_ID IS NULL OR MW.M_WAREHOUSE_ID = v_warehouse_ID)
+       AND (v_org_ID IS NULL OR MW.AD_ORG_ID = v_org_ID)
+       AND (v_client_ID IS NULL OR MW.AD_CLIENT_ID = v_client_ID)
+       AND MSD.QTYONHAND>0
+       AND M_GET_PRODUCT_COST(MSD.M_PRODUCT_ID,TO_DATE(now()),'AV') IS NOT NULL
+       AND M_GET_PRODUCT_COST(MSD.M_PRODUCT_ID,TO_DATE(now()),'AV') <> 0
+     GROUP BY MW.AD_ORG_ID, MW.AD_CLIENT_ID, MSD.M_PRODUCT_ID
+     ) BBB
+     ORDER BY PERCENTAGE DESC) loop
+
+     SELECT COUNT(*)
+     INTO v_exist
+     FROM M_PRODUCT_ORG
+     WHERE M_PRODUCT_ID = Cur_Cursor.M_PRODUCT_ID
+     AND AD_ORG_ID = Cur_Cursor.AD_ORG_ID;
+
+     IF (v_exist > 0) THEN
+       UPDATE M_PRODUCT_ORG SET
+       ABC = Cur_Cursor.ISABC
+       WHERE M_PRODUCT_ID = Cur_Cursor.M_PRODUCT_ID
+       AND AD_ORG_ID = Cur_Cursor.AD_ORG_ID;
+       v_count_update := v_count_update + 1;
+     ELSE
+       AD_Sequence_Next('M_Product_Org', Cur_Cursor.AD_CLIENT_ID, v_M_Product_Org_ID) ;
+       INSERT INTO M_PRODUCT_ORG (M_PRODUCT_ORG_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, M_PRODUCT_ID, ABC) VALUES
+       (v_M_Product_Org_ID, Cur_Cursor.AD_CLIENT_ID, Cur_Cursor.AD_ORG_ID, 'Y', now(), '100', now(), '100', Cur_Cursor.M_PRODUCT_ID, Cur_Cursor.ISABC);
+       v_count_insert := v_count_insert + 1;
+     END IF;
+
+  end loop;
+  v_Message:='@Created@=' || v_count_insert || ', @Updated@=' || v_count_update;
+--<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<M_UPDATE_PARETO_PRODUCT finished>>') ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END M_UPDATE_PARETO_PRODUCT
+]]></body>
+    </function>
+  </database>

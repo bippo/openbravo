@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="ActionButtonRelationData" package="org.openbravo.wad">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_COLUMN.columnname AS realname, AD_COLUMN.columnname, AD_COLUMN.AD_PROCESS_ID, AD_PROCESS.AD_MODULE_ID,
+      '' AS htmlfields, '' AS htmltext, '' AS htmlfields_Header, AD_COLUMN.AD_TABLE_ID, '' AS javacode, 
+      AD_COLUMN.ad_reference_value_id, '' AS process_Params, '' AS process_code, '' AS additional_code, 
+      '' AS process_Params_Code, AD_COLUMN.AD_PROCESS_ID AS xmlid, mo.classname, mom.mappingname,
+      '' AS isjasper, '' as total, '' as comboparacode, '' as  setsession
+      FROM AD_FIELD, AD_COLUMN
+            left join ad_model_object mo on ad_column.ad_process_id = mo.ad_process_id 
+                          and mo.isactive = 'Y' 
+                          and mo.action = 'P' 
+                          and mo.isdefault = 'Y' 
+            left join ad_model_object_mapping mom on mo.ad_model_object_id = mom.ad_model_object_id 
+                          and mom.isactive = 'Y'
+                          and mom.isdefault = 'Y', 
+      AD_TABLE, AD_PROCESS
+      WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id
+      AND AD_COLUMN.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+      AND ad_field.ad_tab_id = ? 
+      AND AD_PROCESS.AD_PROCESS_ID = AD_COLUMN.AD_PROCESS_ID
+      AND AD_PROCESS.PROCEDURENAME IS NOT NULL 
+      AND AD_COLUMN.ad_reference_id = '28'
+      AND (AD_COLUMN.COLUMNNAME <> 'CreateFrom' 
+      OR AD_COLUMN.AD_PROCESS_ID IS NOT NULL )
+      AND (AD_COLUMN.COLUMNNAME <> 'Posted' 
+      OR AD_COLUMN.AD_PROCESS_ID IS NOT NULL )
+      AND AD_FIELD.ISDISPLAYED = 'Y'
+      ORDER BY AD_FIELD.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tabId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectJava" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_COLUMN.columnname AS realname, AD_COLUMN.columnname, AD_COLUMN.AD_PROCESS_ID, AD_PROCESS.AD_MODULE_ID,
+      AD_COLUMN.AD_TABLE_ID,  AD_COLUMN.ad_reference_value_id, 
+      AD_COLUMN.AD_PROCESS_ID AS xmlid, mo.classname
+      FROM AD_FIELD, AD_COLUMN, ad_model_object mo,
+      AD_TABLE, AD_PROCESS
+      WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id
+      AND AD_COLUMN.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+      AND ad_field.ad_tab_id = ? 
+      AND AD_PROCESS.AD_PROCESS_ID = AD_COLUMN.AD_PROCESS_ID
+      AND AD_PROCESS.PROCEDURENAME IS NULL
+      AND UIPattern='S' 
+      AND ad_column.ad_process_id = mo.ad_process_id 
+      and mo.isactive = 'Y' 
+      and mo.action = 'P' 
+      and mo.isdefault = 'Y'
+      AND AD_COLUMN.ad_reference_id = '28'
+      AND (AD_COLUMN.COLUMNNAME <> 'CreateFrom' 
+      OR AD_COLUMN.AD_PROCESS_ID IS NOT NULL )
+      AND (AD_COLUMN.COLUMNNAME <> 'Posted' 
+      OR AD_COLUMN.AD_PROCESS_ID IS NOT NULL )
+      AND AD_FIELD.ISDISPLAYED = 'Y'
+      ORDER BY AD_FIELD.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="tabId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectGenerics" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS realname, '' AS columnname, ad_process.AD_PROCESS_ID, 
+        '' AS htmlfields, '' AS htmltext, '' AS htmlfields_Header, '' AS AD_TABLE_ID, '' AS javacode, 
+        '' AS ad_reference_value_id, '' AS process_Params, '' AS process_code, '' AS additional_code, 
+        '' AS process_Params_Code, ad_process.AD_PROCESS_ID AS xmlid, mo.classname, mom.mappingname, 
+        ad_process.isjasper
+        FROM AD_PROCESS
+            left join ad_model_object mo on ad_process.ad_process_id = mo.ad_process_id 
+                          and mo.isactive = 'Y' 
+                          and mo.action = 'P' 
+                          and mo.isdefault = 'Y' 
+            left join ad_model_object_mapping mom on mo.ad_model_object_id = mom.ad_model_object_id 
+                          and mom.isactive = 'Y'
+                          and mom.isdefault = 'Y' 
+        WHERE ad_process.isactive='Y' 
+        AND (ad_process.PROCEDURENAME IS NOT NULL 
+        OR ad_process.IsJasper = 'Y') 
+        and ad_process.ad_process_id in (select ad_process_id from ad_menu)
+        ORDER BY ad_process.PROCEDURENAME
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectGenericsJava" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT '' AS realname, '' AS columnname, ad_process.AD_PROCESS_ID, 
+        '' AS htmlfields, '' AS htmltext, '' AS htmlfields_Header, '' AS AD_TABLE_ID, '' AS javacode, 
+        '' AS ad_reference_value_id, '' AS process_Params, '' AS process_code, '' AS additional_code, 
+        '' AS process_Params_Code, ad_process.AD_PROCESS_ID AS xmlid, mo.classname
+        FROM AD_PROCESS
+            left join ad_model_object mo on ad_process.ad_process_id = mo.ad_process_id 
+                          and mo.isactive = 'Y' 
+                          and mo.action = 'P' 
+                          and mo.isdefault = 'Y' 
+        WHERE ad_process.isactive='Y' 
+        AND AD_PROCESS.UIPattern = 'S'
+        AND (ad_process.IsJasper = 'N' AND ad_process.PROCEDURENAME IS NULL) 
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="buildGenerics" type="preparedStatement" return="boolean">
+    <Sql>
+      <![CDATA[
+        SELECT count(*) as total
+          FROM AD_PROCESS P,
+            AD_MENU M,
+            AD_SYSTEM_INFO SI
+          WHERE P.isactive = 'Y'
+           AND (P.PROCEDURENAME IS NOT NULL 
+               OR P.IsJasper = 'Y' 
+               OR (P.UIPattern = 'S'
+                  AND (P.IsJasper = 'N' AND P.PROCEDURENAME IS NULL)))
+           and P.ad_process_id = m.ad_process_id
+           and (p.UPDATED>SI.LAST_BUILD
+            or exists (Select 1 
+                         from AD_Process_Para pp
+                        where pp.AD_Process_ID = p.AD_Process_ID
+                          and pp.updated > si.last_build
+                         ))
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  
+  
+  <SqlMethod name="selectDocAction" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_column.columnname as realname, ad_column.columnname
+      FROM ad_field, ad_column, ad_table
+      WHERE ad_field.ad_column_id = ad_column.ad_column_id
+      AND ad_column.AD_TABLE_ID = ad_table.AD_TABLE_ID 
+      AND ad_tab_id = ? 
+      AND UPPER(ad_column.columnname) IN ('DOCACTION', 'CHANGEPROJECTSTATUS') 
+      AND ad_column.ad_reference_id = '28'
+      AND ad_field.ISDISPLAYED = 'Y'
+      GROUP BY ad_column.columnname
+      ]]>
+    </Sql>
+    <Parameter name="tabId"/>
+  </SqlMethod>
+  <SqlMethod name="processDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT DESCRIPTION FROM AD_PROCESS WHERE AD_PROCESS_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adProcessId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectComboParams" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+              select substr(code, instr(code,'@')+1, instr(code,'@',1,2)-instr(code,'@')-1) as columnname
+            from ad_process_para p, ad_val_rule v, ad_column c, ad_table t, ad_tab tb
+            where p.ad_val_rule_id is not null
+            and t.ad_table_id = c.ad_table_id
+            and c.ad_process_id = p.ad_process_id
+            and v.ad_val_rule_id = p.ad_val_rule_id
+            and code like '%@%'
+            and t.ad_table_id = tb.ad_table_id
+            and tb.ad_tab_id = ?
+            and p.ad_process_id = ? 
+            and exists (select 1 
+                          from ad_column c1, ad_field f
+                        where t.ad_table_id = c1.ad_table_id
+                          and upper(c1.columnname)=upper(substr(code, instr(code,'@')+1, instr(code,'@',1,2)-instr(code,'@')-1))
+                          and f.ad_column_id = c1.ad_column_id)
+              ]]>
+    </Sql>
+    <Parameter name="tabId"/>
+    <Parameter name="processId"/>
+  </SqlMethod>
+</SqlClass>

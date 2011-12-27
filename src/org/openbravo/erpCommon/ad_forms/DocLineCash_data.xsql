@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DocLineCashData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C.C_CASHLINE_ID, C.AD_ORG_ID, C.LINE, C.DESCRIPTION, C.C_CHARGE_ID,
+      c.C_ORDER_ID, C.C_DEBT_PAYMENT_ID, 
+      C.AMOUNT,C.WRITEOFFAMT,C.CASHTYPE, C.DISCOUNTAMT,CB.C_CURRENCY_ID AS C_Currency_ID, 
+      (CASE WHEN DP.C_BPARTNER_ID IS NULL THEN O.C_BPARTNER_ID ELSE DP.C_BPARTNER_ID END) AS C_BPARTNER_ID,
+      C.C_GLITEM_ID, '' AS glitem_credit_acct, '' AS glitem_debit_acct
+      FROM C_CashLine C left join C_DEBT_PAYMENT DP on C.C_DEBT_PAYMENT_ID = DP.C_DEBT_PAYMENT_ID
+                        left join C_ORDER O on C.C_ORDER_ID = O.C_ORDER_ID,   
+           C_CASHBOOK CB, C_CASH CA
+      WHERE CA.C_Cash_ID= ?
+      AND CB.C_CASHBOOK_ID = CA.C_CASHBOOK_ID
+      AND CA.C_CASH_ID = C.C_CASH_ID
+      ORDER BY Line
+     ]]>
+     </Sql>
+     <Parameter name="cash"/>
+   </SqlMethod>
+  <SqlMethod name="selectBank" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_Org_ID, C_Currency_ID, 0 AS C_BPARTNER_ID FROM C_BankAccount WHERE C_BankAccount_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="bankAccount"/>
+   </SqlMethod>
+  <SqlMethod name="selectReferenceInfo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_Org_ID, C_Currency_ID, C_BPartner_ID FROM C_Invoice WHERE C_Invoice_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="invoice"/>
+   </SqlMethod>
+  <SqlMethod name="selectOrder" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_Org_ID, C_Currency_ID, C_BPartner_ID FROM C_Order WHERE C_Order_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="C_Order_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectPayment" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_Org_ID, C_Currency_ID, C_BPartner_ID FROM C_DEBT_PAYMENT WHERE C_DEBT_PAYMENT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_DEBT_PAYMENT_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectDebtBPartner" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_BPartner_ID FROM C_DEBT_PAYMENT WHERE C_DEBT_PAYMENT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_DEBT_PAYMENT_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectGlitem" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+		SELECT GLITEM_DEBIT_ACCT, GLITEM_CREDIT_ACCT
+		FROM C_GLITEM_ACCT 
+		WHERE C_GLITEM_id = ?
+		AND C_ACCTSCHEMA_id = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_Glitem_ID"/>
+     <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+  </SqlClass>

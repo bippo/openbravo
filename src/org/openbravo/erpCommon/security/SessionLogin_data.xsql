@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="SessionLoginData" package="org.openbravo.erpCommon.security">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        select * from ad_session
+      </Sql>
+      <Field name="supportContact" value=""/>
+   </SqlMethod>
+   
+    <SqlMethod name="deactivate" type="preparedStatement" return="rowCount">
+    <Sql><![CDATA[
+        UPDATE AD_Session
+        SET SESSION_ACTIVE = 'N'  
+        WHERE AD_Session.AD_Session_ID = ? 
+    ]]></Sql>
+    <Parameter name="adSessionId"/>
+  </SqlMethod>
+  
+   <SqlMethod name="isSessionActive" type="preparedStatement" return="boolean">
+    <Sql><![CDATA[
+        SELECT COUNT(*) 
+          FROM AD_SESSION
+         WHERE AD_SESSION_ID = ?
+           AND SESSION_ACTIVE = 'Y'
+    ]]></Sql>
+    <Parameter name="adSessionId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="activeSessions" type="preparedStatement" return="multiple">
+    <Sql><![CDATA[
+        SELECT AD_SESSION_ID, SERVER_URL
+          FROM AD_SESSION
+         WHERE SESSION_ACTIVE = 'Y'
+    ]]></Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectSupportContact" type="preparedStatement" return="string">
+    <Sql><![CDATA[
+        SELECT SUPPORT_CONTACT
+          FROM AD_SYSTEM_INFO
+    ]]></Sql>
+  </SqlMethod>
+  
+    <SqlMethod name="isAudited" type="preparedStatement" return="boolean">
+    <Sql><![CDATA[
+        SELECT COUNT(*)
+          FROM AD_TABLE
+         WHERE ISFULLYAUDITED='Y'
+    ]]></Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="isUsageAuditEnabled" type="preparedStatement" return="boolean">
+    <Sql><![CDATA[
+        SELECT isusageauditenabled
+          FROM AD_SYSTEM_INFO
+    ]]></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="insertUsageAudit" type="preparedStatement" return="rowCount" connection="true" >
+    <Sql><![CDATA[
+        INSERT INTO ad_session_usage_audit
+        (ad_session_usage_audit_id, ad_client_id, ad_org_id, createdby, updatedby, ad_session_id, object_id, ad_module_id, command, classname, object_type)
+        VALUES (get_uuid(),'0','0',?,?,?,?,?,?,?,?)
+    ]]></Sql>
+    <Parameter name="userId"/>
+    <Parameter name="userId"/>
+    <Parameter name="sessionId"/>
+    <Parameter name="objectId"/>
+    <Parameter name="moduleId"/>
+    <Parameter name="command"/>
+    <Parameter name="classname"/>
+    <Parameter name="objecttype"/>
+  </SqlMethod>
+  
+</SqlClass>

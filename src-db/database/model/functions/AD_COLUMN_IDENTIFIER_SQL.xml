@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_COLUMN_IDENTIFIER_SQL">
+    <function name="AD_COLUMN_IDENTIFIER_SQL" type="VARCHAR">
+      <parameter name="p_tablename" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_KeyName     VARCHAR2(50) ;
+  v_Value       VARCHAR2(4000) ;
+  v_SQL         VARCHAR2(4000):='';
+  v_firstColumn BOOLEAN:=TRUE;
+  TYPE RECORD IS REF CURSOR;
+    Cur_Columns RECORD;
+    Cur_KeyName RECORD;
+  BEGIN
+    IF p_TableName IS NULL THEN
+      RETURN '';
+    END IF;
+    FOR Cur_KeyName IN
+
+      (SELECT c.ColumnName
+      FROM AD_Column c,
+        AD_Table t
+      WHERE c.AD_Table_ID=t.AD_Table_ID
+        AND UPPER(t.TableName)=UPPER(p_TableName)
+        AND c.isKey='Y'
+      )
+    LOOP
+      v_KeyName:=Cur_KeyName.ColumnName;
+      EXIT;
+    END LOOP;
+    IF v_KeyName IS NOT NULL THEN
+      FOR Cur_Columns IN
+        (SELECT c.ColumnName,
+          c.AD_Reference_ID,
+          c.AD_Reference_Value_ID,
+          t.TableName
+        FROM AD_Column c,
+          AD_Table t
+        WHERE c.AD_Table_ID=t.AD_Table_ID
+          AND UPPER(t.TableName)=UPPER(p_TableName)
+          AND c.isIdentifier='Y'
+        ORDER BY c.seqno
+        )
+      LOOP
+        IF v_firstColumn THEN
+          v_firstColumn:=FALSE;
+        ELSE
+          v_SQL:=v_SQL || '||'' - ''||';
+        END IF;
+        v_SQL:=v_SQL || AD_COLUMN_IDENTIFIER_REF_SQL('T', p_TableName, Cur_Columns.ColumnName, Cur_Columns.AD_Reference_ID, Cur_Columns.AD_Reference_Value_ID) ;
+      END LOOP;
+      v_SQL:='SELECT ' || v_SQL || ' AS COLUMN_IDENTIFIER FROM (SELECT AD_LANGUAGE FROM AD_LANGUAGE WHERE AD_LANGUAGE=:c_language) L, '|| p_TableName || ' T WHERE ' || v_KeyName || '='||''':c_ID''';
+    ELSE
+      v_SQL:='**No key found';
+    END IF;
+--    << END_PROCESS >>
+    RETURN v_SQL;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN '**';
+END AD_COLUMN_IDENTIFIER_SQL
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="SLCashJournalAmountsData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT m_product_id FROM m_product 
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="amountOrder" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT (CASE ISSOTRX WHEN 'Y' THEN C_ORDER.GRANDTOTAL ELSE -C_ORDER.GRANDTOTAL END) AS AMOUNT
+      FROM C_ORDER 
+      WHERE C_ORDER_ID = ?
+    </Sql>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="amountDebtPayment" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_Currency_Convert((CASE ISRECEIPT WHEN 'Y' THEN p.AMOUNT ELSE -p.AMOUNT END), p.C_Currency_ID, (SELECT b.C_CURRENCY_ID
+                                                                              FROM C_CASH C, C_CASHBOOK B 
+                                                                              WHERE C.C_CASHBOOK_ID = B.C_CASHBOOK_ID
+                                                                              AND C.C_CASH_ID = ?),
+                                                    (SELECT STATEMENTDATE FROM C_CASH WHERE C_CASH_ID = ?),null,p.AD_Client_ID,p.AD_Org_ID) as amount
+      FROM C_DEBT_PAYMENT p
+      WHERE C_DEBT_PAYMENT_ID = ?
+    </Sql>
+    <Parameter name="cCash"/> 
+    <Parameter name="cCash"/>
+    <Parameter name="cDebtPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="amountDebtPaymentBank" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_Currency_Convert((CASE ISRECEIPT WHEN 'Y' THEN p.AMOUNT ELSE -p.AMOUNT END), p.C_Currency_ID,(SELECT A.C_CURRENCY_ID
+                                                                              FROM C_BANKSTATEMENT S, C_BANKACCOUNT A 
+                                                                              WHERE S.C_BANKACCOUNT_ID = A.C_BANKACCOUNT_ID 
+                                                                              AND S.C_BankStatement_ID = ?),
+                                                                        (SELECT STATEMENTDATE FROM C_BANKSTATEMENT WHERE C_BANKSTATEMENT_ID = ?),null,p.AD_Client_ID,p.AD_Org_ID) as amount
+      FROM C_DEBT_PAYMENT p
+      WHERE C_DEBT_PAYMENT_ID = ?
+    </Sql>
+    <Parameter name="cBankstatement"/>
+    <Parameter name="cBankstatement"/>
+    <Parameter name="cDebtPaymentId"/>
+  </SqlMethod>
+  <SqlMethod name="debtPaymentDescription" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT DESCRIPTION
+      FROM C_DEBT_PAYMENT
+      WHERE C_DEBT_PAYMENT_ID = ?
+    </Sql>
+    <Parameter name="cDebtPaymentId"/>
+  </SqlMethod>
+</SqlClass>

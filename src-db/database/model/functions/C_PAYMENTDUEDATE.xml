@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_PAYMENTDUEDATE">
+    <function name="C_PAYMENTDUEDATE" type="TIMESTAMP">
+      <parameter name="p_bpartner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_issotrx" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_fixmonthday1" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_fixmonthday2" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_fixmonthday3" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_netdays" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_fixmonthoffset" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_netday" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_isnextbusinessday" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_docdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2007 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Title: Get Payment Due DATE
+************************************************************************/
+  v_docDate DATE;
+  v_DueDate DATE;
+  v_fixMonthDay1 NUMBER;
+  v_fixMonthDay2 NUMBER;
+  v_fixMonthDay3 NUMBER;
+  v_FixMonthDay  NUMBER;
+  v_Aux NUMBER;
+BEGIN
+  IF(p_isSoTrx = 'Y') THEN
+    SELECT FIXMONTHDAY,
+      FIXMONTHDAY2,
+      FIXMONTHDAY3
+    INTO v_FixMonthDay1,
+      v_FixMonthDay2,
+      v_FixMonthDay3
+    FROM C_BPARTNER
+    WHERE C_BPARTNER_ID = p_bPartner_ID;
+  ELSE
+    SELECT PO_FIXMONTHDAY,
+      PO_FIXMONTHDAY2,
+      PO_FIXMONTHDAY3
+    INTO v_FixMonthDay1,
+      v_FixMonthDay2,
+      v_FixMonthDay3
+    FROM C_BPARTNER
+    WHERE C_BPARTNER_ID = p_bPartner_ID;
+  END IF;
+  IF(v_FixMonthDay1 IS NULL) THEN
+    v_FixMonthDay1 := p_fixMonthDay1;
+    v_FixMonthDay2 := p_fixMonthDay2;
+    v_FixMonthDay3 := p_fixMonthDay3;
+  END IF;
+  IF(v_fixMonthDay1 IS NOT NULL) THEN
+    --First aply offset (days and months)
+    v_docDate := p_DocDate + COALESCE(p_netDays, 0) ;
+    v_docDate := C_ADD_MONTHS2(v_docDate, COALESCE(p_fixMonthOffset, 0)) ;
+    IF((v_fixMonthDay2 < TO_NUMBER(TO_CHAR(TRUNC(v_docDate), 'dd'))) AND(v_fixMonthDay3 >= TO_NUMBER(TO_CHAR(TRUNC(v_docDate), 'dd')))) THEN
+      v_FixMonthDay := v_fixMonthDay3;
+    ELSIF((v_fixMonthDay1 < TO_NUMBER(TO_CHAR(TRUNC(v_docDate), 'dd'))) AND(v_fixMonthDay2 >= TO_NUMBER(TO_CHAR(TRUNC(v_docDate), 'dd')))) THEN
+      v_FixMonthDay := v_fixMonthDay2;
+    ELSE
+      v_FixMonthDay := v_fixMonthDay1;
+      IF(v_FixMonthDay < TO_NUMBER(TO_CHAR(TRUNC(v_docDate), 'dd'))) THEN
+        v_docDate := ADD_MONTHS(v_docDate, 1) ;
+      END IF;
+    END IF;
+    v_DueDate := C_Datedayinmonth(v_FixMonthDay, TO_DATE(v_docDate)) ;
+  ELSE
+    v_DueDate := TRUNC(p_DocDate) + COALESCE(p_netDays, 0) ;
+    v_DueDate := C_ADD_MONTHS2(v_DueDate, COALESCE(p_fixMonthOffset, 0)) ;
+    WHILE(TO_CHAR(v_DueDate, 'D') NOT LIKE p_netDay)
+    LOOP
+      v_DueDate := v_DueDate + 1;
+    END LOOP;
+  END IF;
+  IF(p_isNextbusinessday = 'Y') THEN
+    --The first day of the week depends on the database configuration for oracle
+    --It is used the Julian day to ensure that saturday and sunday are always
+    --the days 6 and 7 of the week in both oracle and postgresql databases.
+    SELECT MOD(to_number(to_char(v_DueDate, 'J')), 7) + 1 INTO v_Aux from DUAL;
+    WHILE(v_Aux IN('6', '7'))
+    LOOP
+      v_DueDate := v_DueDate + 1;
+      SELECT MOD(to_number(to_char(v_DueDate, 'J')), 7) + 1 INTO v_Aux from DUAL;
+    END LOOP;
+  END IF;
+  RETURN COALESCE(v_DueDate, TRUNC(p_DocDate)) ;
+END C_PAYMENTDUEDATE
+]]></body>
+    </function>
+  </database>

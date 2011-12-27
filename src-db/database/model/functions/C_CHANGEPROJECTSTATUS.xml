@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CHANGEPROJECTSTATUS">
+    <function name="C_CHANGEPROJECTSTATUS" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_resultstr         VARCHAR2 (2000) := '';
+  v_message           VARCHAR2 (2000) := '';
+  v_result NUMBER:= 1;                      -- 0=failure
+  v_record_id         varchar2(32);
+  v_ad_user_id        varchar2(32);
+
+  TYPE RECORD IS REF CURSOR;
+
+  cur_parameter       RECORD;
+  v_p_projectstatus   VARCHAR(60);
+  v_projectstatus     VARCHAR(60);
+  v_created NUMBER:= 0;
+  finish_process      BOOLEAN         := FALSE;
+BEGIN
+  -- Get Parameters
+  v_resultstr := 'ReadingParameters';
+
+  FOR cur_parameter IN (SELECT   i.record_id, i.ad_user_id, p.parametername,
+                                 p.p_string, p.p_number, p.p_date,
+                                 p.p_date_to
+                            FROM ad_pinstance i LEFT JOIN ad_pinstance_para p
+                                 ON i.ad_pinstance_id = p.ad_pinstance_id
+                           WHERE i.ad_pinstance_id = p_pinstance_id
+                        ORDER BY p.seqno)
+  LOOP
+    v_record_id := cur_parameter.record_id;
+    v_ad_user_id := cur_parameter.ad_user_id;
+
+    IF (cur_parameter.parametername = 'ChangeProjectStatus')
+    THEN
+      v_p_projectstatus := cur_parameter.p_string;
+      DBMS_OUTPUT.PUT_LINE('  ChangeProjectStatus=' || v_p_projectstatus);
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter='|| cur_parameter.parametername);
+    END IF;
+  END LOOP;                                                   -- Get Parameter
+
+  DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_record_id);
+  -- Check that we have some restrictions
+  v_resultstr := 'CheckRestriction';
+
+  IF (v_p_projectstatus IS NULL)
+  THEN
+    RAISE_APPLICATION_ERROR(-20000, '@Notprojectstatus@');
+  END IF;
+
+  IF (NOT finish_process)
+  THEN
+    v_resultstr := 'Verify status';
+
+    SELECT projectstatus
+      INTO v_projectstatus
+      FROM c_project
+     WHERE c_project_id = v_record_id;
+
+    IF v_projectstatus IS NULL
+    THEN
+      RAISE_APPLICATION_ERROR(-20000, '@Notstatusdefined@');
+    ELSIF (v_projectstatus = 'NF' OR v_projectstatus = 'OP')
+    THEN
+      IF (v_p_projectstatus <> 'OR' AND v_p_projectstatus <> 'OU')
+      THEN
+        RAISE_APPLICATION_ERROR(-20000, '@Invalidprojectstatus@');
+      END IF;
+    ELSIF (v_projectstatus = 'OR')
+    THEN
+      IF (v_p_projectstatus <> 'OC')
+      THEN
+        RAISE_APPLICATION_ERROR(-20000, '@Invalidprojectstatus@');
+      END IF;
+    ELSIF (v_projectstatus = 'OC')
+    THEN
+      RAISE_APPLICATION_ERROR(-20000, '@Projectclose@');
+    END IF;
+  END IF;                                                     --FINISH_PROCESS
+
+  IF (NOT finish_process)
+  THEN
+    IF v_p_projectstatus = 'OR'
+    THEN
+      C_CHANGEPROJECTSTATUSTOORDER(p_pinstance_id);
+    ELSIF v_p_projectstatus = 'OC'
+    THEN
+      C_CLOSEPROJECT(p_pinstance_id);
+    ELSE
+      UPDATE c_project
+         SET projectstatus = v_p_projectstatus
+       WHERE c_project_id = v_record_id;
+
+      COMMIT;
+    END IF;
+
+    RETURN;
+  END IF;--FINISH_PROCESS
+
+  --<<FINISH_PROCESS>>
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_message);
+  AD_UPDATE_PINSTANCE(p_pinstance_id, NULL, 'N', v_result, v_message);
+  RETURN;
+EXCEPTION
+  WHEN OTHERS
+  THEN
+    v_resultstr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_resultstr);
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_pinstance_id, NULL, 'N', 0, v_resultstr);
+-- Commented by cromero 19102006 RETURN;
+END C_CHANGEPROJECTSTATUS
+]]></body>
+    </function>
+  </database>

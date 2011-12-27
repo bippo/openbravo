@@ -1,0 +1,262 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ORDERLINE_TRG2">
+    <trigger name="C_ORDERLINE_TRG2" table="C_ORDERLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2010 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+   Cur_Offer RECORD;
+
+  v_OrderLine_Offer_ID VARCHAR2(32);
+  v_lineno NUMBER:=0;
+  v_Price NUMBER;
+  v_PriceNew NUMBER;
+  v_Amt NUMBER;
+  v_BPartner_ID VARCHAR2(32);
+  v_Order_ID VARCHAR2(32);
+  v_Insert BOOLEAN :=FALSE;
+  v_Precision NUMBER;
+  v_PriceList_ID VARCHAR2(32);
+  v_Processed C_ORDER.PROCESSED%TYPE;
+  v_ID VARCHAR2(32);
+  v_oldLine NUMBER;
+  v_newLineNetAmt NUMBER;
+  v_newLineAlternate NUMBER;
+  v_taxAmt NUMBER;
+  v_Prec C_CURRENCY.STDPRECISION%TYPE;
+  v_BaseAmount C_TAX.BASEAMOUNT%TYPE;
+  v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (DELETING) THEN
+  v_ID:=:OLD.C_ORDER_ID;
+ELSE
+  v_ID:=:NEW.C_ORDER_ID;
+END IF;
+
+ IF UPDATING THEN
+  IF ((:NEW.DateOrdered != :OLD.DateOrdered)
+     OR (COALESCE(:NEW.PriceActual,0) != COALESCE(:OLD.PriceActual,0))
+     OR (COALESCE(:NEW.PriceList,0) != COALESCE(:OLD.PriceList,0))
+     OR (COALESCE(:NEW.M_Product_ID,'0') != COALESCE(:OLD.M_Product_ID,'0'))
+  OR (COALESCE(:NEW.QtyOrdered,0) != COALESCE(:OLD.QtyOrdered,0)))
+ THEN
+  DELETE FROM C_ORDERLINE_OFFER
+  WHERE C_OrderLine_ID = :NEW.C_OrderLine_ID;
+   v_Insert := TRUE;
+ END IF;
+ END IF;
+
+ IF INSERTING OR v_Insert THEN
+   SELECT C_BPartner_ID, PricePrecision, M_PriceList_ID
+     INTO v_BPartner_ID, v_Precision, v_PriceList_ID
+     FROM C_ORDER o,
+          C_CURRENCY c
+    WHERE C_Order_ID = :NEW.C_Order_ID
+      AND o.C_Currency_ID = c.C_Currency_ID;
+
+  --Get the new "std" price from the Actual price (if actual price is the std price they will be equal)
+   --v_Price := :NEW.PriceActual;
+   v_Price := :NEW.PRICESTD;
+   /* FOR Cur_Offer IN (SELECT M_OFFER_ID
+         FROM M_OFFER
+         WHERE :NEW.DateOrdered BETWEEN DATEFROM AND COALESCE(DATETO,TO_DATE('31-12-9999','DD-MM-YYYY'))
+   AND IsActive = 'Y'
+   AND (:NEW.QtyOrdered >= COALESCE(Qty_From,0) OR Qty_From IS NULL)
+   AND (:NEW.QtyOrdered <= COALESCE(Qty_To,0) OR Qty_To IS NULL)
+   AND ((PRICELIST_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_OFFER_PRICELIST
+           WHERE M_OFFER_ID=M_OFFER.M_OFFER_ID
+           AND M_PRICELIST_ID = v_PriceList_ID))
+         OR (PRICELIST_SELECTION='N' AND EXISTS(SELECT 1 FROM M_OFFER_PRICELIST
+            WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+            AND M_PRICELIST_ID = v_PriceList_ID)))
+         AND ((BPARTNER_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_OFFER_BPARTNER
+           WHERE M_OFFER_ID=M_OFFER.M_OFFER_ID
+           AND C_BPARTNER_ID = v_BPartner_ID AND IsActive = 'Y'))
+         OR (BPARTNER_SELECTION='N' AND EXISTS(SELECT 1 FROM M_OFFER_BPARTNER
+            WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+            AND C_BPARTNER_ID = v_BPartner_ID AND IsActive = 'Y')))
+         AND ((BP_GROUP_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM C_BPARTNER B, M_OFFER_BP_GROUP OB
+           WHERE OB.M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND B.C_BPARTNER_ID = v_BPartner_ID
+           AND OB.C_BP_GROUP_ID = B.C_BP_GROUP_ID))
+         OR (BP_GROUP_SELECTION='N' AND EXISTS (SELECT 1 FROM C_BPARTNER B, M_OFFER_BP_GROUP OB
+           WHERE OB.M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND B.C_BPARTNER_ID = v_BPartner_ID
+           AND OB.C_BP_GROUP_ID = B.C_BP_GROUP_ID)))
+         AND ((PRODUCT_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_OFFER_PRODUCT
+           WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND M_PRODUCT_ID = :NEW.M_PRODUCT_ID))
+         OR (PRODUCT_SELECTION='N' AND EXISTS (SELECT 1 FROM M_OFFER_PRODUCT
+            WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+            AND M_PRODUCT_ID = :NEW.M_PRODUCT_ID)))
+         AND ((PROD_CAT_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_PRODUCT P, M_OFFER_PROD_CAT OP
+           WHERE OP.M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND P.M_PRODUCT_ID = :NEW.M_PRODUCT_ID
+           AND OP.M_PRODUCT_CATEGORY_ID = P.M_PRODUCT_CATEGORY_ID))
+         OR (PROD_CAT_SELECTION='N' AND EXISTS (SELECT 1 FROM M_PRODUCT P, M_OFFER_PROD_CAT OP
+           WHERE OP.M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND P.M_PRODUCT_ID = :NEW.M_PRODUCT_ID
+           AND OP.M_PRODUCT_CATEGORY_ID = P.M_PRODUCT_CATEGORY_ID)))
+         ORDER BY PRIORITY DESC, M_OFFER_ID) LOOP
+    v_Price := M_Get_Offer_Std_Price(Cur_Offer.M_Offer_ID, v_Price);
+   END LOOP;*/
+
+
+--   :new.PriceStd := v_Price;
+
+
+   FOR Cur_Offer IN (SELECT M_OFFER_ID
+        FROM M_OFFER
+        WHERE :NEW.DateOrdered BETWEEN DATEFROM AND COALESCE(DATETO,TO_DATE('31-12-9999','DD-MM-YYYY'))
+  AND IsActive = 'Y'
+  AND (:NEW.QtyOrdered >= COALESCE(Qty_From,0) OR Qty_From IS NULL)
+  AND (:NEW.QtyOrdered <= COALESCE(Qty_To,0) OR Qty_To IS NULL)
+  AND ((PRICELIST_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_OFFER_PRICELIST
+           WHERE M_OFFER_ID=M_OFFER.M_OFFER_ID
+           AND M_PRICELIST_ID = v_PriceList_ID))
+         OR (PRICELIST_SELECTION='N' AND EXISTS(SELECT 1 FROM M_OFFER_PRICELIST
+            WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+            AND M_PRICELIST_ID = v_PriceList_ID)))
+        AND ((BPARTNER_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_OFFER_BPARTNER
+          WHERE M_OFFER_ID=M_OFFER.M_OFFER_ID
+          AND C_BPARTNER_ID = v_BPartner_ID AND IsActive = 'Y'))
+        OR (BPARTNER_SELECTION='N' AND EXISTS(SELECT 1 FROM M_OFFER_BPARTNER
+           WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND C_BPARTNER_ID = v_BPartner_ID AND IsActive = 'Y')))
+        AND ((BP_GROUP_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM C_BPARTNER B, M_OFFER_BP_GROUP OB
+          WHERE OB.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND B.C_BPARTNER_ID = v_BPartner_ID
+          AND OB.C_BP_GROUP_ID = B.C_BP_GROUP_ID))
+        OR (BP_GROUP_SELECTION='N' AND EXISTS (SELECT 1 FROM C_BPARTNER B, M_OFFER_BP_GROUP OB
+          WHERE OB.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND B.C_BPARTNER_ID = v_BPartner_ID
+          AND OB.C_BP_GROUP_ID = B.C_BP_GROUP_ID)))
+        AND ((PRODUCT_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_OFFER_PRODUCT
+          WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND M_PRODUCT_ID = :NEW.M_PRODUCT_ID))
+        OR (PRODUCT_SELECTION='N' AND EXISTS (SELECT 1 FROM M_OFFER_PRODUCT
+           WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID
+           AND M_PRODUCT_ID = :NEW.M_PRODUCT_ID)))
+        AND ((PROD_CAT_SELECTION='Y' AND NOT EXISTS (SELECT 1 FROM M_PRODUCT P, M_OFFER_PROD_CAT OP
+          WHERE OP.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND P.M_PRODUCT_ID = :NEW.M_PRODUCT_ID
+          AND OP.M_PRODUCT_CATEGORY_ID = P.M_PRODUCT_CATEGORY_ID))
+        OR (PROD_CAT_SELECTION='N' AND EXISTS (SELECT 1 FROM M_PRODUCT P, M_OFFER_PROD_CAT OP
+          WHERE OP.M_OFFER_ID = M_OFFER.M_OFFER_ID
+          AND P.M_PRODUCT_ID = :NEW.M_PRODUCT_ID
+          AND OP.M_PRODUCT_CATEGORY_ID = P.M_PRODUCT_CATEGORY_ID)))
+        ORDER BY PRIORITY, M_OFFER_ID DESC) LOOP
+   Ad_Sequence_Next('C_OrderLine_Offer', :NEW.AD_Client_ID, v_OrderLine_Offer_ID);
+   v_lineno := v_lineno + 10;
+   v_PriceNew := M_Get_Offer_Price(Cur_Offer.M_Offer_ID, v_Price);
+   v_Amt := v_Price - coalesce(round(v_PriceNew, v_Precision), 0);
+
+   IF (:NEW.CANCELPRICEAD='N')
+    THEN
+     INSERT INTO C_ORDERLINE_OFFER
+         (C_ORDERLINE_OFFER_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        C_ORDERLINE_ID, LINE, M_OFFER_ID, PRICEOFFER, AMTOFFER)
+     VALUES
+         (v_OrderLine_Offer_ID, :NEW.AD_Client_ID, :NEW.AD_Org_ID, :NEW.IsActive,
+        now(),:NEW.CreatedBy, now(),:NEW.UpdatedBy,
+       :NEW.C_OrderLine_ID, v_lineno, Cur_Offer.M_Offer_Id, COALESCE(ROUND(v_Price,v_Precision),0), COALESCE(ROUND(v_Amt,v_Precision),0));
+      --v_Price := v_PriceNew;
+   END IF;
+  END LOOP;
+ END IF;
+
+
+  /**************************************************************************
+   * Calculate Tax, etc.
+   */
+ SELECT processed, stdPrecision
+   INTO v_Processed, v_Prec
+ FROM C_Order, C_Currency
+ WHERE C_Order.C_Currency_ID = C_Currency.C_Currency_ID
+ AND C_Order_ID=v_ID;
+ v_oldLine:=0;
+ v_newLineNetAmt:=0;
+ IF(v_Processed='N') THEN
+  -- Calculate taxes
+  IF(UPDATING OR DELETING) THEN
+  v_oldLine:= COALESCE(:old.LineNetAmt,0) + COALESCE(:old.FreightAmt,0) + COALESCE(:old.ChargeAmt,0);
+  END IF;  
+  IF (INSERTING OR UPDATING) THEN
+   DELETE FROM C_ORDERLINETAX WHERE C_ORDERLINE_ID = :new.C_OrderLine_ID;
+   v_newLineNetAmt := COALESCE(:new.LineNetAmt,0) + COALESCE(:new.FreightAmt,0) + COALESCE(:new.ChargeAmt,0);
+   v_newLineAlternate := COALESCE(:new.TaxBaseAmt,0) + COALESCE(:new.FreightAmt,0) + COALESCE(:new.ChargeAmt,0);
+   SELECT BaseAmount INTO v_BaseAmount
+   FROM C_TAX
+   WHERE C_TAX_ID = :new.C_Tax_ID;
+   C_ORDERLINETAX_INSERT(:new.AD_Org_ID, :new.C_Order_ID, :new.C_OrderLine_ID, :new.UpdatedBy, :new.C_Tax_ID, :new.C_Tax_ID, v_newLineNetAmt, v_newLineAlternate, v_Prec);
+  -- Get Total Tax Amt
+   SELECT SUM(TaxAmt)
+     INTO v_taxAmt
+   FROM C_OrderTax
+   WHERE C_Order_ID=:new.C_Order_ID;
+  -- DBMS_OUTPUT.PUT_LINE('TaxAmt = ' || v_taxAmt);
+   -- Update Header
+   UPDATE C_Order
+     SET TotalLines = TotalLines - v_oldLine + v_newLineNetAmt,
+     GrandTotal = TotalLines - v_oldLine + v_newLineNetAmt + COALESCE(v_taxAmt, 0)
+   --  Updated = SysDate -- Don't update as otherwise it does not save changes
+   WHERE C_Order_ID = :new.C_Order_ID;
+  ELSE -- DELETING
+   SELECT SUM(TaxAmt)
+     INTO v_taxAmt
+   FROM C_OrderTax
+   WHERE C_Order_ID=:old.C_Order_ID;
+  -- DBMS_OUTPUT.PUT_LINE('TaxAmt = ' || v_taxAmt);
+   -- Update Header
+   UPDATE C_Order
+     SET TotalLines = TotalLines - v_oldLine + v_newLineNetAmt,
+     GrandTotal = TotalLines - v_oldLine + v_newLineNetAmt + COALESCE(v_taxAmt, 0)
+   --  Updated = SysDate -- Don't update as otherwise it does not save changes
+   WHERE C_Order_ID=:old.C_Order_ID;
+  END IF;
+ END IF;
+
+ IF (INSERTING OR UPDATING) THEN
+  --Does not allow to change the attribute set value
+  -- for products which attribute set value type is Fixed
+  IF (:NEW.M_PRODUCT_ID IS NOT NULL AND COALESCE(:new.M_AttributeSetInstance_ID,'0')!='0') THEN
+   SELECT ATTRSETVALUETYPE 
+   INTO v_AttrSetValueType
+   FROM M_PRODUCT 
+   WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+   IF (v_AttrSetValueType='F') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@AttrSetValueFixed@');
+   END IF;
+  END IF;
+ END IF;
+
+END C_ORDERLINE_TRG2
+]]></body>
+    </trigger>
+  </database>

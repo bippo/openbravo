@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="WindowTreeChecksData" package="org.openbravo.erpCommon.utility">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT * FROM DUAL
+      </Sql>
+   </SqlMethod>
+   <SqlMethod name="selectIsSummary" type="preparedStatement" return="String" default="N">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT ISSUMMARY 
+        FROM AD_MENU 
+        WHERE AD_MENU_ID = ?
+      </Sql>
+        <Parameter name="table" optional="true" type="replace" after="FROM " text="AD_MENU"/>
+        <Parameter name="column" optional="true" type="replace" after="WHERE " text="AD_MENU_ID"/>
+        <Parameter name="columnId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="isItsOwnChild" type="preparedStatement" return="String" default="N">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        select instr(ad_parent_tree(?, ?),'|'||?||'|') AS isItsOwnChild from dual
+      </Sql>
+        <Parameter name="tree"/>
+        <Parameter name="parent"/>
+        <Parameter name="node"/>        
+   </SqlMethod>
+   
+    <SqlMethod name="isMenuItemInDev" type="preparedStatement" return="boolean">
+      <Sql>
+        SELECT COUNT(*)
+          FROM AD_MENU M, AD_MODULE O, AD_MODULE t
+         WHERE (AD_MENU_ID = ?
+                AND O.AD_MODULE_ID = M.AD_MODULE_ID
+                AND O.ISINDEVELOPMENT='Y')
+            OR (t.type='T'
+                AND t.isindevelopment='Y')
+      </Sql>
+      <Parameter name="nodeId"/>  
+   </SqlMethod>
+   
+</SqlClass>

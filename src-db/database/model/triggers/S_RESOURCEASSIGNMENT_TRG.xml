@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER S_RESOURCEASSIGNMENT_TRG">
+    <trigger name="S_RESOURCEASSIGNMENT_TRG" table="S_RESOURCEASSIGNMENT" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: S_ResourceAssignment_Trg.sql,v 1.2 2003/03/19 06:46:56 jjanke Exp $
+    ***
+    * Title: S_Resource Assignment
+    * Description:
+    *   Syncronize Resource Assugnment with Expense Reports
+    ************************************************************************/
+    v_Description NVARCHAR2(255) ;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  NULL;
+  /**
+  IF (INSERTING OR UPDATING) THEN
+  v_Description:=:new.Name;
+  IF (:new.Description IS NOT NULL AND LENGTH(:new.Description) > 0) THEN
+  v_Description:=v_Description || ' (' || :new.Description || ')';
+  END IF;
+  -- Update Expense Line
+  UPDATE S_TimeExpenseLine
+  SET  Description=v_Description,
+  Qty=:new.Qty
+  WHERE S_ResourceAssignment_ID=:new.S_ResourceAssignment_ID
+  AND (Description <> v_Description OR Qty <> :new.Qty);
+  -- Update Order Line
+  UPDATE C_OrderLine
+  SET  Description=v_Description,
+  QtyOrdered=:new.Qty
+  WHERE S_ResourceAssignment_ID=:new.S_ResourceAssignment_ID
+  AND (Description <> v_Description OR QtyOrdered <> :new.Qty);
+  -- Update Invoice Line
+  UPDATE C_InvoiceLine
+  SET  Description=v_Description,
+  QtyInvoiced=:new.Qty
+  WHERE S_ResourceAssignment_ID=:new.S_ResourceAssignment_ID
+  AND (Description <> v_Description OR QtyInvoiced <> :new.Qty);
+  END IF;
+  **/
+END S_RESOURCEASSIGNMENT_TRG
+]]></body>
+    </trigger>
+  </database>

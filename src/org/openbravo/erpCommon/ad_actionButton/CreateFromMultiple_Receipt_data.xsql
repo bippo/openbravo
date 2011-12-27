@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="CreateFromMultipleReceiptData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment>Principal select</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT L.M_LOCATOR_ID, '' as ID, ad_column_identifier('M_LOCATOR',to_char(L.M_LOCATOR_ID),?) AS NAME  
+        FROM M_LOCATOR L 
+        WHERE L.AD_CLIENT_ID IN ('1')
+        AND L.AD_ORG_ID IN ('1')
+        AND L.M_WAREHOUSE_ID = ? 
+        AND L.ISACTIVE = 'Y' 
+        AND NOT EXISTS(SELECT 1 FROM M_STORAGE_DETAIL S
+        WHERE S.M_LOCATOR_ID = L.M_LOCATOR_ID 
+        AND S.QTYONHAND > 0)
+        AND NOT EXISTS(SELECT 1 FROM M_INOUTLINE IL, M_INOUT M
+        WHERE IL.M_LOCATOR_ID = L.M_LOCATOR_ID
+        AND IL.M_INOUT_ID = M.M_INOUT_ID
+        AND M.PROCESSED ='N')
+        AND NOT EXISTS(SELECT 1 FROM M_MOVEMENTLINE ML, M_MOVEMENT MV
+        WHERE ML.M_LOCATORTO_ID = L.M_LOCATOR_ID
+        AND ML.M_MOVEMENT_ID = MV.M_MOVEMENT_ID
+        AND MV.PROCESSED ='N')
+        AND 1=1
+        ORDER BY L.PRIORITYNO, L.X, L.Y, L.Z
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="L.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="L.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="mWarehouseId"/>
+    <Parameter name="mLocatorId" optional="true" after="AND L.ISACTIVE = 'Y' " text=" AND L.X = ? "/>
+  </SqlMethod>
+  <SqlMethod name="selectM_Locator_X" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Ids and Names of table dir M_Locator</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT DISTINCT M_Locator.X as id, M_Locator.X as name 
+      FROM M_Locator, M_Warehouse
+      WHERE M_Warehouse.M_Warehouse_Id = M_Locator.M_Warehouse_Id
+      AND M_Locator.isActive = 'Y'
+      AND  M_Warehouse.M_WAREHOUSE_ID = ? 
+      ORDER BY M_Locator.X
+    ]]></Sql>
+    <Parameter name="warehouse"/>
+  </SqlMethod>
+  <SqlMethod name="tabName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>Ids and Names of table dir M_Locator</SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT NAME FROM AD_TAB WHERE AD_TAB_ID = ?
+    ]]></Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="insert" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO M_INOUTLINE (M_INOUTLINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, LINE, 
+        DESCRIPTION, M_INOUT_ID, C_ORDERLINE_ID, M_LOCATOR_ID, M_PRODUCT_ID, C_UOM_ID, MOVEMENTQTY, ISINVOICED, 
+        M_ATTRIBUTESETINSTANCE_ID, ISDESCRIPTION, QUANTITYORDER, M_PRODUCT_UOM_ID) 
+        VALUES (?,?,?,'Y',NOW(),?,NOW(),?, (SELECT COALESCE(MAX(LINE),0) + 10 FROM M_INOUTLINE WHERE M_INOUT_ID=?),
+        NULL,?,NULL,?,?,?,TO_NUMBER(?),'N',
+        ?,'N',TO_NUMBER(?),?)
+      ]]>
+    </Sql>
+    <Parameter name="mInoutlineId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="mInoutId"/>
+    <Parameter name="mInoutId"/>
+    <Parameter name="mLocatorId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="cUomId"/>
+    <Parameter name="movementqty"/>
+    <Parameter name="mAttributesetinstanceId"/>
+    <Parameter name="quantityorder"/>
+    <Parameter name="mProductUomId"/>
+  </SqlMethod>
+
+   <SqlMethod name="selectAccessibleWarehouses" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT M_Warehouse.M_Warehouse_ID as id, M_Warehouse.Name AS Name 
+        FROM M_Warehouse, AD_ORG , AD_ROLE_ORGACCESS
+        WHERE M_Warehouse.AD_ORG_ID = AD_ORG.AD_ORG_ID
+        AND AD_ORG.AD_ORG_ID = AD_ROLE_ORGACCESS.AD_ORG_ID
+        AND M_Warehouse.IsActive='Y' 
+        AND AD_ROLE_ORGACCESS.AD_ROLE_ID = ? 
+        AND M_Warehouse.AD_Client_ID = ? 
+        ORDER BY M_Warehouse.Value
+      </Sql>
+      <Parameter name="rol"/>
+      <Parameter name="client"/>
+   </SqlMethod>
+
+  </SqlClass>

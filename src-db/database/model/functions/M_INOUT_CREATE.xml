@@ -1,0 +1,849 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_INOUT_CREATE">
+    <function name="M_INOUT_CREATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_inout_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_invoice_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <parameter name="p_forcedelivery" type="CHAR" mode="in">
+        <default><![CDATA[N]]></default>
+      </parameter>
+      <parameter name="p_locator_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_InOut_Create.sql,v 1.17 2003/09/05 04:58:06 jjanke Exp $
+  ***
+  * Title: Create Shipment from Order
+  * Description:
+  * Order Loop goes though all open orders, where we would need to ship something
+  *  if forced or if there is a line to ship
+  *   create InOut document header
+  *   for all qualifying order lines
+  *    check every locator availability and if qty available
+  *     create InOut line
+  *
+  * Order and reservation is updated when posting
+  * as there should not be a delay between creating + posting it
+  *
+  * For each Warehouse create lines (with exception if Direct Ship's),
+  * create also lines for non-stocked, ad_hoc products or comments
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_result NUMBER(1):=1;
+  v_PostResult NUMBER;
+  v_logLines NUMBER:=0;
+  v_isWholeLog BOOLEAN := true;
+  v_Message VARCHAR2(2000):='';
+  result_String VARCHAR2(2000):='';
+  v_ResultLinesStr VARCHAR2(2000):='';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Record Info
+    v_AD_Org_ID VARCHAR2(32);
+    v_AD_Client_ID VARCHAR2(32);
+    v_allownegativestock CHAR(1);
+    v_order_count NUMBER:=0;
+    v_order_delivered_count NUMBER:=0;
+    v_order_partial_count NUMBER:= 0;
+    v_Record_ID VARCHAR2(32):=NULL;
+    v_Selection VARCHAR2(1):='N';
+    v_hasPartial BOOLEAN := false;
+    v_User_ID VARCHAR2(32):='0';
+    -- Orders to process  - one per warehouse
+    Cur_Order RECORD;
+    v_NEWORDERDATE DATE;
+    -- Order Lines per Warehouse
+    CURSOR Cur_OrderLine (Order_ID VARCHAR, Warehouse_ID VARCHAR) IS
+    SELECT l.*, p.name
+    FROM C_ORDERLINE l LEFT JOIN M_Product p ON l.M_Product_ID = p.M_Product_ID
+    WHERE C_Order_ID=Order_ID -- Parameter
+      AND
+      l.M_Warehouse_ID=Warehouse_ID -- Parameter
+      -- Incomplete lines and comments
+      AND(QtyOrdered<>QtyDelivered OR(QtyOrdered=0 AND
+      l.M_Product_ID IS NULL)) -- Don't include Direct Ship's
+      AND
+      DirectShip='N' 
+    ORDER BY l.line, l.M_Product_ID, l.M_Warehouse_id, l.c_uom_id, l.m_attributesetinstance_id, 
+      l.m_product_uom_id, qtyordered-qtydelivered;
+    ol Cur_OrderLine%ROWTYPE;
+    CURSOR Cur_Storage (p_Product varchar, p_Warehouse varchar, p_UOM varchar, p_Product_UOM varchar, p_Attribute varchar) IS
+    SELECT T.C_UOM_ID,
+      T.M_LOCATOR_ID,
+      T.M_ATTRIBUTESETINSTANCE_ID,
+      T.M_PRODUCT_UOM_ID,
+      COALESCE(T.QtyOnHand, 0) AS QtyOnHand,
+      T.QtyOrderOnHand AS QtyOrder
+    FROM M_STORAGE_DETAIL T LEFT OUTER JOIN
+      M_ATTRIBUTESETINSTANCE A
+      ON T.M_ATTRIBUTESETINSTANCE_ID = A.M_ATTRIBUTESETINSTANCE_ID,
+      M_LOCATOR L
+    WHERE T.M_PRODUCT_ID=p_Product AND
+      T.M_LOCATOR_ID=L.M_LOCATOR_ID AND
+      L.M_WAREHOUSE_ID=p_Warehouse AND
+      T.C_UOM_ID=p_UOM AND
+      COALESCE(T.M_PRODUCT_UOM_ID, '0')=COALESCE(p_Product_UOM, '0') AND
+      COALESCE(T.M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_Attribute, COALESCE(T.M_ATTRIBUTESETINSTANCE_ID, '0')) AND
+      COALESCE(T.QtyOnHand, 0)>0
+    ORDER BY L.PRIORITYNO,
+      A.CREATED, T.CREATED;
+    
+    v_storage Cur_Storage%ROWTYPE;
+    --
+    v_NextNo varchar2(32);
+    v_DocType_ID VARCHAR2(32);
+    v_DocumentNo VARCHAR2(40) ;
+    v_Qty NUMBER;
+    --MODIFIED BY F.IRIAZABAL
+    v_QtyOrder NUMBER;
+    v_ProductUOM VARCHAR2(32);
+    v_ActualQty NUMBER;
+    v_QtyAux NUMBER;
+    --
+    v_lines NUMBER:=0;
+    v_lines_per_orderline NUMBER:=0;
+    v_count NUMBER:=0;
+    CREATE_FROM_INVOICE BOOLEAN:=false;
+    Next_Line BOOLEAN:=false;
+    Next_Order BOOLEAN:=false;
+    NEXT_PRODUCT BOOLEAN:=false;
+    FINISH_PROCESS BOOLEAN:=false;
+    Cur_Storage_ISOPEN BOOLEAN:=false;
+    Cur_OrderLine_ISOPEN BOOLEAN:=false;
+  BEGIN
+    -- Process Parameters
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Chec  k for serial execution
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      SELECT COUNT(*)
+      INTO v_count
+      FROM AD_PINSTANCE
+      WHERE AD_PROCESS_ID IN(SELECT AD_PROCESS_ID FROM AD_PINSTANCE WHERE AD_PInstance_ID=p_PInstance_ID)
+        AND IsProcessing='Y'
+        AND AD_PInstance_ID<>p_PInstance_ID;
+      IF(v_count>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@SerialProcessStillRunning@') ;
+      END IF;
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('M_InOut_Create - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date, 
+          p.AD_CLIENT_ID, ci.allownegativestock, i.AD_User_ID
+        FROM AD_ClientInfo ci, AD_PInstance i LEFT JOIN AD_PInstance_Para p ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+          AND p.ad_client_id = ci.ad_client_id
+        ORDER BY p.SeqNo) LOOP
+        IF(Cur_Parameter.ParameterName='AD_Org_ID') THEN
+          v_AD_Org_ID:=Cur_Parameter.P_String;
+          DBMS_OUTPUT.PUT_LINE('  AD_Org_ID=' || v_AD_Org_ID) ;
+        ELSIF(Cur_Parameter.ParameterName='Selection') THEN
+          v_Selection:=Cur_Parameter.P_String;
+          DBMS_OUTPUT.PUT_LINE('  Selection=' || v_Selection) ;
+        ELSE
+          DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+        END IF;
+        v_AD_Client_ID:=Cur_Parameter.AD_CLIENT_ID;
+        v_allownegativestock := cur_parameter.allownegativestock;
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  v_Record_ID=' || v_Record_ID) ;
+    ELSIF(p_Invoice_ID IS NOT NULL) THEN
+      CREATE_FROM_INVOICE:=true;
+      SELECT c_invoice.AD_CLIENT_ID, ad_clientinfo.allownegativestock, c_invoice.updatedby
+      INTO v_ad_client_id, v_allownegativestock, v_user_id
+      FROM ad_clientinfo, c_invoice
+      where ad_clientinfo.ad_client_id = c_invoice.ad_client_id
+      and c_invoice_id = p_invoice_id;
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      DBMS_OUTPUT.PUT_LINE('--<<M_InOut_Create>> Order_ID=' || v_Record_ID);
+      SELECT c_order.AD_CLIENT_ID, ad_clientinfo.allownegativestock,c_order.updatedby
+      INTO v_ad_client_id, v_allownegativestock, v_user_id
+       FROM ad_clientinfo, c_order
+      where ad_clientinfo.ad_client_id = c_order.ad_client_id
+      and c_order_id = v_Record_ID;
+
+    END IF;
+
+    
+    BEGIN --BODY
+      IF(NOT CREATE_FROM_INVOICE) THEN
+        -- May be NULL or 0
+        IF(v_Record_ID IS NULL) THEN
+          v_Record_ID:='0';
+        END IF;
+        IF(v_Selection IS NULL) THEN
+          v_Selection:='N';
+        END IF;
+      END IF;--CREATE_FROM_INVOICE
+      IF(NOT CREATE_FROM_INVOICE) THEN
+        /**************************************************************************
+        * Order Loop goes though all open orders, where we would need to ship something
+        * (if v_Record_ID = '0')
+        *************************************************************************/
+        FOR Cur_Order IN
+          (SELECT o.AD_Client_ID, o.AD_Org_ID, o.C_Order_ID, o.IsSOTrx,
+             o.Description, o.DocumentNo, o.C_DocType_ID, o.C_BPartner_ID,
+             o.C_BPartner_Location_ID, o.AD_User_ID, l.M_Warehouse_ID, o.POReference,
+             o.DateOrdered, o.DeliveryRule, o.FreightCostRule, o.FreightAmt,
+             o.C_Project_ID, o.C_Activity_ID, o.C_Campaign_ID, o.AD_OrgTrx_ID,
+             o.User1_ID, o.User2_ID, o.DeliveryViaRule, o.M_Shipper_ID,
+             o.C_Charge_ID, o.ChargeAmt, o.PriorityRule, o.SALESREP_ID,
+             d.DocSubTypeSO,
+             o.DELIVERY_LOCATION_ID -- Added by Rafa Roda to include delivery location
+           FROM C_ORDER o JOIN C_DOCTYPE d ON o.C_DOCTYPE_ID = d.C_DOCTYPE_ID INNER JOIN C_ORDERLINE l ON(o.C_Order_ID=l.C_Order_ID) --  Orders are IP  or CO if Standard Orders
+           WHERE(o.DocStatus='IP' OR(o.DocStatus='CO'
+                                     AND o.IsDelivered='N'
+                                     AND v_Record_ID='0')) -- Sales Orders Only and not Offers
+                 AND o.IsSOTrx='Y'
+                 AND o.C_DocType_ID IN (SELECT C_DocType_ID
+                                        FROM C_DOCTYPE
+                                        WHERE DocBaseType='SOO'
+                                        AND DocSubTypeSO NOT IN('ON', 'OB')
+                                        AND isReturn = 'N'
+                 )
+            -- Manually Selected
+            AND((v_Selection='Y'
+                AND o.IsSelected='Y')
+            OR(v_Selection<>'Y' -- Specific or individual organization
+               AND(v_AD_Org_ID IS NULL OR
+                   v_AD_Org_ID=o.AD_Org_ID) -- Specific order or all open orders
+               AND(o.C_Order_ID=v_Record_ID -- Parameter
+                   OR(v_Record_ID='0'
+                      AND EXISTS (SELECT *
+                                  FROM C_ORDERLINE ll
+                                  WHERE o.C_Order_ID=ll.C_Order_ID
+                                  AND ll.QtyOrdered<>ll.QtyDelivered
+                                  AND ll.DirectShip='N'
+                                  AND ll.M_Product_ID IS NOT NULL
+              )))))
+           GROUP BY o.AD_Client_ID, o.AD_Org_ID, o.C_Order_ID, o.IsSOTrx,
+             o.Description, o.DocumentNo, o.C_DocType_ID, o.C_BPartner_ID,
+             o.C_BPartner_Location_ID, o.AD_User_ID, l.M_Warehouse_ID, o.POReference,
+             o.DateOrdered, o.DeliveryRule, o.FreightCostRule, o.FreightAmt,
+             o.C_Project_ID, o.C_Activity_ID, o.C_Campaign_ID, o.AD_OrgTrx_ID,
+             o.User1_ID, o.User2_ID, o.DeliveryViaRule, o.M_Shipper_ID,
+             o.C_Charge_ID, o.ChargeAmt, o.PriorityRule, o.SALESREP_ID,
+             d.DocSubTypeSO,
+             o.DELIVERY_LOCATION_ID -- Added by Rafa Roda to include delivery location
+           ORDER BY o.PriorityRule,o.DocumentNo
+          ) LOOP
+          v_DocumentNo:='';
+          v_order_count := v_order_count +1;
+          DBMS_OUTPUT.PUT_LINE('Order ' || Cur_Order.DocumentNo || '/' || Cur_Order.C_Order_ID || ', Wh=' || Cur_Order.M_Warehouse_ID || ', Force=' || p_ForceDelivery || ', Delivery=' || Cur_Order.DeliveryRule) ;
+          -- Delivery Rules
+          --  (A)vailability
+          --  Complete (L)ine
+          --  Complete (O)rder
+          --  After (R)eceipt
+          -- (A)vailability (L)ine   -- Do we have something to ship ?
+          IF(Cur_Order.DeliveryRule IN('A', 'L', 'R', 'O')) THEN
+            v_ResultStr:='CheckSomethingToShip';
+            OPEN Cur_OrderLine(Cur_Order.C_Order_ID, Cur_Order.M_Warehouse_ID) ;
+            Cur_OrderLine_ISOPEN:=true;
+            v_ResultStr:='Fetching';
+            FETCH Cur_OrderLine INTO ol;
+            IF(Cur_OrderLine%NOTFOUND) THEN
+              DBMS_OUTPUT.PUT_LINE('  -no lines-') ;
+              Next_Order:=true;
+            END IF;
+          ELSE
+            DBMS_OUTPUT.PUT_LINE('** DeliveryRule=' || Cur_Order.DeliveryRule || ' not implemented') ;
+            Next_Order:=true;
+          END IF;
+
+          IF(NOT Next_Order) THEN
+            /**
+            * Create Order Header
+            *  if forced or if there is a line to ship
+            */
+            v_ResultStr:='CreateInOut-S';
+            v_lines:=10;
+            v_lines_per_orderline := 0;
+            --
+            Ad_Sequence_Next('M_InOut', Cur_Order.C_Order_ID, p_InOut_ID) ;
+            v_ResultStr:='CreateInOut DocType=' || Cur_Order.C_DocType_ID;
+            -- Get Shipment Doc Number
+            SELECT C_DocTypeShipment_ID INTO v_DocType_ID
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=Cur_Order.C_DocType_ID;
+            Ad_Sequence_Doctype(v_DocType_ID, Cur_Order.C_Order_ID, 'Y', v_DocumentNo) ;
+            IF(v_DocumentNo IS NULL) THEN
+              Ad_Sequence_Doc('DocumentNo_M_InOut', Cur_Order.AD_Client_ID, 'Y', v_DocumentNo) ;
+            END IF;
+
+            IF Cur_Order.DocSubTypeSO = 'WR' THEN
+              v_NEWORDERDATE := Cur_Order.DATEORDERED; -- IS A POS ORDER
+            ELSE
+              v_NEWORDERDATE := TRUNC(now());
+            END IF;
+
+            --RAISE_APPLICATION_ERROR(-20100,'el numero documento es:'||COALESCE(v_DocumentNo,0)||' El doctypeId es: '||COALESCE(v_DocType_ID,0)||' El cOrderId es: '||COALESCE(Cur_Order.C_Order_ID,'0'));
+            --
+            DBMS_OUTPUT.PUT_LINE('  InOut_ID=' || p_InOut_ID || ', DocumentNo=' || v_DocumentNo || ', Ship_DocType_ID=' || v_DocType_ID || ', Order_DocType_ID=' || Cur_Order.C_DocType_ID) ;
+            v_ResultStr:='InsertInOut ' || p_InOut_ID;
+            INSERT INTO M_INOUT
+              (M_InOut_ID, C_Order_ID, IsSOTrx, AD_Client_ID,
+              AD_Org_ID, IsActive, Created, CreatedBy,
+              Updated, UpdatedBy, DocumentNo, C_DocType_ID,
+              Description, IsPrinted, MovementType, MovementDate,
+              DateAcct, C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID,
+              M_Warehouse_ID, POReference, DateOrdered, DeliveryRule,
+              FreightCostRule, FreightAmt, C_Project_ID, C_Activity_ID,
+              C_Campaign_ID, AD_OrgTrx_ID, User1_ID, User2_ID,
+              DeliveryViaRule, M_Shipper_ID, C_Charge_ID, ChargeAmt,
+              PriorityRule, DocStatus, DocAction, Processing,
+              Processed, SALESREP_ID,
+              DELIVERY_LOCATION_ID) -- Added by Rafa Roda to include delivery location
+            VALUES
+              (p_InOut_ID, Cur_Order.C_Order_ID, Cur_Order.IsSOTrx, Cur_Order.AD_Client_ID,
+              Cur_Order.AD_Org_ID, 'Y', now(), v_User_ID,
+              now(), v_User_ID, v_DocumentNo, v_DocType_ID,
+              Cur_Order.Description, 'N', 'C-', v_NEWORDERDATE,
+              TRUNC(now()), Cur_Order.C_BPartner_ID, Cur_Order.C_BPartner_Location_ID, Cur_Order.AD_User_ID,
+              Cur_Order.M_Warehouse_ID, Cur_Order.POReference, Cur_Order.DateOrdered, Cur_Order.DeliveryRule,
+              Cur_Order.FreightCostRule, Cur_Order.FreightAmt, Cur_Order.C_Project_ID, Cur_Order.C_Activity_ID,
+              Cur_Order.C_Campaign_ID, Cur_Order.AD_OrgTrx_ID, Cur_Order.User1_ID, Cur_Order.User2_ID,
+              Cur_Order.DeliveryViaRule, Cur_Order.M_Shipper_ID, Cur_Order.C_Charge_ID, Cur_Order.ChargeAmt,
+              Cur_Order.PriorityRule, 'DR', 'CO', 'N',
+              'N', Cur_Order.SALESREP_ID,
+              Cur_Order.DELIVERY_LOCATION_ID); -- Added by Rafa Roda to include delivery location
+          END IF;--Next_Order
+          IF(NOT Next_Order) THEN
+            /**
+            * Create InOut Lines
+            * for all qualifying order lines
+            */
+            DECLARE
+              v_Product_old varchar2(32);
+              v_Warehouse_old varchar2(32);
+              v_UOM_old varchar2(32);
+              v_Attribute_old varchar2(32);
+              v_Product_UOM_old varchar2(32);
+              v_QtyStorage NUMBER:=0;
+            BEGIN
+              LOOP
+                -- Check Availability
+                v_Qty:=ol.QtyOrdered - ol.QtyDelivered;
+                --MODIFIED BY F.IRIAZABAL
+                v_QtyOrder:=0;
+                IF(ol.M_Product_UOM_ID IS NOT NULL) THEN
+                  SELECT M_PRODUCT_UOM.C_UOM_ID INTO v_ProductUOM
+                  FROM M_PRODUCT_UOM, C_UOM
+                  WHERE M_PRODUCT_UOM.C_UOM_ID=C_UOM.C_UOM_ID
+                    AND M_Product_UOM_ID=ol.M_Product_UOM_ID;
+                  IF(ol.QtyDelivered=0) THEN
+                    v_QtyOrder:=ol.QuantityOrder;
+                  ELSIF(v_ProductUOM IS NOT NULL) THEN
+                    v_QtyOrder:=ol.QuantityOrder*v_Qty/ol.QtyOrdered;
+                    --v_QtyOrder:=C_Uom_Convert(v_Qty, ol.C_UOM_ID, v_ProductUOM, 'Y') ;
+                  ELSE
+                    v_QtyOrder:=NULL;
+                  END IF;
+                ELSE
+                  v_QtyOrder:=NULL;
+                END IF;
+                -- Skip zero product lines (comments are zero qty)
+                IF(v_Qty=0 AND ol.M_Product_ID IS NOT NULL) THEN
+                  Next_Line:=true;
+                END IF;
+                IF(NOT Next_Line) THEN
+                  --
+                  DECLARE
+                    v_LocatorQty NUMBER;
+                    v_Locator_ID VARCHAR2(32) ;
+                    v_IsStocked NUMBER:=0;
+                  BEGIN
+                    -- Is it a standard stocked product?
+                    IF(ol.M_Product_ID IS NOT NULL) THEN
+                      SELECT COUNT(*) INTO v_IsStocked
+                      FROM M_PRODUCT
+                      WHERE M_Product_ID=ol.M_Product_ID
+                        AND IsStocked='Y'
+                        AND ProductType='I';
+                    END IF;
+                    -- Item is stocked - check availability
+                    IF(v_IsStocked<>0) THEN
+                      -- check every locator availability and if qty available
+                      --  create InOut line, update storage reservation + qty
+                      IF(NOT Cur_Storage_ISOPEN)
+                        OR(v_Product_old<>ol.M_Product_ID
+                           OR v_Warehouse_old<>ol.M_Warehouse_ID
+                           OR v_UOM_old<>ol.C_UOM_ID
+                           OR COALESCE(v_Attribute_old, '0')<>COALESCE(ol.M_AttributeSetInstance_ID, '0')
+                           OR COALESCE(v_Product_UOM_old, '0')<>COALESCE(ol.M_Product_UOM_ID, '0')) THEN
+                        v_Product_old:=ol.M_Product_ID;
+                        v_Warehouse_old:=ol.M_Warehouse_ID;
+                        v_UOM_old:=ol.C_UOM_ID;
+                        v_Attribute_old:=ol.M_AttributeSetInstance_ID;
+                        v_Product_UOM_old:=ol.M_Product_UOM_ID;
+                        IF(Cur_Storage_ISOPEN) THEN
+                          CLOSE Cur_Storage;
+                          Cur_Storage_ISOPEN:=false;
+                        END IF;
+                        OPEN Cur_Storage(v_Product_old, v_Warehouse_old, v_UOM_old, v_Product_UOM_old, v_Attribute_old) ;
+                        Cur_Storage_ISOPEN:=true;
+                        FETCH Cur_Storage INTO v_storage;
+                        IF Cur_Storage%NOTFOUND THEN
+                          NEXT_PRODUCT:=true;
+                          CLOSE Cur_Storage;
+                          Cur_Storage_ISOPEN:=false;
+                        END IF;
+                        IF(NOT NEXT_PRODUCT) THEN
+                          v_QtyStorage:=v_storage.QtyOnHand;
+                        END IF;--NEXT_PRODUCT
+                      END IF;
+                      IF(NOT NEXT_PRODUCT) THEN
+                        LOOP
+                          -- How much do we deliver from here?
+                          v_ResultStr:='Deliver';
+                          IF(v_Qty>v_QtyStorage) THEN
+                            v_LocatorQty:=v_QtyStorage;
+                          ELSE
+                            v_LocatorQty:=v_Qty;
+                            v_QtyStorage:=v_QtyStorage-v_Qty;
+                          END IF;
+                          v_ActualQty:=NULL;
+                          IF v_storage.M_Product_UOM_ID IS NOT NULL THEN
+                            v_ActualQty:=v_storage.QtyOrder*(v_LocatorQty/v_storage.QtyOnHand) ;
+                          END IF;
+                          IF(v_LocatorQty<>0) THEN
+                            -- Create InOut Line
+                            Ad_Sequence_Next('M_InOutLine', Cur_Order.C_Order_ID, v_NextNo) ;
+                            --
+                            DBMS_OUTPUT.PUT_LINE('    Line ' || ol.Line || '  Qty=' || v_LocatorQty) ;
+                            v_ResultStr:='CreateInOutLine';
+                            INSERT INTO M_INOUTLINE
+                              (M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                              AD_Client_ID, AD_Org_ID, IsActive, Created,
+                              CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                              C_UOM_ID, M_Locator_ID, MovementQty, Description,
+                              IsInvoiced,
+                              --MODIFIED BY F.IRIAZABAL
+                              QuantityOrder, M_Product_Uom_ID, M_AttributeSetInstance_ID)
+                            VALUES
+                              (v_NextNo, v_lines, p_InOut_ID, ol.C_OrderLine_ID,
+                              ol.AD_Client_ID, ol.AD_Org_ID, 'Y', now(),
+                              v_User_ID, now(), v_User_ID, ol.M_Product_ID,
+                              v_storage.C_UOM_ID, v_storage.M_Locator_ID, v_LocatorQty, ol.Description,
+                              'N',
+                              --MODIFIED BY F.IRIAZABAL
+                              v_ActualQty, v_storage.M_PRODUCT_UOM_ID, v_storage.M_AttributeSetInstance_ID);
+                            v_lines:=v_lines + 10;
+                            v_lines_per_orderline:= v_lines_per_orderline + 10;
+                            DBMS_OUTPUT.PUT_LINE('v_lines' || v_lines) ;
+                          END IF;
+                          v_Qty:=v_Qty - v_LocatorQty;
+                          --MODIFIED BY F.IRIAZABAL
+                          v_QtyOrder:=v_QtyOrder - v_ActualQty;
+                          EXIT WHEN v_Qty=0;
+                          v_QtyStorage:=0;
+                          v_ResultStr:='FetchingData';
+                          FETCH Cur_Storage INTO v_storage;
+                          EXIT WHEN Cur_Storage%NOTFOUND;
+                          v_QtyStorage:=v_storage.QtyOnHand;
+                        END LOOP; -- Storage
+                      END IF;--NEXT_PRODUCT
+                      --<<NEXT_PRODUCT>>
+                      NEXT_PRODUCT:=false;
+                      IF(v_Qty<>0 AND (p_ForceDelivery='Y' OR v_allownegativestock = 'Y')) THEN
+                        -- Create InOut Line
+                        Ad_Sequence_Next('M_InOutLine', Cur_Order.C_Order_ID, v_NextNo) ;
+                        IF(v_ProductUOM IS NOT NULL) THEN
+                          v_ActualQty:=ol.QuantityOrder*v_Qty/ol.QtyOrdered;
+                          --v_ActualQty:=C_Uom_Convert(v_Qty, ol.C_UOM_ID, v_ProductUOM, 'Y') ;
+                        ELSE
+                          v_ActualQty:=NULL;
+                        END IF;
+                        SELECT MIN(M_LOCATOR_ID) INTO v_Locator_ID
+                        FROM M_LOCATOR
+                        WHERE M_WAREHOUSE_ID=ol.M_Warehouse_ID;
+                        --
+                        DBMS_OUTPUT.PUT_LINE('    Line ' || ol.Line || '  Qty=' || v_LocatorQty) ;
+                        v_ResultStr:='CreateInOutLine';
+                        INSERT INTO M_INOUTLINE
+                          (M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                          AD_Client_ID, AD_Org_ID, IsActive, Created,
+                          CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                          C_UOM_ID, M_Locator_ID, MovementQty, Description,
+                          IsInvoiced,
+                          --MODIFIED BY F.IRIAZABAL   ,
+                          QuantityOrder, M_Product_Uom_ID, M_AttributeSetInstance_ID)
+                        VALUES
+                          (v_NextNo, v_lines, p_InOut_ID, ol.C_OrderLine_ID,
+                          ol.AD_Client_ID, ol.AD_Org_ID, 'Y', now(),
+                          v_User_ID, now(), v_User_ID, ol.M_Product_ID,
+                          ol.C_UOM_ID, v_Locator_ID, v_Qty, ol.Description,
+                          'N',
+                          --MODIFIED BY F.IRIAZABAL
+                          v_ActualQty, ol.M_PRODUCT_UOM_ID, ol.M_AttributeSetInstance_ID);
+                        v_lines:=v_lines + 10;
+                      ELSIF (v_qty <> 0) THEN
+                        IF (cur_order.deliveryrule = 'O') THEN
+                          DBMS_OUTPUT.PUT_LINE('Not enough stocked products, delivery type Order');
+                          next_order := true;
+                          v_lines := 0;
+                          EXIT;
+                        ELSIF (Cur_order.deliveryrule = 'L') THEN
+                          DBMS_OUTPUT.PUT_LINE('Not enough stocked products, delivery type Line');
+                          v_lines := v_lines - v_lines_per_orderline;
+                          IF (LENGTH(v_resultlinesstr || '<br>@OrderLine@: ' || ol.Line || ' @ForProduct@ ' || ol.name || ': @notEnoughStockDeliveryRuleLine@.') <= 1800 ) THEN
+			    v_resultlinesstr := COALESCE(v_resultlinesstr, '') || '<br>@OrderLine@: ' || ol.Line || ' @ForProduct@ ' || ol.name || ': @notEnoughStockDeliveryRuleLine@.' ;
+			  END IF;
+                          v_hasPartial := true;
+                          DELETE FROM M_INOUTLINE
+                          WHERE M_INOUT_ID = p_InOut_ID
+                            AND C_ORDERLINE_ID = ol.C_ORDERLINE_ID;
+                        ELSE
+                          IF (LENGTH(v_resultlinesstr || '<br>@OrderLine@: ' || ol.Line || ' @ForProduct@ ' || ol.name || ': @notEnoughStockPartial@' || '.') <= 1800 ) THEN
+			    v_resultlinesstr := COALESCE(v_resultlinesstr, '') || '<br>@OrderLine@: ' || ol.Line || ' @ForProduct@ ' || ol.name || ': @notEnoughStockPartial@' || '.' ;
+			  END IF;
+                          v_hasPartial := true;
+                        END IF;
+                      END IF;
+                      -- Copy Ad-hoc lines, Comments OR Service Items
+                    ELSE
+                      -- Create InOut Line
+                      Ad_Sequence_Next('M_InOutLine', Cur_Order.C_Order_ID, v_NextNo) ;
+                      --
+                      DBMS_OUTPUT.PUT_LINE('    Line* ' || ol.Line || '  Qty=' || v_Qty) ;
+                      v_ResultStr:='CreateInOutLine*2 '||ol.c_order_id||'-'||ol.line||'-'||ol.m_product_id;
+                      INSERT INTO M_INOUTLINE
+                        (M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                        AD_Client_ID, AD_Org_ID, IsActive, Created,
+                        CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                        C_UOM_ID, M_Locator_ID, MovementQty, Description,
+                        IsInvoiced,
+                        --MODIFIED BY F.IRIAZABAL
+                        QuantityOrder, M_Product_Uom_ID, M_AttributeSetInstance_ID)
+                      VALUES
+                        (v_NextNo, v_lines, p_InOut_ID, ol.C_OrderLine_ID,
+                        ol.AD_Client_ID, ol.AD_Org_ID, 'Y', now(),
+                        v_User_ID, now(), v_User_ID, ol.M_Product_ID,
+                        ol.C_UOM_ID, NULL, v_Qty, ol.Description,
+                        'N',
+                        --MODIFIED BY F.IRIAZABAL
+                        v_QtyOrder, ol.M_PRODUCT_UOM_ID, ol.M_ATTRIBUTESETINSTANCE_ID);
+                      v_lines:=v_lines + 10;
+                    END IF;
+                  END;
+                END IF;--Next_Line
+                --<<Next_Line>>
+                Next_Line:=false;
+                FETCH Cur_OrderLine INTO ol;
+                v_lines_per_orderline := 0;
+                EXIT WHEN Cur_OrderLine%NOTFOUND;
+              END LOOP; -- Order Line Loop
+            END;--END DECLARE VARIABLES FOR ORDER LINE LOOP
+          END IF;--Next_Order
+          -- Validate result message for user
+          IF (Cur_Order.DeliveryRule='O' AND v_lines <= 10) THEN
+              DELETE FROM M_INOUTLINE
+              WHERE M_INOUT_ID  = p_InOut_ID;
+              DELETE FROM M_INOUT
+              WHERE M_INOUT_ID = p_InOut_ID;
+              next_order := TRUE;
+            result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ': ' || '@ShipmentError@. @notEnoughStockDeliveryRuleOrder@.';
+          ELSIF (v_lines <= 10) THEN
+              DELETE FROM M_INOUTLINE
+              WHERE M_INOUT_ID  = p_InOut_ID;
+              DELETE FROM M_INOUT
+              WHERE M_INOUT_ID = p_InOut_ID;
+            result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ': ' || '@ShipmentError@.' || v_resultlinesstr;
+          ELSIF (v_hasPartial) THEN
+            v_order_partial_count := v_order_partial_count +1;
+            result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ' @InoutDocumentno@ ' || v_DocumentNo || ': @ShipmentPartial@.' || v_resultlinesstr;
+          ELSE
+            v_order_delivered_count := v_order_delivered_count +1;
+            result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ' @InoutDocumentno@ ' || v_DocumentNo || ': @ShipmentSuccess@.' ;
+          END IF;
+          IF (LENGTH(v_Message || result_String || '<br><br>') <= 1800 ) THEN
+		v_Message:=v_Message || result_String || '<br><br>';          
+		v_logLines := v_logLines + 1;
+	  ELSE
+		v_isWholeLog := false;
+	  END IF;
+          result_String := '';
+          v_resultlinesstr := '';
+          v_hasPartial := false;
+          IF(NOT Next_Order) THEN
+            IF(v_lines=0) THEN
+              DELETE FROM M_INOUTLINE
+              WHERE M_INOUT_ID  = p_InOut_ID;
+              DELETE FROM M_INOUT
+              WHERE M_INOUT_ID = p_InOut_ID;
+            ELSE
+
+                v_PostResult := NULL;
+
+                --M_Inout_Create - Calling Post Process
+                --Extension point at the end of the M_Inout_Create. It has 4 available parameters Record_ID, DocAction, User and Result
+                SELECT count(*) INTO v_count
+                FROM DUAL
+                where exists (select 1 from ad_ep_procedures where ad_extension_points_id = '18625A6DBF3944A98E6DC375BF88C1EA');
+                IF (v_count=1) THEN
+                  DECLARE
+                    v_ep_instance VARCHAR2(32);
+                    v_extension_point_id VARCHAR2(32) := '18625A6DBF3944A98E6DC375BF88C1EA';
+                  BEGIN
+                    v_ep_instance := get_uuid();
+                    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+                      p_InOut_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction',
+                      'CO', NULL, NULL, NULL, NULL, NULL, NULL);
+                    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+                      v_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+                      NULL, NULL, v_PostResult, NULL, NULL, NULL, NULL);
+                    AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+                    SELECT p_number INTO v_PostResult
+                    FROM ad_ep_instance_para
+                    WHERE ad_ep_instance_id = v_ep_instance
+                      AND parametername LIKE 'Result';
+
+                    DELETE FROM ad_ep_instance_para
+                    WHERE ad_ep_instance_id = v_ep_instance;
+                  END;
+                END IF;
+
+                IF (v_PostResult IS NULL) THEN
+                  -- Post Shipment
+                  M_INOUT_POST(NULL, p_InOut_ID) ;
+                END IF;
+
+            END IF;
+          END IF;--Next_Order
+          --<<Next_Order>>
+          Next_Order:=false;
+          IF(Cur_Storage_ISOPEN) THEN
+            CLOSE Cur_Storage;
+            Cur_Storage_ISOPEN:=false;
+          END IF;
+          IF(Cur_OrderLine_ISOPEN) THEN
+            CLOSE Cur_OrderLine;
+            Cur_OrderLine_ISOPEN:=false;
+          END IF;
+        END LOOP; -- Order Header Loop
+        IF (v_order_delivered_count = 0 AND v_order_partial_count = 0) THEN
+          v_Message := '@ZeroOrdersProcessed@';
+          v_result :=0;
+        ELSIF (v_order_partial_count <> 0 OR v_order_delivered_count <> v_order_count) THEN
+          v_result :=2;
+        END IF;
+        FINISH_PROCESS:=true;
+      END IF;--CREATE_FROM_INVOICE
+      IF(NOT FINISH_PROCESS) THEN
+        /**************************************************************************
+        * Create Shipment from Invoice
+        *************************************************************************/
+        --<<CREATE_FROM_INVOICE>>
+        CREATE_FROM_INVOICE:=false;
+        DECLARE
+          Cur_Invoice RECORD;
+          Cur_Lines RECORD;
+          v_Warehouse_ID VARCHAR2(32);
+          v_IsDocNoControlled CHAR(1) ;
+        BEGIN
+          FOR Cur_Invoice IN
+            (SELECT * FROM C_INVOICE WHERE C_Invoice_ID=p_Invoice_ID) LOOP
+            v_ResultStr:='CreateInOut';
+            -- Get Warehouse from Locator
+            SELECT M_Warehouse_ID INTO v_Warehouse_ID
+            FROM M_LOCATOR
+            WHERE M_Locator_ID=p_Locator_ID;
+            -- Get Shipment Doc Number
+            v_DocType_ID:=Ad_Get_DocType(Cur_Invoice.AD_Client_ID, Cur_Invoice.AD_Org_ID, 'MMR') ;
+            SELECT IsDocNoControlled INTO v_IsDocNoControlled
+            FROM C_DOCTYPE
+            WHERE C_DocType_ID=v_DocType_ID;
+            IF(v_IsDocNoControlled='Y') THEN
+              Ad_Sequence_Doctype(v_DocType_ID, Cur_Invoice.C_Invoice_ID, 'Y', v_DocumentNo) ;
+              IF(v_DocumentNo IS NULL) THEN
+                Ad_Sequence_Doc('DocumentNo_M_InOut', Cur_Invoice.AD_Client_ID, 'Y', v_DocumentNo) ;
+              END IF;
+            ELSE
+              v_DocumentNo:=Cur_Invoice.DocumentNo;
+            END IF;
+            Ad_Sequence_Next('M_InOut', Cur_Invoice.C_Invoice_ID, p_InOut_ID) ;
+            --
+            DBMS_OUTPUT.PUT_LINE('  InOut_ID=' || p_InOut_ID || ' DocumentNo=' || v_DocumentNo) ;
+            v_ResultStr:='InsertInOut ' || p_InOut_ID;
+            INSERT INTO M_INOUT
+              (M_InOut_ID, C_Order_ID, IsSOTrx, C_Invoice_ID,
+              AD_Client_ID, AD_Org_ID, IsActive, Created,
+              CreatedBy, Updated, UpdatedBy, DocumentNo,
+              C_DocType_ID, Description, IsPrinted, MovementType,
+              MovementDate, DateAcct, C_BPartner_ID, C_BPartner_Location_ID,
+              AD_User_ID, M_Warehouse_ID, POReference, DateOrdered,
+              SalesRep_ID,
+              DeliveryRule,
+              FreightCostRule,
+              FreightAmt,
+              DeliveryViaRule, M_Shipper_ID, C_Charge_ID, ChargeAmt,
+              PriorityRule,
+              DocStatus, DocAction, Processing, Processed
+              )
+            VALUES
+              (p_InOut_ID, NULL, Cur_Invoice.IsSoTrx, Cur_Invoice.C_Invoice_ID,
+              Cur_Invoice.AD_Client_ID, Cur_Invoice.AD_Org_ID, 'Y', now(),
+              v_User_ID, now(), v_User_ID, v_DocumentNo,
+              v_DocType_ID, Cur_Invoice.Description, 'N', 'V+',
+              Cur_Invoice.DateInvoiced, Cur_Invoice.DateInvoiced, Cur_Invoice.C_BPartner_ID, Cur_Invoice.C_BPartner_Location_ID,
+              Cur_Invoice.AD_User_ID, v_Warehouse_ID, Cur_Invoice.POReference, Cur_Invoice.DateInvoiced,
+              Cur_Invoice.SalesRep_ID,
+              'A', -- Available
+              'I',
+              0, -- Freight included
+              'P', NULL, Cur_Invoice.C_Charge_ID, Cur_Invoice.ChargeAmt,
+              '3', -- PickUp, High Priority
+              'DR', 'CO', 'N', 'N'
+              );
+            --
+           
+            -- Lines
+            FOR Cur_Lines IN
+              (SELECT *
+              FROM C_INVOICELINE
+              WHERE C_Invoice_ID=p_Invoice_ID
+              AND M_Product_ID IS NOT NULL) LOOP
+              Ad_Sequence_Next('M_InOutLine', Cur_Invoice.C_Invoice_ID, v_NextNo) ;
+              DBMS_OUTPUT.PUT_LINE('    Line* ' || Cur_Lines.Line) ;
+              v_ResultStr:='CreateInOutLine*3';
+              INSERT INTO M_INOUTLINE
+                (M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                AD_Client_ID, AD_Org_ID, IsActive, Created,
+                CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                C_UOM_ID, M_Locator_ID, MovementQty, Description,
+                IsInvoiced,
+                --MODIFIED BY F.IRIAZABAL
+                QuantityOrder, M_Product_Uom_ID, M_AttributeSetInstance_ID
+                )
+              VALUES
+                (v_NextNo, Cur_Lines.Line, p_InOut_ID, Cur_Lines.C_OrderLine_ID,
+                Cur_Lines.AD_Client_ID, Cur_Lines.AD_Org_ID, 'Y', now(),
+                v_User_ID, now(), v_User_ID, Cur_Lines.M_Product_ID,
+                Cur_Lines.C_UOM_ID, p_Locator_ID, Cur_Lines.QtyInvoiced, Cur_Lines.Description,
+                'Y',
+                --MODIFIED BY F.IRIAZABAL
+                Cur_Lines.QuantityOrder, Cur_Lines.M_Product_Uom_ID, Cur_Lines.M_ATTRIBUTESETINSTANCE_ID
+                );
+              UPDATE C_INVOICELINE
+              SET M_INOUTLINE_ID=v_NextNo,
+              Updated=now(),
+              UpdatedBy=v_User_ID
+              WHERE C_INVOICELINE_ID=Cur_Lines.C_INVOICELINE_ID;
+            END LOOP; -- InvoiceLines
+          END LOOP; -- Invoices
+
+            v_PostResult := NULL;
+
+            --M_Inout_Create - Calling Post Process
+            --Extension point at the end of the M_Inout_Create. It has 4 available parameters Record_ID, DocAction, User and Result
+            SELECT count(*) INTO v_count
+            FROM DUAL
+            where exists (select 1 from ad_ep_procedures where ad_extension_points_id = '18625A6DBF3944A98E6DC375BF88C1EA');
+            IF (v_count=1) THEN
+              DECLARE
+                v_ep_instance VARCHAR2(32);
+                v_extension_point_id VARCHAR2(32) := '18625A6DBF3944A98E6DC375BF88C1EA';
+              BEGIN
+                v_ep_instance := get_uuid();
+                AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+                  p_InOut_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction',
+                  'CO', NULL, NULL, NULL, NULL, NULL, NULL);
+                AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+                  v_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+                AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+                  NULL, NULL, v_PostResult, NULL, NULL, NULL, NULL);
+                AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+                SELECT p_number INTO v_PostResult
+                FROM ad_ep_instance_para
+                WHERE ad_ep_instance_id = v_ep_instance
+                  AND parametername LIKE 'Result';
+
+                DELETE FROM ad_ep_instance_para
+                WHERE ad_ep_instance_id = v_ep_instance;
+              END;
+            END IF;
+
+            IF (v_PostResult IS NULL) THEN
+                -- Post Shipment
+                M_INOUT_POST(NULL, p_InOut_ID) ;
+            END IF;
+
+		  --ADDED BY P.SAROBE
+		  SELECT documentno
+		  INTO v_DocumentNo
+		  FROM 	 M_INOUT
+		  WHERE m_inout_id=p_InOut_ID;
+		  v_Message:='@InoutDocumentno@ ' || v_DocumentNo || ' @beenCreated@';
+        END;
+      END IF;--FINISH_PROCESS
+      /*************************************************************************/
+      --<<FINISH_PROCESS>>
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        --  Update AD_PInstance
+      IF (NOT v_isWholeLog) THEN
+	v_Message := 'First ' || v_logLines || ' result(s):' || '<br>' || v_Message || '...';
+      END IF;
+	
+        DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_result, v_Message) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('--<<M_InOut_Create finished>> ' || v_Message);
+      END IF;
+      --
+      RETURN;
+    END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  p_InOut_ID:='0'; -- Error Indicator
+  RETURN;
+END M_INOUT_CREATE
+]]></body>
+    </function>
+  </database>

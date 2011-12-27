@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="EmailDefinitionData" package="org.openbravo.erpCommon.utility.reporting">
+   <SqlClassComment></SqlClassComment>
+   
+   <!-- 
+		This definition exists only to define all the fields used in all the queries.
+		This is needed because all the variables in the generated class are based upon
+		all the fields in the first query of the xsql.
+    -->   
+   <SqlMethod name="getEmailDefinitions" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+		select
+		    '1' as position,		
+			emaildefinitions.ad_language as ad_language,
+			emaildefinitions.subject as subject,
+			emaildefinitions.body as body,
+			emaildefinitions.isdefault as isdefault
+		from
+			c_poc_emaildefinition emaildefinitions
+		where
+			emaildefinitions.ad_org_id = ? and
+			emaildefinitions.c_poc_doctype_template_id = ?
+        union
+		select
+		    '2' as position,		
+			emaildefinitions.ad_language as ad_language,
+			emaildefinitions.subject as subject,
+			emaildefinitions.body as body,
+			emaildefinitions.isdefault as isdefault
+		from
+			c_poc_emaildefinition emaildefinitions
+		where
+			emaildefinitions.ad_org_id = '0' and
+			emaildefinitions.c_poc_doctype_template_id = ?        			
+		order by position asc, isdefault desc
+        ]]>
+        </Sql>
+        <Parameter name="adOrgId"/>
+        <Parameter name="docTypeTemplateId"/>
+        <Parameter name="docTypeTemplateId"/>        
+   </SqlMethod>
+ 
+</SqlClass>
+

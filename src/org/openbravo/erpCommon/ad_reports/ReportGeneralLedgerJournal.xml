@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <template file="ReportGeneralLedgerJournal.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramDateFrom" name="dateFrom" attribute="value"/>
+	<PARAMETER id="paramDateFrom" name="dateFromdisplayFormat" attribute="displayformat" replace="xx"/>
+	<PARAMETER id="paramDateFrom" name="dateFromsaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramDateTo" name="dateTo" attribute="value"/>
+	<PARAMETER id="paramDateTo" name="dateTodisplayFormat" attribute="displayformat" replace="xx"/>
+	<PARAMETER id="paramDateTo" name="dateTosaveFormat" attribute="saveformat" replace="yy"/>
+  <PARAMETER id="paramAD_ORGID" name="adOrgId"/>
+  <PARAMETER id="paramDocument" name="document"/>
+  <PARAMETER id="paramGroupId" name="groupId" default="0"/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  <PARAMETER id="inpRecord" name="paramRecord" attribute="value" default=""/>
+  <PARAMETER id="inpTable" name="paramTable" attribute="value" default=""/>
+  <PARAMETER id="paramC_ACCTSCHEMA_ID" name="cAcctschemaId"/>
+  <PARAMETER id="paramPageNo" name="inpPageNo" attribute="value" default="1"/>
+  <PARAMETER id="paramEntryNo" name="inpEntryNo" attribute="value" default="1"/>
+  <PARAMETER id="paramInitialBalance" name="inpInitialBalance" attribute="value" default="0"/>
+
+  <PARAMETER id="fieldCheck" name="check" default="Y"/>
+  <PARAMETER id="paramShowRegular" name="showRegular" boolean="checked" withId="fieldCheck"/>
+  <PARAMETER id="paramShowClosing" name="showClosing" boolean="checked" withId="fieldCheck"/>
+  <PARAMETER id="paramShowReg" name="showReg" boolean="checked" withId="fieldCheck"/>
+  <PARAMETER id="paramShowOpening" name="showOpening" boolean="checked" withId="fieldCheck"/>
+  <PARAMETER id="paramShowDescription" name="showDescription" boolean="checked" withId="fieldCheck"/>
+
+  <PARAMETER id="jsDisablePreviousNext" name="jsDisablePreviousNext" default=""/>
+
+  <SUBREPORT id="reportDocument" name="reportDocument" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramDocument"/>
+  </SUBREPORT>
+  <SUBREPORT id="reportAD_ORGID" name="reportAD_ORGID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramAD_ORGID"/>
+  </SUBREPORT>
+
+     <SUBREPORT id="reportC_ACCTSCHEMA_ID" name="reportC_ACCTSCHEMA_ID" report="org/openbravo/erpCommon/reference/List">
+      <ARGUMENT name="parameterListSelected" withId="paramC_ACCTSCHEMA_ID"/>
+    </SUBREPORT>
+
+  <PARAMETER id="param2" name="param2" default="2"/>
+
+  <structure name="structure1">
+    <FIELD id="fieldRownum1">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow1xx" name="MODULE" arg1="fieldRownum1" arg2="param2" format="integerEdition" attribute="class" replace="yy"/>
+    <FIELD id="fieldSchemaName">schemaName</FIELD>	
+    <FIELD id="fieldIdentifier" attribute="onclick" replace="xx">identifier</FIELD>
+    <FIELD id="fieldIdentifier" attribute="onclick" replace="yy">dateacct</FIELD>
+    <FIELD id="fieldDateacct">dateacct</FIELD>
+    <FIELD id="fieldName">name</FIELD>
+    <FIELD id="fieldAmtacctdr" format="euroInform">amtacctdr</FIELD>
+    <FIELD id="fieldAmtacctcr" format="euroInform">amtacctcr</FIELD>
+    <FIELD id="fieldValue">value</FIELD>
+    <FIELD id="fieldDescription">description</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="xx">id</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="yy">adTableId</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="zz">docbasetype</FIELD>
+    <FIELD id="fieldId" attribute="onclick" replace="ww">tabId</FIELD>
+    <FUNCTION id="functionOrderJournal" name="ORDER" attribute="value">identifier</FUNCTION>
+    <FUNCTION id="functionCalculateOrderJournal" name="ADD" arg1="functionOrderJournal" arg2="paramGroupId" format="integerInform"/>
+    <FUNCTION id="functionCalculateOrderJournalWithInitial" name="ADD" arg1="functionCalculateOrderJournal" arg2="paramEntryNo" format="integerInform"/>
+    <SECTION id="sectionSchema" field="schemaName"/>    	
+    <SECTION id="sectionDateAcct" field="dateacct"/>
+    <SECTION id="sectionJournal" field="identifier"/>
+    <SECTION id="sectionDetail"/>
+  </structure>
+  <DISCARD id="discard"/>
+</REPORT>

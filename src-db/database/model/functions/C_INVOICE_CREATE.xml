@@ -1,0 +1,1115 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_INVOICE_CREATE">
+    <function name="C_INVOICE_CREATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_invoice_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_Invoice_Create.sql,v 1.12 2003/08/31 06:49:27 jjanke Exp $
+  ***
+  * Title: Create Invoice
+  * Description:
+  * - Based on Invoice Rules create Invoice
+  * - Update Order while creating the lines
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    v_Record_ID VARCHAR2(32):=NULL;
+    v_AD_Org_ID VARCHAR2(32):=NULL;
+    v_C_Order_ID VARCHAR2(32):=NULL;
+    v_BPartner_ID VARCHAR2(32):=NULL;
+    v_Selection VARCHAR2(1):='N';
+    v_DateInvoiced_aux DATE:=NULL;
+    v_DateOrdered DATE:=NULL;
+    v_InvoiceToDate DATE:=NULL;
+    v_ADUserId VARCHAR2(32):=NULL;
+    --
+    v_DateInvoiced DATE;
+    v_NoRecords NUMBER:=0;
+    v_Message_Check NUMBER:=0;
+    v_NoRecNotComplDelivered NUMBER:=0;
+    -- Orders to process
+    Cur_Order RECORD;
+    --
+    v_NextNo VARCHAR2(32);
+    v_DocType_ID VARCHAR2(32);
+    v_DocumentNo VARCHAR2(40) ;
+    v_Qty NUMBER;
+    --MODIFIED BY F.IRIAZABAL
+    v_QtyOrder NUMBER;
+    v_Reference VARCHAR2(2000):='';
+    v_ReferenceOrder CHAR(1) ;
+    v_DocSubTypeSO VARCHAR2(60) ;
+    --
+    v_LineNo NUMBER:=0;
+    v_count NUMBER:=0;
+    Cur_OrderLine_ISOPEN BOOLEAN:=false;
+    Cur_InOutLine_ISOPEN BOOLEAN:=false;
+    v_AD_Client_ID VARCHAR2(32);
+    -- Order Lines not invoiced   Invoice Rule: Immediate
+    CURSOR Cur_OrderLine (Order_ID VARCHAR) IS
+      SELECT *
+      FROM C_ORDERLINE l
+      WHERE QtyOrdered<>QtyInvoiced
+        AND C_Order_ID=Order_ID
+      ORDER BY Line  FOR UPDATE;
+      ptr_ol Cur_OrderLine%ROWTYPE;
+      -- Shipment Lines of Order Lines  Invoice Rule: Delivery
+      CURSOR Cur_InOutLine (Order_ID VARCHAR) IS
+        SELECT ol.AD_Client_ID,
+          ol.AD_Org_ID,
+          sl.M_InOut_ID,
+          sl.M_InOutLine_ID,
+          ol.C_OrderLine_ID,
+          COALESCE(sl.Description, ol.Description) AS Description,
+          COALESCE(sl.M_Product_ID, ol.M_Product_ID) AS M_Product_ID,
+          COALESCE(sl.MovementQty, ol.QtyOrdered-ol.QtyInvoiced) AS MovementQty,
+          --MODIFIED BY F.IRIAZABAL
+          sl.QUANTITYORDER,
+          ol.PriceList,
+          ol.PriceActual,
+          ol.PriceLimit,
+          ol.C_Charge_ID,
+          ol.ChargeAmt,
+          COALESCE(sl.C_UOM_ID, ol.C_UOM_ID) AS C_UOM_ID,
+          --MODIFIED BY F.IRIAZABAL
+          sl.M_PRODUCT_UOM_ID,
+          ol.C_Tax_ID, --ol.IsTaxIncluded,
+          ol.Line,
+          ol.DirectShip,
+          ol.PriceStd,
+          ol.m_attributesetinstance_id,
+          ol.taxbaseamt
+        FROM M_INOUT s, M_INOUTLINE sl
+        RIGHT JOIN C_ORDERLINE ol
+          ON sl.C_OrderLine_ID=ol.C_OrderLine_ID
+        WHERE sl.M_InOut_ID IS NOT NULL -- We need to have a shipment
+          AND ol.C_Order_ID=Order_ID -- parameter
+          AND s.M_InOut_ID = sl.M_InOut_ID
+          AND s.DocStatus = 'CO'
+          AND(sl.IsInvoiced IS NULL
+          OR sl.IsInvoiced='N')
+        ORDER BY ol.Line -- single Order
+          FOR UPDATE;
+        ptr_sl Cur_InOutLine%ROWTYPE;
+        Next_Order BOOLEAN:=FALSE;
+        Next_S_Line BOOLEAN:=FALSE;
+        Next_O_Line BOOLEAN:=FALSE;
+        FINISH_PROCESS BOOLEAN:=FALSE;
+      BEGIN
+        -- Process Parameters
+        IF(p_PInstance_ID IS NOT NULL) THEN
+          --  Check for serial execution
+          DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+          SELECT COUNT(*)
+          INTO v_count
+          FROM AD_PINSTANCE
+          WHERE AD_PROCESS_ID IN
+            (SELECT AD_PROCESS_ID FROM AD_PINSTANCE WHERE AD_PInstance_ID=p_PInstance_ID)
+            AND IsProcessing='Y'
+            AND AD_PInstance_ID<>p_PInstance_ID;
+          IF(v_count>0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@SerialProcessStillRunning@') ;
+          END IF;
+          --  Update AD_PInstance
+          DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+          v_ResultStr:='PInstanceNotFound';
+          AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+          -- Get Parameters
+          v_ResultStr:='ReadingParameters';
+          v_C_Order_ID:=NULL;
+          FOR Cur_Parameter IN
+            (SELECT i.Record_ID,
+              i.AD_User_ID,
+              p.ParameterName,
+              p.P_String,
+              p.P_Number,
+              p.P_Date
+            FROM AD_PINSTANCE i
+            LEFT JOIN AD_PINSTANCE_PARA p
+              ON i.AD_PInstance_ID=p.AD_PInstance_ID
+            WHERE i.AD_PInstance_ID=p_PInstance_ID
+            ORDER BY p.SeqNo
+            )
+          LOOP
+            v_Record_ID:=Cur_Parameter.Record_ID;
+            v_ADUserId:=Cur_Parameter.AD_User_ID;
+            IF(Cur_Parameter.ParameterName='DateInvoiced') THEN
+              v_DateInvoiced_aux:=Cur_Parameter.P_Date;
+              DBMS_OUTPUT.PUT_LINE('  DateInvoiced=' || v_DateInvoiced_aux) ;
+            ELSIF(Cur_Parameter.ParameterName='InvoiceToDate') THEN
+              v_InvoiceToDate:=Cur_Parameter.P_Date;
+              DBMS_OUTPUT.PUT_LINE('  InvoiceToDate=' || v_InvoiceToDate) ;
+            ELSIF(Cur_Parameter.ParameterName='AD_Org_ID') THEN
+              v_AD_Org_ID:=Cur_Parameter.P_String;
+              DBMS_OUTPUT.PUT_LINE('  AD_Org_ID=' || v_AD_Org_ID) ;
+            ELSIF(Cur_Parameter.ParameterName='C_Order_ID') THEN
+              v_C_Order_ID:=Cur_Parameter.P_String;
+              DBMS_OUTPUT.PUT_LINE('  C_Order_ID=' || v_C_Order_ID) ;
+            ELSIF(Cur_Parameter.ParameterName='C_BPartner_ID') THEN
+              v_BPartner_ID:=Cur_Parameter.P_String;
+              DBMS_OUTPUT.PUT_LINE('  C_BPartner_ID=' || v_BPartner_ID) ;
+            ELSIF(Cur_Parameter.ParameterName='Selection') THEN
+              v_Selection:=Cur_Parameter.P_String;
+              DBMS_OUTPUT.PUT_LINE('  Selection=' || v_Selection) ;
+            ELSE
+              DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+            END IF;
+          END LOOP; -- Get Parameter
+        ELSE
+          DBMS_OUTPUT.PUT_LINE('--<<C_Invoive_Create>>') ;
+          v_C_Order_ID:=p_Order_ID;
+          v_DateInvoiced_aux:=NULL;
+          v_InvoiceToDate:=NULL;
+          v_BPartner_ID:=NULL;
+          v_Selection:='N';
+          BEGIN
+            SELECT COALESCE(UPDATEDBY,'0') INTO v_ADUserId  FROM C_ORDER  WHERE C_ORDER_ID=p_Order_ID;
+          EXCEPTION
+          WHEN OTHERS THEN
+            v_ADUserId := '0';            
+          END;
+        END IF;
+      BEGIN --BODY
+        /**
+        * Order Loop == all not completely invoiced orders == No Summary ==
+        */
+
+          DBMS_OUTPUT.PUT_LINE('  C_Order_ID=' || v_C_Order_ID || ', BPartner_ID=' || v_BPartner_ID || ', AD_Org_ID=' || v_AD_Org_ID) ;
+          -- For all Orders
+          FOR Cur_Order IN
+            (SELECT *
+            FROM C_ORDER o  -- Specific InProgress Order
+            WHERE(C_Order_ID=v_C_Order_ID AND v_Selection = 'N'
+              AND o.DocStatus IN('IP', 'CO')) -- OR all completed and closed orders
+              OR(v_C_Order_ID IS NULL AND v_Selection = 'N'
+              AND o.DocStatus IN('CO', 'CL')
+              AND IsSOTrx='Y'  -- not for InvoiceSchedule
+              AND InvoiceRule<>'S'  -- of all or a specific business partner / organization
+              AND(v_BPartner_ID IS NULL
+              OR C_BPartner_ID=v_BPartner_ID)
+              AND(v_InvoiceToDate IS NULL
+              OR DateOrdered<TRUNC(v_InvoiceToDate) +1)
+              AND(v_AD_Org_ID IS NULL
+              OR AD_Org_ID=v_AD_Org_ID)) -- where there is something to invoice
+              OR (v_Selection = 'Y'
+     AND o.ISSELECTED = 'Y'
+              AND o.DocStatus IN('CO', 'CL')
+              AND IsSOTrx='Y'  -- not for InvoiceSchedule
+              AND InvoiceRule NOT IN ('S','D')  -- of all or a specific business partner / organization
+              )
+     AND EXISTS
+              (SELECT *
+              FROM C_ORDERLINE l
+              WHERE o.C_Order_ID=l.C_Order_ID
+                AND l.QtyOrdered<>l.QtyInvoiced
+              )
+            ORDER BY o.DateOrdered,PriorityRule,
+              C_BPartner_ID,
+              DocumentNo
+            )
+          LOOP
+            DBMS_OUTPUT.PUT_LINE('Order ' || Cur_Order.DocumentNo || ', ID=' || Cur_Order.C_Order_ID) ;
+            -- Parameter Order Date => Invoice Date, Accounting Date
+            v_DateInvoiced:=v_DateInvoiced_aux;
+            IF(v_DateInvoiced IS NULL) THEN
+              SELECT MAX(s.movementDate)
+              INTO v_DateInvoiced
+              FROM M_INOUT s,
+                M_INOUTLINE sl,
+                C_ORDERLINE ol
+              WHERE s.M_InOut_ID=sl.M_InOut_ID
+                AND sl.C_OrderLine_ID=ol.C_OrderLine_ID
+                AND ol.C_Order_ID=Cur_Order.C_Order_ID;
+              IF(v_DateInvoiced IS NULL) THEN
+                v_DateInvoiced:=Cur_Order.DateOrdered;
+              END IF;
+            END IF;
+            /**
+            * Invoice Rules
+            */
+            -- (I)mmediate    -- Invoice the full/remaining order
+            IF(Cur_Order.InvoiceRule='I') THEN
+              DBMS_OUTPUT.PUT_LINE('Invoice Rule: Immediate') ;
+              v_ResultStr:='Fetching_OrderLine';
+              OPEN Cur_OrderLine(Cur_Order.C_Order_ID) ;
+              Cur_OrderLine_ISOPEN:=true;
+              FETCH Cur_OrderLine INTO ptr_ol;
+              IF(Cur_OrderLine%NOTFOUND) THEN
+                DBMS_OUTPUT.PUT_LINE('- No Lines -') ;
+                Next_Order:=TRUE;
+              END IF;
+              IF(NOT Next_Order) THEN
+                -- Shipment Reference (optional)
+                DECLARE
+                  Cur_DocTypeCOrder RECORD;
+                BEGIN
+                  FOR Cur_DocTypeCOrder IN
+                    (SELECT dt.PrintName || ' ' || ox.DocumentNo||' '||(
+                      CASE
+                        WHEN ox.PoReference IS NULL
+                        THEN NULL
+                        ELSE '('||ox.PoReference||')'
+                      END
+                      ) AS Reference
+                    FROM C_DOCTYPE dt,
+                      C_ORDER ox
+                    WHERE dt.C_DocType_ID=ox.C_Order_ID
+                      AND ox.C_Order_ID=Cur_Order.C_Order_ID
+                    ORDER BY ox.DocumentNo DESC
+                    )
+                  LOOP -- last shipment
+                    v_Reference:=Cur_DocTypeCOrder.Reference;
+                    EXIT;
+                  END LOOP;
+                EXCEPTION
+                WHEN OTHERS THEN
+                  DBMS_OUTPUT.PUT_LINE('- No ShipReference -') ;
+                END;
+              END IF;--Next_Order
+              -- After (D)elivery   -- Check M_InOut for invoice quantity
+              -- After (O)rder completely delivered
+            ELSIF((Cur_Order.InvoiceRule IN('D', 'O'))) THEN
+              DBMS_OUTPUT.PUT_LINE('Invoice Rule: Delivery and Order completely delivered') ;
+              IF(Cur_Order.InvoiceRule='O') THEN  SELECT COUNT(*)
+                INTO v_NoRecNotComplDelivered
+                FROM C_ORDERLINE
+                WHERE C_Order_ID=Cur_Order.C_Order_ID
+                  AND qtyOrdered<>qtyDelivered;
+                IF(v_NoRecNotComplDelivered>0) THEN
+                  DBMS_OUTPUT.PUT_LINE('Order not completely delivered') ;
+                  Next_Order:=TRUE;
+                END IF;
+              END IF;
+              IF(NOT Next_Order) THEN
+                v_ResultStr:='Fetching_ShipmentLine';
+                OPEN Cur_InOutLine(Cur_Order.C_Order_ID) ;
+                Cur_InOutLine_ISOPEN:=true;
+                FETCH Cur_InOutLine INTO ptr_sl;
+                IF(Cur_InOutLine%NOTFOUND) THEN
+                  DBMS_OUTPUT.PUT_LINE('- No Lines -') ;
+                  Next_Order:=TRUE;
+                END IF;
+              END IF;--Next_Order
+              IF(NOT Next_Order) THEN
+                -- Shipment Reference
+                v_ResultStr:='Ship Reference Order_ID=' || Cur_Order.C_Order_ID;
+                SELECT REFERENCE_ORDER
+                INTO v_ReferenceOrder
+                FROM AD_ORGINFO
+                WHERE AD_Org_ID=ptr_sl.AD_Org_ID;
+                IF(v_ReferenceOrder='Y') THEN
+                  DECLARE
+                    Cur_CDoctypeCOrder RECORD;
+                  BEGIN
+                    -- last shipment
+                    FOR Cur_CDoctypeCOrder IN
+                      (SELECT dt.PrintName || ' ' || ox.DocumentNo||' '||(
+                        CASE
+                          WHEN ox.PoReference IS NULL
+                          THEN NULL
+                          ELSE '('||ox.PoReference||')'
+                        END
+                        ) AS Reference
+                      FROM C_DOCTYPE dt,
+                        C_ORDER ox
+                      WHERE dt.C_DocType_ID=ox.C_Order_ID
+                        AND ox.C_Order_ID=Cur_Order.C_Order_ID
+                      ORDER BY ox.DocumentNo DESC
+                      )
+                    LOOP
+                      v_Reference:=Cur_CDoctypeCOrder.Reference;
+                      EXIT;
+                    END LOOP;
+                  END;
+                ELSE  SELECT dt.PrintName || ' ' || m.DocumentNo||' '||(
+                    CASE
+                      WHEN m.PoReference IS NULL
+                      THEN NULL
+                      ELSE '('||m.PoReference||')'
+                    END
+                    )
+                  INTO v_Reference
+                  FROM M_INOUT m,
+                    C_DOCTYPE dt
+                  WHERE m.C_DocType_ID=dt.C_DocType_ID
+                    AND m.M_InOut_ID=ptr_sl.M_InOut_ID;
+                END IF;
+              END IF;--Next_Order
+              -- Do not invoice
+            ELSIF(Cur_Order.InvoiceRule='N') THEN
+              DBMS_OUTPUT.PUT_LINE('Invoice Rule: Do not invoice') ;
+              Next_Order:=TRUE;
+              -- (S)chedule after Delivery -> Invoice Schedule (ignore here)
+            ELSE
+              Next_Order:=TRUE;
+            END IF;
+            IF(NOT Next_Order) THEN
+              /**
+              * Create Invoice Header ---------------------------------------
+              */
+              -- Get Order DocType Info - approved from Invoice DocType
+              BEGIN
+              v_DocType_ID:=NULL;
+              v_ResultStr:='GetDocTypeInfo - ' || Cur_Order.C_DocType_ID;  SELECT od.C_DocTypeInvoice_ID,
+                od.DocSubTypeSO
+              INTO v_DocType_ID,
+                v_DocSubTypeSO
+              FROM C_DOCTYPE od,
+                C_DOCTYPE ID
+              WHERE od.C_DocType_ID=Cur_Order.C_DocType_ID
+                AND od.C_DocTypeInvoice_ID=ID.C_DocType_ID
+                AND ID.IsActive='Y';
+              EXCEPTION
+              WHEN OTHERS THEN
+                v_DocType_ID:=NULL;
+              END;
+              IF (v_DocType_ID IS NULL) THEN
+                RAISE_APPLICATION_ERROR(-20000, '@NoDocumentTypeFound@') ;
+              END IF;
+              --
+              Ad_Sequence_Next('C_Invoice', Cur_Order.AD_Client_ID, p_Invoice_ID) ;
+              Ad_Sequence_Doctype(v_DocType_ID, Cur_Order.AD_Client_ID, 'Y', v_DocumentNo) ;
+              IF(v_DocumentNo IS NULL) THEN
+                Ad_Sequence_Doc('DocumentNo_C_Invoice', Cur_Order.AD_Client_ID, 'Y', v_DocumentNo) ;
+              END IF;
+              --
+              DBMS_OUTPUT.PUT_LINE('  Invoice_ID=' || p_Invoice_ID || ' DocumentNo=' || v_DocumentNo) ;
+              v_ResultStr:='InsertInvoice ' || p_Invoice_ID;
+              INSERT
+              INTO C_INVOICE
+                (
+                  C_Invoice_ID, C_Order_ID, AD_Client_ID, AD_Org_ID,
+                  IsActive, Created, CreatedBy, Updated, UpdatedBy,
+                  IsSOTrx, DocumentNo, DocStatus, DocAction,
+                  Processing, Processed, C_DocType_ID, C_DocTypeTarget_ID,
+                  Description, SalesRep_ID,
+                  DateInvoiced,
+                  DatePrinted, IsPrinted, DateAcct, TaxDate, 
+                  C_PaymentTerm_ID,
+                  C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID, POReference,
+                  DateOrdered, IsDiscountPrinted, C_Currency_ID, PaymentRule,
+                  C_Charge_ID, ChargeAmt, IsSelfService, TotalLines,
+                  GrandTotal, M_PriceList_ID, C_Campaign_ID, C_Project_ID,
+                  C_Activity_ID, AD_OrgTrx_ID, User1_ID, User2_ID, fin_paymentmethod_id
+                )
+                VALUES
+                (
+                  p_Invoice_ID, Cur_Order.C_Order_ID, Cur_Order.AD_Client_ID, Cur_Order.AD_Org_ID,
+                  'Y', now(), v_ADUserId, now(), v_ADUserId , 
+                  Cur_Order.IsSOTrx, v_DocumentNo, 'DR', 'CO', 
+                  'N', 'N', v_DocType_ID, v_DocType_ID, 
+                  Cur_Order.Description, Cur_Order.SalesRep_ID, 
+                  v_DateInvoiced, 
+                  NULL, 'N', v_DateInvoiced, v_DateInvoiced, -- DateInvoiced=DateAcct
+                  Cur_Order.C_PaymentTerm_ID, Cur_Order.C_BPartner_ID, Cur_Order.BillTo_ID, Cur_Order.AD_User_ID,
+                  Cur_Order.POReference, Cur_Order.DateOrdered, Cur_Order.IsDiscountPrinted, Cur_Order.C_Currency_ID,
+                  Cur_Order.PaymentRule, Cur_Order.C_Charge_ID, Cur_Order.ChargeAmt, Cur_Order.IsSelfService,
+                  0, 0, Cur_Order.M_PriceList_ID, Cur_Order.C_Campaign_ID,
+                  Cur_Order.C_Project_ID, Cur_Order.C_Activity_ID, Cur_Order.AD_OrgTrx_ID, Cur_Order.User1_ID,
+                  Cur_Order.User2_ID, Cur_Order.fin_paymentmethod_id
+                )
+                ;
+              --
+             
+              v_NoRecords:=v_NoRecords + 1;
+              v_LineNo:=0;
+              -- Insert Reference/Comment to Shipment for Warehouse Order/Pickup
+
+		IF(v_Reference IS NOT NULL AND TRIM(v_Reference)!=''
+                /*AND v_DocSubTypeSO = 'WP'*/
+                ) THEN
+                v_ResultStr:='InsertShipmentReference';
+                Ad_Sequence_Next('C_InvoiceLine', Cur_Order.C_Order_ID, v_NextNo) ;
+               INSERT
+                INTO C_INVOICELINE
+                  (
+                    C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                    Created, CreatedBy, Updated, UpdatedBy,
+                    C_Invoice_ID, C_OrderLine_ID, M_InOutLine_ID, Line,
+                    Description, M_Product_ID, QtyInvoiced, PriceList,
+                    PriceActual, PriceLimit, LineNetAmt, C_Charge_ID,
+                    ChargeAmt, C_UOM_ID, C_Tax_ID, PriceStd
+                  )
+                  VALUES
+                  (
+                    v_NextNo, Cur_Order.AD_Client_ID, Cur_Order.AD_Org_ID, 'Y',
+                    now(), v_ADUserId, now(), v_ADUserId,
+                    p_Invoice_ID, NULL, NULL, v_LineNo,
+                    v_Reference, NULL, 0, 0,
+                    0, 0, 0, NULL,
+                    0, NULL, NULL, 0
+                  )
+                  ;
+              END IF;
+            END IF;--Next_Order
+            IF(NOT Next_Order) THEN
+              /**
+              * Create Lines
+              */
+              v_ResultStr:='InsertLines InvRule=' || Cur_Order.InvoiceRule;
+              -- (I)mmediate    -- Invoice the full/remaining order
+              IF(Cur_Order.InvoiceRule='I') THEN
+                /**
+                * Create Invoice Lines from Order Lines -------------------------
+                */
+                LOOP
+                  v_Qty:=ptr_ol.QtyOrdered - ptr_ol.QtyInvoiced;
+                  --MODIFIED BY F.IRIAZABAL
+                  v_QtyOrder:=ptr_ol.QuantityOrder;
+                  -- Don't copy zero product lines
+                  IF(v_Qty=0 AND ptr_ol.M_Product_ID IS NOT NULL) THEN
+                    DBMS_OUTPUT.PUT_LINE('- Skip 0 Qty line -') ;
+                    Next_O_Line:=TRUE;
+                  END IF;
+                  IF(NOT Next_O_Line) THEN
+                    --
+                    Ad_Sequence_Next('C_InvoiceLine', Cur_Order.C_Order_ID, v_NextNo) ;
+                    v_LineNo:=v_LineNo + 10;
+                    DBMS_OUTPUT.PUT_LINE('    Line ' || ptr_ol.Line || '  Qty=' || v_Qty) ;
+                    v_ResultStr:='CreateInvoiceLine from Order';
+                    INSERT
+                    INTO C_INVOICELINE
+                      (
+                        C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                        Created, CreatedBy, Updated, UpdatedBy,
+                        C_Invoice_ID, C_OrderLine_ID, M_InOutLine_ID, Line,
+                        Description, M_Product_ID, QtyInvoiced, PriceList,
+                        PriceActual, PriceLimit, LineNetAmt, C_Charge_ID,
+                        ChargeAmt, C_UOM_ID,
+                        C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+                        QuantityOrder, M_Product_Uom_ID, PriceStd,
+                        m_attributesetinstance_id, taxbaseamt
+                      )
+                      VALUES
+                      (
+                        v_NextNo, ptr_ol.AD_Client_ID, ptr_ol.AD_Org_ID, 'Y',
+                        now(), v_ADUserId, now(), v_ADUserId,
+                        p_Invoice_ID, ptr_ol.C_OrderLine_ID, NULL, v_LineNo,
+                        ptr_ol.Description, ptr_ol.M_Product_ID, v_Qty, ptr_ol.PriceList,
+                        ptr_ol.PriceActual, ptr_ol.PriceLimit, C_Currency_Round(v_Qty*ptr_ol.PriceActual, Cur_Order.C_Currency_ID, NULL), ptr_ol.C_Charge_ID,
+                        ptr_ol.ChargeAmt, ptr_ol.C_UOM_ID,
+                        ptr_ol.C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+                        v_QtyOrder, ptr_ol.M_Product_Uom_ID, ptr_ol.PriceStd,
+                        ptr_ol.m_attributesetinstance_id, ptr_ol.taxbaseamt
+                      )
+                      ;
+                  END IF;--Next_O_Line
+                  --<<Next_O_Line>>
+                  Next_O_Line:=FALSE;
+                  v_ResultStr:='Fetching_OrderLine(*)';
+                  FETCH Cur_OrderLine INTO ptr_ol;
+                  EXIT WHEN Cur_OrderLine%NOTFOUND;
+                END LOOP; -- Invoice Line from Order Lines
+                -- After (D)elivery  -- Check M_InOut for invoice quantity
+              ELSIF(Cur_Order.InvoiceRule IN('D', 'O')) THEN
+                /**
+                * Create Invoice Lines from Shipment Lines
+                */
+                LOOP
+                  -- Don't copy zero Product lines - or if already invoiced
+                  IF(ptr_sl.MovementQty=0 AND ptr_sl.M_Product_ID IS NOT NULL) THEN
+                    DBMS_OUTPUT.PUT_LINE('- Skip 0 Qty line -') ;
+                    Next_S_Line:=TRUE;
+                  END IF;
+                  IF(NOT Next_S_Line) THEN
+                    --
+                    Ad_Sequence_Next('C_InvoiceLine', Cur_Order.C_Order_ID, v_NextNo) ;
+                    v_LineNo:=v_LineNo + 10;
+                    DBMS_OUTPUT.PUT_LINE('    Line ' || ptr_sl.Line || '  Qty=' || ptr_sl.MovementQty) ;
+                    v_ResultStr:='CreateInvoiceLine from Shipment';
+                    INSERT
+                    INTO C_INVOICELINE
+                      (
+                        C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                        Created, CreatedBy, Updated, UpdatedBy,
+                        C_Invoice_ID, C_OrderLine_ID, M_InOutLine_ID, Line,
+                        Description, M_Product_ID, QtyInvoiced, PriceList,
+                        PriceActual, PriceLimit, LineNetAmt, C_Charge_ID,
+                        ChargeAmt, C_UOM_ID,
+                        C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+                        QuantityOrder, M_Product_Uom_ID, PriceStd,
+                        m_attributesetinstance_id, taxbaseamt
+                      )
+                      VALUES
+                      (
+                        v_NextNo, ptr_sl.AD_Client_ID, ptr_sl.AD_Org_ID, 'Y',
+                        now(), v_ADUserId, now(), v_ADUserId,
+                        p_Invoice_ID, ptr_sl.C_OrderLine_ID, ptr_sl.M_InOutLine_ID, v_LineNo,
+                        ptr_sl.Description, ptr_sl.M_Product_ID, ptr_sl.MovementQty, ptr_sl.PriceList,
+                        ptr_sl.PriceActual, ptr_sl.PriceLimit, C_Currency_Round(ptr_sl.MovementQty*ptr_sl.PriceActual, Cur_Order.C_Currency_ID, NULL), ptr_sl.C_Charge_ID,
+                        ptr_sl.ChargeAmt, ptr_sl.C_UOM_ID,
+                        ptr_sl.C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+                        ptr_sl.QuantityOrder, ptr_sl.M_Product_Uom_ID, ptr_sl.PriceStd,
+                        ptr_sl.m_attributesetinstance_id, ptr_sl.taxbaseamt
+                      )
+                      ;
+                  END IF;--Next_S_Line
+                  --<<Next_S_Line>>
+                  Next_S_Line:=FALSE;
+                  v_ResultStr:='Fetching_ShipmentLine(*)';
+                  FETCH Cur_InOutLine INTO ptr_sl;
+                  EXIT WHEN Cur_InOutLine%NOTFOUND;
+                END LOOP;
+              END IF;
+              -- Post it
+              C_INVOICE_POST(NULL, p_Invoice_ID) ;
+			  --Added by p.Sarobe
+			  IF(p_Invoice_ID='0') THEN
+          	  	  RAISE_APPLICATION_ERROR(-20000, '@InvoiceCreateFailed@');
+			  ELSE
+			  	  SELECT documentno
+	    	  	  INTO v_DocumentNo
+	    	  	  FROM C_INVOICE
+	    	  	  WHERE C_INVOICE_ID = p_Invoice_ID;
+	    	  	  IF(v_Message_Check <= 10) THEN
+	    	  	  	v_Message:=v_Message||', '||'@InvoiceDocumentno@ ' || v_DocumentNo;
+	    	  	  ELSE
+	    	  	  	IF(v_Message_Check = 11) THEN
+	    	  	  		v_Message :=v_Message ||' @InvoiceNumberCheck@';
+	    	  	  	END IF;
+	    	  	  END IF;
+	    	  	  v_Message_Check := v_Message_Check+1;
+        	  END IF;
+			  --Finished added by P.Sarobe
+            END IF;--Next_Order
+            --<<Next_Order>>
+            Next_Order:=FALSE;
+            v_ResultStr:='ClosingLine';
+            IF(Cur_OrderLine_ISOPEN) THEN
+              CLOSE Cur_OrderLine;
+              Cur_OrderLine_ISOPEN:=false;
+            END IF;
+            IF(Cur_InOutLine_ISOPEN) THEN
+              CLOSE Cur_InOutLine;
+              Cur_InOutLine_ISOPEN:=false;
+            END IF;
+          END LOOP; -- Order Loop
+
+        /**
+        * Invoice Schedule ======================================================
+        */
+        IF(p_PInstance_ID IS NOT NULL AND v_C_Order_ID IS NULL) THEN -- Not when processing a single order
+          DECLARE
+            -- Invoice Schedule Lines
+            Cur_InvoiceSchedule RECORD;
+            v_Partner_ID VARCHAR2(32):='-1';
+            v_InOut_ID VARCHAR2(32):='-1';
+            v_gOrg_ID VARCHAR2(32) ;
+            v_gOrder_ID VARCHAR2(32) ;
+            v_gInOut_ID VARCHAR2(32) ;
+            v_gBillTo_ID VARCHAR2(32) ;
+            v_gBPartner_Location_ID VARCHAR2(32) ;
+            v_gSalesRep_ID VARCHAR2(32) ;
+            v_gPaymentRule VARCHAR2(60) ;
+            v_gPaymentTerm_ID VARCHAR2(32) ;
+            v_gCurrency_ID VARCHAR2(32) ;
+            v_gCampaign_ID VARCHAR2(32) ;
+            v_gProject_ID VARCHAR2(32) ;
+            v_gActivitiy_ID VARCHAR2(32) ;
+            v_gOrgTrx_ID VARCHAR2(32) ;
+            v_gUser1_ID VARCHAR2(32) ;
+            v_gUser2_ID VARCHAR2(32) ;
+            v_description NVARCHAR2(120) ;
+            v_isfinaldoctype CHAR(1) := 'N';
+          BEGIN
+            p_Invoice_ID:='-1';
+            DBMS_OUTPUT.PUT_LINE('  BPartner_ID=' || v_BPartner_ID || ', AD_Org_ID=' || v_AD_Org_ID) ;
+            FOR Cur_InvoiceSchedule IN
+              (SELECT sh.AD_Client_ID,
+                sh.AD_Org_ID,
+                sh.M_InOut_ID,
+                sh.C_DocType_ID, (
+                CASE ao.Reference_Order
+                  WHEN 'Y'
+                  THEN o.DocumentNo
+                  ELSE sh.DocumentNo
+                END
+                ) AS DocumentNo,
+                sh.Description,
+                sh.C_BPartner_ID,
+                o.BillTo_ID,
+                o.C_BPartner_Location_ID,
+                sh.AD_User_ID,
+                sh.DateOrdered,
+                sh.C_Order_ID,
+                o.SalesRep_ID,
+                COALESCE(o.C_PaymentTerm_ID, bp.C_PaymentTerm_ID) AS C_PaymentTerm_ID,
+                COALESCE(o.IsDiscountPrinted, bp.IsDiscountPrinted) AS IsDiscountPrinted,
+                o.C_Currency_ID,
+                COALESCE(o.PaymentRule, bp.PaymentRule) AS PaymentRule,
+                COALESCE(o.M_PriceList_ID, bp.M_PriceList_ID) AS M_PriceList_ID,
+                o.C_Campaign_ID,
+                o.C_Project_ID,
+                o.C_Activity_ID,
+                o.AD_OrgTrx_ID,
+                o.User1_ID,
+                o.User2_ID,
+                bp.C_InvoiceSchedule_ID,
+                o.InvoiceRule,
+                RPAD(bp.InvoiceGrouping, 15, '0') AS InvoiceGrouping,
+                sh.POReference,
+                sh.C_Charge_ID,
+                COALESCE(sh.ChargeAmt, 0) AS ChargeAmt,
+                --
+                sl.AD_Org_ID AS Line_AD_Org_ID,
+                sl.M_InOutLine_ID,
+                sl.Line,
+                sl.Description AS Line_Description,
+                sl.C_OrderLine_ID,
+                sl.M_Product_ID,
+                sl.C_UOM_ID,
+                sl.MovementQty,
+                --MODIFIED BY F.IRIAZABAL
+                sl.QuantityOrder,
+                sl.M_Product_UOM_ID,
+                COALESCE(ol.PriceList, 0) AS PriceList,
+                COALESCE(ol.PriceActual, 0) AS PriceActual,
+                COALESCE(ol.PriceLimit, 0) AS PriceLimit,
+                ol.C_Tax_ID, --ol.IsTaxIncluded, -- Could be NULL !!
+                ol.C_Charge_ID AS Line_C_Charge_ID,
+                COALESCE(ol.ChargeAmt, 0) AS Line_ChargeAmt,
+                sh.movementDate,
+                ol.PriceStd,
+                ol.m_attributesetinstance_id,
+                ol.taxbaseamt, o.fin_paymentmethod_id
+              FROM M_INOUT sh,
+                M_INOUTLINE sl,
+                C_ORDER o,
+                C_ORDERLINE ol,
+                AD_ORGINFO ao,
+                C_BPARTNER bp
+              LEFT JOIN
+                (SELECT C_InvoiceSchedule_ID,
+                  C_Invoicetodate(InvoiceFrequency,(
+                  CASE InvoiceFrequency
+                    WHEN 'W'
+                    THEN TO_NUMBER(InvoiceWeekday)
+                    ELSE InvoiceDay
+                  END
+                  ), (
+                  CASE InvoiceFrequency
+                    WHEN 'W'
+                    THEN TO_NUMBER(InvoiceWeekDayCutoff)
+                    ELSE InvoiceDayCutoff
+                  END
+                  ), now()) AS DateLimit
+                FROM C_INVOICESCHEDULE
+                )
+                si
+                ON bp.C_InvoiceSchedule_ID=si.C_InvoiceSchedule_ID
+              WHERE sh.M_InOut_ID=sl.M_InOut_ID
+                AND sh.C_BPartner_ID=bp.C_BPartner_ID
+                AND ol.C_Order_ID=o.C_Order_ID
+                AND sl.C_OrderLine_ID=ol.C_OrderLine_ID
+                AND sh.AD_Org_ID=ao.AD_Org_ID  -- for all BPartners or a specific
+                AND(v_BPartner_ID IS NULL
+                OR sh.C_BPartner_ID=v_BPartner_ID) -- for all Organizations or a specific
+                AND(v_AD_Org_ID IS NULL
+                OR sh.AD_Org_ID=v_AD_Org_ID) -- completed shipments
+                AND o.DocStatus IN('CO', 'CL')
+                AND o.IsSOTrx='Y'  -- completed orders
+                AND sh.DocStatus IN('CO', 'CL') -- we need to invoice - and not invoiced
+                AND ol.QtyOrdered<>ol.QtyInvoiced
+                AND sl.IsInvoiced<>'Y'  --  just invoice scheduled or after delivery orders (invoiceRule Scheduled or after delivery). (O)rder completely delivered pending!!!
+                AND o.InvoiceRule IN('S', 'D') --  not invoice logistic inouts
+                AND(sh.IsLogistic='N'
+                OR sh.IsLogistic IS NULL) --  enforce limitDate to invoice
+                AND(v_InvoiceToDate IS NULL
+                OR TRUNC(o.DateOrdered)<=v_InvoiceToDate) -- Selection
+                AND((v_Selection='Y'
+                AND o.IsSelected='Y') -- or scheduled
+                OR(v_Selection<>'Y'
+                AND(si.DateLimit IS NULL
+                OR TRUNC(o.DateOrdered)<=si.DateLimit)) )
+              ORDER BY sh.C_BPartner_ID, (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 1, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE sh.AD_Org_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 2, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE sh.C_Order_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 3, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE sh.M_InOut_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 4, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.BillTo_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 5, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.C_BPartner_Location_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 6, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.SalesRep_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 7, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE COALESCE(o.PaymentRule, bp.PaymentRule)
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 8, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE COALESCE(o.C_PaymentTerm_ID, bp.C_PaymentTerm_ID)
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 8, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.C_Currency_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 10, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.C_Campaign_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 11, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.C_Project_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 12, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.C_Activity_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 13, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.AD_OrgTrx_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 14, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.User1_ID
+                END
+                ) ||'-'|| (
+                CASE TO_CHAR(SUBSTR(RPAD(bp.InvoiceGrouping, 15, '0'), 15, 1))
+                  WHEN '0'
+                  THEN '0'
+                  ELSE o.User2_ID
+                END
+                ),
+                sh.MovementDate,
+                sh.M_InOut_ID,
+                sl.Line
+              )
+            LOOP
+              -- Invoice Date from Parameter                  -- or Order
+              v_DateInvoiced:=COALESCE(v_DateInvoiced_aux, COALESCE(v_DateOrdered, now())) ; -- si.DateOrdered);
+              --  Summary Invoice only if BP has Schedule setup and selected in invoice
+              IF(NOT(Cur_InvoiceSchedule.C_InvoiceSchedule_ID IS NOT NULL AND Cur_InvoiceSchedule.InvoiceRule='S') AND v_InOut_ID<>Cur_InvoiceSchedule.M_InOut_ID) THEN -- and new document
+                v_Partner_ID:='-2'; -- indicate BP change to force new invoice
+              END IF;
+              -- BPartner changed - New Invoice
+              /*
+              1.-Order organization (AD_Org_ID)
+              2.-Order (C_Order_ID)
+              3.-Shipment (M_InOut_ID)
+              4.-Invoice location (BillTo_ID)
+              5.-Ship location (C_BPartner_Location_ID)
+              6.-Sales representative (SalesRep_ID)
+              7.-Payment rule (PaymentRule)
+              8.-Payment term (C_PaymentTerm_ID)
+              9.-Currency (C_Currency_ID)
+              10.-Campaign (C_Campaign_ID)
+              11.-Project (C_Project_ID)
+              12.-Activity (C_Activity_ID)
+              13.-Organization transaction (AD_OrgTrx_ID)
+              14.-User dimension 1 (User1_ID)
+              15.-User dimension 2 (User2_ID)
+              */
+              IF((v_Partner_ID<>Cur_InvoiceSchedule.C_BPartner_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 1, 1)='1' AND v_gOrg_ID<>Cur_InvoiceSchedule.AD_Org_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 2, 1)='1' AND v_gOrder_ID<>Cur_InvoiceSchedule.C_Order_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 3, 1)='1' AND v_gInOut_ID<>Cur_InvoiceSchedule.M_InOut_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 4, 1)='1' AND v_gBillTo_ID<>Cur_InvoiceSchedule.BillTo_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 5, 1)='1' AND v_gBPartner_Location_ID<>Cur_InvoiceSchedule.C_BPartner_Location_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 6, 1)='1' AND v_gSalesRep_ID<>Cur_InvoiceSchedule.SalesRep_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 7, 1)='1' AND v_gPaymentRule<>Cur_InvoiceSchedule.PaymentRule) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 8, 1)='1' AND v_gPaymentTerm_ID<>Cur_InvoiceSchedule.C_PaymentTerm_ID) OR(SUBSTR(
+                Cur_InvoiceSchedule.InvoiceGrouping, 9, 1)='1' AND v_gCurrency_ID<>Cur_InvoiceSchedule.C_Currency_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 10, 1)='1' AND v_gCampaign_ID<>Cur_InvoiceSchedule.C_Campaign_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 11, 1)='1' AND ((v_gProject_ID<>Cur_InvoiceSchedule.C_Project_ID) OR (v_gProject_ID IS NULL AND Cur_InvoiceSchedule.C_Project_ID IS NOT NULL) OR (v_gProject_ID IS NOT NULL AND Cur_InvoiceSchedule.C_Project_ID IS NULL))) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 12, 1)='1' AND v_gActivitiy_ID<>Cur_InvoiceSchedule.C_Activity_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 13, 1)='1' AND v_gOrgTrx_ID<>Cur_InvoiceSchedule.AD_OrgTrx_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 14, 1)='1' AND v_gUser1_ID<>Cur_InvoiceSchedule.User1_ID) OR(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 15, 1)='1' AND v_gUser2_ID<>Cur_InvoiceSchedule.User2_ID)) THEN
+                v_Partner_ID:=Cur_InvoiceSchedule.C_BPartner_ID;
+                v_gOrg_ID:=Cur_InvoiceSchedule.AD_Org_ID;
+                v_gOrder_ID:=Cur_InvoiceSchedule.C_Order_ID;
+                v_gInOut_ID:=Cur_InvoiceSchedule.M_InOut_ID;
+                v_gBillTo_ID:=Cur_InvoiceSchedule.BillTo_ID;
+                v_gBPartner_Location_ID:=Cur_InvoiceSchedule.C_BPartner_Location_ID;
+                v_gSalesRep_ID:=Cur_InvoiceSchedule.SalesRep_ID;
+                v_gPaymentRule:=Cur_InvoiceSchedule.PaymentRule;
+                v_gPaymentTerm_ID:=Cur_InvoiceSchedule.C_PaymentTerm_ID;
+                v_gCurrency_ID:=Cur_InvoiceSchedule.C_Currency_ID;
+                v_gCampaign_ID:=Cur_InvoiceSchedule.C_Campaign_ID;
+                v_gProject_ID:=Cur_InvoiceSchedule.C_Project_ID;
+                v_gActivitiy_ID:=Cur_InvoiceSchedule.C_Activity_ID;
+                v_gOrgTrx_ID:=Cur_InvoiceSchedule.AD_OrgTrx_ID;
+                v_gUser1_ID:=Cur_InvoiceSchedule.User1_ID;
+                v_gUser2_ID:=Cur_InvoiceSchedule.User2_ID;
+                IF(SUBSTR(Cur_InvoiceSchedule.InvoiceGrouping, 5, 1)='1') THEN  SELECT NAME
+                  INTO v_description
+                  FROM C_BPARTNER_LOCATION
+                  WHERE C_BPARTNER_LOCATION_ID=v_gBPartner_Location_ID;
+                ELSE
+                  v_description:=NULL;
+                END IF;
+                -- Post it, if not first time
+                IF(p_Invoice_ID<>'-1') THEN
+                  Ad_Sequence_Doctype(v_DocType_ID, Cur_InvoiceSchedule.AD_Client_ID, 'Y', v_DocumentNo) ;
+                  IF(v_DocumentNo IS NULL) THEN
+                    Ad_Sequence_Doc('DocumentNo_C_Invoice', Cur_InvoiceSchedule.AD_Client_ID, 'Y', v_DocumentNo) ;
+                  END IF;
+                  UPDATE C_INVOICE
+                    SET DateInvoiced=v_DateInvoiced,
+                    DateAcct=v_DateInvoiced,
+                    documentno = v_DocumentNo
+                  WHERE C_Invoice_ID=p_Invoice_ID;
+                  C_INVOICE_POST(NULL, p_Invoice_ID) ;
+                  v_isfinaldoctype := 'N';
+                END IF;
+                -- Get Document Type for Invoice
+                v_ResultStr:='GetDocumentType';
+                IF(Cur_InvoiceSchedule.C_Order_ID IS NULL) THEN
+                  BEGIN
+                    v_DocType_ID:=Ad_Get_Doctype(Cur_InvoiceSchedule.AD_Client_ID, Cur_InvoiceSchedule.AD_Org_ID, 'ARI') ;                    --
+                  EXCEPTION
+                  WHEN OTHERS THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@NoDefaultInvoice@') ;
+                  END;
+                ELSE
+                  BEGIN
+                  v_DocType_ID:=NULL;
+                  SELECT od.C_DocTypeInvoice_ID, CASE od.isreturn WHEN 'Y' THEN 'N' ELSE 'Y' END
+                  INTO v_DocType_ID, v_isfinaldoctype
+                  FROM C_DOCTYPE od,
+                    C_DOCTYPE ID,
+                    C_ORDER o
+                  WHERE od.C_DocType_ID=o.C_DocType_ID
+                    AND od.C_DocTypeInvoice_ID=ID.C_DocType_ID
+                    AND o.C_Order_ID=Cur_InvoiceSchedule.C_Order_ID
+                    AND ID.IsActive='Y';
+                  EXCEPTION
+                  WHEN OTHERS THEN
+                    v_DocType_ID:=NULL;
+                  END;
+                  IF (v_DocType_ID IS NULL) THEN
+                    RAISE_APPLICATION_ERROR(-20000, '@NoDocumentTypeFound@') ;
+                  END IF;
+
+                END IF;
+                IF(NOT FINISH_PROCESS) THEN
+                  -- Get other defaults
+                  Ad_Sequence_Next('C_Invoice', Cur_InvoiceSchedule.AD_Client_ID, p_Invoice_ID) ;
+                  Ad_Sequence_Doctype(v_DocType_ID, Cur_InvoiceSchedule.AD_Client_ID, 'N', v_DocumentNo) ;
+                  IF(v_DocumentNo IS NULL) THEN
+                    Ad_Sequence_Doc('DocumentNo_C_Invoice', Cur_InvoiceSchedule.AD_Client_ID, 'N', v_DocumentNo) ;
+                  END IF;
+                  --
+                  DBMS_OUTPUT.PUT_LINE('  SumInvoice_ID=' || p_Invoice_ID || ' DocumentNo=' || v_DocumentNo) ;
+                  v_ResultStr:='InsertSumInvoice ' || p_Invoice_ID;
+                  v_AD_Client_ID := Cur_InvoiceSchedule.AD_Client_ID;
+                  INSERT
+                  INTO C_INVOICE
+                    (
+                      C_Invoice_ID, C_Order_ID, AD_Client_ID, AD_Org_ID,
+                      IsActive, Created, CreatedBy, Updated,
+                      UpdatedBy, IsSOTrx, DocumentNo, DocStatus,
+                      DocAction, Processing, Processed, C_DocType_ID,
+                      C_DocTypeTarget_ID, Description,
+                      SalesRep_ID, DateInvoiced, DatePrinted, IsPrinted,
+                      DateAcct, TaxDate,
+                      C_PaymentTerm_ID, C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID,
+                      POReference, DateOrdered, IsDiscountPrinted, C_Currency_ID,
+                      PaymentRule, C_Charge_ID, ChargeAmt, IsSelfService,
+                      TotalLines, GrandTotal, M_PriceList_ID, C_Campaign_ID,
+                      C_Project_ID, C_Activity_ID, AD_OrgTrx_ID, User1_ID,
+                      User2_ID, fin_paymentmethod_id
+                    )
+                    VALUES
+                    (
+                      p_Invoice_ID, Cur_InvoiceSchedule.C_Order_ID, Cur_InvoiceSchedule.AD_Client_ID, Cur_InvoiceSchedule.AD_Org_ID,
+                       'Y', now(), v_ADUserId, now(),
+                      v_ADUserId, 'Y', v_DocumentNo, 'DR',
+                       'CO', 'N', 'N', v_DocType_ID,
+                      v_DocType_ID, v_description,
+                      Cur_InvoiceSchedule.SalesRep_ID, v_DateInvoiced, NULL, 'N',
+                      v_DateInvoiced, v_DateInvoiced, -- DateInvoiced=DateAcct
+                      Cur_InvoiceSchedule.C_PaymentTerm_ID, Cur_InvoiceSchedule.C_BPartner_ID, Cur_InvoiceSchedule.BillTo_ID, Cur_InvoiceSchedule.AD_User_ID,
+                      Cur_InvoiceSchedule.POReference, Cur_InvoiceSchedule.DateOrdered, Cur_InvoiceSchedule.IsDiscountPrinted, Cur_InvoiceSchedule.C_Currency_ID,
+                      Cur_InvoiceSchedule.PaymentRule, NULL, 0, 'N',
+                      0, 0, Cur_InvoiceSchedule.M_PriceList_ID, Cur_InvoiceSchedule.C_Campaign_ID,
+                      Cur_InvoiceSchedule.C_Project_ID, Cur_InvoiceSchedule.C_Activity_ID, Cur_InvoiceSchedule.AD_OrgTrx_ID, Cur_InvoiceSchedule.User1_ID,
+                      Cur_InvoiceSchedule.User2_ID, Cur_InvoiceSchedule.fin_paymentmethod_id
+                    )
+                    ;
+                  --
+                  
+                  v_NoRecords:=v_NoRecords + 1;
+                  v_LineNo:=0;
+                  v_InOut_ID:='-1';
+                END IF;
+              ELSIF (v_isfinaldoctype = 'N') THEN --If docType is not a final one update it
+                BEGIN
+                  v_DocType_ID:=NULL;
+                  SELECT od.C_DocTypeInvoice_ID, CASE od.isreturn WHEN 'Y' THEN 'N' ELSE 'Y' END
+                    INTO v_DocType_ID, v_isfinaldoctype
+                  FROM C_DOCTYPE od,
+                       C_DOCTYPE ID,
+                       C_ORDER o
+                  WHERE od.C_DocType_ID=o.C_DocType_ID
+                    AND od.C_DocTypeInvoice_ID=ID.C_DocType_ID
+                    AND o.C_Order_ID=Cur_InvoiceSchedule.C_Order_ID
+                    AND ID.IsActive='Y';
+                EXCEPTION
+                WHEN OTHERS THEN
+                  v_DocType_ID:=NULL;
+                END;
+                IF (v_DocType_ID IS NULL) THEN
+                  RAISE_APPLICATION_ERROR(-20000, '@NoDocumentTypeFound@') ;
+                END IF;
+                Ad_Sequence_Doctype(v_DocType_ID, Cur_InvoiceSchedule.AD_Client_ID, 'N', v_DocumentNo) ;
+                IF(v_DocumentNo IS NULL) THEN
+                  Ad_Sequence_Doc('DocumentNo_C_Invoice', Cur_InvoiceSchedule.AD_Client_ID, 'N', v_DocumentNo) ;
+                END IF;
+                UPDATE c_invoice
+                SET c_doctypetarget_id = v_DocType_ID,
+                    c_doctype_id = v_DocType_ID,
+                    documentno = v_DocumentNo
+                WHERE c_invoice_id = p_Invoice_ID;
+              END IF;--FINISH_PROCESS
+
+              v_InOut_ID:=Cur_InvoiceSchedule.M_InOut_ID;
+
+              IF(NOT FINISH_PROCESS) THEN
+                -- Normal Line
+                Ad_Sequence_Next('C_InvoiceLine', Cur_InvoiceSchedule.C_Order_ID, v_NextNo) ;
+                v_LineNo:=v_LineNo + 10;
+                DBMS_OUTPUT.PUT_LINE('    SumLine ' || Cur_InvoiceSchedule.Line || '  Qty=' || Cur_InvoiceSchedule.MovementQty) ;
+                v_ResultStr:='CreateInvoiceLine_Sum';
+                INSERT
+                INTO C_INVOICELINE
+                  (
+                    C_InvoiceLine_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                    Created, CreatedBy, Updated, UpdatedBy,
+                    C_Invoice_ID, C_OrderLine_ID, M_InOutLine_ID, Line,
+                    Description, M_Product_ID, QtyInvoiced, PriceList,
+                    PriceActual, PriceLimit, LineNetAmt, C_Charge_ID,
+                    ChargeAmt, C_UOM_ID,
+                    C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+                    QuantityOrder, M_Product_Uom_ID, PriceStd,
+                    m_attributesetinstance_id, taxbaseamt
+                  )
+                  VALUES
+                  (
+                    v_NextNo, Cur_InvoiceSchedule.AD_Client_ID, Cur_InvoiceSchedule.Line_AD_Org_ID, 'Y',
+                    now(), v_ADUserId, now(), v_ADUserId,
+                    p_Invoice_ID, Cur_InvoiceSchedule.C_OrderLine_ID, Cur_InvoiceSchedule.M_InOutLine_ID, v_LineNo,
+                    Cur_InvoiceSchedule.Line_Description, Cur_InvoiceSchedule.M_Product_ID, Cur_InvoiceSchedule.MovementQty, Cur_InvoiceSchedule.PriceList,
+                    Cur_InvoiceSchedule.PriceActual, Cur_InvoiceSchedule.PriceLimit, C_Currency_Round(Cur_InvoiceSchedule.MovementQty*Cur_InvoiceSchedule.PriceActual, Cur_InvoiceSchedule.C_Currency_ID, NULL), Cur_InvoiceSchedule.Line_C_Charge_ID,
+                    Cur_InvoiceSchedule.Line_ChargeAmt, Cur_InvoiceSchedule.C_UOM_ID,
+                    Cur_InvoiceSchedule.C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+                    Cur_InvoiceSchedule.QuantityOrder, Cur_InvoiceSchedule.M_Product_Uom_ID, Cur_InvoiceSchedule.PriceStd,
+                    Cur_InvoiceSchedule.m_attributesetinstance_id, Cur_InvoiceSchedule.taxbaseamt
+                  )
+                  ;
+                v_DateOrdered:=COALESCE(Cur_InvoiceSchedule.movementDate, COALESCE(Cur_InvoiceSchedule.DateOrdered, now())) ;
+              END IF;--
+            END LOOP; -- Invoice Schedule
+            IF(NOT FINISH_PROCESS) THEN
+              -- Post last invoice, if exists
+              IF(p_Invoice_ID<>'-1') THEN
+                v_DateInvoiced:=COALESCE(v_DateInvoiced_aux, COALESCE(v_DateOrdered, now())) ;
+                Ad_Sequence_Doctype(v_DocType_ID, v_AD_Client_ID, 'Y', v_DocumentNo) ;
+                IF(v_DocumentNo IS NULL) THEN
+                  Ad_Sequence_Doc('DocumentNo_C_Invoice', v_AD_Client_ID, 'Y', v_DocumentNo) ;
+                END IF;
+                UPDATE C_INVOICE
+                  SET DateInvoiced=v_DateInvoiced,
+                  DateAcct=v_DateInvoiced,
+                  Documentno= v_DocumentNo
+                WHERE C_Invoice_ID=p_Invoice_ID;
+                C_INVOICE_POST(NULL, p_Invoice_ID) ;
+	            IF(p_Invoice_ID='0') THEN
+          	  	  RAISE_APPLICATION_ERROR(-20000, '@InvoiceCreateFailed@');
+			    ELSE
+			  	  SELECT documentno
+	    	  	  INTO v_DocumentNo
+	    	  	  FROM C_INVOICE
+	    	  	  WHERE C_INVOICE_ID = p_Invoice_ID;
+	    	  	  v_Message:=v_Message||', '||'@InvoiceDocumentno@ ' || v_DocumentNo;
+        	    END IF;
+			  END IF;
+            END IF;--FINISH_PROCESS
+          END; -- Block
+        END IF; -- PInstance not null
+        --<<FINISH_PROCESS>>
+        v_Message:='@Created@: ' || v_NoRecords||v_Message;
+        IF(p_PInstance_ID IS NOT NULL) THEN
+          --  Update AD_PInstance
+          DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+          AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+        ELSE
+          DBMS_OUTPUT.PUT_LINE('--<<C_Invoive_Create finished>> ' || v_Message) ;
+        END IF;
+        RETURN;
+      END; --BODY
+    EXCEPTION
+    WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+     v_ResultStr:= '@ERROR=' || SQLERRM;
+      DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+      IF(p_PInstance_ID IS NOT NULL) THEN
+        ROLLBACK;
+        AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+      ELSE
+        RAISE;
+      END IF;
+      p_Invoice_ID:=0; -- Error Indicator
+      RETURN;
+END C_INVOICE_CREATE
+]]></body>
+    </function>
+  </database>

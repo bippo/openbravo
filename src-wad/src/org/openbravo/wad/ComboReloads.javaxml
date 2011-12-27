@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<java_TMP>
+package org.openbravo.erpCommon.ad_callouts;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.data.Sqlc;
+import org.openbravo.erpCommon.utility.*;
+import org.openbravo.xmlEngine.XmlDocument;
+
+public class ComboReloads<PARAMETER_TMP id="paramTabId">xx</PARAMETER_TMP> extends CalloutHelper {
+  private static final long serialVersionUID = 1L;
+
+  void printPage(HttpServletResponse response, VariablesSecureApp vars, String strTabId, String windowId) throws IOException, ServletException {
+    log4j.debug("Output: dataSheet");
+    XmlDocument xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/erpCommon/ad_callouts/CallOut").createXmlDocument();
+    
+    <PARAMETER_TMP id="parent">String parentOrg=vars.getStringParameter("inpParentOrganization");</PARAMETER_TMP>
+    StringBuffer resultado = new StringBuffer();
+    boolean isFirst=true;
+    ComboTableData comboTableData = null;
+    resultado.append("var calloutName='ComboReloads<PARAMETER_TMP id="paramTabId">xx</PARAMETER_TMP>';\n\n");
+    resultado.append("var respuesta = new Array(\n");
+
+    // check if call came from searchPopup, if yes remember and adjust command name from popup
+    // column name pattern to normal pattern and set search popup frame name to be used
+    String resultField;
+    String command = vars.getStringParameter("Command", "DEFAULT");
+    boolean calledFromSearch = command.startsWith("inpParam");
+    if (calledFromSearch) {
+      command = command.substring(8);
+      command = Sqlc.TransformaNombreColumna(command);
+      command = "inp" + command;
+      xmlDocument.setParameter("frameName", "mainframe");
+      xmlDocument.setParameter("frameName1", "mainframe");
+    }
+
+    <FIELDS_TMP id="discardTry">
+    try {
+
+    <FIELDS_TMP id="sectionDetail">
+      if (CalloutHelper.commandInCommandList(command, <FIELD_TMP id="fieldColumnsName">"xx"</FIELD_TMP>)) {
+        if (!isFirst) resultado.append(", \n");
+        comboTableData = new ComboTableData(vars, this, "<FIELD_TMP id="fieldReference1">17</FIELD_TMP>", "<FIELD_TMP id="fieldColumnName1">name</FIELD_TMP>", "<FIELD_TMP id="fieldReferenceValue1">name</FIELD_TMP>", "<FIELD_TMP id="fieldValidation1">name</FIELD_TMP>", <FIELD_TMP id="fieldOrgCode">xxorgcode</FIELD_TMP>, <FIELD_TMP id="fieldClientCode">xxclientcode</FIELD_TMP>, 0);
+        if (calledFromSearch) {
+          comboTableData.fillParametersFromSearch("", windowId);
+          resultField = "inpParam<FIELD_TMP id="fieldColumnName1">name</FIELD_TMP>";
+        } else {
+          comboTableData.fillParameters(null, windowId, "");
+          resultField = "<FIELD_TMP id="fieldColumnChange">xx</FIELD_TMP>";
+        }
+        resultado.append("new Array(\"" + resultField + "\", ");
+        resultado.append(generateArray(comboTableData.select(false), vars.getStringParameter(resultField)));
+        comboTableData = null;
+        resultado.append(")");
+        isFirst=false;
+      }
+    </FIELDS_TMP>
+
+    } catch (ServletException ex) {
+      OBError myError = Utility.translateError(this, vars, vars.getLanguage(), ex.toString());
+      bdErrorHidden(response, myError.getType(), myError.getTitle(), myError.getMessage());
+      return;
+    } catch (Exception ex1) {
+      OBError myError = Utility.translateError(this, vars, vars.getLanguage(), ex1.toString());
+      bdErrorHidden(response, myError.getType(), myError.getTitle(), myError.getMessage());
+      return;
+    }
+    </FIELDS_TMP>
+
+    resultado.append("\n);");
+
+    xmlDocument.setParameter("array", resultado.toString());
+    response.setContentType("text/html; charset=UTF-8");
+    PrintWriter out = response.getWriter();
+    out.println(xmlDocument.print());
+    out.close();
+  }
+
+}
+</java_TMP>

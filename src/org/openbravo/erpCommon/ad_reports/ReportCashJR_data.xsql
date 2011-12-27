@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportCashJRData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT C_CASHBOOK.C_CASHBOOK_ID, C_CASHBOOK.NAME AS NAMECASHBOOK, C_CASH.STATEMENTDATE, C_CASH.C_CASH_ID, C_CASH.NAME AS NAMECASH, 
+             C_CASH.BEGINNINGBALANCE, C_CASH.ENDINGBALANCE,  C_CURRENCY.ISO_CODE AS CURRENCY,
+             C_CASHLINE.LINE, COALESCE(AD_REF_LIST_TRL.NAME,AD_REF_LIST.NAME) AS NAME, C_CASHLINE.AMOUNT, C_CASHLINE.DESCRIPTION,
+             COALESCE (INITIALBALANCE.TOTAL_AMT,0) AS INITIALBALANCE
+      FROM C_CASHBOOK
+      		 LEFT JOIN 
+             (
+		      SELECT SUM(CL.AMOUNT) AS TOTAL_AMT, C.C_CASHBOOK_ID
+		      FROM C_CASHBOOK C, C_CASH CH, C_CASHLINE CL, C_CURRENCY CUR, AD_REF_LIST LIST 
+					     LEFT JOIN AD_REF_LIST_TRL LIST_T ON LIST.AD_REF_LIST_ID=LIST_T.AD_REF_LIST_ID
+		      		 					 								 AND LIST_T.AD_LANGUAGE = ?
+		      WHERE C.C_CASHBOOK_ID=CH.C_CASHBOOK_ID
+		      AND CH.C_CASH_ID=CL.C_CASH_ID
+		      AND C.C_CURRENCY_ID=CUR.C_CURRENCY_ID
+		      AND CL.CASHTYPE=LIST.VALUE
+		      AND AD_REFERENCE_ID='217'
+		      AND CH.AD_Client_ID IN ('1') 
+		      AND CH.AD_ORG_ID IN ('1') 
+		      AND 1=1
+		      AND CH.PROCESSED='Y'
+		      GROUP BY C.C_CASHBOOK_ID
+             ) INITIALBALANCE ON INITIALBALANCE.C_CASHBOOK_ID = C_CASHBOOK.C_CASHBOOK_ID,
+             C_CASH, C_CASHLINE, C_CURRENCY, AD_REF_LIST 
+			     LEFT JOIN AD_REF_LIST_TRL ON AD_REF_LIST.AD_REF_LIST_ID=AD_REF_LIST_TRL.AD_REF_LIST_ID
+      		 					 								 AND AD_REF_LIST_TRL.AD_LANGUAGE = ?
+      WHERE C_CASHBOOK.C_CASHBOOK_ID=C_CASH.C_CASHBOOK_ID
+      AND C_CASH.C_CASH_ID=C_CASHLINE.C_CASH_ID
+      AND C_CASHBOOK.C_CURRENCY_ID=C_CURRENCY.C_CURRENCY_ID
+      AND C_CASHLINE.CASHTYPE=AD_REF_LIST.VALUE
+      AND AD_REFERENCE_ID='217'
+      AND C_CASH.AD_Client_ID IN ('2') 
+      AND C_CASH.AD_ORG_ID IN ('2') 
+      AND 2=2
+      AND C_CASH.PROCESSED='Y'
+      ORDER BY NAMECASHBOOK, STATEMENTDATE, C_CASH_ID, C_CASHLINE.LINE
+      ]]></Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="CH.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="CH.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="false" after="AND 1=1"><![CDATA[AND CH.STATEMENTDATE < TO_DATE(?)]]></Parameter>
+    <Parameter name="cashBook" optional="true" after="AND 1=1"><![CDATA[AND C.C_CASHBOOK_ID = ?]]></Parameter>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_CASH.AD_Client_ID IN (" text="'2'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND C_CASH.AD_ORG_ID IN (" text="'2'"/>
+    <Parameter name="parDateFrom" optional="false" after="AND 2=2"><![CDATA[AND C_CASH.STATEMENTDATE >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND 2=2"><![CDATA[AND C_CASH.STATEMENTDATE < TO_DATE(?)]]></Parameter>
+    <Parameter name="cashBook" optional="true" after="AND 2=2"><![CDATA[AND C_CASHBOOK.C_CASHBOOK_ID = ?]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

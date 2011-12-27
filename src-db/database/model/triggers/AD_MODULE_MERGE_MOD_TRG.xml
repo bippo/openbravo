@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_MODULE_MERGE_MOD_TRG">
+    <trigger name="AD_MODULE_MERGE_MOD_TRG" table="AD_MODULE_MERGE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  cuerrentModuleID  VARCHAR2(32);
+  vAux NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  --Check if trying to move object from module not in dev
+  IF (UPDATING) THEN
+    IF (COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.')) THEN
+      SELECT COUNT(*) 
+        INTO vAux
+        FROM AD_MODULE
+       WHERE AD_MODULE_ID = :old.AD_Module_ID
+        AND isindevelopment = 'N';
+      IF (vAux!=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ChangeNotInDevModule@');
+      END IF;
+    END IF;
+  END IF;
+
+  SELECT COUNT(*)
+    INTO devTemplate
+    FROM AD_MODULE
+   WHERE IsInDevelopment = 'Y'
+     AND Type = 'T';
+     
+  IF (UPDATING OR INSERTING) THEN
+    cuerrentModuleID := :new.AD_Module_ID;
+  ELSE
+    cuerrentModuleID := :old.AD_Module_ID;
+  END IF;
+  
+  SELECT M.IsInDevelopment
+    INTO devModule
+    FROM AD_MODULE M
+   WHERE M.AD_MODULE_ID = cuerrentModuleID;
+     
+  IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+    IF (
+        :NEW.AD_Client_ID       != :OLD.AD_Client_ID       OR
+        :NEW.AD_Org_ID          != :OLD.AD_Org_ID          OR
+        :NEW.Isactive           != :OLD.Isactive           OR
+        :NEW.AD_Module_ID       != :OLD.AD_Module_ID       OR
+        :NEW.Merged_Module_UUID != :OLD.Merged_Module_UUID OR
+        :NEW.Merged_Module_Name != :OLD.Merged_Module_Name
+       ) THEN
+      --Cannot update an object in a module not in developement and without an active template
+      RAISE_APPLICATION_ERROR(-20000, '@20532@');
+    END IF;
+  END IF;
+  
+  IF ((DELETING OR INSERTING) AND devModule='N') THEN
+    --Cannot insert/delete objects in a module not in development.
+    RAISE_APPLICATION_ERROR(-20000, '@20533@');
+  END IF;
+END AD_MODULE_MERGE_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

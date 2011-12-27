@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_PRICELISTVERSIONGENERATE">
+    <function name="M_PRICELISTVERSIONGENERATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1;
+  v_Record_ID VARCHAR2(32);
+  v_M_PriceList_Version_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32);
+  v_Client_ID VARCHAR2(32);
+  v_NameFrom NVARCHAR2(60) ;
+  v_NameTo NVARCHAR2(60) ;
+  v_Count NUMBER:=1;
+  v_ValidFrom DATE;
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+  BEGIN
+    v_ResultStr:='Checking stock';
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        i.AD_User_ID,
+        i.AD_Client_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+      v_Client_ID:=Cur_Parameter.AD_Client_ID;
+      IF(Cur_Parameter.ParameterName='M_PriceList_Version_Origen_ID') THEN
+        v_M_PriceList_Version_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  M_PriceList_Version_Origen_ID=' || v_M_PriceList_Version_ID) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    SELECT NAME,
+      ValidFrom
+    INTO v_NameTo,
+      v_ValidFrom
+    FROM M_PRICELIST_VERSION
+    WHERE M_PriceList_Version_ID=v_Record_ID;
+    SELECT NAME
+    INTO v_NameFrom
+    FROM M_PRICELIST_VERSION
+    WHERE M_PriceList_Version_ID=v_M_PriceList_Version_ID;
+    WHILE(v_Count<=LENGTH(v_NameFrom) AND v_Count<=LENGTH(v_Nameto)) AND(SUBSTR(v_NameFrom, v_Count, 1)=SUBSTR(v_NameTo, v_Count, 1))
+    LOOP
+      v_Count:=v_Count + 1;
+    END LOOP;
+    INSERT
+    INTO M_PRICELIST_VERSION
+      (
+        M_PRICELIST_VERSION_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        NAME, DESCRIPTION, M_PRICELIST_ID, M_DISCOUNTSCHEMA_ID,
+        VALIDFROM, PROCCREATE, M_PRICELIST_VERSION_BASE_ID
+      )
+    SELECT Ad_Get_Next_Sequence('M_PriceList_Version', v_Client_ID),
+      AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, now(),
+      v_User_ID, now(), v_User_ID, REPLACE(NAME, SUBSTR(v_NameFrom, v_Count, 60), SUBSTR(v_NameTo, v_Count, 60)),
+      REPLACE(DESCRIPTION, SUBSTR(v_NameFrom, v_Count, 60), SUBSTR(v_NameTo, v_Count, 60)), M_PRICELIST_ID, M_DISCOUNTSCHEMA_ID, v_ValidFrom,
+       'N', v_Record_ID
+    FROM M_PRICELIST_VERSION
+    WHERE M_PRICELIST_VERSION_BASE_ID=v_M_PriceList_Version_ID
+      AND M_PRICELIST_VERSION_ID<>v_Record_ID;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END M_PRICELISTVERSIONGENERATE
+]]></body>
+    </function>
+  </database>

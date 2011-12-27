@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="MaterialReceiptPendingData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT C_ORDER.C_ORDER_ID, C_ORDER.AD_CLIENT_ID, C_ORDER.AD_ORG_ID, C_ORDER.ISACTIVE, C_ORDER.CREATED, C_ORDER.CREATEDBY, C_ORDER.UPDATED, C_ORDER.UPDATEDBY, C_ORDER.ISSOTRX, C_ORDER.DOCUMENTNO, C_ORDER.DOCSTATUS, C_ORDER.DOCACTION, C_ORDER.PROCESSING, C_ORDER.PROCESSED, C_ORDER.C_DOCTYPE_ID, C_ORDER.C_DOCTYPETARGET_ID, C_ORDER.DESCRIPTION, C_ORDER.ISDELIVERED, C_ORDER.ISINVOICED, C_ORDER.ISPRINTED, C_ORDER.ISSELECTED, C_ORDER.SALESREP_ID, C_ORDER.DATEORDERED, C_ORDER.DATEPROMISED, C_ORDER.DATEPRINTED, C_ORDER.DATEACCT, C_ORDER.C_BPARTNER_ID, C_ORDER.BILLTO_ID, C_ORDER.C_BPARTNER_LOCATION_ID, C_ORDER.POREFERENCE, C_ORDER.ISDISCOUNTPRINTED, C_ORDER.C_CURRENCY_ID, C_ORDER.PAYMENTRULE, C_ORDER.C_PAYMENTTERM_ID, C_ORDER.INVOICERULE, C_ORDER.DELIVERYRULE, C_ORDER.FREIGHTCOSTRULE, C_ORDER.FREIGHTAMT, C_ORDER.DELIVERYVIARULE, C_ORDER.M_SHIPPER_ID, C_ORDER.C_CHARGE_ID, C_ORDER.CHARGEAMT, C_ORDER.PRIORITYRULE, C_ORDER.TOTALLINES, C_ORDER.GRANDTOTAL, C_ORDER.M_WAREHOUSE_ID, C_ORDER.M_PRICELIST_ID, C_ORDER.ISTAXINCLUDED, C_ORDER.C_CAMPAIGN_ID, C_ORDER.C_PROJECT_ID, C_ORDER.C_ACTIVITY_ID, C_ORDER.POSTED, C_ORDER.AD_USER_ID, C_ORDER.COPYFROM, C_ORDER.DROPSHIP_BPARTNER_ID, C_ORDER.DROPSHIP_LOCATION_ID, C_ORDER.DROPSHIP_USER_ID, C_ORDER.ISSELFSERVICE, C_ORDER.AD_ORGTRX_ID, C_ORDER.USER1_ID, C_ORDER.USER2_ID, C_ORDER.DELIVERYNOTES, C_ORDER.C_INCOTERMS_ID, C_ORDER.INCOTERMSDESCRIPTION, C_ORDER.GENERATETEMPLATE, '' AS ID, '' AS PARTNER_NAME, '' AS PRODUCT_NAME, '' AS TOTAL_QTY, '' AS QTYORDERED, '' AS DATE_FORMAT
+      FROM C_ORDER, C_ORDERLINE
+      WHERE C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+      AND C_ORDER.DOCSTATUS = 'CO'
+      AND C_ORDERLINE.C_ORDERLINE_ID = ?
+      ]]></Sql>
+	<Field name="rownum" value="count"/>
+    <Parameter name="cOrderlineId"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectLines" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT ID, C_ORDER_ID, DOCUMENTNO, DATEORDERED, C_BPARTNER_ID, PARTNER_NAME, PRODUCT_NAME, DESCRIPTION, TOTAL_QTY, QTYORDERED, ISACTIVE, ? AS DATE_FORMAT
+      FROM(  
+      SELECT C_ORDERLINE.C_ORDERLINE_ID AS ID, C_ORDER.C_ORDER_ID AS C_ORDER_ID, C_ORDER.DOCUMENTNO AS DOCUMENTNO, C_ORDER.DATEORDERED AS DATEORDERED, 
+      C_BPARTNER.C_BPARTNER_ID AS C_BPARTNER_ID, C_BPARTNER.NAME AS PARTNER_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(C_ORDERLINE.M_PRODUCT_ID), TO_CHAR(?)) AS PRODUCT_NAME, M_ATTRIBUTESETINSTANCE.DESCRIPTION AS DESCRIPTION, C_ORDERLINE.QTYORDERED AS TOTAL_QTY,
+      C_ORDERLINE.QTYORDERED-SUM(COALESCE(M_MATCHPO.QTY,0)) AS QTYORDERED, '-1' AS ISACTIVE, C_ORDERLINE.LINE
+      FROM C_ORDERLINE left join M_MATCHPO on C_ORDERLINE.C_ORDERLINE_ID = M_MATCHPO.C_ORDERLINE_ID
+                                           and M_MATCHPO.M_INOUTLINE_ID IS NOT NULL
+                       left join M_ATTRIBUTESETINSTANCE on C_ORDERLINE.M_ATTRIBUTESETINSTANCE_ID = M_ATTRIBUTESETINSTANCE.M_ATTRIBUTESETINSTANCE_ID,
+      C_ORDER,   C_BPARTNER, C_DOCTYPE
+      WHERE C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+      AND C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+      AND C_ORDER.AD_CLIENT_ID IN ('1')
+      AND C_ORDER.AD_ORG_ID IN ('1')
+      AND C_ORDER.ISSOTRX='N'
+      AND C_ORDER.DOCSTATUS = 'CO'
+      AND C_ORDER.C_DOCTYPE_ID = C_DOCTYPE.C_DOCTYPE_ID
+      AND C_DOCTYPE.ISRETURN = 'N'
+      GROUP BY C_ORDERLINE.C_ORDERLINE_ID, C_ORDER.C_ORDER_ID, C_ORDER.DOCUMENTNO, C_ORDER.DATEORDERED, C_BPARTNER.C_BPARTNER_ID,
+      C_BPARTNER.NAME, C_ORDERLINE.M_PRODUCT_ID, M_ATTRIBUTESETINSTANCE.DESCRIPTION, C_ORDERLINE.QTYORDERED, C_ORDERLINE.LINE
+      ) A
+      WHERE QTYORDERED <>0
+      ORDER BY C_BPARTNER_ID, DOCUMENTNO, LINE
+      ]]></Sql>
+	<Field name="rownum" value="count"/>
+    <Parameter name="dateFormat"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_ORDER.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" optional="true" type="replace" after="AND C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="parDateFrom" optional="true" after="AND C_ORDER.ISSOTRX='N'"><![CDATA[ AND C_ORDER.DATEORDERED >= TO_DATE(?)]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="AND C_ORDER.ISSOTRX='N'"><![CDATA[ AND C_ORDER.DATEORDERED < TO_DATE(?)]]></Parameter>
+    <Parameter name="parBPartner" optional="true" after="AND C_ORDER.ISSOTRX='N'"> AND C_BPARTNER.C_BPARTNER_ID = ?</Parameter>
+    <Parameter name="parDocumentNo" optional="true" after="AND C_ORDER.ISSOTRX='N'"> AND C_ORDER.DOCUMENTNO LIKE ?</Parameter>
+  </SqlMethod>
+  <SqlMethod name="insert" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO M_INOUT(M_INOUT_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, 
+      	ISSOTRX, DOCUMENTNO, DOCACTION, DOCSTATUS, POSTED, PROCESSING, PROCESSED, 
+      	C_DOCTYPE_ID, DESCRIPTION, C_ORDER_ID, DATEORDERED, ISPRINTED, MOVEMENTTYPE, MOVEMENTDATE, 
+      	DATEACCT, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID, M_WAREHOUSE_ID, POREFERENCE, 
+      	DELIVERYRULE, FREIGHTCOSTRULE, FREIGHTAMT, DELIVERYVIARULE, M_SHIPPER_ID, C_CHARGE_ID, CHARGEAMT, 
+      	PRIORITYRULE, DATEPRINTED, C_INVOICE_ID, CREATEFROM, GENERATETO, AD_USER_ID, SALESREP_ID, NOPACKAGES, 
+      	PICKDATE, SHIPDATE, TRACKINGNO, AD_ORGTRX_ID, C_PROJECT_ID, C_CAMPAIGN_ID, C_ACTIVITY_ID, 
+      	USER1_ID, USER2_ID, UPDATELINES, ISLOGISTIC, GENERATELINES)
+      VALUES(?,?,?,?,now(),?,now(),?,
+      	?,?,?,?,?,?,?,
+      	?,?,?,TO_DATE(?),?,?,TO_DATE(?),
+      	TO_DATE(?),?,?,?,?,
+      	?,?,TO_NUMBER(?),?,?,?,TO_NUMBER(?),
+      	?,NULL,NULL,?,?,?,?,NULL,
+      	NULL,NULL,NULL,?,?,?,?,
+      	?,?,?,?,?)
+      </Sql>
+      <Parameter name="mInoutId"/>
+      <Parameter name="adClientId"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="isactive"/>
+      <Parameter name="createdby"/>
+      <Parameter name="updatedby"/>
+      <Parameter name="issotrx"/>
+      <Parameter name="documentno"/>
+      <Parameter name="docaction"/>
+      <Parameter name="docstatus"/>
+      <Parameter name="posted"/>
+      <Parameter name="processing"/>
+      <Parameter name="processed"/>
+      <Parameter name="cDoctypeId"/>
+      <Parameter name="description"/>
+      <Parameter name="cOrderId"/>
+      <Parameter name="dateordered"/>
+      <Parameter name="isprinted"/>
+      <Parameter name="movementtype"/>
+      <Parameter name="movementdate"/>
+      <Parameter name="dateacct"/>
+      <Parameter name="cBpartnerId"/>
+      <Parameter name="cBpartnerLocationId"/>
+      <Parameter name="mWarehouseId"/>
+      <Parameter name="poreference"/>
+      <Parameter name="deliveryrule"/>
+      <Parameter name="freightcostrule"/>
+      <Parameter name="freightamt"/>
+      <Parameter name="deliveryviarule"/>
+      <Parameter name="mShipperId"/>
+      <Parameter name="cChargeId"/>
+      <Parameter name="chargeamt"/>
+      <Parameter name="priorityrule"/>
+      <Parameter name="generateto"/>
+      <Parameter name="createfrom"/>
+      <Parameter name="adUserId"/>
+      <Parameter name="salesrepId"/>
+      <Parameter name="adOrgtrxId"/>
+      <Parameter name="cProjectId"/>
+      <Parameter name="cCampaignId"/>
+      <Parameter name="cActivityId"/>
+      <Parameter name="user1Id"/>
+      <Parameter name="user2Id"/>
+      <Parameter name="updatelines"/>
+      <Parameter name="islogistic"/>
+      <Parameter name="generatelines"/>
+  </SqlMethod>
+  <SqlMethod name="mInoutPost0" connection="true" type="callableStatement" return="object" object="MaterialReceiptPendingData">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        CALL M_InOut_Post0(?)
+      ]]></Sql>
+      <Parameter name="adPinstanceId"></Parameter>
+   </SqlMethod>
+  <SqlMethod name="cDoctypeTarget" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_GET_DOCTYPE(?, ?, 'MMR', null) FROM DUAL 
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  <SqlMethod name="cDoctypeId" type="preparedStatement" return="string" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_DocTypeShipment_ID
+        FROM C_DOCTYPE
+        WHERE C_DocType_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cDoctypeId"/>
+  </SqlMethod>
+  <SqlMethod name="bPartnerDescription" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    SELECT NAME FROM C_BPARTNER 
+    WHERE C_BPARTNER_ID = ?
+    ]]></Sql>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="treeOrg" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+        SELECT AD_TREE_ORG_ID FROM AD_CLIENTINFO
+        WHERE AD_CLIENT_ID = ?
+    </Sql>
+    <Parameter name="client"/>
+  </SqlMethod>
+  <SqlMethod name="selectLocator" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT VALUE FROM M_LOCATOR WHERE M_LOCATOR_ID=?
+    </Sql>
+    <Parameter name="mLocatorId"/>
+  </SqlMethod>  
+</SqlClass>

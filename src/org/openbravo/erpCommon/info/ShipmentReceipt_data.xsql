@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ShipmentReceiptData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      SELECT * FROM ( SELECT '0' AS RN1, A.* FROM (    
+        SELECT MI.M_INOUT_ID AS CLAVE, CB.NAME AS BPARTNER_NAME, MI.MOVEMENTDATE, MI.DOCUMENTNO, MI.DESCRIPTION, MI.POREFERENCE AS ORDER_REFERENCE,
+        MI.ISSOTRX AS SALES_TRANSACTION,
+			MI.M_INOUT_ID || '@_##_@' || MI.DOCUMENTNO as rowkey
+        FROM M_INOUT MI, C_BPARTNER CB
+        WHERE MI.C_BPARTNER_ID = CB.C_BPARTNER_ID
+        AND MI.AD_Client_ID IN ('1') 
+        AND MI.AD_Org_ID IN ('1') 
+        AND MI.ISACTIVE = 'Y'
+        ORDER BY CB.NAME
+		) A ) B
+		WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="MI.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="MI.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key" ignoreValue="%" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND UPPER(MI.DOCUMENTNO) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND UPPER(MI.DESCRIPTION) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.C_BPARTNER_ID=? ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND UPPER(MI.POREFERENCE) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.MOVEMENTDATE >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.MOVEMENTDATE < to_date(?) ]]></Parameter>
+        <Parameter name="salesTransaction" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.ISSOTRX=? ]]></Parameter>
+			  <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="CB.NAME" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      SELECT COUNT(*) AS VALUE FROM ( SELECT '0' AS RN1, B.* FROM (    
+        SELECT 1 FROM M_INOUT MI, C_BPARTNER CB
+        WHERE MI.C_BPARTNER_ID = CB.C_BPARTNER_ID
+        AND MI.AD_Client_ID IN ('1') 
+        AND MI.AD_Org_ID IN ('1') 
+        AND MI.ISACTIVE = 'Y'
+		AND 1=1
+		) B
+		) A 
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="MI.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="MI.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key" ignoreValue="%" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND UPPER(MI.DOCUMENTNO) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND UPPER(MI.DESCRIPTION) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.C_BPARTNER_ID=? ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND UPPER(MI.POREFERENCE) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.MOVEMENTDATE >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.MOVEMENTDATE < to_date(?) ]]></Parameter>
+        <Parameter name="salesTransaction" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.ISSOTRX=? ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter> 
+   </SqlMethod>
+   <SqlMethod name="selectKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT MI.M_INOUT_ID AS CLAVE, CB.NAME AS BPARTNER_NAME, MI.MOVEMENTDATE, MI.DOCUMENTNO, MI.DESCRIPTION, MI.POREFERENCE AS ORDER_REFERENCE,
+        MI.ISSOTRX AS SALES_TRANSACTION
+        FROM M_INOUT MI, C_BPARTNER CB
+        WHERE MI.C_BPARTNER_ID = CB.C_BPARTNER_ID
+        AND MI.AD_Client_ID IN ('1') 
+        AND MI.AD_Org_ID IN ('1') 
+        AND MI.ISACTIVE = 'Y'
+        AND UPPER(MI.DOCUMENTNO) LIKE UPPER(?)
+      ]]>
+      </Sql>
+        <Parameter name="adUserClient" type="replace" optional="true" after="MI.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="MI.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="salesTransaction" optional="true" after="AND MI.ISACTIVE = 'Y'"><![CDATA[ AND MI.ISSOTRX=? ]]></Parameter>
+        <Parameter name="key"/>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBUIAPP_NAVBAR_COMPONENT_TRG">
+    <trigger name="OBUIAPP_NAVBAR_COMPONENT_TRG" table="OBUIAPP_NAVBAR_COMPONENT" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SL
+* All portions are Copyright (C) 2010 Openbravo SL
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  currentModuleID  VARCHAR2(32);
+  vAux NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF (UPDATING) THEN
+    IF (COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.')) THEN
+      SELECT COUNT(*) 
+        INTO vAux
+        FROM AD_MODULE
+       WHERE AD_MODULE_ID = :old.AD_Module_ID
+        AND isindevelopment = 'N';
+      IF (vAux!=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ChangeNotInDevModule@');
+      END IF;
+    END IF;
+  END IF;
+
+  SELECT COUNT(*)
+    INTO devTemplate
+    FROM AD_MODULE
+   WHERE IsInDevelopment = 'Y'
+     AND Type = 'T';
+     
+  IF (UPDATING OR INSERTING) THEN
+    currentModuleID := :new.AD_Module_ID;
+  ELSE
+    currentModuleID := :old.AD_Module_ID;
+  END IF;
+
+  SELECT M.IsInDevelopment
+    INTO devModule
+    FROM AD_MODULE M
+   WHERE M.AD_MODULE_ID = currentModuleID;
+
+    IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+    -- Cannot update an object in a module not in developement and without an active template
+      RAISE_APPLICATION_ERROR(-20000, '@20532@');
+    END IF;
+
+  IF ((DELETING OR INSERTING) AND devModule='N') THEN
+  -- Cannot insert/delete objects in a module not in development.
+    RAISE_APPLICATION_ERROR(-20000, '@20533@');
+  END IF;
+
+END OBUIAPP_NAVBAR_COMPONENT_TRG
+]]></body>
+    </trigger>
+  </database>

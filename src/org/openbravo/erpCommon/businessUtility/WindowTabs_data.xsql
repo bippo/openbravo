@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="WindowTabsData" package="org.openbravo.erpCommon.businessUtility" accessModifier="public">
+
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select t.AD_Tab_ID, t.TabLevel, t.Name, coalesce(t_trl.name, t.name) as tabname, t.seqno, 
+        t.IsTranslationTab, t.isInfoTab, 'N' AS isBreadCrumb, ('tabname' || t.ad_tab_id) AS tabNameId,
+        t.isActive, m.enabled, '' AS ID, '' AS Action
+        from ad_tab t left join ad_tab_trl t_trl on t.ad_tab_id = t_trl.ad_tab_id
+                              and t_trl.ad_language = ?,
+             ad_module m
+        where t.ad_window_id = ?
+          and t.ad_module_id = m.ad_module_id
+        order by t.seqno, t.tablevel
+       ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adWindowId"/>
+  </SqlMethod>
+  <SqlMethod name="selectManual" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select ? AS AD_Tab_ID, '0' AS TabLevel, m.Name, coalesce(m_trl.name, m.name) as tabname, '10' AS seqno, 
+        '' AS IsTranslationTab, '' AS isInfoTab, 'N' AS isBreadCrumb
+        from ad_menu m left join ad_menu_trl m_trl on m.ad_menu_id = m_trl.ad_menu_id
+                              and m_trl.ad_language = ?
+        where m.isactive = 'Y'
+        and m.ad_menu_id = ?
+       ]]>
+      </Sql>
+      <Parameter name="adTabId"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adMenuId"/>
+  </SqlMethod>
+  <SqlMethod name="selectMenu" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select AD_Parent_Menu_Element(m.AD_Menu_ID, m.AD_Client_ID, ?) AS NAME
+        from ad_menu m 
+        where m.ad_window_id = ?
+        and m.isactive = 'Y'
+        and m.action = 'W'
+       ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adWindowId"/>
+  </SqlMethod>
+  <SqlMethod name="selectMenuManual" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select AD_Parent_Menu_Element(m.AD_Menu_ID, m.AD_Client_ID, ?) AS NAME
+        from ad_menu m 
+        where m.ad_menu_id = ?
+       ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adMenuId"/>
+  </SqlMethod>
+  <SqlMethod name="selectMenuInfo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select m.AD_Menu_ID AS ID, coalesce(mt.name, m.name) as name 
+        from AD_Menu m left join ad_menu_trl mt on m.ad_menu_id = mt.ad_menu_id 
+                                                  and mt.ad_language = ?
+        where (CASE m.action WHEN 'R' THEN 'P' 
+                                  ELSE m.action END) = (CASE ? WHEN 'R' THEN 'P' ELSE ? END) 
+        and (m.ad_window_ID = ? 
+        or m.ad_process_ID = ? 
+        or m.ad_form_ID = ? 
+        )
+       ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="action"/>
+      <Parameter name="action"/>
+      <Parameter name="adTabId"/>
+      <Parameter name="adTabId"/>
+      <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="selectJavaInfo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select (CASE mo.Action
+                   WHEN 'X' THEN mo.AD_Form_ID
+                   WHEN 'P' THEN mo.AD_Process_ID
+                   WHEN 'R' THEN mo.AD_Process_ID
+                   WHEN 'C' THEN mo.AD_CallOut_ID
+                   WHEN 'S' THEN mo.AD_Reference_ID
+                   ELSE mo.AD_Tab_ID END) AS AD_Tab_ID, 
+        mom.MAPPINGNAME AS TabName, mo.action
+        from ad_model_object mo, ad_model_object_mapping mom
+        where mo.ad_model_object_id = mom.ad_model_object_id
+        and mo.isActive = 'Y'
+        and mom.isActive = 'Y' 
+        and mom.isDefault = 'Y'
+        and UPPER(mo.CLASSNAME) = UPPER(?)
+       ]]>
+      </Sql>
+      <Parameter name="className"/>
+  </SqlMethod>
+  <SqlMethod name="selectProcessInfo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select ad_process_id as ad_tab_id, 'P' as action
+          from ad_process
+          where ad_process_ID = ?
+       ]]>
+      </Sql>
+      <Parameter name="processId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectWindowInfo" type="preparedStatement" return="String" deafult="">
+    <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        select coalesce(mt.name, m.name) as name 
+        from ad_menu m left join ad_menu_trl mt on m.ad_menu_id = mt.ad_menu_id 
+                                                and mt.ad_language = ?
+        where m.ad_window_id = ? 
+        and m.action = 'W' 
+       ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+      <Parameter name="adWindowId"/>
+  </SqlMethod>
+</SqlClass>

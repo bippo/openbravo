@@ -1,0 +1,208 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION APRM_TAX_PAYMENT">
+    <function name="APRM_TAX_PAYMENT" type="NULL">
+      <parameter name="p_ep_instance" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+p_record_id VARCHAR(60);
+p_user VARCHAR2(32);
+p_GLItem VARCHAR2(32);
+p_Amount NUMBER;
+p_IsReceipt CHAR(1);
+p_message VARCHAR(2000);
+p_result NUMBER;
+
+v_ResultStr VARCHAR2(2000):='';
+v_FIN_PAYMENT_ID FIN_PAYMENT.FIN_PAYMENT_ID%TYPE;
+v_PaymentDocType_ID FIN_PAYMENT.C_DOCTYPE_ID%TYPE;
+v_PaymentDocumentNo FIN_PAYMENT.DOCUMENTNO%TYPE;
+v_Financial_Account_ID FIN_FINANCIAL_ACCOUNT.FIN_FINANCIAL_ACCOUNT_ID%TYPE;
+v_PaymentMethod_ID C_INVOICE.FIN_PAYMENTMETHOD_ID%TYPE;
+v_CreateFinTransaction CHAR(1):='N';
+v_ExecutionType FIN_FINACC_PAYMENTMETHOD.PAYIN_EXECUTION_TYPE%TYPE;
+v_FIN_PAYMENT_DETAIL_ID FIN_PAYMENT_DETAIL.FIN_PAYMENT_DETAIL_ID%TYPE;
+v_FIN_FINACC_TRANSACTION_ID FIN_FINACC_TRANSACTION.FIN_FINACC_TRANSACTION_ID%TYPE;
+v_Line FIN_FINACC_TRANSACTION.LINE%TYPE;
+v_date DATE;
+v_Client_ID VARCHAR2(32);
+v_Org_ID VARCHAR2(32);
+v_Currency_id VARCHAR2(32);
+v_IsPayment CHAR(1);
+v_BPartner_ID VARCHAR2(32);
+v_Processed CHAR(1);
+v_Posted CHAR(1);
+v_Count NUMBER;
+
+TYPE RECORD IS REF CURSOR;
+Cur_Params RECORD;
+
+BEGIN
+
+  FOR Cur_Params IN (
+    SELECT *
+    FROM ad_ep_instance_para
+    WHERE ad_ep_instance_id = p_ep_instance
+    ) LOOP
+    IF (cur_params.parametername LIKE 'Record_ID') THEN
+      p_record_id := cur_params.p_string;
+    ELSIF (cur_params.parametername LIKE 'User') THEN
+      p_user := cur_params.p_string;
+    ELSIF (cur_params.parametername LIKE 'GLItem') THEN
+      p_GLItem := cur_params.p_string;
+    ELSIF (cur_params.parametername LIKE 'Amount') THEN
+      p_amount := cur_params.p_number;
+    ELSIF (cur_params.parametername LIKE 'IsReceipt') THEN
+      p_isReceipt := cur_params.p_string;
+    ELSIF (cur_params.parametername LIKE 'Message') THEN
+      p_message := cur_params.p_text;
+    ELSIF (cur_params.parametername LIKE 'Result') THEN
+      p_result := cur_params.p_number;
+    END IF;
+  END LOOP;
+
+  -- Reading the TAX PAYMENT
+  v_ResultStr:='ReadingTaxPayment';
+
+  select dateto, ad_client_id, ad_org_id, generatepayment, C_BPARTNER_ID, processed, FIN_PAYMENT_ID, C_Currency_ID
+  into v_date, v_client_id, v_org_id, v_ispayment, v_bpartner_id, v_processed, v_FIN_PAYMENT_ID, v_Currency_id
+  from c_taxpayment
+  where c_taxpayment_id=p_record_id;
+  
+  IF (v_ispayment = 'Y' AND v_processed = 'N') THEN
+    v_ResultStr:='Generating FIN_PAYMENT';
+    v_FIN_PAYMENT_ID := GET_UUID();
+    v_PaymentDocType_ID := AD_GET_DOCTYPE(v_client_id, v_org_id, CASE WHEN p_isreceipt='Y' THEN 'ARR' ELSE 'APP' END);
+    AD_SEQUENCE_DOCTYPE(v_PaymentDocType_ID, v_client_id, 'Y', v_PaymentDocumentNo);
+    IF (v_PaymentDocumentNo IS NULL) THEN
+      AD_SEQUENCE_DOC('DocumentNo_FIN_Payment', v_client_id, 'Y', v_PaymentDocumentNo);
+    END IF;
+    select case when p_isreceipt='Y' then FIN_Financial_Account_id else PO_Financial_Account_id end, 
+    case when p_isreceipt='Y' then fin_paymentmethod_id else po_paymentmethod_id end
+    into v_Financial_Account_ID, v_PaymentMethod_ID
+    from c_bpartner
+    where c_bpartner_id = v_bpartner_id;
+    SELECT CASE WHEN p_isreceipt='Y' THEN AUTOMATIC_DEPOSIT ELSE AUTOMATIC_WITHDRAWN END AS CreateFinTransaction,
+    CASE WHEN p_isreceipt='Y' THEN payin_execution_type ELSE payout_execution_type END AS ExecutionType
+    INTO v_CreateFinTransaction, v_ExecutionType
+    FROM FIN_FINACC_PAYMENTMETHOD
+    WHERE FIN_FINACC_PAYMENTMETHOD.FIN_PAYMENTMETHOD_ID = v_PaymentMethod_ID
+    AND FIN_FINACC_PAYMENTMETHOD.FIN_FINANCIAL_ACCOUNT_ID = v_Financial_Account_ID
+    AND FIN_FINACC_PAYMENTMETHOD.ISACTIVE='Y';
+    -- Checking Payment Method ID is available
+    IF(v_PaymentMethod_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@APRM_PAYMENTMETHOD_MISSING@');
+    END IF;
+    INSERT INTO fin_payment(
+      fin_payment_id, ad_client_id, ad_org_id, created, createdby, 
+      updated, updatedby, isactive, isreceipt, c_bpartner_id, paymentdate, 
+      c_currency_id, amount, writeoffamt, fin_paymentmethod_id, documentno, 
+      referenceno,
+      status,
+      processed, processing, posted, description, 
+      fin_financial_account_id, c_doctype_id, c_project_id, c_campaign_id, 
+      c_activity_id, user1_id, user2_id, em_aprm_process_payment, em_aprm_reconcile_payment, 
+      em_aprm_add_scheduledpayments)
+    VALUES (v_FIN_PAYMENT_ID, v_client_id, v_org_id, now(), p_user, 
+      now(), p_user, 'Y', p_isreceipt, v_bpartner_id, v_date, 
+      v_currency_id, p_amount, 0, v_PaymentMethod_ID, v_PaymentDocumentNo, 
+      '',
+      CASE 
+	WHEN v_ExecutionType = 'A' THEN 'RPAE' 
+	WHEN p_isreceipt = 'Y' THEN 'RPR'
+	ELSE 'PPM'
+      END,
+      'N', 'N', 'N', 'GL Item.: ', 
+      v_Financial_Account_ID, v_PaymentDocType_ID, NULL, NULL, 
+      NULL, NULL, NULL, 'N', 'N', 'N');
+    v_FIN_PAYMENT_DETAIL_ID := GET_UUID();
+    INSERT INTO fin_payment_detail(
+      fin_payment_detail_id, ad_client_id, ad_org_id, created, createdby, 
+      updated, updatedby, fin_payment_id, amount, refund, isactive, 
+      writeoffamt, c_glitem_id, isprepayment)
+	VALUES (v_FIN_PAYMENT_DETAIL_ID, v_client_id, v_org_id, now(), p_user,
+      now(), p_user, v_FIN_PAYMENT_ID, p_amount, 'N', 'Y', 
+      0, p_GLItem, 'N');
+    INSERT INTO fin_payment_scheduledetail(
+    fin_payment_scheduledetail_id, ad_client_id, ad_org_id, created, createdby, 
+    updated, updatedby, fin_payment_detail_id, fin_payment_schedule_order, 
+    fin_payment_schedule_invoice, amount, isactive, writeoffamt)
+    VALUES (GET_UUID(), v_client_id, v_org_id, now(), p_user, 
+    now(), p_user, v_FIN_PAYMENT_DETAIL_ID, NULL, 
+    NULL, p_amount, 'Y', 0);
+    UPDATE FIN_PAYMENT SET PROCESSED = 'Y', EM_APRM_PROCESS_PAYMENT = 'R'
+      WHERE FIN_PAYMENT_ID = v_FIN_PAYMENT_ID; 
+    UPDATE C_TAXPAYMENT SET FIN_PAYMENT_ID = v_FIN_PAYMENT_ID
+    WHERE C_TAXPAYMENT_ID = p_record_id;
+    -- Updating SO_CREDITUSED when PAYMENT OCCUR
+    UPDATE C_BPARTNER
+    SET SO_CREDITUSED = SO_CREDITUSED - COALESCE(p_amount, 0)
+    WHERE C_BPARTNER_ID = v_BPartner_ID; 
+
+    -- Automatic creation of financial transaction
+    IF(v_CreateFinTransaction = 'Y' AND v_ExecutionType = 'M') THEN
+      v_ResultStr:='Generating FIN_FINACC_TRANSACTION';
+      v_FIN_FINACC_TRANSACTION_ID := GET_UUID();
+      SELECT COALESCE(MAX(LINE),0) INTO v_Line FROM FIN_FINACC_TRANSACTION WHERE FIN_FINANCIAL_ACCOUNT_ID = v_Financial_Account_ID;
+      INSERT INTO fin_finacc_transaction(
+	fin_finacc_transaction_id, ad_client_id, ad_org_id, created, 
+	createdby, updated, updatedby, isactive, c_currency_id, fin_financial_account_id, 
+	line, fin_payment_id, dateacct, c_glitem_id, status, paymentamt, 
+	depositamt, processed, processing, posted, c_project_id, c_campaign_id, 
+	c_activity_id, user1_id, user2_id, trxtype, statementdate, description, 
+	fin_reconciliation_id)
+      VALUES (v_FIN_FINACC_TRANSACTION_ID, v_client_id, v_org_id, now(), p_user,
+	now(), p_user, 'Y', v_currency_id, v_Financial_Account_ID, 
+	v_Line, v_FIN_PAYMENT_ID, v_date, NULL, CASE WHEN p_isreceipt='Y' THEN 'RDNC' ELSE 'PWNC' END, CASE WHEN p_isreceipt='N' THEN p_amount ELSE 0 END, 
+	CASE WHEN p_isreceipt='Y' THEN p_amount ELSE 0 END, 'Y', 'N', 'N', NULL, NULL, 
+	NULL, NULL, NULL, CASE WHEN p_isreceipt='N' THEN 'BPW' ELSE 'BPD' END, v_date, 'GL Item: ' , 
+	NULL);
+      UPDATE FIN_PAYMENT SET STATUS = CASE WHEN p_isreceipt='Y' THEN 'RDNC' ELSE 'PWNC' END
+	WHERE FIN_PAYMENT_ID = v_FIN_PAYMENT_ID;
+	--UPDATE FINANCIAL ACCOUNT CURRENT BALANCE
+	UPDATE FIN_FINANCIAL_ACCOUNT SET CURRENTBALANCE=CURRENTBALANCE + (CASE WHEN p_isreceipt='Y' THEN p_amount ELSE (p_amount*-1) END)
+	WHERE FIN_FINANCIAL_ACCOUNT_ID = v_Financial_Account_ID;
+    END IF;
+  ELSIF (v_ispayment = 'Y' AND v_Processed = 'Y') THEN
+    select posted into v_posted from FIN_PAYMENT where FIN_PAYMENT_ID = v_FIN_PAYMENT_ID;
+    if v_posted = 'Y' then
+      RAISE_APPLICATION_ERROR(-20000, '@PaymentDocumentPosted@') ;
+    end if;
+    select count(*) INTO v_Count
+    from fin_finacc_transaction
+    where fin_payment_id = v_FIN_PAYMENT_ID;
+    if v_Count>0 then
+      RAISE_APPLICATION_ERROR(-20000, '@APRM_TransactionExists@') ;
+    end if;
+    UPDATE FIN_PAYMENT SET PROCESSED = 'N' WHERE FIN_PAYMENT_ID = v_FIN_PAYMENT_ID;
+    UPDATE C_TAXPAYMENT SET FIN_PAYMENT_ID = NULL WHERE C_TAXPAYMENT_ID = p_record_id;
+    DELETE FROM FIN_PAYMENT_SCHEDULEDETAIL WHERE EXISTS (SELECT 1 FROM FIN_PAYMENT_DETAIL WHERE FIN_PAYMENT_ID = v_FIN_PAYMENT_ID
+	AND FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_DETAIL_ID = FIN_PAYMENT_DETAIL.FIN_PAYMENT_DETAIL_ID);
+    DELETE FROM FIN_PAYMENT_DETAIL WHERE FIN_PAYMENT_ID = v_FIN_PAYMENT_ID;
+    DELETE FROM FIN_PAYMENT WHERE FIN_PAYMENT_ID = v_FIN_PAYMENT_ID;
+  END IF;
+
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('APRM_TAX_PAYMENT exception: '|| v_ResultStr);
+  RAISE;
+END APRM_TAX_PAYMENT
+]]></body>
+    </function>
+  </database>

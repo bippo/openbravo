@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="SalesOrderLineData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      SELECT B.*,
+      	(DOCUMENTNO || ' - ' || DATEORDERED || ' - ' || GRANDTOTAL || ' - ' || LINE || ' - ' || LINENETAMT) AS LINE_TEXT,
+		C_ORDERLINE_ID || '@_##_@' || DOCUMENTNO || ' - ' || DATEORDERED || ' - ' || GRANDTOTAL || ' - ' || LINE || ' - ' || LINENETAMT as rowkey
+      FROM ( SELECT '0' AS RN1, A.* FROM (  
+          SELECT ol.C_ORDERLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, ol.DATEORDERED, o.DOCUMENTNO, 
+          o.ISSOTRX, ol.QTYORDERED AS QTY, ol.PRICEACTUAL, ol.LINENETAMT, ol.LINE, o.GRANDTOTAL
+          FROM C_ORDER o, C_ORDERLINE ol, M_PRODUCT p, C_BPARTNER b
+          WHERE o.C_ORDER_ID = ol.C_ORDER_ID 
+          AND o.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ol.M_PRODUCT_ID = p.M_PRODUCT_ID
+          AND o.AD_CLIENT_ID IN ('1') 
+          AND o.AD_ORG_ID IN ('1') 
+          AND o.IsActive='Y' 
+          AND o.ISSOTRX = 'Y'
+          ORDER BY ol.C_ORDERLINE_ID
+		) A ) B
+		WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+		<Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="o.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(o.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(ol.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(o.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND o.C_BPartner_ID=? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.DateOrdered >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.DateOrdered < to_date(?) ]]></Parameter>
+        <Parameter name="grandTotalFrom" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.PRICEACTUAL*ol.QTYORDERED >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="grandTotalTo" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.PRICEACTUAL*ol.QTYORDERED <= ? ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.M_Product_ID=? ]]></Parameter>
+        <Parameter name="isdelivered" optional="true" type="none" after="AND o.IsActive='Y'"><![CDATA[ AND (ol.QTYORDERED - COALESCE(ol.QTYDELIVERED, 0)) <> 0 ]]></Parameter>
+        <Parameter name="isinvoiced" optional="true" type="none" after="AND o.IsActive='Y'"><![CDATA[ AND (ol.QTYORDERED - COALESCE(ol.QTYINVOICED, 0)) <> 0 ]]></Parameter>
+			<Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="ol.C_ORDERLINE_ID" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+   
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+          SELECT count(*) AS value FROM ( SELECT '0' AS rn1, B.*  FROM (
+	          SELECT 1
+	          FROM C_ORDER o, C_ORDERLINE ol, M_PRODUCT p, C_BPARTNER b
+	          WHERE o.C_ORDER_ID = ol.C_ORDER_ID 
+	          AND o.C_BPARTNER_ID = b.C_BPARTNER_ID 
+	          AND ol.M_PRODUCT_ID = p.M_PRODUCT_ID
+	          AND o.AD_CLIENT_ID IN ('1') 
+	          AND o.AD_ORG_ID IN ('1') 
+	          AND o.IsActive='Y' 
+	          AND o.ISSOTRX = '1'
+	          AND 1=1
+	       ) B
+	       ) A 
+        ]]>
+        </Sql>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Field name="position" value="count"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="o.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(o.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(ol.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(o.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND o.C_BPartner_ID = ? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.DateOrdered >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.DateOrdered < to_date(?) ]]></Parameter>
+        <Parameter name="grandTotalFrom" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.PRICEACTUAL*ol.QTYORDERED >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="grandTotalTo" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.PRICEACTUAL*ol.QTYORDERED <= ? ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.M_Product_ID = ? ]]></Parameter>
+        <Parameter name="isdelivered" optional="true" type="none" after="AND o.IsActive='Y'"><![CDATA[ AND (ol.QTYORDERED - COALESCE(ol.QTYDELIVERED, 0)) <> 0 ]]></Parameter>
+        <Parameter name="isinvoiced" optional="true" type="none" after="AND o.IsActive='Y'"><![CDATA[ AND (ol.QTYORDERED - COALESCE(ol.QTYINVOICED, 0)) <> 0 ]]></Parameter>
+        <Parameter name="isSoTr" type="replace" optional="true" after="o.ISSOTRX = '" text="1"/>
+        <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="selectSOTrx" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      SELECT * FROM ( SELECT '0' AS RN1, A.* FROM (  
+          SELECT ol.C_ORDERLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, ol.DATEORDERED, o.DOCUMENTNO, 
+          o.ISSOTRX, ol.QTYORDERED AS QTY, ol.PRICEACTUAL, ol.LINENETAMT, 
+          (o.DOCUMENTNO || ' - ' || ol.DATEORDERED || ' - ' || o.GRANDTOTAL || ' - ' || ol.LINE || ' - ' || ol.LINENETAMT) AS LINE_TEXT,
+			  ol.C_ORDERLINE_ID || '@_##_@' || o.DOCUMENTNO || ' - ' || ol.DATEORDERED || ' - ' || o.GRANDTOTAL || ' - ' || ol.LINE || ' - ' || ol.LINENETAMT as rowkey
+          FROM C_ORDERLINE ol left join M_MATCHPO mp on ol.C_ORDERLINE_ID = mp.C_ORDERLINE_ID 
+                                                    AND mp.C_INVOICELINE_ID IS NOT NULL
+                              left join M_MATCHPO mp2 on ol.C_ORDERLINE_ID = mp2.C_ORDERLINE_ID
+                                                    AND mp2.M_INOUTLINE_ID IS NOT NULL,
+                C_ORDER o,  M_PRODUCT p, C_BPARTNER b
+          WHERE o.C_ORDER_ID = ol.C_ORDER_ID 
+          AND o.C_BPARTNER_ID = b.C_BPARTNER_ID 
+          AND ol.M_PRODUCT_ID = p.M_PRODUCT_ID 
+          AND o.AD_CLIENT_ID IN ('1') 
+          AND o.AD_ORG_ID IN ('1') 
+          AND o.IsActive='Y' 
+          AND o.ISSOTRX = 'N'
+          GROUP BY ol.C_ORDERLINE_ID, b.NAME, p.NAME, ol.DATEORDERED, o.DOCUMENTNO, 
+          o.ISSOTRX, ol.QTYORDERED, ol.PRICEACTUAL, ol.LINENETAMT, o.GRANDTOTAL, ol.LINE, ol.LINENETAMT
+          HAVING 1=1 
+          ORDER BY ol.C_ORDERLINE_ID
+		) A ) B
+		WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+			<Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="o.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="documentno" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(o.DocumentNo) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="description" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(ol.Description) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="orderReference" ignoreValue="%" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND UPPER(o.POReference) LIKE UPPER(?) ]]></Parameter>
+        <Parameter name="businesPartner" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND o.C_BPartner_ID=? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.DateOrdered >= to_date(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.DateOrdered < to_date(?) ]]></Parameter>
+        <Parameter name="grandTotalFrom" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.PRICEACTUAL*ol.QTYORDERED >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="grandTotalTo" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.PRICEACTUAL*ol.QTYORDERED <= ? ]]></Parameter>
+        <Parameter name="product" optional="true" after="AND o.IsActive='Y'"><![CDATA[ AND ol.M_Product_ID=? ]]></Parameter>
+        <Parameter name="isdelivered" optional="true" type="none" after="HAVING 1=1 "><![CDATA[ AND (ol.QTYORDERED - COALESCE(SUM(mp2.QTY), 0)) <> 0 ]]></Parameter>
+        <Parameter name="isinvoiced" optional="true" type="none" after="HAVING 1=1 "><![CDATA[ AND (ol.QTYORDERED - COALESCE(SUM(mp.QTY),0)) <> 0 ]]></Parameter>
+			<Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="ol.C_ORDERLINE_ID" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+   <SqlMethod name="selectKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT ol.C_ORDERLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, o.DATEORDERED, o.DOCUMENTNO, 
+        o.ISSOTRX, ol.QTYORDERED AS QTY, ol.PRICEACTUAL, ol.LINENETAMT, 
+        (o.DOCUMENTNO || ' - ' || o.DATEORDERED || ' - ' || o.GRANDTOTAL || ' - ' || ol.LINE || ' - ' || ol.LINENETAMT) AS LINE_TEXT
+        FROM C_ORDER o, C_ORDERLINE ol, M_PRODUCT p, C_BPARTNER b
+        WHERE o.C_ORDER_ID = ol.C_ORDER_ID 
+        AND o.C_BPARTNER_ID = b.C_BPARTNER_ID 
+        AND ol.M_PRODUCT_ID = p.M_PRODUCT_ID
+        AND o.AD_CLIENT_ID IN ('1') 
+        AND o.AD_ORG_ID IN ('1') 
+        AND o.IsActive='Y' 
+        AND UPPER(o.DOCUMENTNO) LIKE UPPER(?) 
+        AND (ol.QTYORDERED - COALESCE(ol.QTYINVOICED, 0)) > 0 
+        AND (ol.QTYORDERED - COALESCE(ol.QTYDELIVERED, 0)) > 0 
+        AND o.ISSOTRX = 'Y'
+        ORDER BY b.NAME, o.DATEORDERED, o.DOCUMENTNO, ol.LINE
+      ]]>
+      </Sql>
+        <Parameter name="adUserClient" type="replace" optional="true" after="AND o.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="AND o.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="key"/>
+   </SqlMethod>
+   <SqlMethod name="selectKeySOTrx" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT ol.C_ORDERLINE_ID, b.NAME AS BPARTNER_NAME, p.NAME AS PRODUCT_NAME, o.DATEORDERED, o.DOCUMENTNO, 
+        o.ISSOTRX, ol.QTYORDERED AS QTY, ol.PRICEACTUAL, ol.LINENETAMT, 
+        (o.DOCUMENTNO || ' - ' || o.DATEORDERED || ' - ' || o.GRANDTOTAL || ' - ' || ol.LINE || ' - ' || ol.LINENETAMT) AS LINE_TEXT
+        FROM  C_ORDERLINE ol left join M_MATCHPO mp on ol.C_ORDERLINE_ID = mp.C_ORDERLINE_ID 
+                                                    AND mp.C_INVOICELINE_ID  IS NOT NULL
+                             left join M_MATCHPO mp2 on  ol.C_ORDERLINE_ID = mp2.C_ORDERLINE_ID 
+                                                     and mp2.M_INOUTLINE_ID IS NOT NULL,
+              C_ORDER o, M_PRODUCT p, C_BPARTNER b 
+        WHERE o.C_ORDER_ID = ol.C_ORDER_ID 
+        AND o.C_BPARTNER_ID = b.C_BPARTNER_ID 
+        AND ol.M_PRODUCT_ID = p.M_PRODUCT_ID 
+        AND o.AD_CLIENT_ID IN ('1') 
+        AND o.AD_ORG_ID IN ('1') 
+        AND o.IsActive='Y' 
+        AND UPPER(o.DOCUMENTNO) LIKE UPPER(?) 
+        AND o.ISSOTRX = 'N'
+        GROUP BY ol.C_ORDERLINE_ID, b.NAME, p.NAME, o.DATEORDERED, o.DOCUMENTNO, 
+        o.ISSOTRX, ol.QTYORDERED, ol.PRICEACTUAL, ol.LINENETAMT, o.GRANDTOTAL, ol.LINE, ol.LINENETAMT
+        HAVING (ol.QTYORDERED - COALESCE(SUM(mp.QTY),0)) > 0 
+        AND (ol.QTYORDERED - COALESCE(SUM(mp2.QTY), 0)) > 0
+        ORDER BY b.NAME, o.DATEORDERED, o.DOCUMENTNO, ol.LINE
+      ]]>
+      </Sql>
+        <Parameter name="adUserClient" type="replace" optional="true" after="AND o.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="AND o.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="key"/>
+   </SqlMethod>
+   <SqlMethod name="selectBPartner" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID=?
+      ]]>
+      </Sql>
+        <Parameter name="cBpartnerId"/>
+   </SqlMethod>
+   <SqlMethod name="selectProduct" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> 
+      <![CDATA[
+        SELECT NAME FROM M_PRODUCT WHERE M_PRODUCT_ID=?
+      ]]>
+      </Sql>
+        <Parameter name="mProductId"/>
+   </SqlMethod>
+</SqlClass>

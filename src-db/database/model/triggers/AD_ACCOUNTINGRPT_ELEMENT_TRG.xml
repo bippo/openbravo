@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ACCOUNTINGRPT_ELEMENT_TRG">
+    <trigger name="AD_ACCOUNTINGRPT_ELEMENT_TRG" table="AD_ACCOUNTINGRPT_ELEMENT" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_xTree_ID VARCHAR2(32);
+  v_xParent_ID VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Insert AD_Menu Trigger
+  --  for Translation
+  --  and TreeNode
+  IF INSERTING THEN
+    SELECT AD_TREE_ID,
+      '0'
+    INTO v_xTree_ID,
+      v_xParent_ID
+    FROM AD_TREE
+    WHERE treetype='AR'
+      AND AD_Client_ID=:NEW.AD_Client_ID;
+    --  DBMS_OUTPUT.PUT_LINE('Tree='||v_xTree_ID||'  Node='||:new.AD_Menu_ID||'  Parent='||v_xParent_ID);
+    --  Insert into TreeNode
+    INSERT
+    INTO AD_TREENODE
+      (
+        AD_TreeNode_ID, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated,
+        UpdatedBy, AD_Tree_ID, Node_ID,
+        Parent_ID, SeqNo
+      )
+      VALUES
+      (
+        get_UUID(), :NEW.AD_Client_ID, :NEW.AD_Org_ID, :NEW.IsActive,
+        :NEW.Created, :NEW.CreatedBy, :NEW.Updated,
+        :NEW.UpdatedBy, v_xTree_ID, :NEW.AD_Accountingrpt_Element_ID,
+        v_xParent_ID,(
+        CASE :NEW.IsSummary
+          WHEN 'Y'
+          THEN 100
+          ELSE 999
+        END
+        )
+      )
+      ;
+    -- Summary Nodes first
+  END IF;
+  -- Inserting
+  -- AD_Ref_List update trigger
+  --  synchronize name,...
+  IF UPDATING THEN
+    IF((COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+   OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')
+   OR COALESCE(:old.IsActive, '.') <> COALESCE(:NEW.IsActive, '.')))
+  THEN
+      IF(:OLD.IsActive!=:NEW.IsActive) THEN
+        -- Update
+        UPDATE AD_TREENODE
+          SET IsActive=:NEW.IsActive
+        WHERE AD_Tree_ID=v_xTree_ID
+          AND Node_ID=:NEW.AD_Accountingrpt_Element_ID;
+      END IF;
+    END IF;
+  END IF;
+  -- Updating
+/*EXCEPTION
+WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20002, 'AD_AccountingRpt_Element InsertTrigger Error: No ClientInfo or parent TreeNode') ;
+  */
+END AD_ACCOUNTINGRPT_ELEMENT_TRG
+]]></body>
+    </trigger>
+  </database>

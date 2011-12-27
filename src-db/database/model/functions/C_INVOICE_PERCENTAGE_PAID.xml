@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_INVOICE_PERCENTAGE_PAID">
+    <function name="C_INVOICE_PERCENTAGE_PAID" type="NUMERIC">
+      <parameter name="p_invoice_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_percentaje NUMBER;
+BEGIN
+  SELECT SUM(C_DB_PERCENTAGE_PAID(DB.C_Debt_Payment_ID)*
+      C_Currency_Convert(DB.amount,DB.C_Currency_ID,I.C_Currency_ID,
+      now(), null, I.AD_Client_ID, I.AD_Org_ID))/
+  (CASE SUM(C_Currency_Convert(DB.amount,DB.C_Currency_ID,I.C_Currency_ID,
+      now(), null, I.AD_Client_ID, I.AD_Org_ID)) WHEN 0 THEN to_number(NULL) ELSE SUM(C_Currency_Convert(DB.amount,DB.C_Currency_ID,I.C_Currency_ID,
+      now(), null, I.AD_Client_ID, I.AD_Org_ID)) END) INTO v_percentaje
+  FROM C_DEBT_PAYMENT DB, C_Invoice I
+  WHERE DB.C_Invoice_ID = I.C_Invoice_ID
+    AND I.C_INVOICE_ID = p_Invoice_ID;
+  RETURN ROUND(v_percentaje,4);
+END C_INVOICE_PERCENTAGE_PAID
+]]></body>
+    </function>
+  </database>

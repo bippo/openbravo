@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="CreateFromInvoiceData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="selectFromPO" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT o.C_ORDER_ID as ID, Ad_Column_Identifier(to_char('C_Order'), to_char(o.c_order_id), to_char(?)) AS NAME, o.DocumentNo AS NAMEORDER,
+        '' AS NAMESHIPMENT,
+        l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME AS RELATION_NAME, 
+        l.C_OrderLine_ID,l.Line, l.ad_org_id, '' as STDPRECISION, 
+        '' as M_InOutLine_ID, '' AS PriceActual, '' AS PriceList, '' AS PriceLimit, '' AS Description, '' as PriceStd,
+        '' AS QUANTITYORDER, '' AS M_Product_UOM_ID, '' AS M_ATTRIBUTESETINSTANCE_ID, '' AS M_Offer_ID, '' AS PricePrecision,
+        l.taxbaseamt, l.CancelPriceAD
+        FROM C_ORDERLINE l left join M_MATCHPO m on  l.C_OrderLine_ID=m.C_OrderLine_ID
+                                                 AND m.C_InvoiceLine_ID IS NOT NULL, 
+        C_ORDER o, C_UOM uom,  M_PRODUCT p
+        WHERE o.C_ORDER_ID = l.C_ORDER_ID 
+        AND o.IsSOTrx='N' 
+        AND o.DocStatus IN ('CL','CO') 
+        AND o.AD_Client_ID IN ('1') 
+        AND o.AD_Org_ID IN ('1') 
+        AND l.C_UOM_ID=uom.C_UOM_ID
+        AND l.M_Product_ID=p.M_Product_ID
+        AND l.C_Order_ID = ? 
+        GROUP BY o.C_ORDER_ID, o.DocumentNo, o.DateOrdered, o.GrandTotal, l.QtyOrdered,l.C_UOM_ID,
+        uom.UOMSymbol,l.M_Product_ID,p.NAME,l.Line,l.C_OrderLine_ID, l.ad_org_id, l.taxbaseamt,l.CancelPriceAD
+        HAVING (l.QtyOrdered-SUM(COALESCE(m.Qty,0))) <> 0
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="o.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="poId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromPOCombo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT o.C_ORDER_ID as ID, Ad_Column_Identifier(to_char('C_Order'), to_char(o.c_order_id), to_char(?)) AS NAME 
+        FROM C_ORDER o 
+        WHERE o.IsSOTrx='N' 
+        AND o.DocStatus IN ('CL','CO') 
+        AND o.AD_Client_ID IN ('1') 
+        AND o.AD_Org_ID IN ('1')
+        AND o.C_BPartner_ID = ?
+        AND EXISTS (SELECT 1 
+                     FROM C_ORDERLINE l left join M_MATCHPO m on  l.C_OrderLine_ID=m.C_OrderLine_ID
+                                                              and m.C_InvoiceLine_ID IS NOT NULL  
+                    WHERE l.C_ORDER_ID = o.C_ORDER_ID  
+                    GROUP BY l.QtyOrdered,l.C_OrderLine_ID 
+                    HAVING (l.QtyOrdered-SUM(COALESCE(m.Qty,0))) <> 0)
+        ORDER BY NAME
+      ]]>
+    </Sql>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="o.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromPOSOTrx" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT o.C_ORDER_ID as ID, Ad_Column_Identifier(to_char('C_Order'), to_char(o.c_order_id), to_char(?)) AS NAME,o.DocumentNo AS NAMEORDER,
+        l.QtyOrdered-COALESCE(l.QTYINVOICED,0) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME AS RELATION_NAME, 
+        l.C_OrderLine_ID,l.Line, l.ad_Org_id, l.taxbaseamt
+        FROM C_INVOICE_CANDIDATE_V ic, C_UOM uom, C_ORDER o, C_ORDERLINE l, M_PRODUCT p 
+        WHERE l.C_UOM_ID=uom.C_UOM_ID
+        AND o.C_ORDER_ID = ic.C_ORDER_ID 
+        AND o.C_ORDER_ID=l.C_ORDER_ID 
+        AND ic.AD_Client_ID IN ('1') 
+        AND ic.AD_Org_ID IN ('1') 
+        AND l.M_Product_ID=p.M_Product_ID 
+        AND ic.C_Order_ID = ? 
+        GROUP BY o.C_ORDER_ID, o.DocumentNo, o.DateOrdered, o.GrandTotal, l.QtyOrdered,
+        l.C_UOM_ID,uom.UOMSymbol,l.M_Product_ID,p.NAME,l.Line,l.C_OrderLine_ID, l.QTYINVOICED, l.ad_org_id,
+        l.taxbaseamt
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="ic.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="ic.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="poId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromPOSOTrxCombo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT o.C_ORDER_ID as ID, Ad_Column_Identifier(to_char('C_Order'), to_char(o.c_order_id), to_char(?)) AS NAME 
+        FROM C_INVOICE_CANDIDATE_V ic, C_ORDER o
+        WHERE o.C_ORDER_ID = ic.C_ORDER_ID 
+        AND ic.AD_Client_ID IN ('1') 
+        AND ic.AD_Org_ID IN ('1') 
+        AND ic.C_BPartner_ID = ? 
+        AND o.C_Order_Id = ic.C_Order_Id
+        AND ((ic.term = 'D' AND ic.qtydelivered <>0) OR (ic.term = 'I' AND (SELECT SUM(ol.QTYORDERED)-SUM(ol.QTYINVOICED) FROM C_ORDERLINE ol WHERE ol.C_ORDER_ID = o.C_ORDER_ID) <> 0) OR (ic.term <> 'N' AND (ic.term IN ('O','S') AND (ic.qtyordered = ic.qtydelivered) )) )
+        GROUP BY o.C_ORDER_ID, o.DocumentNo, o.DateOrdered, o.GrandTotal 
+        ORDER BY NAME
+      ]]>
+    </Sql>
+    <Parameter name="language"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="ic.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="ic.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromPOTrl" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT o.C_ORDER_ID as ID, Ad_Column_Identifier(to_char('C_Order'), to_char(o.c_order_id), to_char(?)) AS NAME, o.DocumentNo AS NAMEORDER,
+        l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS QTY, l.C_UOM_ID, COALESCE(uomt.UOMSYMBOL, uom.UOMSymbol) AS UOMSymbol, 
+        l.M_Product_ID,p.NAME AS RELATION_NAME, l.C_OrderLine_ID,l.Line, l.taxbaseamt 
+        FROM C_UOM uom left join  C_UOM_TRL uomt on uom.C_UOM_ID = uomt.C_UOM_ID
+                                                and uomt.AD_Language = ?,
+             C_ORDERLINE l left join M_MATCHPO m on l.C_OrderLine_ID=m.C_OrderLine_ID
+                                                and m.C_InvoiceLine_ID IS NOT NULL,
+        C_ORDER o, M_PRODUCT p
+        WHERE o.C_ORDER_ID = l.C_ORDER_ID 
+        AND o.IsSOTrx='N' 
+        AND o.DocStatus IN ('CL','CO') 
+        AND o.AD_Client_ID IN ('1') 
+        AND o.AD_Org_ID IN ('1') 
+        AND l.C_UOM_ID=uom.C_UOM_ID 
+        AND l.M_Product_ID=p.M_Product_ID  
+        AND l.C_Order_ID = ? 
+        GROUP BY o.C_ORDER_ID, o.DocumentNo, o.DateOrdered, o.GrandTotal, l.QtyOrdered,l.C_UOM_ID,
+        uom.UOMSymbol, uomt.UOMSYMBOL,l.M_Product_ID,p.NAME,l.Line,l.C_OrderLine_ID,
+        l.taxbaseamt 
+        HAVING (l.QtyOrdered-SUM(COALESCE(m.Qty,0))) <> 0
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="o.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="poId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromPOTrlSOTrx" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT o.C_ORDER_ID as ID, Ad_Column_Identifier(to_char('C_Order'), to_char(o.c_order_id), to_char(?) ) AS NAME,o.DocumentNo AS NAMEORDER,
+        l.QtyOrdered-COALESCE(l.QTYINVOICED,0) AS QTY, l.C_UOM_ID, COALESCE(uomt.UOMSymbol, uom.UOMSymbol) AS UOMSymbol, 
+        l.M_Product_ID,p.NAME AS RELATION_NAME, l.C_OrderLine_ID,l.Line, l.taxbaseamt
+        FROM C_UOM uom left join C_UOM_TRL uomt on uom.C_UOM_ID = uomt.C_UOM_ID
+                                               and  uomt.AD_Language = ?, 
+        C_INVOICE_CANDIDATE_V ic,   C_ORDER o, C_ORDERLINE l, M_PRODUCT p 
+        WHERE l.C_UOM_ID=uom.C_UOM_ID
+        AND o.C_ORDER_ID = ic.C_ORDER_ID 
+        AND o.C_ORDER_ID=l.C_ORDER_ID 
+        AND ic.AD_Client_ID IN ('1') 
+        AND ic.AD_Org_ID IN ('1') 
+        AND l.M_Product_ID=p.M_Product_ID
+        AND ic.C_Order_ID = ? 
+        GROUP BY o.C_ORDER_ID, o.DocumentNo, o.DateOrdered, o.GrandTotal, l.QtyOrdered,
+        l.C_UOM_ID,uom.UOMSymbol, uomt.UOMSymbol,l.M_Product_ID,p.NAME,l.Line,l.C_OrderLine_ID, l.QTYINVOICED,
+        l.taxbaseamt 
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="ic.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="ic.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="poId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectFromPOUpdate" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT (CASE WHEN B.M_InOutLine_ID IS NULL THEN A.QTY ELSE B.QTY END) AS ID, 
+      A.C_UOM_ID,uom.UOMSymbol, A.M_Product_ID,p.NAME, A.C_OrderLine_ID,A.Line, uom.stdprecision AS stdprecision, cur.priceprecision, 
+      B.M_InOutLine_ID, A.Description, (CASE WHEN B.M_InOutLine_ID IS NULL THEN A.quantityOrder ELSE B.quantityOrder END) AS quantityOrder, 
+      (CASE WHEN B.M_InOutLine_ID IS NULL THEN A.M_Product_UOM_ID ELSE B.M_Product_UOM_ID END) AS M_Product_UOM_ID, A.M_ATTRIBUTESETINSTANCE_ID, A.ad_org_id,
+      A.taxbaseamt
+      FROM c_currency cur,C_UOM uom, M_PRODUCT p, 
+      (SELECT l.ad_org_id,l.C_CURRENCY_ID,l.C_UOM_ID, l.M_Product_ID, l.Line, l.Description, l.C_OrderLine_ID, (l.QtyOrdered-SUM(COALESCE(mp.Qty,0))) AS QTY,
+      l.quantityOrder*C_DIVIDE((l.QtyOrdered-SUM(COALESCE(mp.Qty,0))),l.QtyOrdered) as quantityOrder, l.M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID,
+      l.taxbaseamt
+        FROM C_ORDERLINE l left join M_MATCHPO mp on l.C_OrderLine_ID=mp.C_OrderLine_ID
+                                                  and mp.C_InvoiceLine_ID IS NOT NULL
+        GROUP BY l.ad_org_id,l.C_CURRENCY_ID,l.C_UOM_ID, l.M_Product_ID, l.Line, l.Description, l.C_OrderLine_ID, l.QtyOrdered, l.quantityOrder, l.M_Product_UOM_ID,
+        l.M_ATTRIBUTESETINSTANCE_ID, l.taxbaseamt) A left join 
+      (SELECT il.M_InOutLine_ID, il.C_OrderLine_ID, (il.MovementQty-SUM(COALESCE(mi.Qty,0))) AS QTY,
+      il.quantityOrder*C_DIVIDE((il.MovementQty-SUM(COALESCE(mi.Qty,0))),(il.MovementQty)) as quantityOrder, il.M_Product_UOM_ID
+        FROM M_INOUTLINE il left join M_MATCHINV mi on il.M_InOutLine_ID=mi.M_InOutLine_ID,
+             M_INOUT io
+        WHERE il.C_OrderLine_ID IS NOT NULL
+        AND io.M_InOut_ID = il.M_InOut_ID
+        AND io.Processed = 'Y'
+        GROUP BY il.M_InOutLine_ID, il.C_OrderLine_ID, il.MovementQty, il.quantityOrder, il.M_Product_UOM_ID
+        HAVING (il.MovementQty-SUM(COALESCE(mi.Qty,0))) <> 0) B on A.C_OrderLine_ID=B.C_OrderLine_ID
+      WHERE A.C_UOM_ID=uom.C_UOM_ID
+      AND cur.C_CURRENCY_ID=A.C_CURRENCY_ID
+      AND A.M_Product_ID=p.M_Product_ID
+      ORDER BY A.Line
+      ]]>
+    </Sql>
+    <Parameter name="cOrderlineId" optional="true" type="argument" after="AND A.M_Product_ID=p.M_Product_ID" text=" AND A.C_OrderLine_ID IN "/>
+  </SqlMethod>
+  <SqlMethod name="selectFromPOUpdateSOTrx" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT (CASE WHEN il.M_INOUTLINE_ID IS NULL THEN (l.QtyOrdered-COALESCE(l.QTYINVOICED ,0)) ELSE il.MOVEMENTQTY END) AS ID, 
+        l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME, 
+        l.C_OrderLine_ID,l.Line, max(uom.stdprecision) AS stdprecision, cur.priceprecision, il.M_InOutLine_ID as M_InOutLine_ID, l.Description,
+        (CASE WHEN il.M_INOUTLINE_ID IS NULL THEN l.quantityOrder*C_DIVIDE((l.QtyOrdered-COALESCE(l.QTYINVOICED ,0)),(l.QtyOrdered)) ELSE il.quantityOrder END) AS quantityOrder, 
+        (CASE WHEN il.M_INOUTLINE_ID IS NULL THEN l.M_Product_UOM_ID ELSE il.M_Product_UOM_ID END) AS M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id,
+        l.taxbaseamt
+        FROM C_ORDERLINE l left join (SELECT M_InOutLine.* FROM M_InOutLine, M_InOut
+                                      WHERE M_InOut.M_InOut_ID = M_InOutLine.M_InOut_ID
+                                      AND M_InOutLine.IsInvoiced = 'N'
+                                      AND M_InOut.Processed='Y') il  on l.C_OrderLine_ID = il.C_OrderLine_ID,
+        C_UOM uom,  M_PRODUCT p  ,c_currency cur
+        WHERE cur.C_CURRENCY_ID=l.C_CURRENCY_ID AND l.C_UOM_ID=uom.C_UOM_ID
+        AND l.M_Product_ID=p.M_Product_ID 
+        GROUP BY l.QtyOrdered,l.qtydelivered,l.C_UOM_ID,uom.UOMSymbol,l.M_Product_ID,p.NAME,l.Line,l.C_OrderLine_ID, 
+        l.QTYINVOICED, il.M_InOutLine_ID, il.MovementQty, l.Description, l.quantityOrder, il.quantityOrder, 
+        l.M_Product_UOM_ID, il.M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID,l.ad_org_id, cur.priceprecision,
+        l.taxbaseamt
+        HAVING (l.QtyOrdered-COALESCE(l.QTYINVOICED ,0)) <> 0 
+        ORDER BY l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="cOrderlineId" optional="true" type="argument" after=" AND l.M_Product_ID=p.M_Product_ID " text=" AND l.C_OrderLine_ID IN "/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipment" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT s.M_InOut_ID AS ID, Ad_Column_Identifier(to_char('M_InOut'), to_char(s.M_InOut_ID), to_char(?)) AS NAME, 
+        s.DocumentNo AS NAMESHIPMENT, 
+        (l.MovementQty-SUM(COALESCE(mi.Qty,0))) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME||' '||(CASE WHEN ma.serno IS NOT NULL THEN TO_CHAR('('||' '||ma.serno||' '||')') ELSE TO_CHAR('')  END) AS RELATION_NAME, 
+        l.M_InOutLine_ID,l.Line, l.M_InOutLine_ID as C_OrderLine_ID 
+        FROM M_INOUTLINE l left join M_ATTRIBUTESETINSTANCE ma on l.M_ATTRIBUTESETINSTANCE_ID = ma.M_ATTRIBUTESETINSTANCE_ID
+                           left join M_MATCHINV mi             on l.M_InOutLine_ID=mi.M_InOutLine_ID,
+        M_INOUT s, C_UOM uom,  M_PRODUCT p
+        WHERE s.M_INOUT_ID = l.M_INOUT_ID 
+        AND s.IsSOTrx='N' 
+        AND s.DocStatus IN ('CL','CO') 
+        AND s.AD_Client_ID IN ('1') 
+        AND s.AD_Org_ID IN ('1') 
+        AND l.C_UOM_ID=uom.C_UOM_ID 
+        AND l.M_Product_ID=p.M_Product_ID 
+        AND l.M_InOut_ID=? 
+        GROUP BY s.M_InOut_ID, s.DocumentNo, s.MovementDate, l.MovementQty,l.C_UOM_ID,uom.UOMSymbol,
+        l.M_Product_ID,ma.serno,p.NAME, l.M_InOutLine_ID,l.Line,l.C_OrderLine_ID 
+        HAVING  (l.MovementQty-SUM(COALESCE(mi.Qty,0))) <> 0
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="s.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="s.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="mInoutId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentCombo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT s.M_InOut_ID AS ID, Ad_Column_Identifier(to_char('M_InOut'), to_char(s.M_InOut_ID), to_char(?)) AS NAME 
+        FROM M_INOUT s 
+        WHERE s.IsSOTrx='N' 
+        AND s.DocStatus IN ('CL','CO') 
+        AND s.ISLOGISTIC <> 'Y'
+        AND s.AD_Client_ID IN ('1') 
+        AND s.AD_Org_ID IN ('1') 
+        AND s.C_BPartner_ID = ? 
+        AND EXISTS (SELECT 1 
+                     FROM M_INOUTLINE l left join M_MATCHINV mi on l.M_InOutLine_ID=mi.M_InOutLine_ID
+                      WHERE l.M_INOUT_ID = s.M_INOUT_ID 
+                      GROUP BY l.MovementQty, l.M_InOutLine_ID 
+                      HAVING  (l.MovementQty-SUM(COALESCE(mi.Qty,0))) <> 0)
+        ORDER BY NAME
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="s.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="s.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentSOTrx" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT s.M_InOut_ID AS ID, Ad_Column_Identifier(to_char('M_InOut'), to_char(s.M_InOut_ID), to_char(?)) AS NAME,
+        s.DocumentNo AS NAMESHIPMENT,
+        l.MovementQty AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME||' '||(CASE WHEN ma.serno IS NOT NULL THEN TO_CHAR('('||' '||ma.serno||' '||')') ELSE TO_CHAR('') END) AS RELATION_NAME, l.M_InOutLine_ID,l.Line,
+        l.M_InOutLine_ID as C_OrderLine_ID 
+        FROM M_INOUTLINE l left join M_ATTRIBUTESETINSTANCE ma on l.M_ATTRIBUTESETINSTANCE_ID = ma.M_ATTRIBUTESETINSTANCE_ID,
+        M_INOUT s, C_UOM uom, M_PRODUCT p 
+        WHERE s.M_INOUT_ID = l.M_INOUT_ID
+        AND s.IsSOTrx='Y' 
+        AND s.DocStatus IN ('CL','CO') 
+        AND s.AD_Client_ID IN ('1') 
+        AND s.AD_Org_ID IN ('1') 
+        AND l.C_UOM_ID=uom.C_UOM_ID 
+        AND l.M_Product_ID=p.M_Product_ID 
+        AND l.isinvoiced = 'N' 
+        AND l.M_InOut_ID=?
+        GROUP BY s.M_InOut_ID, s.DocumentNo, s.MovementDate, l.MovementQty,l.C_UOM_ID,uom.UOMSymbol,
+        l.M_Product_ID,p.NAME, ma.serno, l.M_InOutLine_ID,l.Line,l.C_OrderLine_ID
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="s.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="s.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="mInoutId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentSOTrxCombo" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT s.M_InOut_ID AS ID, Ad_Column_Identifier(to_char('M_InOut'), to_char(s.M_InOut_ID), to_char(?)) AS NAME 
+        FROM M_INOUT s 
+        WHERE s.IsSOTrx='Y' 
+        AND s.ISLOGISTIC <> 'Y'
+        AND s.DocStatus IN ('CL','CO') 
+        AND s.AD_Client_ID IN ('1') 
+        AND s.AD_Org_ID IN ('1')
+        AND s.C_BPartner_ID = ?  
+        AND EXISTS (SELECT 1 FROM M_INOUTLINE l 
+        WHERE l.M_INOUT_ID = s.M_INOUT_ID 
+        AND l.isinvoiced = 'N')
+        AND NOT EXISTS (SELECT 1 FROM C_INVOICE_CANDIDATE_V ic, C_ORDER o 
+        WHERE o.C_ORDER_ID = s.C_ORDER_ID
+        AND o.C_ORDER_ID = ic.C_ORDER_ID
+        AND ic.term = 'N') 
+        ORDER BY NAME
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="s.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="s.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="cBpartnerId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentTrl" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT s.M_InOut_ID AS ID, Ad_Column_Identifier(to_char('M_InOut'), to_char(s.M_InOut_ID), to_char(?)) AS NAME,
+      s.DocumentNo AS NAMESHIPMENT,
+        (l.MovementQty-SUM(COALESCE(mi.Qty,0))) AS QTY, l.C_UOM_ID, COALESCE(uomt.UOMSymbol, uom.UOMSymbol) AS UOMSymbol, 
+        l.M_Product_ID,p.NAME||' '||(CASE WHEN ma.serno IS NOT NULL THEN TO_CHAR('('||' '||ma.serno||' '||')') ELSE TO_CHAR('')  END) AS RELATION_NAME, l.M_InOutLine_ID,l.Line, l.M_InOutLine_ID as C_OrderLine_ID 
+        FROM M_INOUTLINE l left join M_ATTRIBUTESETINSTANCE ma on l.M_ATTRIBUTESETINSTANCE_ID = ma.M_ATTRIBUTESETINSTANCE_ID
+                           left join M_MATCHINV mi             on l.M_InOutLine_ID=mi.M_InOutLine_ID,
+             C_UOM uom     left join C_UOM_TRL uomt            on uom.C_UOM_ID = uomt.C_UOM_ID
+                                                              and uomt.AD_Language = ?,
+        M_INOUT s,   M_PRODUCT p
+        WHERE s.M_INOUT_ID = l.M_INOUT_ID 
+        AND s.IsSOTrx='N' 
+        AND s.DocStatus IN ('CL','CO') 
+        AND s.AD_Client_ID IN ('1') 
+        AND s.AD_Org_ID IN ('1') 
+        AND l.C_UOM_ID=uom.C_UOM_ID 
+        AND l.M_Product_ID=p.M_Product_ID 
+        AND l.M_InOut_ID=? 
+        GROUP BY s.M_InOut_ID, s.DocumentNo, s.MovementDate, l.MovementQty,l.C_UOM_ID,uom.UOMSymbol, uomt.UOMSymbol,
+        l.M_Product_ID,p.NAME, ma.serno, l.M_InOutLine_ID,l.Line,l.C_OrderLine_ID 
+        HAVING  (l.MovementQty-SUM(COALESCE(mi.Qty,0))) <> 0
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="s.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="s.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="mInoutId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentTrlSOTrx" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT s.M_InOut_ID AS ID, Ad_Column_Identifier(to_char('M_InOut'), to_char(s.M_InOut_ID), to_char(?)) AS NAME,
+        s.DocumentNo AS NAMESHIPMENT, 
+        l.MovementQty AS QTY, l.C_UOM_ID,COALESCE(uomt.UOMSymbol, uom.UOMSymbol) AS UOMSymbol, 
+        l.M_Product_ID,p.NAME||' '|| (CASE WHEN ma.serno IS NOT NULL THEN TO_CHAR('('||' '||ma.serno||' '||')') ELSE TO_CHAR('')  END) AS RELATION_NAME, l.M_InOutLine_ID,l.Line, l.M_InOutLine_ID as C_OrderLine_ID 
+        FROM M_INOUTLINE l left join M_ATTRIBUTESETINSTANCE ma on l.M_ATTRIBUTESETINSTANCE_ID = ma.M_ATTRIBUTESETINSTANCE_ID,
+             C_UOM uom     left join C_UOM_TRL uomt            on uom.C_UOM_ID = uomt.C_UOM_ID
+                                                              and uomt.AD_Language = ? ,
+        M_INOUT s,    M_PRODUCT p 
+        WHERE s.M_INOUT_ID = l.M_INOUT_ID
+        AND s.IsSOTrx='Y' 
+        AND s.DocStatus IN ('CL','CO') 
+        AND s.AD_Client_ID IN ('1') 
+        AND s.AD_Org_ID IN ('1') 
+        AND l.C_UOM_ID=uom.C_UOM_ID 
+        AND l.M_Product_ID=p.M_Product_ID 
+        AND l.isinvoiced = 'N' 
+        AND l.M_InOut_ID=? 
+        GROUP BY s.M_InOut_ID, s.DocumentNo, s.MovementDate, l.MovementQty,l.C_UOM_ID,uom.UOMSymbol, uomt.UOMSymbol,
+        l.M_Product_ID,p.NAME,ma.serno, l.M_InOutLine_ID,l.Line,l.C_OrderLine_ID
+        ORDER BY NAME, l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="s.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="s.AD_Org_ID IN (" text="'1'"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="mInoutId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentUpdate" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT (l.MovementQty-SUM(COALESCE(mi.Qty,0))) AS ID, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME, l.M_InOutLine_ID,l.Line,
+      l.C_OrderLine_ID, max(uom.STDPRECISION) as stdprecision, l.Description, l.quantityOrder*C_DIVIDE((l.MovementQty-SUM(COALESCE(mi.Qty,0))),l.MovementQty) as quantityOrder, 
+      l.M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id
+      FROM M_INOUTLINE l left join M_MATCHINV mi on l.M_InOutLine_ID=mi.M_InOutLine_ID,
+      C_UOM uom,  M_PRODUCT p
+      WHERE l.C_UOM_ID=uom.C_UOM_ID
+      AND l.M_Product_ID=p.M_Product_ID
+      GROUP BY l.MovementQty,l.C_UOM_ID,uom.UOMSymbol,l.M_Product_ID,p.NAME, l.M_InOutLine_ID,l.Line,l.C_OrderLine_ID, l.Description,l.quantityOrder, l.M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id
+      ORDER BY l.Line
+      ]]>
+    </Sql>
+    <Parameter name="cInOutLineId" optional="true" type="argument" after="AND l.M_Product_ID=p.M_Product_ID" text=" AND l.M_InOutLine_ID IN "/>
+  </SqlMethod>
+  <SqlMethod name="selectFromShipmentUpdateSOTrx" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT l.MovementQty AS ID, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME, l.M_InOutLine_ID,l.Line,
+        l.C_OrderLine_ID, max(uom.STDPRECISION) as stdprecision, l.Description,l.quantityOrder, l.M_Product_UOM_ID,
+        l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id
+        FROM C_UOM uom, M_INOUTLINE l, M_PRODUCT p 
+        WHERE l.C_UOM_ID=uom.C_UOM_ID
+        AND l.M_Product_ID=p.M_Product_ID 
+        AND l.isinvoiced = 'N' 
+        GROUP BY l.MovementQty,l.C_UOM_ID,uom.UOMSymbol,l.M_Product_ID,p.NAME, l.M_InOutLine_ID,l.Line,l.C_OrderLine_ID, l.Description, l.quantityOrder, l.M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id
+        ORDER BY l.Line
+      ]]>
+    </Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="cOrderlineId" optional="true" type="argument" after="AND l.isinvoiced = 'N' " text=" AND l.M_InOutLine_ID IN "/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectPriceList" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT plv.M_PriceList_Version_ID AS ID, cur.Priceprecision
+      FROM M_PRICELIST pl, M_PRICELIST_VERSION plv, C_CURRENCY cur
+      WHERE pl.M_PriceList_ID = plv.M_PriceList_ID 
+      AND pl.C_Currency_ID = cur.C_Currency_ID
+      AND plv.IsActive='Y'
+      AND plv.ValidFrom <= TO_DATE(?) AND pl.M_PriceList_ID=? 
+      ORDER BY plv.ValidFrom DESC
+      ]]>
+    </Sql>
+    <Parameter name="validfrom"/>
+    <Parameter name="mPricelistId"/>
+  </SqlMethod>
+
+  <SqlMethod name="selectPrices" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT PriceActual,PriceList,PriceLimit,Description, '' AS C_ORDERLINE_ID, PriceStd, CancelPriceAD
+      FROM C_OrderLine 
+      WHERE C_OrderLine_ID=?
+      ]]>
+    </Sql>
+    <Parameter name="cOrderlineId"/>
+  </SqlMethod>
+  <SqlMethod name="selectBOM" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT M_BOM_PriceStd(pp.M_Product_ID,pp.M_PriceList_Version_ID) AS PriceStd,
+      M_BOM_PriceList(pp.M_Product_ID,pp.M_PriceList_Version_ID) AS PriceList,
+      M_BOM_PriceLimit(pp.M_Product_ID,pp.M_PriceList_Version_ID) AS PriceLimit, 
+      M_GET_OFFER_PRICE(M_GET_OFFER(to_date(?), ?, pp.M_Product_ID), M_BOM_PriceStd(pp.M_Product_ID,pp.M_PriceList_Version_ID)) AS PriceActual, 
+      M_GET_OFFER(to_date(?), ?, pp.M_Product_ID) AS M_Offer_ID
+      FROM M_PRODUCTPRICE pp 
+      WHERE pp.M_Product_ID=? 
+      AND pp.M_PriceList_Version_ID=? 
+      ]]>
+    </Sql>
+    <Parameter name="dateinvoiced"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="dateinvoiced"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="mPricelistVersionId"/>
+  </SqlMethod>
+  <SqlMethod name="insert" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      INSERT INTO C_INVOICELINE 
+        (C_InvoiceLine_ID,C_Invoice_ID, AD_Client_ID,AD_Org_ID,IsActive,
+        Created,CreatedBy,Updated,UpdatedBy, 
+        C_OrderLine_ID,M_InOutLine_ID, Line,Description, M_Product_ID,
+        C_UOM_ID,QtyInvoiced, PriceList,
+        PriceActual,PriceLimit, LineNetAmt,
+        ChargeAmt,C_Tax_ID, QuantityOrder, M_Product_UOM_ID,
+        M_Attributesetinstance_ID, PriceStd, taxbaseamt)
+      VALUES 
+        (?, ?, ?, ?, 'Y', 
+         now(), ?, now(), ?, 
+         ?, ?, (SELECT (COALESCE(Max(Line),0))+10 FROM C_InvoiceLine WHERE C_Invoice_ID=?), ?, ?, 
+         ?, TO_NUMBER(?), TO_NUMBER(?), 
+         TO_NUMBER(?), TO_NUMBER(?), TO_NUMBER(?), 
+         0, ?, TO_NUMBER(?), ?, 
+         ?, TO_NUMBER(?), TO_NUMBER(?))
+    </Sql>
+    <Parameter name="cInvoicelineId"/>
+    <Parameter name="cInvoiceId"/>
+    <Parameter name="adClientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="cOrderlineId"/>
+    <Parameter name="mInoutlineId"/>
+    <Parameter name="cInvoiceId"/>
+    <Parameter name="description"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="cUomId"/>
+    <Parameter name="qtyinvoiced"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="priceactual"/>
+    <Parameter name="pricelimit"/>
+    <Parameter name="linenetamt"/>
+    <Parameter name="cTaxId"/>
+    <Parameter name="quantityOrder"/>
+    <Parameter name="mProductUomId"/>
+    <Parameter name="mAttributesetinstanceId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="taxBaseAmt"/>
+  </SqlMethod>
+  <SqlMethod name="updateC_Order_ID" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      UPDATE C_Invoice SET C_Order_id = ?
+      WHERE C_Invoice_ID = ?
+    ]]></Sql>
+    <Parameter name="cOrderId"/>
+    <Parameter name="cInvoiceId"/>
+  </SqlMethod>
+  <SqlMethod name="deleteC_Order_ID" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql> <![CDATA[
+      UPDATE C_INVOICE SET C_Order_ID=NULL
+      WHERE C_Invoice_ID=?
+      AND C_Order_ID IS NOT NULL AND C_Order_ID <> ?
+    ]]></Sql>
+    <Parameter name="cInvoiceId"/>
+    <Parameter name="cOrderId"/>
+  </SqlMethod>
+  <SqlMethod name="selectProject" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT C_Project_ID
+      FROM C_INVOICE
+      WHERE C_INVOICE_ID = ? 
+    ]]></Sql>
+    <Parameter name="cInvoiceId"/>
+  </SqlMethod>
+  <SqlMethod name="getTax" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT C_Tax_ID
+      FROM C_ORDERLINE
+      WHERE C_ORDERLINE_ID = ? 
+    ]]></Sql>
+    <Parameter name="cOrderLineId"/>
+  </SqlMethod>
+  <SqlMethod name="getOffersPriceInvoice" type="preparedStatement" return="String" default="0">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT ROUND(M_GET_OFFERS_PRICE(TO_DATE(?),?,?,TO_NUMBER(?), TO_NUMBER(?), ?),
+                    (SELECT PRICEPRECISION 
+                       FROM C_CURRENCY C,
+                            C_INVOICE  I 
+                      WHERE C.C_CURRENCY_ID = I.C_CURRENCY_ID
+                        AND I.C_INVOICE_ID  = ?)) AS TOTAL FROM DUAL
+    </Sql>
+    <Parameter name="dateordered"/>
+    <Parameter name="cBpartnerId"/>
+    <Parameter name="mProductId"/>
+    <Parameter name="pricestd"/>
+    <Parameter name="qty"/>
+    <Parameter name="pricelist"/>
+    <Parameter name="invoiceid"/>
+  </SqlMethod>
+</SqlClass>

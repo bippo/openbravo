@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_GET_CURRENCY_PRECISION">
+    <function name="C_GET_CURRENCY_PRECISION" type="NUMERIC">
+      <parameter name="p_curto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_prec_type" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010 Openbravo SLU
+ * All Rights Reserved.
+*************************************************************************
+****
+* Title: Returns the currency Precision values
+* Description:
+*  "A" for Amount(StdPrecision),"P" for PricePrecision and "C" for CostingPrecision
+*  Returns precision values.
+************************************************************************/
+  v_StdPrecision  NUMBER;
+  v_PricePrecision NUMBER;
+  v_CostPrecision NUMBER;
+BEGIN
+  SELECT MAX(StdPrecision),
+    MAX(CostingPrecision),
+    MAX(PricePrecision)
+  INTO v_StdPrecision,
+    v_CostPrecision,v_PricePrecision
+  FROM C_Currency
+  WHERE C_Currency_ID = p_CurTo_ID;
+   IF(p_prec_type = 'P') THEN
+    RETURN v_PricePrecision;
+   ELSIF(p_prec_type = 'C') THEN
+    RETURN v_CostPrecision;
+   ELSIF(p_prec_type = 'A') THEN
+    RETURN v_StdPrecision;
+  END IF;
+END C_GET_CURRENCY_PRECISION
+]]></body>
+    </function>
+  </database>

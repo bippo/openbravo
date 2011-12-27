@@ -1,0 +1,203 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_PRODUCT_TRG">
+    <trigger name="M_PRODUCT_TRG" table="M_PRODUCT" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+   Cur_Defaults RECORD;
+
+    v_xTree_ID    			           varchar2(32);
+    v_xParent_ID  			           varchar2(32);
+    v_NextNo      			           VARCHAR2(32);
+    v_ControlNo 	 	               NUMBER;
+    v_P_Revenue_Acct    		       VARCHAR2(32);
+    v_P_Expense_Acct    		       VARCHAR2(32);
+    v_P_Asset_Acct    			       VARCHAR2(32);
+    v_P_COGS_Acct    			         VARCHAR2(32);
+    v_P_PurchasePriceVariance_Acct VARCHAR2(32);
+    v_P_InvoicePriceVariance_Acct  VARCHAR2(32);
+    v_P_TradeDiscountRec_Acct    	 VARCHAR2(32);
+    v_P_TradeDiscountGrant_Acct    VARCHAR2(32);
+    v_seq_name				             VARCHAR2(32);
+    v_Sequence_No			             VARCHAR2(32);
+    v_C_AcctSchema_ID			         VARCHAR2(32);
+    v_Count 	 	               NUMBER;
+  			
+BEGIN
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+ IF (UPDATING) THEN
+  UPDATE M_PRODUCT_ACCT SET AD_ORG_ID = :new.AD_ORG_ID
+  WHERE M_PRODUCT_ID = :new.M_PRODUCT_ID;
+  
+ -- Do not allow to de-activate products with OnHand Qty
+ -- or Change the attribute set
+  IF ((:new.IsActive='N' AND :old.IsActive='Y') OR (COALESCE(:new.m_attributeset_id,'null') <> COALESCE(:old.m_attributeset_id,'null'))) THEN
+   SELECT  COALESCE(SUM(QtyOnHand)+SUM(QtyReserved)*.111+SUM(QtyOrdered)*999, 0) INTO v_ControlNo
+   FROM (SELECT QtyOnHand, 0 AS QtyReserved, 0 AS QtyOrdered
+   FROM M_Storage_Detail s
+   WHERE s.M_Product_ID=:new.M_Product_ID
+   UNION
+   SELECT 0 AS QtyOnHand, QtyReserved, QtyOrdered
+   FROM M_Storage_Pending s
+   WHERE s.M_Product_ID=:new.M_Product_ID) A;
+   IF (v_ControlNo <> 0) THEN
+    RAISE_APPLICATION_ERROR(-20400, 'Product has active Inventory');
+   END IF;
+  END IF;
+	
+  IF( COALESCE(:old.Name,'.') <> COALESCE(:new.Name,'.')  OR COALESCE(:old.documentnote,'.') <> COALESCE(:new.documentnote,'.') ) THEN   
+    
+    UPDATE M_PRODUCT_Trl
+      SET IsTranslated='N'
+    WHERE M_PRODUCT_ID=:new.M_PRODUCT_ID;
+  END IF;
+
+ ELSIF (INSERTING) THEN
+  v_C_AcctSchema_ID:=null;
+  --   For all AcctSchema create ...
+  FOR Cur_Defaults IN (
+	SELECT  distinct AD_IsOrgIncluded(:new.AD_ORG_ID, a.AD_Org_ID, :new.AD_Client_ID), 
+  a.ad_sequence_pr_id,a.isprnewaccount,a.acct_length,a.subacct_length, d.ad_client_id, 
+  d.p_revenue_acct, d.p_expense_acct, d.p_asset_acct, d.p_cogs_acct, d.P_PurchasePriceVariance_Acct, d.P_InvoicePriceVariance_Acct,
+  d.P_TradeDiscountRec_Acct, d.P_TradeDiscountGrant_Acct, a.createdby, a.updatedby, a.C_AcctSchema_ID
+  FROM  M_Product_Category_Acct d, ad_Org_AcctSchema a
+	WHERE  d.M_Product_Category_ID=:new.M_Product_Category_ID
+	AND d.C_AcctSchema_ID = a.C_AcctSchema_ID
+	AND (AD_IsOrgIncluded(a.AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
+	OR AD_IsOrgIncluded(:new.AD_ORG_ID, a.AD_Org_ID, :new.AD_Client_ID)<>-1)
+	ORDER BY 1 DESC
+  ) LOOP
+	
+   	-- Create new account for Product
+  IF (v_C_AcctSchema_ID is null or v_C_AcctSchema_ID <> Cur_Defaults.C_AcctSchema_ID) THEN
+  
+      IF(Cur_Defaults.IsPrNewAccount='Y') THEN
+   		
+            -- Retrieving the sequence number for sub account.		
+            SELECT NAME INTO v_seq_name FROM AD_SEQUENCE WHERE AD_SEQUENCE.AD_SEQUENCE_ID=Cur_Defaults.ad_sequence_pr_id;
+		
+            
+           
+            -- Retrieving the expense account number.
+            AD_Sequence_Doc(v_seq_name, Cur_Defaults.AD_Client_ID, 'Y', v_Sequence_No);
+            c_validcombination_clone(Cur_Defaults.P_Expense_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_Expense_Acct);
+            
+             -- Retrieving the revenue account number.
+            c_validcombination_clone(Cur_Defaults.P_Revenue_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_Revenue_Acct);
+            
+            -- Retrieving the asset account number.
+            c_validcombination_clone(Cur_Defaults.P_Asset_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_Asset_Acct);
+			
+            -- Retrieving the cogs account number.
+            c_validcombination_clone(Cur_Defaults.P_COGS_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_COGS_Acct);
+			
+            -- Retrieving the purchase price variance account number.
+            c_validcombination_clone(Cur_Defaults.P_PurchasePriceVariance_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_PurchasePriceVariance_Acct);
+			
+            -- Retrieving the invoice price variance account number.
+	    c_validcombination_clone(Cur_Defaults.P_InvoicePriceVariance_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_InvoicePriceVariance_Acct);		
+ 
+            -- Retrieving the trade discount rec account number.
+      	    c_validcombination_clone(Cur_Defaults.P_TradeDiscountRec_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_TradeDiscountRec_Acct);
+
+            -- Retrieving the trade discount grant account number.
+      	    c_validcombination_clone(Cur_Defaults.P_TradeDiscountGrant_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_P_TradeDiscountGrant_Acct);
+               
+            
+            -- Inserting the new sub account for Product 
+            INSERT INTO M_Product_Acct
+            (M_Product_Acct_ID, M_Product_ID, C_AcctSchema_ID,
+            AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+            P_Revenue_Acct, P_Expense_Acct, P_Asset_Acct, P_COGS_Acct,
+            P_PurchasePriceVariance_Acct, P_InvoicePriceVariance_Acct,
+            P_TradeDiscountRec_Acct, P_TradeDiscountGrant_Acct)
+            VALUES
+            (get_uuid(), :new.M_Product_ID, Cur_Defaults.C_AcctSchema_ID,
+            :new.AD_Client_ID, :new.AD_ORG_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+            v_P_Revenue_Acct, v_P_Expense_Acct, v_P_Asset_Acct, v_P_COGS_Acct,
+            v_P_PurchasePriceVariance_Acct, v_P_InvoicePriceVariance_Acct,
+            v_P_TradeDiscountRec_Acct, v_P_TradeDiscountGrant_Acct); 
+		  
+		  ELSE
+            --  Default Account
+            INSERT INTO M_Product_Acct
+            (M_Product_Acct_ID, M_Product_ID, C_AcctSchema_ID,
+            AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+            P_Revenue_Acct, P_Expense_Acct, P_Asset_Acct, P_COGS_Acct,
+            P_PurchasePriceVariance_Acct, P_InvoicePriceVariance_Acct,
+            P_TradeDiscountRec_Acct, P_TradeDiscountGrant_Acct)
+            VALUES
+			      (get_uuid(), :new.M_Product_ID, Cur_Defaults.C_AcctSchema_ID,
+			      :new.AD_Client_ID, :new.AD_ORG_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+			      Cur_Defaults.P_Revenue_Acct, Cur_Defaults.P_Expense_Acct, Cur_Defaults.P_Asset_Acct, Cur_Defaults.P_COGS_Acct,
+            Cur_Defaults.P_PurchasePriceVariance_Acct, Cur_Defaults.P_InvoicePriceVariance_Acct,
+            Cur_Defaults.P_TradeDiscountRec_Acct, Cur_Defaults.P_TradeDiscountGrant_Acct);
+      END IF;
+            --Set the value for the variable with the used C_Acctschema_ID
+            v_C_AcctSchema_ID:=Cur_Defaults.C_AcctSchema_ID;
+  END IF;
+  END LOOP;
+     --  Create Translation Row
+     INSERT INTO M_Product_Trl
+         (M_Product_Trl_ID, M_Product_ID, AD_Language, AD_Client_ID, AD_Org_ID,
+         IsActive, Created, CreatedBy, Updated, UpdatedBy,
+         Name, DocumentNote, IsTranslated)
+     SELECT get_uuid(), :new.M_Product_ID, AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+         :new.IsActive, :new.Created, :new.CreatedBy, :new.Updated, :new.UpdatedBy,
+         :new.Name, :new.DocumentNote, 'N' FROM  AD_Language
+     WHERE IsActive = 'Y' AND IsSystemLanguage = 'Y'
+    AND EXISTS (SELECT * FROM AD_Client
+     WHERE AD_Client_ID=:new.AD_Client_ID AND IsMultiLingualDocument='Y');
+     
+ END IF;
+ IF (INSERTING OR UPDATING) THEN
+    -- Checks on the attribute set value
+    IF (COALESCE(:new.M_AttributeSetInstance_ID, '0') != '0') THEN
+       IF (:new.M_AttributeSet_ID IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@SelectAttrSetDeleteAttrSetValue@');
+       ELSE
+          SELECT COUNT(*)
+	  INTO v_Count
+	  FROM M_ATTRIBUTESETINSTANCE
+	  WHERE M_ATTRIBUTESETINSTANCE_ID = :new.M_AttributeSetInstance_ID
+	  AND M_ATTRIBUTESET_ID = :new.M_AttributeSet_ID;
+          IF (v_Count = 0) THEN
+             RAISE_APPLICATION_ERROR(-20000, '@MismatchAttrSetAttrSetValue@');
+          END IF;
+       END IF;
+    ELSE
+       IF (:new.AttrSetValueType IS NOT NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@DeleteAttrSetValueType@');
+       END IF;
+    END IF;
+ END IF;
+EXCEPTION
+ WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20009, 'M_Product InsertTrigger Error: No ClientInfo or parent TreeNode');
+
+END M_PRODUCT_TRG
+]]></body>
+    </trigger>
+  </database>

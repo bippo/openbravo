@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_STANDARD_COST">
+    <function name="MA_STANDARD_COST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************/
+  v_ResultStr             VARCHAR2(2000) := '';
+  v_Message               VARCHAR2(2000) := '';
+  v_Result NUMBER:= 1;
+
+  p_User VARCHAR2(32);
+  p_Currency VARCHAR2(32);
+  p_CalcDate              DATE;
+  p_Budget_ID             varchar2(32);
+  p_ProcessPlan           VARCHAR2(32);
+  v_Calculated            CHAR(1);
+
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+  Cur_Sequences RECORD;
+
+
+
+BEGIN
+BEGIN --BODY
+  FOR Cur_Parameter IN (SELECT i.ad_client_id, i.Record_ID, i.AD_User_ID, p.ParameterName, 
+                               p.P_String, p.P_Number, p.P_Date, i.UpdatedBy, ad_client.c_currency_id
+                        FROM AD_PINSTANCE i LEFT JOIN AD_PINSTANCE_PARA p ON i.AD_PInstance_ID=p.AD_PInstance_ID,
+                             AD_CLIENT
+                        WHERE i.AD_PInstance_ID=p_PInstance_ID
+                          AND i.ad_client_ID = ad_client.ad_client_id
+                        ORDER BY p.SeqNo) LOOP
+    p_User := Cur_Parameter.AD_User_ID;
+    p_CalcDate := now();
+    p_Currency := cur_parameter.C_Currency_ID;
+    IF (Cur_Parameter.ParameterName = 'C_Budget_ID') THEN
+      p_Budget_ID := Cur_Parameter.P_String;
+    ELSIF (Cur_Parameter.ParameterName = 'MA_Processplan_ID') THEN
+      p_ProcessPlan := Cur_Parameter.P_String;
+    ELSIF (Cur_Parameter.ParameterName = 'CalcDate') THEN
+      p_CalcDate := COALESCE(Cur_Parameter.P_Date, TRUNC(now()));
+    END IF;
+  END LOOP;
+
+  --Initialize, set sequences as calculated = 'N'
+  UPDATE MA_SEquence
+  SET calculated = 'N'
+  WHERE MA_Sequence_ID IN (SELECT MA_SEQUENCE_ID
+                           FROM MA_SEQUENCE s, MA_ProcessPlan_version ppv
+                           WHERE s.MA_ProcessPlan_Version_ID = ppv.MA_ProcessPlan_Version_ID
+                             AND ppv.DateFrom <= p_CalcDate
+                             AND ppv.DateTo > p_CalcDate
+                             AND (p_ProcessPlan IS NULL OR ppv.MA_ProcessPlan_ID = p_ProcessPlan)
+                             AND EXISTS (SELECT 1 FROM MA_SEQUENCEPRODUCT
+                                         WHERE PRODUCTIONTYPE = '+'
+                                           AND MA_SEQUENCE_ID = s.MA_SEQUENCE_ID));
+
+  FOR Cur_Sequences IN (
+    SELECT s.MA_Sequence_ID, ppv.DATEFROM
+    FROM MA_Sequence s, MA_ProcessPlan_Version ppv
+    WHERE s.MA_ProcessPlan_Version_ID = ppv.MA_ProcessPlan_Version_ID
+      AND ppv.DateFrom <= p_CalcDate
+      AND ppv.DateTo > p_CalcDate
+      AND s.calculated = 'N'
+      AND (p_ProcessPlan IS NULL OR ppv.MA_ProcessPlan_ID = p_ProcessPlan)
+      AND EXISTS (SELECT 1 FROM MA_SEQUENCEPRODUCT
+                  WHERE PRODUCTIONTYPE = '+'
+                    AND MA_SEQUENCE_ID = s.MA_SEQUENCE_ID)
+    ORDER BY ppv.MA_ProcessPlan_Version_ID, s.SEQNO
+  )
+  LOOP
+    SELECT calculated into v_Calculated
+    FROM MA_Sequence
+    WHERE MA_Sequence_ID = Cur_Sequences.MA_Sequence_ID;
+    IF (v_Calculated = 'N') THEN
+        MA_Standard_Cost_Sequence(Cur_Sequences.MA_Sequence_ID, p_Budget_ID, p_CalcDate, p_User, p_Currency, v_Message);
+    END IF;
+  END LOOP;
+
+  --  Update AD_PInstance
+  IF (v_Message IS NOT NULL AND v_Message <> '') THEN
+    v_Message := '@Success@<br>' || v_Message;
+    v_Result := 2;
+  END IF;
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message);
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message);
+RETURN;
+
+END; --BODY
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr);
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr);
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+    RETURN;
+END MA_STANDARD_COST
+]]></body>
+    </function>
+  </database>

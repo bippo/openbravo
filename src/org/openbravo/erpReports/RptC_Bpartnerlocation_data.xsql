@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptCBpartnerlocationData" package="org.openbravo.erpReports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT (CASE SUBSTR(TO_CHAR(BL.NAME),1,1) WHEN '.' THEN '' ELSE TO_CHAR(BL.NAME)||'  -  ' END)||TO_CHAR(L.ADDRESS1) || (CASE WHEN L.ADDRESS2 IS NULL THEN '' ELSE ', ' || TO_CHAR(L.ADDRESS2) END) AS NAME,
+        L.POSTAL, L.CITY, R.NAME AS LOCATIONREGIONNAME, C.NAME AS LOCATIONCOUNTRYNAME, BL.PHONE, BL.FAX, (CASE BL.ISBILLTO WHEN 'Y' THEN 'Si' ELSE 'No' END) AS BILLTO, 
+        (CASE BL.ISSHIPTO WHEN 'Y' THEN 'Si' ELSE 'No' END) AS SHIPTO, (CASE BL.ISTAXLOCATION WHEN 'Y' THEN 'Si' ELSE 'No' END) AS TAXLOCATION, PHONE2
+        FROM C_LOCATION L left join C_REGION R on L.C_REGION_ID = R.C_REGION_ID
+                          left join C_COUNTRY C on R.C_COUNTRY_ID = C.C_COUNTRY_ID,
+        C_BPARTNER_LOCATION BL
+        WHERE BL.C_LOCATION_ID = L.C_LOCATION_ID
+     ]]></Sql>
+    <Field name="position" value="count"/>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after=" WHERE BL.C_LOCATION_ID = L.C_LOCATION_ID">
+        <![CDATA[ AND BL.C_BPARTNER_ID IN ]]>
+        </Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

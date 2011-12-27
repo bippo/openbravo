@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_FORM_TRG2">
+    <trigger name="AD_FORM_TRG2" table="AD_FORM" fires="after" insert="true" update="false" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_ID VARCHAR2(32) ;
+  v_WindowName VARCHAR2(60):='ad_forms';
+  v_ClassName  AD_MODEL_OBJECT.classname%TYPE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+  IF(DELETING) THEN
+    DELETE
+    FROM AD_MODEL_OBJECT_MAPPING
+    WHERE AD_MODEL_OBJECT_ID IN
+      (
+      SELECT AD_MODEL_OBJECT_ID
+      FROM AD_MODEL_OBJECT
+      WHERE AD_MODEL_OBJECT.AD_FORM_ID=:old.AD_FORM_ID
+        AND ACTION='X'
+      )
+      ;
+    DELETE
+    FROM AD_MODEL_OBJECT
+    WHERE ACTION='X'
+      AND AD_MODEL_OBJECT.AD_FORM_ID=:OLD.AD_FORM_ID;
+  END IF;
+  IF(INSERTING) THEN
+    v_ClassName:=:new.CLASSNAME;
+    
+    --Calculate mapping name
+    IF :new.AD_Module_ID != '0' THEN
+      SELECT javapackage||'.'||v_WindowName
+        INTO v_WindowName
+        FROM AD_MODULE 
+       WHERE AD_Module_ID = :new.AD_Module_ID;
+    END IF;
+    
+    v_ID := get_uuid();
+    INSERT
+    INTO AD_MODEL_OBJECT
+      (
+        AD_MODEL_OBJECT_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY,
+        UPDATED, UPDATEDBY, ACTION,
+        AD_FORM_ID, CLASSNAME, ISDEFAULT
+      )
+      VALUES
+      (
+        v_ID, :new.AD_CLIENT_ID, :new.AD_ORG_ID,
+        :new.ISACTIVE, now(), :new.CREATEDBY,
+        now(), :new.UPDATEDBY, 'X',
+        :new.AD_FORM_ID, v_ClassName, 'Y'
+      )
+      ;
+    
+    INSERT
+    INTO AD_MODEL_OBJECT_MAPPING
+      (
+        AD_MODEL_OBJECT_MAPPING_ID, AD_CLIENT_ID, AD_ORG_ID,
+        ISACTIVE, CREATED, CREATEDBY,
+        UPDATED, UPDATEDBY, AD_MODEL_OBJECT_ID,
+        MAPPINGNAME, ISDEFAULT
+      )
+      VALUES
+      (
+        get_uuid(), :new.AD_CLIENT_ID, :new.AD_ORG_ID,
+        :new.ISACTIVE, now(), :new.CREATEDBY,
+        now(), :new.UPDATEDBY, v_ID,
+        ('/' || v_WindowName || '/' || AD_MAPPING_FORMAT(:NEW.NAME) || '.html'), 'Y'
+      )
+      ;
+  END IF;
+END AD_FORM_TRG2
+]]></body>
+    </trigger>
+  </database>

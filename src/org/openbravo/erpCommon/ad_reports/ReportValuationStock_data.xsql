@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportValuationStockData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT CATEGORY_NAME, M_PRODUCT_ID, PRODUCT_NAME, QTY, UOM_NAME, AVERAGE_COST, TOTAL_COST FROM (
+      SELECT M_PRODUCT_CATEGORY.NAME AS CATEGORY_NAME, A.M_PRODUCT_ID, AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(M_PRODUCT.M_PRODUCT_ID), TO_CHAR(?)) AS PRODUCT_NAME, 
+      A.QTY, C_UOM.NAME AS UOM_NAME, 
+      C_CURRENCY_CONVERT(M_GET_PRODUCT_COST(A.M_PRODUCT_ID,TO_DATE(?), NULL), ?, ?, COALESCE(MC.DATEFROM,TO_DATE(?)), NULL, MC.AD_CLIENT_ID, MC.AD_ORG_ID) AS AVERAGE_COST,       
+	  A.QTY * C_CURRENCY_CONVERT(M_GET_PRODUCT_COST(A.M_PRODUCT_ID,TO_DATE(?), NULL), ?, ?, COALESCE(MC.DATEFROM,TO_DATE(?)), NULL, MC.AD_CLIENT_ID, MC.AD_ORG_ID) AS TOTAL_COST
+      FROM M_PRODUCT_CATEGORY,
+      (SELECT M_PRODUCT_ID, SUM(MOVEMENTQTY) AS QTY, C_UOM_ID FROM M_TRANSACTION, M_LOCATOR
+      WHERE M_TRANSACTION.M_LOCATOR_ID = M_LOCATOR.M_LOCATOR_ID
+      AND MOVEMENTDATE < to_date(?)
+      AND M_LOCATOR.M_WAREHOUSE_ID = ?
+      GROUP BY M_PRODUCT_ID, C_UOM_ID) A, C_UOM,
+      M_PRODUCT LEFT JOIN M_COSTING MC ON MC.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      WHERE A.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND A.C_UOM_ID = C_UOM.C_UOM_ID
+      AND M_PRODUCT.M_PRODUCT_CATEGORY_ID = M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID
+      AND 1=1
+      AND A.QTY <>0) ZZ
+      GROUP BY M_PRODUCT_ID, CATEGORY_NAME , PRODUCT_NAME, QTY, UOM_NAME, AVERAGE_COST, TOTAL_COST
+      ORDER BY CATEGORY_NAME, PRODUCT_NAME
+     ]]></Sql>
+      <Field name="rownum" value="count"/>
+      <Parameter name="adLanguage"/>
+      <Parameter name="date"/>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="date"/>
+      <Parameter name="date"/>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="date"/>
+      <Parameter name="datePlus"/>
+      <Parameter name="warehouse"/>
+      <Parameter name="categoryProduct" optional="true" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_CATEGORY_ID= ? ]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

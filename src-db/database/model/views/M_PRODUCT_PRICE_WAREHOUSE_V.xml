@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="VIEW M_PRODUCT_PRICE_WAREHOUSE_V">
+    <view name="M_PRODUCT_PRICE_WAREHOUSE_V"><![CDATA[SELECT COALESCE(w.m_warehouse_id, '-') || pp.m_productprice_id AS m_product_price_warehouse_v_id, p.ad_client_id, p.ad_org_id, p.isactive, p.updated, p.updatedby, p.created, p.createdby, p.m_product_id, w.m_warehouse_id, pp.m_productprice_id, 
+CASE
+WHEN p.producttype <> 'I' OR p.isstocked = 'N' THEN 99999
+ELSE COALESCE(pwq.qtyonhand - pwq.qtyreserved, 0)
+END AS qty_available, 
+CASE
+WHEN p.producttype <> 'I' OR p.isstocked = 'N' THEN 99999
+ELSE COALESCE(pwq.qtyonhand, 0)
+END AS qty_onhand, 
+CASE
+WHEN p.producttype <> 'I' OR p.isstocked = 'N' THEN 0
+ELSE COALESCE(pwq.qtyreserved, 0)
+END AS qty_reserved, 
+CASE
+WHEN p.producttype <> 'I' OR p.isstocked = 'N' THEN 0
+ELSE COALESCE(pwq.qtyordered, 0)
+END AS qty_ordered, pp.pricelist, pp.pricestd, pp.pricelimit
+FROM m_productprice pp
+LEFT JOIN m_warehouse w ON pp.ad_client_id = w.ad_client_id
+LEFT JOIN m_product p ON p.m_product_id = pp.m_product_id
+LEFT JOIN m_product_warehouse_qtys_v pwq ON pwq.m_product_id = pp.m_product_id AND pwq.m_warehouse_id = w.m_warehouse_id]]></view>
+  </database>

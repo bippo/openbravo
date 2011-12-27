@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CURRENCY_CONVERT0">
+    <function name="C_CURRENCY_CONVERT0" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curfrom" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curto" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ratetype" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: C_Currency_Convert0.sql,v 1.4 2003/03/17 20:32:24 jjanke Exp $
+***
+* Title: Convert Amount (using currency codes)
+* Description:
+*  from CurrencyFrom_ID to CurrencyTo_ID
+*  standard precision
+*  Returns NULL, if conversion not found
+* Test:
+*  SELECT C_Currency_Convert0(100,'CND','USD',null,null) FROM DUAL => 64.72
+************************************************************************/
+  v_CurFrom_ID VARCHAR2(32):=NULL;
+  v_CurTo_ID   varchar2(32):=NULL;
+BEGIN
+  -- Nothing to do
+  IF(p_CurFrom=p_CurTo  OR p_Amount=0 OR p_Amount IS NULL) THEN
+    RETURN p_Amount;
+  END IF;
+  -- Get Currency_ID
+  SELECT MAX(C_Currency_ID)
+  INTO v_CurFrom_ID
+  FROM C_Currency
+  WHERE ISO_Code=p_CurFrom;
+  SELECT MAX(C_Currency_ID)
+  INTO v_CurTo_ID
+  FROM C_Currency
+  WHERE ISO_Code=p_CurTo;
+  -- Currency not found
+  IF(v_CurFrom_ID IS NULL OR v_CurTo_ID IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Convert it
+  RETURN C_Currency_Convert(p_amount, v_CurFrom_ID, v_CurTo_ID, p_ConvDate, p_RateType, p_Client_ID, p_Org_ID) ;
+END C_CURRENCY_CONVERT0
+]]></body>
+    </function>
+  </database>

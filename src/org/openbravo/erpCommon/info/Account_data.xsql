@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="AccountData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      		SELECT * FROM ( SELECT '0' AS RN1, '' AS ID, '' AS NAME, A.* FROM (
+	            SELECT C.C_VALIDCOMBINATION_ID, C.ALIAS, C.COMBINATION, C.DESCRIPTION, 
+	            C.AD_ORG_ID, (O.VALUE || ' - ' || O.NAME) AS AD_ORG_ID_D, 
+	            C.ACCOUNT_ID, (E.VALUE || ' - ' || E.NAME) AS ACCOUNT_ID_D, 
+	            C.M_PRODUCT_ID, (P.NAME) AS M_PRODUCT_ID_D, 
+	            C.C_BPARTNER_ID, (B.NAME) AS C_BPARTNER_ID_D, 
+	            C.C_PROJECT_ID, (J.NAME || ' - ' || J.VALUE) AS C_PROJECT_ID_D, 
+	            C.C_CAMPAIGN_ID, (M.NAME) AS C_CAMPAIGN_ID_D, C.C_VALIDCOMBINATION_ID || '@_##_@' || C.COMBINATION AS ROWKEY
+	            FROM C_VALIDCOMBINATION C left join M_PRODUCT P on C.M_PRODUCT_ID = P.M_PRODUCT_ID 
+	                                      left join C_BPARTNER B on C.C_BPARTNER_ID = B.C_BPARTNER_ID 
+	                                      left join C_PROJECT J on C.C_PROJECT_ID = J.C_PROJECT_ID
+	                                      left join C_CAMPAIGN M on C.C_CAMPAIGN_ID = M.C_CAMPAIGN_ID,
+	            AD_ORG O, C_ELEMENTVALUE E
+	            WHERE C.AD_ORG_ID = O.AD_ORG_ID 
+	            AND C.ACCOUNT_ID = E.C_ELEMENTVALUE_ID 
+	            AND C.ISACTIVE = 'Y' 
+	            AND C.AD_Client_ID IN ('1') 
+	            AND C.AD_Org_ID IN ('1')
+	            ORDER BY C.ALIAS
+	        	) A ) B
+			WHERE 1=1
+      ]]></Sql>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="acctschema" optional="true" after="WHERE "><![CDATA[ C.C_ACCTSCHEMA_ID = ? AND ]]></Parameter>
+        <Parameter name="alias" optional="true" after="WHERE "><![CDATA[ (C.ALIAS IS NULL  OR UPPER(C.ALIAS) LIKE UPPER(?)) AND ]]></Parameter>
+        <Parameter name="combination" ignoreValue="%" optional="true" after="WHERE "><![CDATA[ UPPER(C.COMBINATION) LIKE UPPER(?) AND ]]></Parameter>
+        <Parameter name="organization" optional="true" after="WHERE "><![CDATA[ C.AD_ORG_ID = ? AND ]]></Parameter>
+        <Parameter name="account" optional="true" after="WHERE "><![CDATA[ C.ACCOUNT_ID = ? AND ]]></Parameter>
+        <Parameter name="product" optional="true" after="WHERE "><![CDATA[ C.M_PRODUCT_ID = ? AND ]]></Parameter>
+        <Parameter name="bpartner" optional="true" after="WHERE "><![CDATA[ C.C_BPARTNER_ID = ? AND ]]></Parameter>
+        <Parameter name="project" optional="true" after="WHERE "><![CDATA[ C.C_PROJECT_ID = ? AND ]]></Parameter>
+        <Parameter name="campaign" optional="true" after="WHERE "><![CDATA[ C.C_CAMPAIGN_ID = ? AND ]]></Parameter>
+        <Parameter name="validcombination" optional="true" after="WHERE "><![CDATA[ C.C_VALIDCOMBINATION_ID = ? AND ]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="C.ALIAS" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+      <Parameter name="alias"/>
+      <Parameter name="combination"/>
+   </SqlMethod>
+
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      		SELECT COUNT(*) AS VALUE FROM ( SELECT '0' AS rn1, B.* FROM 
+                ( SELECT 1 FROM C_VALIDCOMBINATION C left join M_PRODUCT P on C.M_PRODUCT_ID = P.M_PRODUCT_ID 
+	                                      left join C_BPARTNER B on C.C_BPARTNER_ID = B.C_BPARTNER_ID 
+	                                      left join C_PROJECT J on C.C_PROJECT_ID = J.C_PROJECT_ID
+	                                      left join C_CAMPAIGN M on C.C_CAMPAIGN_ID = M.C_CAMPAIGN_ID,
+                     AD_ORG O, C_ELEMENTVALUE E
+	            WHERE C.AD_ORG_ID = O.AD_ORG_ID 
+	            AND C.ACCOUNT_ID = E.C_ELEMENTVALUE_ID 
+	            AND C.ISACTIVE = 'Y' 
+	            AND C.AD_Client_ID IN ('1') 
+	            AND C.AD_Org_ID IN ('1')
+	            AND 1=1
+	        ) B
+	        ) A 
+      ]]></Sql>
+       <Field name="position" value="count"/> 
+       <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="acctschema" optional="true" after="WHERE "><![CDATA[ C.C_ACCTSCHEMA_ID = ? AND ]]></Parameter>
+        <Parameter name="alias" optional="true" after="WHERE "><![CDATA[ (C.ALIAS IS NULL  OR UPPER(C.ALIAS) LIKE UPPER(?)) AND ]]></Parameter>
+        <Parameter name="combination" ignoreValue="%" optional="true" after="WHERE "><![CDATA[ UPPER(C.COMBINATION) LIKE UPPER(?) AND ]]></Parameter>
+        <Parameter name="organization" optional="true" after="WHERE "><![CDATA[ C.AD_ORG_ID = ? AND ]]></Parameter>
+        <Parameter name="account" optional="true" after="WHERE "><![CDATA[ C.ACCOUNT_ID = ? AND ]]></Parameter>
+        <Parameter name="product" optional="true" after="WHERE "><![CDATA[ C.M_PRODUCT_ID = ? AND ]]></Parameter>
+        <Parameter name="bpartner" optional="true" after="WHERE "><![CDATA[ C.C_BPARTNER_ID = ? AND ]]></Parameter>
+        <Parameter name="project" optional="true" after="WHERE "><![CDATA[ C.C_PROJECT_ID = ? AND ]]></Parameter>
+        <Parameter name="campaign" optional="true" after="WHERE "><![CDATA[ C.C_CAMPAIGN_ID = ? AND ]]></Parameter>
+        <Parameter name="validcombination" optional="true" after="WHERE "><![CDATA[ C.C_VALIDCOMBINATION_ID = ? AND ]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="selectKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT C.C_VALIDCOMBINATION_ID, C.ALIAS, C.COMBINATION, C.DESCRIPTION, 
+            C.AD_ORG_ID, (O.VALUE || ' - ' || O.NAME) AS AD_ORG_ID_D, 
+            C.ACCOUNT_ID, (E.VALUE || ' - ' || E.NAME) AS ACCOUNT_ID_D, 
+            C.M_PRODUCT_ID, (P.NAME) AS M_PRODUCT_ID_D, 
+            C.C_BPARTNER_ID, (B.NAME) AS C_BPARTNER_ID_D, 
+            C.C_PROJECT_ID, (J.NAME || ' - ' || J.VALUE) AS C_PROJECT_ID_D, 
+            C.C_CAMPAIGN_ID, (M.NAME) AS C_CAMPAIGN_ID_D 
+            FROM C_VALIDCOMBINATION C left join M_PRODUCT P on C.M_PRODUCT_ID = P.M_PRODUCT_ID
+                                      left join C_BPARTNER B on C.C_BPARTNER_ID = B.C_BPARTNER_ID 
+                                      left join C_PROJECT J on C.C_PROJECT_ID = J.C_PROJECT_ID 
+                                      left join C_CAMPAIGN M on C.C_CAMPAIGN_ID = M.C_CAMPAIGN_ID,
+            AD_ORG O, C_ELEMENTVALUE E
+            WHERE C.AD_ORG_ID = O.AD_ORG_ID 
+            AND C.ACCOUNT_ID = E.C_ELEMENTVALUE_ID 
+            AND C.ISACTIVE = 'Y' 
+            AND C.AD_Client_ID IN ('1') 
+            AND C.AD_Org_ID IN ('1') 
+            AND (C.ALIAS IS NULL 
+            OR UPPER(C.ALIAS) LIKE UPPER(?)) 
+      ]]></Sql>
+        <Parameter name="acctschema" optional="true" after="WHERE "><![CDATA[ C.C_ACCTSCHEMA_ID = ? AND ]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="C.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="C.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="key"/>
+   </SqlMethod>
+
+   <SqlMethod name="combination" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT COMBINATION FROM C_VALIDCOMBINATION WHERE C_VALIDCOMBINATION_ID = ?
+      ]]></Sql>
+        <Parameter name="key"/>
+   </SqlMethod>
+
+   <SqlMethod name="insert" type="callableStatement" return="object" object="AccountData">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        CALL C_ValidCombination_Insert(?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, NULL, NULL, NULL)
+      </Sql>
+      <Parameter name="cValidcombinationId" type="out"/>
+      <Parameter name="adClientId"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="cAcctschemaId"/>
+      <Parameter name="accountId"/>
+      <Parameter name="cInValidcombinationId"/>
+      <Parameter name="alias"/>
+      <Parameter name="createdby"/>
+      <Parameter name="mProductId"/>
+      <Parameter name="cBpartnerId"/>
+      <Parameter name="cProjectId"/>
+      <Parameter name="cCampaignId"/>
+   </SqlMethod>
+  <SqlMethod name="selectElementValues" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    SELECT EV.C_ElementValue_ID AS ID, (EV.VALUE || ' - ' || (CASE WHEN td_trl1.Name IS NULL THEN TO_CHAR(EV.Name) ELSE TO_CHAR(td_trl1.Name) END)) AS NAME, '' AS DESCRIPTION
+    FROM C_ELEMENTVALUE EV
+      LEFT JOIN C_ElementValue_Trl td_trl1 on EV.C_ElementValue_ID = td_trl1.C_ElementValue_ID AND td_trl1.AD_Language = ?,
+      C_ELEMENT E, C_ACCTSCHEMA S, C_ACCTSCHEMA_ELEMENT SE
+    WHERE EV.AD_Client_ID IN ('1')
+      AND EV.AD_Org_ID IN ('1')
+      AND EV.IsSummary='N'
+      AND EV.ISACTIVE = 'Y'
+      AND SE.C_ACCTSCHEMA_ID = S.C_ACCTSCHEMA_ID
+      AND SE.C_ELEMENT_ID = E.C_ELEMENT_ID
+      AND SE.ELEMENTTYPE = 'AC'
+      AND EV.C_ELEMENT_ID = E.C_ELEMENT_ID
+    ORDER BY EV.Value
+  </Sql>
+    <Parameter name="ADLenguage"/>
+    <Parameter name="acctschema" optional="true" after="WHERE "><![CDATA[ S.C_ACCTSCHEMA_ID = ? AND ]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="EV.AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="EV.AD_Org_ID IN (" text="'1'"/>
+  </SqlMethod>
+</SqlClass>

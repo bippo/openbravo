@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="UpdateReferenceDataData" package="org.openbravo.erpCommon.ad_forms">
+   <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT '' as id, '' as NAME, '' AS HASCHARTOFACCOUNTS, '' AS  ISTRANSLATIONMODULE,
+      '' AS AD_MODULE_ID, '' AS PATH, '' AS  JAVAPACKAGE, '' AS DATASETNAME, '' AS VERSION, '' AS CHECKSUM
+      FROM DUAL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectOrganization" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql><![CDATA[
+       SELECT A_O.AD_ORG_ID AS ID, A_O.NAME 
+       FROM AD_ORG A_O, AD_ROLE_ORGACCESS A_R_O, AD_ROLE R 
+       WHERE A_R_O.AD_ORG_ID = A_O.AD_ORG_ID 
+       AND A_R_O.ISACTIVE = 'Y' 
+       AND A_R_O.AD_ROLE_ID = R.AD_ROLE_ID 
+       AND R.ISACTIVE = 'Y'
+       AND A_R_O.AD_ROLE_ID = ? 
+       AND A_O.AD_Org_ID IN('1')
+       ORDER BY A_O.NAME
+     ]]></Sql>
+       <Parameter name="rol"/>
+       <Parameter name="adOrgClient" type="replace" optional="true" after="A_O.AD_Org_ID IN(" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="selectModules" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_MODULE.NAME, AD_MODULE.HASCHARTOFACCOUNTS, AD_MODULE.ISTRANSLATIONMODULE, 
+      AD_MODULE.AD_MODULE_ID , AD_MODULE.JAVAPACKAGE, AD_DATASET.NAME AS DATASETNAME, AD_MODULE.VERSION, AD_DATASET.CHECKSUM
+      FROM AD_MODULE, AD_DATASET
+      WHERE AD_MODULE.AD_MODULE_ID = AD_DATASET.AD_MODULE_ID      
+      AND AD_MODULE.AD_MODULE_ID IN ('1')
+      AND (AD_DATASET.ACCESSLEVEL IN ('3','1') OR (? = '0' AND AD_DATASET.ACCESSLEVEL IN ('3','6')))
+      ORDER BY AD_MODULE.AD_MODULE_ID, AD_DATASET.SEQNO, AD_DATASET.AD_DATASET_ID
+      ]]>
+    </Sql>
+    <Parameter name="modules" optional="true" type="replace" after="AD_MODULE_ID IN " text="('1')"/>
+    <Parameter name="organization"/>
+  </SqlMethod>
+  <SqlMethod name="selectRegister" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT COUNT(*) 
+      FROM AD_ORGMODULE
+      WHERE AD_MODULE_ID = ?
+      AND AD_ORG_ID = ?
+      AND AD_CLIENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="AD_Module_ID"/>
+    <Parameter name="AD_Org_ID"/>
+    <Parameter name="AD_Client_ID"/>
+  </SqlMethod>
+  <SqlMethod name="existsOrgModule" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT COUNT(*)
+      FROM AD_ORGMODULE
+      WHERE AD_CLIENT_ID = ?
+      AND AD_ORG_ID = ?
+      AND AD_MODULE_ID = ?
+      AND VERSION = ?
+      ]]>
+    </Sql>
+    <Parameter name="AD_Client_ID"/>
+    <Parameter name="AD_Org_ID"/>
+    <Parameter name="AD_Module_ID"/>
+    <Parameter name="version"/>
+  </SqlMethod>
+  <SqlMethod name="updateOrgModule" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      UPDATE AD_ORGMODULE SET VERSION = ?, UPDATED=NOW(), UPDATEDBY=?
+      WHERE AD_CLIENT_ID = ?
+      AND AD_ORG_ID = ?
+      AND AD_MODULE_ID = ?
+    </Sql>
+    <Parameter name="version"/>
+    <Parameter name="AD_User_ID"/>
+    <Parameter name="AD_Client_ID"/>
+    <Parameter name="AD_Org_ID"/>
+    <Parameter name="AD_Module_ID"/>
+  </SqlMethod>
+  <SqlMethod name="updateOrgModuleChecksum" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      UPDATE AD_ORGMODULE SET CHECKSUM = ?, UPDATED=NOW(), UPDATEDBY=?
+      WHERE AD_CLIENT_ID = ?
+      AND AD_ORG_ID = ?
+      AND AD_MODULE_ID = ?
+    </Sql>
+    <Parameter name="checksum"/>
+    <Parameter name="AD_User_ID"/>
+    <Parameter name="AD_Client_ID"/>
+    <Parameter name="AD_Org_ID"/>
+    <Parameter name="AD_Module_ID"/>
+  </SqlMethod>
+</SqlClass>

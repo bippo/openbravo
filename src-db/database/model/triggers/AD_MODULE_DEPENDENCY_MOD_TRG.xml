@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_MODULE_DEPENDENCY_MOD_TRG">
+    <trigger name="AD_MODULE_DEPENDENCY_MOD_TRG" table="AD_MODULE_DEPENDENCY" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  cuerrentID  VARCHAR2(32);
+  cuerrentModuleID  VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  SELECT COUNT(*)
+    INTO devTemplate
+    FROM AD_MODULE
+   WHERE IsInDevelopment = 'Y'
+     AND Type = 'T';
+     
+  IF (UPDATING OR INSERTING) THEN
+    cuerrentID := :new.AD_Module_Dependency_ID;
+    cuerrentModuleID := :new.AD_Module_ID;
+  ELSE
+    cuerrentID := :old.AD_Module_Dependency_ID;
+    cuerrentModuleID := :old.AD_Module_ID;
+  END IF;
+  
+  SELECT M.IsInDevelopment
+    INTO devModule
+    FROM AD_MODULE M
+   WHERE M.AD_MODULE_ID = cuerrentModuleID;
+     
+  IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+    IF (
+        COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+        COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+        COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+        COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.') OR
+        COALESCE(:NEW.AD_Dependent_Module_ID , '.') != COALESCE(:OLD.AD_Dependent_Module_ID , '.') OR
+        COALESCE(:NEW.StartVersion , '.') != COALESCE(:OLD.StartVersion , '.') OR
+        COALESCE(:NEW.EndVersion , '.') != COALESCE(:OLD.EndVersion , '.') OR
+        COALESCE(:NEW.IsIncluded , '.') != COALESCE(:OLD.IsIncluded , '.') OR
+        COALESCE(:NEW.Dependency_Enforcement , '.') != COALESCE(:OLD.Dependency_Enforcement , '.') OR
+        COALESCE(:NEW.User_Editable_Enforcement , '.') != COALESCE(:OLD.User_Editable_Enforcement , '.')) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20532@');
+    END IF;
+  END IF;
+  
+  IF (INSERTING AND devModule='N') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20533@');
+  END IF;
+  
+  IF (DELETING AND devModule='N') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20533@');
+  END IF;
+  
+  --Check the only updated column is instanceEnforcement. In this case maitin updated
+  --column as it was to prevent changes detection when trying to update database
+  IF (UPDATING) THEN
+    IF (COALESCE(:NEW.ISACTIVE                 ,'.') = COALESCE(:OLD.ISACTIVE                 ,'.') AND
+        COALESCE(:NEW.AD_MODULE_ID             ,'.') = COALESCE(:OLD.AD_MODULE_ID             ,'.') AND
+        COALESCE(:NEW.AD_DEPENDENT_MODULE_ID   ,'.') = COALESCE(:OLD.AD_DEPENDENT_MODULE_ID   ,'.') AND
+        COALESCE(:NEW.STARTVERSION             ,'.') = COALESCE(:OLD.STARTVERSION             ,'.') AND
+        COALESCE(:NEW.ENDVERSION               ,'.') = COALESCE(:OLD.ENDVERSION               ,'.') AND
+        COALESCE(:NEW.ISINCLUDED               ,'.') = COALESCE(:OLD.ISINCLUDED               ,'.') AND
+        COALESCE(:NEW.DEPENDANT_MODULE_NAME    ,'.') = COALESCE(:OLD.DEPENDANT_MODULE_NAME    ,'.') AND
+        COALESCE(:NEW.DEPENDENCY_ENFORCEMENT   ,'.') = COALESCE(:OLD.DEPENDENCY_ENFORCEMENT   ,'.') AND
+        COALESCE(:NEW.USER_EDITABLE_ENFORCEMENT,'.') = COALESCE(:OLD.USER_EDITABLE_ENFORCEMENT,'.') AND                        
+        COALESCE(:NEW.INSTANCE_ENFORCEMENT,'.') !=   COALESCE(:OLD.INSTANCE_ENFORCEMENT,'.'))  THEN
+      :NEW.UPDATED := :OLD.UPDATED;
+    END IF;
+  END IF;
+END AD_MODULE_DEPENDENCY_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ *************************************************************************
+-->
+<SqlClass name="UpdateGeneratedUsedCreditColumnsData" package="org.openbravo.advpaymentmngt.modulescript">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" connection="true" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT 1 AS row_count, '' AS TYPE
+      FROM DUAL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="hasGeneratedCreditToUpdate" type="preparedStatement" connection="true" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(*) AS TYPE
+        FROM DUAL
+        WHERE EXISTS (SELECT 1
+                      FROM fin_payment p, fin_payment_detail pd, fin_payment_scheduledetail psd
+                      WHERE p.fin_payment_id = pd.fin_payment_id
+                        AND pd.fin_payment_detail_id = psd.fin_payment_detail_id
+                        AND psd.fin_payment_schedule_invoice is null
+                        AND psd.fin_payment_schedule_order is null
+                        AND pd.c_glitem_id is null
+                        AND p.generated_credit = 0
+                        AND pd.refund='N')
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="hasRefundToUpdate" type="preparedStatement" connection="true" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT count(*) AS TYPE
+        FROM DUAL
+        WHERE EXISTS (SELECT 1
+                      FROM fin_payment p, fin_payment_detail pd
+                      WHERE p.fin_payment_id = pd.fin_payment_id
+                        AND pd.refund = 'Y'
+                        AND pd.amount > 0
+                        AND p.used_credit = 0)
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateRefund" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE fin_payment
+      SET used_credit = (SELECT ABS(SUM(pd.amount))
+                    FROM fin_payment_detail pd
+                    WHERE pd.fin_payment_id = fin_payment.fin_payment_id
+                    AND pd.refund = 'Y')
+      WHERE EXISTS (SELECT 1
+                    FROM fin_payment_detail pd
+                    WHERE pd.fin_payment_id = fin_payment.fin_payment_id
+                      AND pd.refund = 'Y')
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateRefundPrepayment" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE fin_payment_detail
+      SET isprepayment = 'Y'
+      WHERE refund= 'Y'
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateRefundDetail" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE fin_payment_detail
+      SET refund = 'N'
+      WHERE refund= 'Y'
+        AND amount > 0
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateGeneratedCredit" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE fin_payment
+      SET generated_credit = (SELECT SUM(psd.amount)
+                    FROM fin_payment_detail pd, fin_payment_scheduledetail psd
+                    WHERE pd.fin_payment_id = fin_payment.fin_payment_id
+                      AND pd.fin_payment_detail_id = psd.fin_payment_detail_id
+                      AND psd.fin_payment_schedule_order is null
+                      AND psd.fin_payment_schedule_invoice is null
+                      AND pd.c_glitem_id is null
+                      AND pd.refund = 'N')
+      WHERE EXISTS (SELECT 1
+                    FROM fin_payment_detail pd, fin_payment_scheduledetail psd
+                    WHERE pd.fin_payment_id = fin_payment.fin_payment_id
+                      AND pd.fin_payment_detail_id = psd.fin_payment_detail_id
+                      AND psd.fin_payment_schedule_order is null
+                      AND psd.fin_payment_schedule_invoice is null
+                      AND pd.c_glitem_id is null
+                      AND pd.refund = 'N')
+        AND generated_credit = 0
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="initializeGenerated" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE fin_payment
+      SET generated_credit = 0
+      WHERE generated_credit IS NULL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="initializeUsed" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE fin_payment
+      SET used_credit = 0
+      WHERE used_credit IS NULL
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

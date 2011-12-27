@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_INVOICE_V2">
+    <view name="C_INVOICE_V2"><![CDATA[SELECT i.c_invoice_id, i.ad_client_id, i.ad_org_id, i.isactive, i.created, i.createdby, i.updated, i.updatedby, i.issotrx, i.documentno, i.docstatus, i.docaction, i.isprinted, i.isdiscountprinted, i.processing, i.processed, i.c_doctype_id, i.c_doctypetarget_id, i.c_order_id, i.description, i.salesrep_id, i.dateinvoiced, i.dateprinted, i.dateacct, i.c_bpartner_id, i.c_bpartner_location_id, i.ad_user_id, b.c_bp_group_id, i.poreference, i.dateordered, i.c_currency_id, i.paymentrule, i.c_paymentterm_id, i.m_pricelist_id, i.c_campaign_id, i.c_project_id, i.c_activity_id, i.c_charge_id, 
+CASE substr(d.docbasetype, 3)
+WHEN 'C' THEN i.chargeamt * (-1)
+ELSE i.chargeamt
+END AS chargeamt, 
+CASE substr(d.docbasetype, 3)
+WHEN 'C' THEN i.totallines * (-1)
+ELSE i.totallines
+END AS totallines, 
+CASE substr(d.docbasetype, 3)
+WHEN 'C' THEN i.grandtotal * (-1)
+ELSE i.grandtotal
+END AS grandtotal, 
+CASE substr(d.docbasetype, 3)
+WHEN 'C' THEN (-1)
+ELSE 1
+END AS multiplier
+FROM c_invoice i, c_doctype d, c_bpartner b
+WHERE i.c_doctype_id = d.c_doctype_id AND i.c_bpartner_id = b.c_bpartner_id]]></view>
+  </database>

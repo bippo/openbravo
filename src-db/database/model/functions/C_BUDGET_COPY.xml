@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_BUDGET_COPY">
+    <function name="C_BUDGET_COPY" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  --  Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_Result NUMBER:=1; --  Success
+  v_BudgetFrom_ID VARCHAR2(32);
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --  Record Info
+    v_Client_ID VARCHAR2(32);
+    v_Org_ID VARCHAR2(32);
+    v_User_ID VARCHAR2(32);
+    v_Period_ID VARCHAR2(32);
+    Cur_BudgetLine RECORD;
+  BEGIN
+    v_Result:=1;
+    --  Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String,
+        p.P_Number, p.P_Date, p.AD_Org_ID, p.AD_Client_ID
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+      v_Org_ID:=Cur_Parameter.AD_Org_ID;
+      v_Client_ID:=Cur_Parameter.AD_Client_ID;
+      IF(Cur_Parameter.ParameterName='C_Budget_ID') THEN
+        v_BudgetFrom_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  BudgetFrom_ID=' || v_BudgetFrom_ID) ;
+      END IF;
+    END LOOP; --  Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  v_Record_ID=' || v_Record_ID) ;
+    FOR Cur_BudgetLine IN
+      (SELECT *  FROM C_BudgetLine  WHERE C_Budget_ID=v_BudgetFrom_ID)
+    LOOP
+      SELECT p1.C_Period_ID
+      INTO v_Period_ID
+      FROM C_Period p1,
+        C_Period p2,
+        C_Budget b
+      WHERE p1.C_Year_ID=b.C_Year_ID
+        AND b.C_Budget_ID=v_Record_ID
+        AND p1.PeriodNo=p2.PeriodNo
+        AND p2.C_Period_ID=Cur_BudgetLine.C_Period_ID;
+      v_ResultStr:='InsertBudgetLines';
+      INSERT
+      INTO C_BudgetLine
+        (
+          C_Budgetline_ID, AD_Client_ID,
+          AD_Org_ID, Isactive,
+          Created, Createdby,
+          Updated, Updatedby,
+          C_AcctSchema_ID,
+          C_ElementValue_ID, C_Period_ID,
+          C_Currency_ID, C_Uom_ID,
+          Qty, M_Product_ID,
+          C_Bpartner_ID, AD_Orgtrx_ID,
+          C_Salesregion_ID, C_Project_ID,
+          C_Campaign_ID, C_Activity_ID,
+          User1_ID, User2_ID,
+          Description, Seqno,
+          C_Bp_Group_ID, M_Product_Category_ID,
+          C_Budget_ID, Amount,
+          Price
+        )
+        VALUES
+        (
+          GET_UUID(), v_Client_ID,
+          v_Org_ID, 'Y',
+          now(), v_User_ID,
+          now(), v_User_ID,
+          Cur_BudgetLine.C_AcctSchema_ID,
+          Cur_BudgetLine.C_ElementValue_ID, v_Period_ID,
+          Cur_BudgetLine.C_Currency_ID, Cur_BudgetLine.C_Uom_ID,
+          Cur_BudgetLine.Qty, Cur_BudgetLine.M_Product_ID,
+          Cur_BudgetLine.C_Bpartner_ID, Cur_BudgetLine.AD_Orgtrx_ID,
+          Cur_BudgetLine.C_Salesregion_ID, Cur_BudgetLine.C_Project_ID,
+          Cur_BudgetLine.C_Campaign_ID, Cur_BudgetLine.C_Activity_ID,
+          Cur_BudgetLine.User1_ID, Cur_BudgetLine.User2_ID,
+          Cur_BudgetLine.Description, Cur_BudgetLine.Seqno,
+          Cur_BudgetLine.C_Bp_Group_ID, Cur_BudgetLine.M_Product_Category_ID,
+          v_Record_ID, Cur_BudgetLine.Amount,
+          Cur_BudgetLine.Price
+        )
+        ;
+    END LOOP;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, v_User_ID, 'N', v_Result, v_Message) ;
+    RETURN;
+EXCEPTION
+  WHEN OTHERS THEN
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+    RETURN;
+END C_BUDGET_COPY
+]]></body>
+    </function>
+  </database>

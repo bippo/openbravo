@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_LOCATION_DESCRIPTION">
+    <function name="C_LOCATION_DESCRIPTION" type="NVARCHAR">
+      <parameter name="p_c_location_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Title:   Return the description of the location
+* Description:
+*
+************************************************************************/
+  v_description NVARCHAR2(4000) ;
+BEGIN
+  SELECT COALESCE(TO_CHAR(L.ADDRESS1), '') ||(
+    CASE
+      WHEN(L.ADDRESS2) IS NULL
+      THEN ''
+      ELSE(CHR(10) ||TO_CHAR(L.ADDRESS2))
+    END
+    ) || (
+    CASE
+      WHEN(L.POSTAL||L.CITY||R.NAME) IS NULL
+      THEN ''
+      ELSE CHR(10) ||L.POSTAL ||(
+      CASE
+        WHEN(L.POSTAL) IS NULL
+        THEN ''
+        ELSE ' - '||TO_CHAR(L.CITY)
+      END
+      ) || (
+      CASE
+        WHEN(R.NAME) IS NULL
+        THEN ''
+        ELSE ' ('||TO_CHAR(R.NAME) || ')'
+      END
+      )
+    END
+    )
+  INTO v_description
+  FROM C_LOCATION L
+  LEFT JOIN C_REGION R
+    ON L.C_REGION_ID=R.C_REGION_ID
+  WHERE L.C_LOCATION_ID=p_C_Location_ID;
+  RETURN v_description;
+END C_LOCATION_DESCRIPTION
+]]></body>
+    </function>
+  </database>

@@ -1,0 +1,391 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Business Partner selector</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/djConfig.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>	
+<script language="JavaScript" src="../../../../../web/js/dojotoolkit/dojo/dojo.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/djDependencies.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramDirectory">var baseDirectory = "http://yourSite/web/";</script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">defaultLang = "en_US";</script>
+<script language="JavaScript" type="text/javascript" id="paramAlertMsg">ALERT_MSG = "No business partner is selected";</script>
+<script language="JavaScript" type="text/javascript">
+function validate() {	
+	var frm = document.forms[0];
+	if ((frm.inpKey.value==null || frm.inpKey.value=="") && (frm.inpName.value==null || frm.inpName.value=="") && (frm.inpContact.value==null || frm.inpContact.value=="") && (frm.inpZIP.value==null || frm.inpZIP.value=="") && (frm.inpPhone.value==null || frm.inpPhone.value=="") && !frm.inpClients.checked) {
+		setWindowElementFocus(frm.inpKey);
+		showJSMessage(7);
+		return false;
+	}	
+	return true;
+}
+</script>
+<script language="JavaScript" type="text/javascript">
+	function onLoadDo(){
+    this.windowTables = new Array(
+      new windowTableId('client_top', 'buttonSearch'),
+      new windowTableId('client_middle', 'buttonOK'),
+      new windowTableId('client_bottom', 'buttonOK')
+    );
+    setWindowTableParentElement();
+    enableShortcuts('popup');
+    setBrowserAutoComplete(false);
+
+    try {
+      onloadFunctions();
+    } catch (e) {}
+
+    setWindowElementFocus('firstElement');
+    resizeAreaInfo();
+  }
+
+  function onResizeDo(){
+    resizeAreaInfo(true);
+  }
+  
+  function validateSelector(action) {
+  	var pos; var keys;  var key; var text; var parameter; var data;
+  	if(action == "SAVE") {
+  		data = new Array();
+  		rows = dijit.byId('grid').getSelectedRows();
+                if(rows.length == 0){
+                    alert(ALERT_MSG);
+                    return false;
+                }
+  		for(var i=0; i < rows.length; i++) {
+  			var rowkey = rows[i].split("@_##_@");
+  			var rval = new Array(rowkey[0], rowkey[1]);
+  			data.push(rval);
+  		}
+    }
+  	parent.opener.closeMultiSearch(action, data);
+  }
+
+	function gridMovePage(direction) {
+		dijit.byId('grid').gridMovePage(direction);
+		return true;
+	}
+
+	function updateHeader(liveGrid, offset) {
+		var backendPageSize = liveGrid.getBackendPageSize();
+		var currPageStart = (liveGrid.metaData.getBackendPage()*backendPageSize);
+		var pageFull = (liveGrid.metaData.getTotalRows() >= backendPageSize);
+		var firstPage = (liveGrid.metaData.getBackendPage() == 0);
+		var res = "<nobr class='DataGrid_Popup_text_bookmark'>";
+		if (!firstPage) {
+			res = res + "<a href='#' onclick='gridMovePage(\"PREVIOUSPAGE\"); setWindowElementFocus(\"grid_table_dummy_input\",\"id\");' class='DataGrid_Popup_text_pagerange' id='prevPage_link'>" + getMessage("GridPreviousPage") + " " + backendPageSize +"</a>&nbsp;|&nbsp;";
+		}
+		res = res + ((liveGrid.visibleRows>0)?(currPageStart+offset+1):0) + " - "+ (currPageStart+offset+liveGrid.visibleRows) + " / " + (currPageStart+liveGrid.metaData.getTotalRows());
+		if (pageFull) {
+			res = res + "&nbsp;|&nbsp;<a href='#' onclick='gridMovePage(\"NEXTPAGE\"); setWindowElementFocus(\"grid_table_dummy_input\",\"id\");' class='DataGrid_Popup_text_pagerange' id='nextPage_link'>" + getMessage("GridNextPage") + " " + backendPageSize +"</a>";
+		}
+		res = res + "</nobr>";
+		liveGrid.setGridPaging(!firstPage,pageFull);
+		dojo.byId('bookmark').innerHTML = res;
+	}
+</script>
+<script language="JavaScript" type="text/javascript" id="selectedColumn">  
+  var selectedRow = 0;
+  var orderByPositions = new Array("1");
+  var orderByDirections = new Array("ASC");
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onresize="onResizeDo();">
+<form name="frmSelector" method="post" action="BusinessPartnerMultiple.html">
+  <input type="hidden" name="Command" />
+  <input type="hidden" name="IsPopUpCall" value="1" />
+  <input type="hidden" name="inpAD_Org_ID" value="xx" id="fieldOrgs" />
+  <div class="Popup_ContentPane_CircleLogo">
+    <div class="Popup_WindowLogo">
+      <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_businessPartner" src="../../../../../web/images/blank.gif" border=0/></img>
+    </div>
+  </div>
+  <table cellspacing="0" cellpadding="0" width="100%" id="table_header">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span>Business Partner selector</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+  </table>
+
+  <table cellspacing="0" cellpadding="0" width="100%">
+
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_top">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+
+            <tr>
+              <td colspan="6">
+                <table class="FieldGroup" cellspacing="0" cellpadding="0" border="0">
+                  <tr class="FieldGroup_TopMargin"></tr>
+                  <tr>
+                    <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                    <td class="FieldGroupTitle">Primary Filters</td>
+                    <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" border="0" src="../../../../../web/images/blank.gif"></img></td>
+                    <td class="FieldGroupContent"></td>
+
+                  </tr>
+                  <tr class="FieldGroup_BottomMargin"></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Key</span></td>
+              <td class="TextBox_ContentCell"><input class="dojoValidateValid TextBox_OneCell_width" type="text" name="inpKey" value="" id="fieldKey"></input></td>
+              <td></td>
+              <td class="TitleCell"><span class="LabelText">Name</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input type="text" name="inpName" value="" id="fieldName" class="dojoValidateValid TextBox_TwoCells_width"></input></td>
+            </tr>
+
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Contact</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input type="text" name="inpContact" class="dojoValidateValid TextBox_TwoCells_width"></input></td>
+
+              <td class="TitleCell"><span class="LabelText">City</span></td>
+              <td class="TextBox_ContentCell" colspan="2"> <input type="text" name="inpCity" class="dojoValidateValid TextBox_TwoCells_width"></input></td>
+            </tr>
+      
+            <tr>
+              <td class="TitleCell"><span class="LabelText">Postal Code</span></td>
+              <td class="TextBox_ContentCell"><input class="dojoValidateValid TextBox_OneCell_width" type="text" name="inpZIP"></input></td>
+
+              <td></td>
+
+              <td class="TitleCell"><span class="LabelText">Region</span></td>
+              <td class="TextBox_ContentCell" colspan="2"><input type="text" name="inpProvincia" class="dojoValidateValid TextBox_TwoCells_width"></input> </td>
+            </tr>
+        
+            <tr> 
+             <td class="TitleCell"><span class="LabelText">Customer</span></td>
+             <td class="Radio_Check_ContentCell"><span class="Radio_container_NOT_Focused"><input type="radio" name="inpBpartner" value="costumer" id="fieldClientsSelect"></input></span></td>
+
+             <td class="TitleCell"><span class="LabelText">Providers</span></td>
+             <td class="Radio_Check_ContentCell"><span class="Radio_container_NOT_Focused"><input type="radio" name="inpBpartner" value="vendor" id="fieldVendorsSelect"></input></span></td>
+
+             <td class="TitleCell"><span class="LabelText">All</span></td>
+             <td class="Radio_Check_ContentCell"><span class="Radio_container_NOT_Focused"><input type="radio" name="inpBpartner" value="all" id="fieldAllSelect"></input></span></td>
+            </tr>
+
+            <tr>
+              <td></td>
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonSearch" 
+                    class="ButtonLink" 
+                    onclick="setFilters();return false;" 
+                    onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
+                    onblur="buttonEvent('onblur', this);" 
+                    onkeyup="buttonEvent('onkeyup', this);" 
+                    onkeydown="buttonEvent('onkeydown', this);" 
+                    onkeypress="buttonEvent('onkeypress', this);" 
+                    onmouseup="buttonEvent('onmouseup', this);" 
+                    onmousedown="buttonEvent('onmousedown', this);" 
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Search'; return true;" 
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_search" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Search</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: hidden; height: 0px;" id="client_middle">
+          <table summary="" id="sectionDetail">
+            <tr>
+              <td>
+                <table cellspacing="0" cellpadding="0" width="10px" class="DataGrid_Header_Table DataGrid_Body_Table" style="table-layout: auto;" id="grid_sample">
+                  <tr class="DataGrid_Body_Row" id="grid_sample_header">
+                    <th width="10px" class="DataGrid_Header_Cell">DataGrid</th>
+                  </tr>
+                  <tr class="DataGrid_Body_Row DataGrid_Body_Row_1" id="grid_sample_row">
+                    <td class="DataGrid_Body_Cell">Loading...</td>
+                  </tr>
+                </table>
+                <table cellspacing="0" cellpadding="0" width="0px" height="0px" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td><input type="text" class="DataGrid_Table_Dummy_Input" id="grid_table_dummy_input"></input></td>
+                  </tr>
+                </table>
+                 <table width="100%" cellspacing="0" cellpadding="0" border="0" id="grid_bookmark">
+                  <tr>
+                   <td class="DataGrid_Popup_text_container">
+                      <div id="bookmark">
+                        <nobr class='DataGrid_Popup_text_bookmark'>&nbsp;</nobr>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+                <table width="100%" cellspacing="0" cellpadding="0" border="0" class="Main_Client_TableRelation" id="grid_table">
+                  <tr>
+                    <td>
+                      <div id="grid" dojotype="openbravo.widget.DataGrid"
+                        structureurl="../info/BusinessPartnerMultiple.html?Command=STRUCTURE"
+                        dataurl="../info/BusinessPartnerMultiple.html?Command=DATA"
+                        updatesurl="../info/BusinessPartnerMultiple.html?Command=DATA"
+                        calculatenumrows="true" editable="false" sortable="true"
+                        deleteable="true" oninvalidvalue="alert" onscroll="updateHeader"
+                        ongridload="onGridLoadDo" buffersize="3.0" showlinenumbers="true"
+                        offset="0" sortcols="1" sortdirs="ASC" defaultrow="0"
+                        maxwidth="99%" percentagewidthrelativetoid="client_middle"
+                        multipleRowSelection="true"
+                        preventcache="true" usecache="true" cachecontent="false">
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto; padding-bottom: 5px;" id="client_bottom">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TableSelector">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td class="Button_RightAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonOK" 
+                    class="ButtonLink" 
+                    onclick="validateSelector('SAVE');return false;" 
+                    onfocus="buttonEvent('onfocus', this); window.status='Accept'; return true;" 
+                    onblur="buttonEvent('onblur', this);" 
+                    onkeyup="buttonEvent('onkeyup', this);" 
+                    onkeydown="buttonEvent('onkeydown', this);" 
+                    onkeypress="buttonEvent('onkeypress', this);" 
+                    onmouseup="buttonEvent('onmouseup', this);" 
+                    onmousedown="buttonEvent('onmousedown', this);" 
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Accept'; return true;" 
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Accept" title="Accept" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">OK</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td class="Button_LeftAlign_ContentCell">
+                <div>
+                  <button type="button" 
+                    id="buttonCancel" 
+                    class="ButtonLink" 
+                    onclick="validateSelector('CLEAR');return false;" 
+                    onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;" 
+                    onblur="buttonEvent('onblur', this);" 
+                    onkeyup="buttonEvent('onkeyup', this);" 
+                    onkeydown="buttonEvent('onkeydown', this);" 
+                    onkeypress="buttonEvent('onkeypress', this);" 
+                    onmouseup="buttonEvent('onmouseup', this);" 
+                    onmousedown="buttonEvent('onmousedown', this);" 
+                    onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;" 
+                    onmouseout="buttonEvent('onmouseout', this);">
+                    <table class="Button">
+                      <tr>
+                        <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                        <td class="Button_text Button_width">Cancel</td>
+                        <td class="Button_right"></td>
+                      </tr>
+                    </table>
+                  </button>
+                </div>
+              </td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+</form>
+</body>
+</html>

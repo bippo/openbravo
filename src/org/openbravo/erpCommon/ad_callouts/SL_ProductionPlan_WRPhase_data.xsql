@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="SLProductionPlanWRPhaseData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="Multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT (wrp.QUANTITY - wrp.DONEQUANTITY) AS neededqty, w.secondaryunit, w.conversionrate, ccv.MA_CostCenter_Version_ID
+      FROM MA_WRPhase wrp, MA_WorkRequirement w, MA_Process p
+           LEFT JOIN MA_CostCenter cc ON p.MA_COSTCENTER_ID = cc.MA_CostCenter_Id
+           LEFT JOIN (SELECT MA_COSTCENTER_VERSION_ID,MA_COstcenter_ID 
+                      FROM MA_CostCenter_Version maccv2
+                      WHERE validfrom= (SELECT MAX(validfrom) 
+                                        FROM MA_COSTCENTER_VERSION maccv3
+                                        WHERE maccv2.Ma_Costcenter_id = maccv3.Ma_Costcenter_id
+                                          AND validfrom < (SELECT pr.Movementdate
+                                                           FROM M_Production pr
+                                                           WHERE pr.M_Production_ID = ?))) ccv ON cc.MA_Costcenter_ID  = ccv.MA_COstCenter_ID
+      WHERE wrp.MA_WRPhase_ID = ?
+      AND wrp.MA_Process_ID = p.MA_Process_ID
+      AND wrp.MA_WorkRequirement_ID = w.MA_WorkRequirement_ID
+      ]]>
+    </Sql>
+    <Parameter name="mProductionId"/>
+    <Parameter name="mawrphaseid"/>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+        <SqlMethodComment></SqlMethodComment> 
+        <Sql></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectOutsourced" type="preparedStatement" return="String" default="N">
+    <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[
+       SELECT coalesce(wrp.Outsourced, 'N') as Outsourced
+       FROM MA_WRPhase wrp
+       WHERE wrp.MA_WRPhase_ID = ?
+       ]]>
+     </Sql>
+     <Parameter name="mProductionPlanId"/>
+   </SqlMethod>
+
+  <SqlMethod name="getMultiplier" type="preparedStatement" return="String" default="N">
+    <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[
+       SELECT MULTIPLIER FROM MA_SEQUENCE SEQ, MA_WRPHASE WRP 
+       WHERE SEQ.MA_SEQUENCE_ID = WRP.MA_SEQUENCE_ID
+       AND WRP.MA_WRPHASE_ID = ? 
+       ]]>
+     </Sql>
+     <Parameter name="maWrphaseId"/>
+   </SqlMethod>
+</SqlClass>

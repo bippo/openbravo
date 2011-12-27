@@ -1,0 +1,155 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION A_ASSET_CREATE">
+    <function name="A_ASSET_CREATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_inoutline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: A_Asset_Create.sql,v 1.6 2003/05/26 22:31:16 jjanke Exp $
+  ***
+  * Title: Create Asset and Delivery
+  * Description:
+  * Open Issues:
+  * - Reversal or Negative Delivery
+  * - Guarantee Extension
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    -- Create from ShipmentLine
+    Cur_ShipLine RECORD;
+    --
+    v_A_Asset_ID VARCHAR2(32) ;
+    v_A_Asset_Delivery_ID VARCHAR2(32) ;
+    v_DocumentNo VARCHAR2(40) ;
+    v_Value VARCHAR2(60) ;
+    v_Name VARCHAR2(80) ;
+    v_count NUMBER:=0;
+    v_Asset_Value VARCHAR2(200) ;
+  BEGIN
+    --  Update AD_PInstance
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      DBMS_OUTPUT.PUT_LINE('A_Asset_Create - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+        -- IF (p.ParameterName = 'xx') THEN
+        --  p_xx := p.P_String;
+        --  DBMS_OUTPUT.PUT_LINE('  xx=' || p_xx);
+        -- ELSE
+        --  DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || p.ParameterName);
+        --  END IF;
+      END LOOP; -- Get Parameter
+    END IF;
+  BEGIN --BODY
+    -- DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID || ', InOutLine_ID=' || p_InOutLine_ID);
+    -- Create From Shipment Line
+    IF(p_InOutLine_ID IS NOT NULL) THEN
+      FOR Cur_ShipLine IN
+        (SELECT s.AD_Client_ID, s.AD_Org_ID, s.DocumentNo, s.MovementDate, s.C_BPartner_ID, s.C_BPartner_Location_ID, s.AD_User_ID, bp.Value AS BP_Value, bp.Name AS BP_Name, p.Value, p.Name, p.Description, p.Help, p.VersionNo, pc.A_Asset_Group_ID, CASE WHEN p.GuaranteeDays IS NOT NULL THEN s.MovementDate+p.GuaranteeDays ELSE NULL
+          END AS GuaranteeDate, sl.M_Product_ID, sl.Description AS LineDescription, sl.MovementQty
+        FROM M_InOut s
+        INNER JOIN M_InOutLine sl
+          ON(s.M_InOut_ID=sl.M_InOut_ID)
+        INNER JOIN M_Product p
+          ON(sl.M_Product_ID=p.M_Product_ID)
+        INNER JOIN M_Product_Category pc
+          ON(p.M_Product_Category_ID=pc.M_Product_Category_ID)
+        INNER JOIN C_BPartner bp
+          ON(s.C_BPartner_ID=bp.C_BPartner_ID)
+        WHERE pc.A_Asset_Group_ID IS NOT NULL  AND sl.M_InOutLine_ID=p_InOutLine_ID  AND sl.MovementQty>0
+        )
+      LOOP
+        FOR i IN 1 .. Cur_Shipline.MovementQty
+        LOOP
+          v_ResultStr:='InsertingAsset';
+          AD_Sequence_Next('A_Asset', Cur_Shipline.AD_Client_ID, v_A_Asset_ID) ;
+          v_DocumentNo:='_' || Cur_Shipline.DocumentNo;
+          IF(Cur_Shipline.MovementQty>1) THEN
+            v_DocumentNo:=v_DocumentNo || '_' || i;
+          END IF;
+          v_Value:='_' || Cur_Shipline.Value || v_DocumentNo;
+          v_Name:='_' || Cur_Shipline.Name || v_DocumentNo;
+          v_Asset_Value:=SUBSTR(Cur_Shipline.BP_Value, 1, 40-LENGTH(v_Value)) || v_Value;
+          --
+          INSERT
+          INTO A_Asset
+            (
+              A_Asset_ID, AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+              Value, Name, Description, Help, A_Asset_Group_ID, M_Product_ID, VersionNo,
+              GuaranteeDate, AssetServiceDate, IsOwned, IsDepreciated, AssetDepreciationDate, IsInPosession,
+              LocationComment, C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID
+            )
+            VALUES
+            (v_A_Asset_ID, Cur_Shipline.AD_Client_ID, Cur_Shipline.AD_Org_ID, 'Y', now(), '0', now(), '0', SUBSTR(v_Asset_Value,1,40), SUBSTR(Cur_Shipline.BP_Name, 1,
+            60-LENGTH(v_Name)) || v_Name, SUBSTR(Cur_Shipline.Description || ' ' || Cur_Shipline.LineDescription, 1, 255), Cur_Shipline.Help, Cur_Shipline.A_Asset_Group_ID, Cur_Shipline.M_Product_ID,
+            Cur_Shipline.VersionNo, Cur_Shipline.GuaranteeDate, Cur_Shipline.MovementDate, 'N', 'N', null, 'N', v_DocumentNo, Cur_Shipline.C_BPartner_ID, Cur_Shipline.C_BPartner_Location_ID, Cur_Shipline.AD_User_ID) ;
+            DBMS_OUTPUT.PUT_LINE('A_Asset_ID=' || v_A_Asset_ID || ' - ' || Cur_Shipline.Value||v_DocumentNo) ;
+        END LOOP;
+        v_count:=v_count + 1;
+		v_Message:='@Created@: ' || v_count;
+      END LOOP;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('Assets Created=' || v_count) ;
+    --<<FINISH_PROCESS>>
+    DBMS_OUTPUT.PUT_LINE('A_Asset_Create - Finished ' || v_Message) ;
+    --  Update AD_PInstance
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  END IF;
+  RETURN;
+END A_ASSET_CREATE
+]]></body>
+    </function>
+  </database>

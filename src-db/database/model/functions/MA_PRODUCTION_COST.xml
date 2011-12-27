@@ -1,0 +1,551 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_PRODUCTION_COST">
+    <function name="MA_PRODUCTION_COST" type="NULL">
+      <parameter name="p_production_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="v_message" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************/
+  -- Logistice
+  v_ResultStr                           VARCHAR2(2000) := '';
+  --v_Message                             VARCHAR2(2000) := '';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Parameter RECORD;
+
+  v_Org_ID                              varchar2(32);
+  v_Client_ID                           varchar2(32);
+  v_count                               NUMBER;
+  v_countAux                            NUMBER;
+  v_count2                              NUMBER;
+  v_count3                              VARCHAR2(32);
+  v_ProductionDate                      DATE;
+  v_Result NUMBER:= 1;
+  v_ProductionCost                      NUMBER;
+  v_ProductionCost_Tmp                  NUMBER;
+  v_ProducedKg                          NUMBER;
+  v_ProducedUd                          NUMBER;
+  v_ProductionTime                      NUMBER;
+  v_CompCostSum                         NUMBER;
+  v_CompCost                            NUMBER;
+  v_CostOld                             NUMBER;
+  v_Cost                                NUMBER;
+  v_Qty                                 NUMBER;
+  v_DateTo                              DATE;
+  v_Costing_ID                          varchar2(32);
+  v_CostCenter_ID                       varchar2(32);
+  v_IC_Value                            NUMBER;
+  v_Cost_UOM                            CHAR;
+  v_NextNo                              VARCHAR2(32);
+  v_ProductionNo                        NUMBER;
+  Cur_ProductionPlan RECORD;
+  Cur_ProductionLine RECORD;
+  Cur_WIP RECORD;
+  Cur_RawMaterial RECORD;
+  Cur_SalaryCategory RECORD;
+  Cur_Machine RECORD;
+  Cur_IndirectCost RECORD;
+  Cur_IndirectCostPorc RECORD;
+  FINISH_PROCESS                        BOOLEAN := FALSE;
+BEGIN
+  BEGIN --BODY
+    v_ResultStr := 'Update productionline calculated';
+    UPDATE M_PRODUCTIONLINE
+    SET CALCULATED='Y'
+    WHERE M_PRODUCTIONPLAN_ID IN (SELECT M_PRODUCTIONPLAN_ID
+                                  FROM M_PRODUCTIONPLAN
+                                  WHERE M_PRODUCTION_ID = p_Production_ID)
+      AND MOVEMENTQTY = 0
+      AND PRODUCTIONTYPE = '+';
+
+    UPDATE M_PRODUCTIONLINE
+    SET CALCULATED='Y'
+    WHERE M_PRODUCTIONPLAN_ID IN (SELECT M_PRODUCTIONPLAN_ID
+                                  FROM M_PRODUCTIONPLAN
+                                  WHERE M_PRODUCTION_ID = p_Production_ID
+                                    AND MA_COSTCENTER_VERSION_ID IS NULL);
+
+    UPDATE M_PRODUCTIONLINE
+    SET CALCULATED='Y'
+    WHERE PRODUCTIONTYPE = '-'
+      AND M_PRODUCTIONPLAN_ID IN (SELECT M_PRODUCTIONPLAN_ID
+                                  FROM M_PRODUCTIONPLAN
+                                  WHERE M_PRODUCTION_ID = p_Production_ID)
+      AND NOT EXISTS (SELECT 1 FROM M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp
+                      WHERE pl.M_PRODUCTIONPLAN_ID = pp.M_PRODUCTIONPLAN_ID
+                        AND pp.M_PRODUCTION_ID = p_Production_ID
+                        AND pl.PRODUCTIONTYPE = '+'
+                        AND pl.CALCULATED = 'N'
+                        AND pl.M_PRODUCT_ID = M_PRODUCTIONLINE.M_PRODUCT_ID);
+
+    SELECT MAX(pr.ad_client_id), MAX(pr.ad_org_id), MAX(movementdate), COUNT (*), MAX(pr.DOCUMENTNO)
+    INTO v_Client_ID, v_Org_ID, v_ProductionDate, v_count, v_ProductionNo
+    FROM M_PRODUCTION pr, M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp
+    WHERE pr.m_production_id = p_Production_ID
+      AND pr.m_production_id = pp.m_production_id
+      AND pp.m_productionplan_id = pl.m_productionplan_id
+      AND pl.calculated = 'N';
+
+    v_ResultStr := 'Calculate cost';
+
+    WHILE (v_count <> 0) LOOP
+      --DBMS_OUTPUT.PUT_LINE('start loop: ' || v_count);
+      v_countAux := v_count;
+      FOR Cur_ProductionPlan IN (SELECT pp.M_ProductionPlan_ID, pp.ma_costcenter_version_id,
+                                        SUM(CASE pl.productiontype WHEN '+' THEN (mp.weight * pl.movementqty)
+                                            ELSE 0 END) AS ProducedKG,
+                                        SUM(CASE pl.productiontype WHEN '+' THEN (pl.movementqty)
+                                            ELSE 0 END) AS ProducedUd,
+                                         SUM(CASE pl.productiontype WHEN '+' THEN COALESCE(wrpp.ComponentCost,1) ELSE 0 END) AS CompCostSum,
+                                         ccv.costuom, ccv.COST, pp.MA_CostCenterUse, pp.MA_WRPHASE_ID, pp.LINE
+                                  FROM M_PRODUCTIONPLAN pp INNER JOIN M_PRODUCTIONLINE pl ON pp.m_productionplan_id = pl.m_productionplan_id
+                                                                                         AND pp.m_production_id = p_Production_ID
+                                                           INNER JOIN M_PRODUCT mp ON pl.m_product_id = mp.m_product_id
+                                                           LEFT JOIN MA_COSTCENTER_VERSION ccv ON ccv.MA_COSTCENTER_VERSION_ID = pp.ma_costcenter_version_id
+                                                           LEFT JOIN MA_WRPHASE wrp ON wrp.ma_wrphase_id = pp.ma_wrphase_id
+                                                           LEFT JOIN MA_WRPHASEPRODUCT wrpp ON wrp.ma_wrphase_id = wrpp.ma_wrphase_id
+                                   AND wrpp.m_product_id = pl.m_product_id
+                                  WHERE NOT EXISTS (SELECT 1
+                                                   FROM M_PRODUCTIONLINE pl1, M_PRODUCTIONPLAN pp2, M_PRODUCTIONLINE pl2
+                                                   WHERE pl1.m_productionplan_id = pp2.m_productionplan_id
+                                                     AND pl1.m_product_id = pl2.m_product_id
+                                                     AND pl2.productiontype='-'
+                                                     AND pl1.productiontype='+'
+                                                     AND pp2.m_production_id = p_Production_ID
+                                                     AND pl2.M_productionplan_ID = pp.M_ProductionPlan_ID
+                                                     AND pl1.calculated = 'N')
+                                    AND pp.MA_COSTCENTER_VERSION_ID IS NOT NULL
+                                 GROUP BY pp.M_ProductionPlan_ID, pp.ma_costcenter_version_id, ccv.costuom,
+                                           ccv.COST, pp.MA_CostCenterUse, pp.MA_WRPHASE_ID, pp.LINE) LOOP
+        v_ResultStr := 'Common variables';
+        --Firstly calculate common costs of the production plan.
+        v_Productioncost := 0;
+        v_ProductionTime := Cur_ProductionPlan.MA_CostCenterUse;
+        v_ProducedKg := Cur_ProductionPlan.ProducedKG;
+        v_CompCostSum := Cur_ProductionPlan.CompCostSum;
+        v_ProducedUd := Cur_ProductionPlan.ProducedUd;
+
+        --Check that the products in production run exist in the correspondent work requirement.
+        --This is not mandatory but might result in problems later.
+        IF (Cur_ProductionPlan.MA_WRPHASE_ID IS NOT NULL) THEN
+        SELECT COUNT(*) INTO v_Count2
+        FROM M_PRODUCTIONLINE
+        WHERE M_PRODUCTIONPLAN_ID = Cur_ProductionPlan.M_ProductionPlan_ID
+          AND NOT EXISTS (SELECT 1 FROM MA_WRPHASEPRODUCT
+                          WHERE M_PRODUCT_ID = M_PRODUCTIONLINE.M_PRODUCT_ID
+                            AND MA_WRPHASE_ID = Cur_ProductionPlan.MA_WRPHASE_ID);
+          IF (v_Count2 <> 0) THEN
+            v_Message := '@inProductionPlan@' || v_ProductionNo || ' - ' || Cur_ProductionPlan.LINE || '@productsNotInWRPhase@';
+          END IF;
+        END IF;
+
+        --Sums the cost of the used raw material and WIP.
+        --First sum the cost of WIP
+        v_ResultStr := 'WIP cost';
+        v_ProductionCost_Tmp := 0;
+
+        FOR Cur_WIP IN (SELECT c.COST*ppl.MOVEMENTQTY AS cost, ppl.M_PRODUCTIONLINE_ID
+                        FROM M_COSTING c, M_PRODUCTIONLINE ppl
+                        WHERE c.M_PRODUCT_ID = ppl.M_PRODUCT_ID
+                          AND c.DATEFROM <= v_ProductionDate
+                          AND c.DATETO > v_ProductionDate
+                          AND ppl.PRODUCTIONTYPE = '-'
+                          AND ppl.M_PRODUCTIONPLAN_ID = Cur_ProductionPlan.M_PRODUCTIONPLAN_ID
+                          AND c.ISPRODUCTION='Y') LOOP
+          v_ProductionCost_Tmp := v_ProductionCost_Tmp + COALESCE(Cur_WIP.cost,0);
+          UPDATE M_PRODUCTIONLINE
+          SET calccost = COALESCE(Cur_WIP.cost, 0)
+          WHERE M_PRODUCTIONLINE_ID = Cur_WIP.M_PRODUCTIONLINE_ID;
+        END LOOP;
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+        v_ProductionCost_Tmp := 0;
+        --Second sum of raw materials that had not been added previously as WIP
+        v_ResultStr := 'Raw Material cost';
+        FOR Cur_RawMaterial IN (SELECT c.COST*ppl.MOVEMENTQTY AS cost, ppl.M_PRODUCTIONLINE_ID
+                                FROM M_COSTING c, M_PRODUCTIONLINE ppl
+                                WHERE c.M_PRODUCT_ID = ppl.M_PRODUCT_ID
+                                  AND c.DATEFROM <= v_ProductionDate
+                                  AND c.DATETO > v_ProductionDate
+                                  AND ppl.PRODUCTIONTYPE = '-'
+                                  AND ppl.M_PRODUCTIONPLAN_ID = Cur_ProductionPlan.M_PRODUCTIONPLAN_ID
+                                  AND c.ISPRODUCTION='N'
+                                  AND NOT EXISTS (SELECT 1
+                                                  FROM M_COSTING, M_PRODUCTIONLINE
+                                                  WHERE M_COSTING.M_PRODUCT_ID = M_PRODUCTIONLINE.M_PRODUCT_ID
+                                                    AND M_COSTING.DATEFROM <= v_ProductionDate
+                                                    AND M_COSTING.DATETO > v_ProductionDate
+                                                    AND M_PRODUCTIONLINE.PRODUCTIONTYPE = '-'
+                                                    AND M_PRODUCTIONLINE.M_PRODUCT_ID = c.M_Product_ID
+                                                    AND M_COSTING.ISPRODUCTION='Y')) LOOP
+          v_ProductionCost_Tmp := v_ProductionCost_Tmp + COALESCE(Cur_RawMaterial.cost,0);
+          UPDATE M_PRODUCTIONLINE
+          SET calccost = COALESCE(Cur_RawMaterial.cost, 0)
+          WHERE M_PRODUCTIONLINE_ID = Cur_RawMaterial.M_PRODUCTIONLINE_ID;
+        END LOOP;
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+        v_ProductionCost_Tmp := 0;
+
+        -- Calculates the cost of the cost center
+        -- Cost directly inserted on cost center definition
+        v_ResultStr := 'Cost Center cost';
+        v_ProductionCost_Tmp :=  (CASE Cur_ProductionPlan.COSTUOM
+                                  WHEN 'H' THEN v_ProductionTime*Cur_ProductionPlan.COST
+                                  WHEN 'K' THEN v_ProducedKg*Cur_ProductionPlan.COST
+                                  WHEN 'U' THEN v_ProducedUd*Cur_ProductionPlan.COST
+                                  END);
+        UPDATE M_PRODUCTIONPLAN
+        SET CALCCOST = v_ProductionCost_Tmp
+        WHERE M_PRODUCTIONPLAN_ID = Cur_ProductionPlan.M_PRODUCTIONPLAN_ID;
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+        v_ProductionCost_Tmp := 0;
+
+        -- Calculate salary cost
+        v_ResultStr := 'Salary cost';
+        FOR Cur_SalaryCategory IN (SELECT COALESCE((CASE scc.costuom
+                                                    WHEN 'H' THEN (v_ProductionTime*scc.COST*ple.quantity)
+                                                    WHEN 'K' THEN (v_ProducedKg*scc.COST*ple.quantity)
+                                                    WHEN 'U' THEN (v_ProducedUd*scc.COST*ple.quantity)
+                                                    END), 0) AS cost, ple.MA_PL_EMPLOYEE_ID
+                                   FROM MA_PL_EMPLOYEE ple, C_SALARY_CATEGORY_COST scc
+                                   WHERE ple.m_productionplan_id = Cur_ProductionPlan.m_productionplan_id
+                                     AND ple.c_salary_category_id = scc.c_salary_category_id
+                                     AND scc.c_salary_category_cost_id = (SELECT MAX(scc1.c_salary_category_cost_id)
+                                                          FROM C_SALARY_CATEGORY_COST scc1
+                                                          WHERE scc1.c_salary_category_id = ple.c_salary_category_id
+                                                            AND scc1.datefrom = (SELECT MAX(scc2.datefrom)
+                                                                       FROM C_SALARY_CATEGORY_COST scc2
+                                                                       WHERE scc2.c_salary_category_id = scc1.c_salary_category_id))) LOOP
+          v_ProductionCost_Tmp := v_ProductionCost_Tmp + COALESCE(Cur_SalaryCategory.cost,0);
+          UPDATE MA_PL_EMPLOYEE
+          SET CALCCOST = COALESCE(Cur_SalaryCategory.cost, 0)
+          WHERE MA_PL_EMPLOYEE_ID = Cur_SalaryCategory.MA_PL_EMPLOYEE_ID;
+        END LOOP;
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+        v_ProductionCost_Tmp := 0;
+
+        -- Calculate machine cost
+        v_ResultStr := 'Machine cost';
+        FOR Cur_Machine IN (SELECT COALESCE((CASE mc.costuom
+                                             WHEN 'H' THEN (v_ProductionTime*mc.COST*plm.USE)
+                                             WHEN 'K' THEN (v_ProducedKg*mc.COST*plm.USE)
+                                             WHEN 'U' THEN (v_ProducedUd*mc.COST*plm.USE)
+                                             END), 0) AS COST, plm.MA_PL_MACHINE_ID
+                            FROM MA_PL_MACHINE plm, MA_MACHINE_COST mc
+                            WHERE plm.m_productionplan_id = Cur_ProductionPlan.m_productionplan_id
+                              AND plm.ma_machine_id = mc.ma_machine_id
+                              AND mc.ma_machine_cost_id = (SELECT MAX(mc1.ma_machine_cost_id)
+                                                   FROM MA_MACHINE_COST mc1
+                                                   WHERE mc1.ma_machine_id = plm.ma_machine_id
+                                                   AND mc1.validfrom = (SELECT MAX(mc2.validfrom)
+                                                   FROM MA_MACHINE_COST mc2
+                                                   WHERE mc2.ma_machine_id = mc1.ma_machine_id))) LOOP
+          v_ProductionCost_Tmp := v_ProductionCost_Tmp + COALESCE(Cur_Machine.COST,0);
+          UPDATE MA_PL_MACHINE
+          SET calccost = COALESCE(Cur_MAchine.cost, 0)
+          WHERE MA_PL_MACHINE_ID = Cur_Machine.MA_PL_MACHINE_ID;
+        END LOOP;
+
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+
+        -- Calculate invoice lines costs
+        v_ResultStr := 'Invoice Lines Cost';
+        v_ProductionCost_Tmp := 0;
+        SELECT SUM(cost) INTO v_ProductionCost_Tmp
+        FROM MA_PL_Invoiceline
+        WHERE m_productionplan_id = Cur_ProductionPlan.M_ProductionPlan_ID;
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+
+        -- Calculate indirect costs
+        v_ResultStr := 'Indirect Cost';
+        v_ProductionCost_Tmp := 0;
+
+        FOR Cur_IndirectCost IN (SELECT CASE icv.COST_UOM
+                                        WHEN 'H' THEN icv.COST*v_ProductionTime
+                                        WHEN 'K' THEN icv.COST*v_ProducedKg
+                                        WHEN 'U' THEN icv.COST*v_ProducedUd
+                                        END AS cost, plic.MA_PL_IC_ID
+                                 FROM MA_PL_IC plic, MA_Indirect_Cost_Value icv, MA_Indirect_Cost ic
+                                 WHERE plic.MA_Indirect_Cost_ID = ic.MA_Indirect_Cost_ID
+                                   AND ic.MA_Indirect_Cost_ID = icv.MA_Indirect_Cost_ID
+                                   AND plic.M_ProductionPlan_ID = Cur_ProductionPlan.M_PRODUCTIONPLAN_ID
+                                   AND icv.datefrom < v_ProductionDate
+                                   AND icv.dateto > v_ProductionDate
+                                   AND ic.Cost_Type = 'P') LOOP
+          v_ProductionCost_Tmp := v_ProductionCost_Tmp + COALESCE(Cur_IndirectCost.COST,0);
+          UPDATE MA_PL_IC
+          SET CALCCOST = COALESCE(Cur_IndirectCost.COST, 0)
+          WHERE MA_PL_IC_ID = Cur_IndirectCost.MA_PL_IC_ID;
+        END LOOP;
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+        v_ProductionCost_Tmp := 0;
+
+        --Calculate porcentual indirect costs
+        v_ResultStr := 'porcentual indirect cost';
+
+        FOR Cur_IndirectCostPorc IN (SELECT v_ProductionCost*icv.cost AS COST, plic.MA_PL_IC_ID
+                                     FROM MA_PL_IC plic, MA_Indirect_Cost_Value icv
+                                     WHERE plic.M_ProductionPlan_ID = Cur_ProductionPlan.M_PRODUCTIONPLAN_ID
+                                       AND plic.MA_Indirect_Cost_ID = icv.MA_Indirect_Cost_ID
+                                       AND icv.COST_UOM = 'P'
+                                       AND icv.DATEFROM < v_ProductionDate
+                                       AND icv.DATETO > v_ProductionDate) LOOP
+          v_ProductionCost_Tmp := v_ProductionCost_Tmp + COALESCE(Cur_IndirectCostPorc.cost,0);
+          UPDATE MA_PL_IC
+          SET CALCCOST = COALESCE(Cur_IndirectCostPorc.cost, 0)
+          WHERE MA_PL_IC_ID = Cur_IndirectCostPorc.MA_PL_IC_ID;
+        END LOOP;
+
+        v_ProductionCost := v_ProductionCost + COALESCE(v_ProductionCost_Tmp,0);
+        v_ProductionCost_Tmp := 0;
+
+        FOR Cur_ProductionLine IN (SELECT pl.*, p.VALUE
+                                   FROM M_PRODUCTIONLINE pl, M_PRODUCT p
+                                   WHERE M_ProductionPlan_ID = Cur_ProductionPlan.M_ProductionPlan_ID
+                                     AND pl.M_Product_ID = p.M_Product_ID
+                                     AND pl.CALCULATED = 'N'
+                                     AND productiontype = '+'
+                                     AND pl.MOVEMENTQTY <> 0) LOOP
+          v_ResultStr := 'calculate compCost. Phase_ID' || Cur_ProductionPlan.MA_WRPHASE_ID || ' product: ' || Cur_ProductionLine.M_PRODUCT_ID;
+          --Calculate costs for each produced product.
+
+          --Calculate the proportional factor of the cost
+          SELECT COALESCE(SUM(ComponentCost),1)/v_CompCostSum INTO v_CompCost
+          FROM MA_WRPHASEPRODUCT
+          WHERE MA_WRPhase_ID = Cur_ProductionPlan.MA_WRPHASE_ID
+            AND M_Product_ID = Cur_ProductionLine.M_PRODUCT_ID
+            AND PRODUCTIONTYPE = '+';
+          --Calculate the proportional cost of the production
+          v_ResultStr := 'Update component cost';
+          UPDATE M_PRODUCTIONLINE
+          SET COMPONENTCOST = COALESCE(v_CompCost, 0)
+          WHERE M_PRODUCTIONLINE_ID = Cur_ProductionLine.M_PRODUCTIONLINE_ID;
+
+          v_Cost := v_ProductionCost*COALESCE(v_CompCost, 0);
+
+          --Calculate previous cost of the product, on first time cost=0
+          v_count2 := 0;
+          SELECT COUNT(*) INTO v_count2
+          FROM M_COSTING
+          WHERE M_Product_ID = Cur_ProductionLine.M_PRODUCT_ID
+            AND DATETO > v_ProductionDate
+            AND DATEFROM <=v_ProductionDate
+            AND ISPRODUCTION='Y';
+          v_ResultStr := 'previous costs ' || v_count2 || ' product: ' || Cur_ProductionLine.M_Product_ID;
+          IF (v_count2 IS NOT NULL AND v_count2 <> 0) THEN
+            SELECT COALESCE(COST,0) INTO v_CostOld
+            FROM M_COSTING
+            WHERE M_Product_ID = Cur_ProductionLine.M_PRODUCT_ID
+              AND DATETO > v_ProductionDate
+              AND DATEFROM <=v_ProductionDate
+              AND ISPRODUCTION='Y';
+          ELSE
+            v_CostOld := 0;
+          END IF;
+
+          --Check if on this production plan is used WIP produced on the
+          --production we are calculating its cost and isn't calculated yet.
+          SELECT COUNT(*) INTO v_count2
+          FROM M_PRODUCTIONLINE ppl
+          WHERE ppl.M_ProductionPlan_Id = Cur_ProductionLine.M_ProductionPlan_ID
+            AND ppl.PRODUCTIONTYPE = '-'
+            AND EXISTS (SELECT 1
+                        FROM M_PRODUCTIONLINE, M_PRODUCTIONPLAN
+                        WHERE M_PRODUCTIONPLAN.M_PRODUCTIONPLAN_ID = M_PRODUCTIONLINE.M_PRODUCTIONPLAN_ID
+                          AND M_PRODUCTIONLINE.Productiontype = '+'
+                          AND M_PRODUCTIONPLAN.M_PRODUCTION_ID = p_Production_ID
+                          AND M_PRODUCTIONLINE.M_Product_id = ppl.M_Product_ID
+                          AND M_PRODUCTIONLINE.M_locator_id = ppl.M_Locator_ID
+                          AND M_PRODUCTIONLINE.CALCULATED = 'N'
+                          AND M_PRODUCTIONLINE.M_PRODUCTIONPLAN_ID <> Cur_ProductionLine.M_ProductionPlan_ID
+                );
+          --IF every raw material and WIP is calculated the calculation process continues.
+          IF (v_count2 = 0) THEN
+            UPDATE M_PRODUCTIONLINE
+            SET CALCCOST = ROUND(v_Cost/Cur_ProductionLine.MOVEMENTQTY,4)
+            WHERE M_PRODUCTIONLINE_ID = Cur_ProductionLine.M_ProductionLine_ID;
+
+            v_ResultStr := 'M_Costing';
+            --Check if the product has any cost previously calculated.
+            SELECT COUNT(*) INTO v_count2
+            FROM M_COSTING
+            WHERE M_Product_ID = Cur_ProductionLine.M_PRODUCT_ID
+              AND ISPRODUCTION='Y';
+
+            --Insert cost per unit.
+            IF (v_count2 = 0) THEN
+              v_ResultStr := 'new cost';
+              Ad_Sequence_Next('M_Costing', Cur_ProductionLine.AD_ORG_ID, v_NextNo);
+              --First time
+              INSERT INTO M_COSTING (M_COSTING_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_CLIENT_ID,
+                            AD_ORG_ID, M_PRODUCT_ID, DATETO, DATEFROM, ISMANUAL,
+                            M_PRODUCTIONLINE_ID, QTY,
+                            PRICE,  CUMQTY,
+                            COST, ISPERMANENT, ISPRODUCTION, COSTTYPE)
+                     VALUES (v_NextNo,now(), p_User_ID, now(), p_User_ID, Cur_ProductionLine.AD_CLIENT_ID,
+                            Cur_ProductionLine.AD_ORG_ID, Cur_ProductionLine.M_PRODUCT_ID, TO_DATE('31-12-9999','DD-MM-YYYY'), v_ProductionDate, 'N',
+                            Cur_ProductionLine.M_PRODUCTIONLINE_ID, Cur_ProductionLine.MOVEMENTQTY,
+                            ROUND(v_Cost/Cur_ProductionLine.MOVEMENTQTY,4), COALESCE(v_Qty,0) + Cur_ProductionLine.MOVEMENTQTY,
+                            (CASE (Cur_ProductionLine.MOVEMENTQTY) WHEN 0 THEN 0 ELSE ROUND(v_Cost/Cur_ProductionLine.MOVEMENTQTY,4) END), 'N', 'Y', 'AV');
+            ELSE
+              v_ResultStr := 'update cost';
+              --Check if costing is correct, there must be only one cost
+              --valid on the production date
+              SELECT COUNT(*) INTO v_count2
+              FROM M_COSTING
+              WHERE M_Product_ID = Cur_ProductionLine.M_PRODUCT_ID
+                AND DATETO > v_ProductionDate
+                AND DATEFROM <= v_ProductionDate
+                AND ISPRODUCTION = 'Y';
+              IF (v_count2 = 1) THEN
+                --The previous calculated cost of the product must change its
+                --dateto to the production date.
+                SELECT M_Costing_ID, DATETO INTO v_Costing_ID, v_DateTo
+                FROM M_COSTING
+                WHERE M_Product_ID = Cur_ProductionLine.M_PRODUCT_ID
+                  AND DATETO > v_ProductionDate
+                  AND DATEFROM <=v_ProductionDate
+                  AND ISPRODUCTION='Y';
+
+                UPDATE M_COSTING
+                SET DATETO = v_ProductionDate
+                WHERE M_Costing_ID = v_Costing_ID
+                  AND ISPRODUCTION = 'Y';
+
+                --Calculate stocked product quantity just before production
+                SELECT CASE WHEN SUM(T.MOVEMENTQTY)>0 THEN SUM(T.MOVEMENTQTY)
+                       ELSE 0 END INTO v_Qty
+                FROM (SELECT M_PRODUCTIONLINE_ID, MOVEMENTQTY
+                      FROM M_TRANSACTION
+                      WHERE M_PRODUCT_ID = Cur_ProductionLine.M_PRODUCT_ID
+                        AND MOVEMENTDATE < v_ProductionDate
+                        AND M_PRODUCTIONLINE_ID <> Cur_ProductionLine.M_PRODUCTIONLINE_ID
+                      UNION
+                      SELECT MT.M_PRODUCTIONLINE_ID, MT.MOVEMENTQTY
+                      FROM M_TRANSACTION MT, M_PRODUCTIONLINE MP
+                      WHERE MT.M_PRODUCT_ID = Cur_ProductionLine.M_PRODUCT_ID
+                        AND MT.MOVEMENTDATE = v_ProductionDate
+                        AND MT.M_PRODUCTIONLINE_ID = MP.M_PRODUCTIONLINE_ID
+                        AND MT.M_PRODUCTIONLINE_ID <> Cur_ProductionLine.M_PRODUCTIONLINE_ID
+                        AND MP.CALCULATED = 'Y') T ;
+                --LEFT JOIN M_PRODUCTIONLINE ON T.M_PRODUCTIONLINE_ID = M_PRODUCTIONLINE.M_PRODUCTIONLINE_ID
+                --AND CALCULATED = 'Y';
+
+                --Insert new calculated cost
+                Ad_Sequence_Next('M_Costing', Cur_ProductionLine.AD_ORG_ID, v_NextNo);
+                v_ResultStr := 'insert cost';
+                INSERT INTO M_COSTING (M_COSTING_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_CLIENT_ID,
+                            AD_ORG_ID, M_PRODUCT_ID, DATETO, DATEFROM, ISMANUAL,
+                            M_PRODUCTIONLINE_ID, QTY,
+                            PRICE, CUMQTY,
+                            COST,
+                            ISPERMANENT, ISPRODUCTION, COSTTYPE)
+                       VALUES (v_NextNo,now(), p_User_ID, now(), p_User_ID, Cur_ProductionLine.AD_CLIENT_ID,
+                            Cur_ProductionLine.AD_ORG_ID, Cur_ProductionLine.M_PRODUCT_ID, v_DateTo, v_ProductionDate, 'N',
+                            Cur_ProductionLine.M_PRODUCTIONLINE_ID, Cur_ProductionLine.MOVEMENTQTY,
+                            ROUND(v_Cost/Cur_ProductionLine.MOVEMENTQTY,4), COALESCE(v_Qty,0) + Cur_ProductionLine.MOVEMENTQTY,
+                            (CASE (v_Qty+Cur_ProductionLine.MOVEMENTQTY) WHEN 0 THEN 0 ELSE ROUND(((v_Qty*v_CostOld)+(v_Cost))/(v_Qty+Cur_ProductionLine.MOVEMENTQTY),4)END),
+                                'N', 'Y', 'AV');
+              ELSIF (v_count2 = 0) THEN
+                SELECT COALESCE(MIN(DATEFROM), TO_DATE('31-12-9999','DD-MM-YYYY')) INTO v_DateTo
+                FROM M_COSTING
+                WHERE DATEFROM > v_ProductionDate
+                  AND M_PRODUCT_ID = Cur_ProductionLine.M_PRODUCT_ID;
+
+                --Calculate stocked product quantity just before production
+                SELECT CASE WHEN SUM(T.MOVEMENTQTY)>0 THEN SUM(T.MOVEMENTQTY)
+                       ELSE 0 END INTO v_Qty
+                FROM (SELECT M_PRODUCTIONLINE_ID, MOVEMENTQTY
+                      FROM M_TRANSACTION
+                      WHERE M_PRODUCT_ID = Cur_ProductionLine.M_PRODUCT_ID
+                        AND MOVEMENTDATE <= v_ProductionDate
+                        AND M_PRODUCTIONLINE_ID <> Cur_ProductionLine.M_PRODUCTIONLINE_ID ) T LEFT JOIN M_PRODUCTIONLINE ON T.M_PRODUCTIONLINE_ID = M_PRODUCTIONLINE.M_PRODUCTIONLINE_ID AND CALCULATED = 'Y';
+
+                --Insert new calculated cost
+                Ad_Sequence_Next('M_Costing', Cur_ProductionLine.AD_ORG_ID, v_NextNo);
+                v_ResultStr := 'insert cost';
+                INSERT INTO M_COSTING (M_COSTING_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_CLIENT_ID,
+                            AD_ORG_ID, M_PRODUCT_ID, DATETO, DATEFROM, ISMANUAL,
+                            M_PRODUCTIONLINE_ID, QTY,
+                            PRICE, CUMQTY,
+                            COST,
+                            ISPERMANENT, ISPRODUCTION, COSTTYPE)
+                       VALUES (v_NextNo,now(), p_User_ID, now(), p_User_ID, Cur_ProductionLine.AD_CLIENT_ID,
+                            Cur_ProductionLine.AD_ORG_ID, Cur_ProductionLine.M_PRODUCT_ID, v_DateTo, v_ProductionDate, 'N',
+                            Cur_ProductionLine.M_PRODUCTIONLINE_ID, Cur_ProductionLine.MOVEMENTQTY,
+                            ROUND(v_Cost/Cur_ProductionLine.MOVEMENTQTY,4), COALESCE(v_Qty,0) + Cur_ProductionLine.MOVEMENTQTY,
+                            (CASE (v_Qty+Cur_ProductionLine.MOVEMENTQTY) WHEN 0 THEN 0 ELSE ROUND(((v_Qty*v_CostOld)+(v_Cost))/(v_Qty+Cur_ProductionLine.MOVEMENTQTY),4)END),
+                              'N', 'Y', 'AV');
+
+              ELSE
+                --If for productiondate there are more than one calculated costs
+                --there is a data error, costs should be regenerated
+                ROLLBACK;
+                v_ResultStr := 'M_Costing to much lines, product: ' || Cur_ProductionLine.M_Product_ID;
+                v_Message := Cur_ProductionLine.VALUE || ' @CostingError@';
+                RAISE_APPLICATION_ERROR(-20000, v_Message);
+              END IF;
+            END IF;
+
+            --Set the current production line and all '-' production
+            --lines as calculated
+            UPDATE M_PRODUCTIONLINE
+            SET calculated='Y'
+            WHERE M_ProductionLine_ID = Cur_ProductionLine.M_ProductionLine_ID
+               OR (M_Product_ID = Cur_ProductionLine.M_Product_ID
+                   AND PRODUCTIONTYPE = '-'
+                   AND M_PRODUCTIONLINE_ID IN (SELECT M_PRODUCTIONLINE_ID
+                                               FROM M_PRODUCTIONLINE ppl, M_PRODUCTIONPLAN ppp
+                                               WHERE ppl.M_PRODUCTIONPLAN_ID = ppp.M_PRODUCTIONPLAN_ID
+                                                 AND ppp.M_PRODUCTION_ID = p_Production_ID));
+
+          END IF;
+        END LOOP;
+      END LOOP;
+
+      --Check if there still remain production lines not calculated
+      SELECT COUNT(*), MAX(pl.M_ProductionLine_ID) INTO v_count, v_count3
+      FROM M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp
+      WHERE pp.M_PRODUCTION_ID=p_Production_ID
+        AND pp.M_PRODUCTIONPLAN_ID = pl.M_PRODUCTIONPLAN_ID
+        AND pl.CALCULATED='N';
+      IF v_count = v_countAux THEN
+        v_Message := '@inProduction@ ' || v_ProductionNo || ' @CircularProduction@';
+        v_ResultStr := 'Exiting loop for production: ' || p_Production_ID || ' ' || v_count3 || ' count: ' || v_count;
+        RAISE_APPLICATION_ERROR(-20000, v_Message) ;
+      END IF;
+    END LOOP;
+
+    RETURN;
+
+END; --BODY
+EXCEPTION
+  WHEN  OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('Production: ' || p_Production_ID || ' ERROR AT: ' || v_ResultStr);
+    /*v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr);*/
+    RAISE;
+    RETURN;
+END MA_PRODUCTION_COST
+]]></body>
+    </function>
+  </database>

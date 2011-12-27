@@ -1,0 +1,125 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBUISEL_SELECTOR_TRG">
+    <trigger name="OBUISEL_SELECTOR_TRG" table="OBUISEL_SELECTOR" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  fieldCount NUMBER;
+  selectorCount NUMBER;
+  devModule   CHAR(1);
+  currentModuleID  VARCHAR2(32);
+  vAux NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    -- check table and datasource
+    IF (UPDATING OR INSERTING) THEN
+        IF :NEW.AD_TABLE_ID IS NULL AND :NEW.OBSERDS_DATASOURCE_ID IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@OBUISEL_DATASOURCE_OR_TABLE_MUST_BE_SET@');
+        END IF; 
+    END IF;
+
+    -- check that we can't change to a module not in development
+    IF (UPDATING) THEN
+        IF (COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.')) THEN
+            SELECT COUNT(*) 
+                INTO vAux
+                FROM AD_MODULE
+                WHERE AD_MODULE_ID = :old.AD_Module_ID
+                AND isindevelopment = 'N';
+            IF (vAux!=0) THEN
+                RAISE_APPLICATION_ERROR(-20000, '@ChangeNotInDevModule@');
+            END IF;
+        END IF;
+    END IF;
+
+    SELECT COUNT(*)
+        INTO devTemplate
+        FROM AD_MODULE
+        WHERE IsInDevelopment = 'Y'
+        AND Type = 'T';
+     
+    IF (UPDATING OR INSERTING) THEN
+        currentModuleID := :new.AD_Module_ID;
+    ELSE
+        currentModuleID := :old.AD_Module_ID;
+    END IF;
+
+    SELECT M.IsInDevelopment
+        INTO devModule
+        FROM AD_MODULE M
+        WHERE M.AD_MODULE_ID = currentModuleID;
+
+    IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+        IF (
+            COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+            COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+            COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.') OR
+            COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+            COALESCE(:NEW.Name , '.') != COALESCE(:OLD.Name , '.') OR
+            COALESCE(:NEW.Description , '.') != COALESCE(:OLD.Description , '.') OR
+            COALESCE(:NEW.Help , '.') != COALESCE(:OLD.Help , '.') OR
+            COALESCE(:NEW.OBUISEL_Selector_ID , '.') != COALESCE(:OLD.OBUISEL_Selector_ID , '.') OR
+            COALESCE(:NEW.AD_Reference_ID , '.') != COALESCE(:OLD.AD_Reference_ID , '.') OR
+            COALESCE(:NEW.AD_Table_ID , '.') != COALESCE(:OLD.AD_Table_ID , '.') OR
+            COALESCE(:NEW.AD_Column_ID , '.') != COALESCE(:OLD.AD_Column_ID , '.') OR
+            COALESCE(:NEW.WHERECLAUSE , '.') != COALESCE(:OLD.WHERECLAUSE , '.') OR
+            COALESCE(:NEW.OBSERDS_DATASOURCE_ID , '.') != COALESCE(:OLD.OBSERDS_DATASOURCE_ID , '.') OR
+            COALESCE(:NEW.OBCLKER_TEMPLATE_ID , '.') != COALESCE(:OLD.OBCLKER_TEMPLATE_ID , '.') OR
+            1=2) THEN
+            RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+        END IF;
+    END IF;
+
+    IF (INSERTING) THEN
+    	SELECT COUNT(*)
+        	INTO selectorCount
+	        FROM OBUISEL_SELECTOR
+        	WHERE OBUISEL_Selector_ID <> :NEW.OBUISEL_Selector_ID AND
+		AD_REFERENCE_ID=:NEW.AD_REFERENCE_ID;
+	if (selectorCount > 0) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@OBUISEL_ONE_SELECTOR_PER_REFERENCE@');
+	END IF;
+    END IF;
+
+    IF (UPDATING) THEN
+    	SELECT COUNT(*)
+        	INTO fieldCount
+	        FROM OBUISEL_SELECTOR_FIELD
+        	WHERE OBUISEL_Selector_ID = :OLD.OBUISEL_Selector_ID;
+	if (fieldCount > 0 AND (
+            COALESCE(:NEW.AD_Table_ID , '.') != COALESCE(:OLD.AD_Table_ID , '.') OR
+            COALESCE(:NEW.OBSERDS_DATASOURCE_ID , '.') != COALESCE(:OLD.OBSERDS_DATASOURCE_ID , '.'))) THEN
+            RAISE_APPLICATION_ERROR(-20000, '@OBUISEL_CAN_NOT_CHANGE_DATASOURCE_OR_TABLE_WITH_FIELDS@');
+	END IF;
+		
+    END IF;
+
+
+    -- don't allow insert/delete if not in development
+    IF ((DELETING OR INSERTING) AND devModule='N') THEN
+        RAISE_APPLICATION_ERROR(-20533, 'Cannot insert/delete objects in a module not in development.');
+    END IF;
+END OBUISEL_SELECTOR_TRG
+]]></body>
+    </trigger>
+  </database>

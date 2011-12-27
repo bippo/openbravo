@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass id="class" name="InsertAccesData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT DISTINCT tn.Node_ID,tn.Parent_ID, m.ISSUMMARY, m.action, m.AD_WINDOW_ID as adwindowid,
+        m.AD_PROCESS_ID as adprocessid, m.AD_FORM_ID as adformid,
+        tb.ad_process_id as printreport, tb.editreference as editreference
+        FROM AD_TREENODE tn, AD_MENU m left join ad_tab tb 
+                                       on m.ad_window_id = tb.ad_window_id
+                                          and (tb.ad_process_id is not null or tb.editreference is not null)
+        WHERE tn.NODE_ID = m.AD_MENU_ID 
+        AND tn.ad_tree_id = '10' 
+        AND tn.IsActive='Y' 
+    ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="selectWindow" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select 1 from ad_window_Access
+        where ad_role_id=?
+        and ad_window_id=?
+    ]]>
+    </Sql>
+        <Parameter name="roleId"/>
+        <Parameter name="windowId"/>
+  </SqlMethod>
+  <SqlMethod name="selectWindowButtons" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select distinct ad_column.ad_process_id as adprocessid
+        from ad_tab, ad_field, ad_column
+        where ad_tab.ad_window_id = ?
+          and ad_tab.ad_tab_id = ad_field.ad_tab_id
+          and ad_field.ad_column_id = ad_column.ad_column_id
+          and ad_column.ad_process_id is not null
+          and not exists (select 1 from ad_process_access pa
+                          where pa.ad_process_id = ad_column.ad_process_id
+                            and pa.ad_role_id = ?)
+    ]]>
+    </Sql>
+        <Parameter name="windowId"/>
+        <Parameter name="roleId"/>
+  </SqlMethod>
+  <SqlMethod name="insertWindow" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        INSERT INTO ad_WINDOW_ACCESS (ad_WINDOW_ACCESS_ID, AD_WINDOW_ID, AD_ROLE_ID, AD_CLIENT_ID,
+        AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISREADWRITE )
+        VALUES (get_uuid(), ?, ?, ?, ?, 'Y', now(), ?, now(), ?, 'Y')
+
+    ]]>
+    </Sql>
+        <Parameter name="windowId"/>
+        <Parameter name="roleId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="user"/>
+        <Parameter name="user"/>
+  </SqlMethod>
+  <SqlMethod name="selectProcess" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select 1 from ad_process_Access
+        where ad_role_id=?
+        and ad_process_id=?
+    ]]>
+    </Sql>
+        <Parameter name="roleId"/>
+        <Parameter name="processId"/>
+  </SqlMethod>
+  <SqlMethod name="insertProcess" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        INSERT INTO ad_process_ACCESS (ad_process_ACCESS_ID, AD_process_ID, AD_ROLE_ID, AD_CLIENT_ID,
+        AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISREADWRITE )
+        VALUES (get_uuid(), ?, ?, ?, ?, 'Y', now(), ?, now(), ?, 'Y')
+
+    ]]>
+    </Sql>
+        <Parameter name="processId"/>
+        <Parameter name="roleId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="user"/>
+        <Parameter name="user"/>
+  </SqlMethod>
+  <SqlMethod name="selectForm" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        select 1 from ad_form_Access
+        where ad_role_id=?
+        and ad_form_id=?
+    ]]>
+    </Sql>
+        <Parameter name="roleId"/>
+        <Parameter name="formId"/>
+  </SqlMethod>
+  <SqlMethod name="insertForm" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        INSERT INTO ad_form_ACCESS (ad_form_ACCESS_ID, AD_form_ID, AD_ROLE_ID, AD_CLIENT_ID,
+        AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISREADWRITE )
+        VALUES (get_uuid(), ?, ?, ?, ?, 'Y', now(), ?, now(), ?, 'Y')
+
+    ]]>
+    </Sql>
+        <Parameter name="formId"/>
+        <Parameter name="roleId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="user"/>
+        <Parameter name="user"/>
+  </SqlMethod>
+
+</SqlClass>

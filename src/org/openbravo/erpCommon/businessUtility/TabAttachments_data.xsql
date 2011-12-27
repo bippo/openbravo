@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="TabAttachmentsData" package="org.openbravo.erpCommon.businessUtility" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT F.C_FILE_ID, F.TEXT, F.NAME, D.NAME AS DATATYPE, F.C_DATATYPE_ID, F.AD_TABLE_ID, 
+        '' AS ISREADONLY, D.FORMAT AS DATATYPE_CONTENT, F.AD_RECORD_ID 
+        FROM C_FILE F left join AD_DATATYPE D on F.c_DATATYPE_ID = D.ad_DATATYPE_ID
+        WHERE F.AD_CLIENT_ID IN ('1') 
+        AND F.AD_ORG_ID IN ('1') 
+        AND F.ISACTIVE = 'Y' 
+        AND F.AD_TABLE_ID = ? 
+        AND F.AD_RECORD_ID = ? 
+        ORDER BY F.SEQNO
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="adClientId" optional="true" type="replace" after="WHERE F.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adOrgId" optional="true" type="replace" after="AND F.AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="adTableId"/>
+        <Parameter name="recordId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectEdit" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT F.C_FILE_ID, F.TEXT, F.NAME, D.NAME AS DATATYPE, F.C_DATATYPE_ID, F.AD_TABLE_ID, 
+        '' AS ISREADONLY, D.FORMAT AS DATATYPE_CONTENT, F.AD_RECORD_ID 
+        FROM C_FILE F left join AD_DATATYPE D on F.c_DATATYPE_ID = D.ad_DATATYPE_ID
+        WHERE F.ISACTIVE = 'Y' 
+        AND F.C_FILE_ID = ? 
+      ]]></Sql>
+        <Parameter name="cFileId"/>
+   </SqlMethod>
+   <SqlMethod name="selectNext" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT C_FILE_ID AS ID 
+        FROM C_FILE 
+        WHERE ISACTIVE = 'Y'
+        AND AD_CLIENT_ID IN ('1') 
+        AND AD_ORG_ID IN ('1') 
+        AND SEQNO > (SELECT SEQNO FROM C_FILE WHERE C_FILE_ID = ?)
+        AND AD_TABLE_ID = ?
+        AND AD_RECORD_ID = ?
+        ORDER BY SEQNO
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="adClientId" optional="true" type="replace" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adOrgId" optional="true" type="replace" after="AND AD_ORG_ID IN (" text="'1'"/>
+        <Parameter name="cFileId"/>
+        <Parameter name="adTableId"/>
+        <Parameter name="recordId"/>
+   </SqlMethod>
+   <SqlMethod name="selectReference" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT F.C_FILE_ID, F.NAME, D.FORMAT AS DATATYPE, F.AD_TABLE_ID, F.AD_RECORD_ID 
+        FROM C_FILE F left join AD_DATATYPE D on F.c_DATATYPE_ID = D.ad_DATATYPE_ID
+        WHERE  F.C_FILE_ID = ? 
+      ]]></Sql>
+        <Parameter name="cFileId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTabInfo" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT AD_TABLE_ID, (CASE UIPATTERN WHEN 'RO' THEN 'Y' ELSE (CASE ISINFOTAB WHEN 'Y' THEN 'Y' ELSE 'N' END) END) AS ISREADONLY 
+        FROM AD_TAB WHERE AD_TAB_ID = ?
+      ]]></Sql>
+        <Parameter name="adTabId"/>
+   </SqlMethod>
+   <SqlMethod name="insert" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        INSERT INTO C_FILE (C_FILE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, 
+        UPDATED, UPDATEDBY, AD_TABLE_ID, AD_RECORD_ID, C_DATATYPE_ID, TEXT, NAME, SEQNO)
+        VALUES(?, ?, ?, 'Y', now(), ?, 
+        now(), ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(SEQNO), 0) + 10 FROM C_FILE WHERE AD_TABLE_ID = ? AND AD_RECORD_ID=?))
+      ]]></Sql>
+        <Parameter name="cFileId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="adTableId"/>
+        <Parameter name="adRecordId"/>
+        <Parameter name="cDatatypeId"/>
+        <Parameter name="text"/>
+        <Parameter name="name"/>
+        <Parameter name="adTableId"/>
+        <Parameter name="adRecordId"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        UPDATE C_FILE SET UPDATED=now(), UPDATEDBY = ?, C_DATATYPE_id = ?, TEXT=?
+        WHERE C_FILE_ID = ? 
+      ]]></Sql>
+        <Parameter name="adUserId"/>
+        <Parameter name="cDatatypeId"/>
+        <Parameter name="text"/>
+        <Parameter name="cFileId"/>
+   </SqlMethod>
+   <SqlMethod name="delete" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        DELETE FROM C_FILE WHERE C_FILE_ID = ?
+      ]]></Sql>
+        <Parameter name="cFileId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectRecordIdentifier" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+            select ad_column_identifier(tablename, to_char(?), ?) as ID
+            from ad_tab a,
+                 ad_table t
+            where ad_tab_id = ?
+            and a.ad_table_id = t.ad_table_id
+      ]]></Sql>
+        <Parameter name="recordID"/>
+        <Parameter name="lang"/>
+        <Parameter name="tabID"/>
+   </SqlMethod>
+</SqlClass>

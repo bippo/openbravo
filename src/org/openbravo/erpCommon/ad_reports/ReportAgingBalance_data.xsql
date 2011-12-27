@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="ReportAgingBalanceData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment>Clase ReportAgingBalanceData</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for relation</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT BPARTNER AS BPARTNER_ID, AD_COLUMN_IDENTIFIER('C_Bpartner',TO_CHAR(BPARTNER), ?) AS BPARTNER, ISRECEIPT,
+        SUM(CASE(SCOPE) WHEN 0 THEN AMOUNT ELSE 0 END) AS ZERO,
+        SUM(CASE(SCOPE) WHEN 1 THEN AMOUNT ELSE 0 END) AS ONE,
+        SUM(CASE(SCOPE) WHEN 2 THEN AMOUNT ELSE 0 END) AS TWO,
+        SUM(CASE(SCOPE) WHEN 3 THEN AMOUNT ELSE 0 END) AS THREE,
+        SUM(CASE(SCOPE) WHEN 4 THEN AMOUNT ELSE 0 END) AS FOUR,
+        SUM(CASE(SCOPE) WHEN 5 THEN AMOUNT ELSE 0 END) AS FIVE,
+        SUM(AMOUNT) AS TOTAL, ? AS AD_ORG_ID
+        FROM(
+          SELECT P.C_BPARTNER_ID AS BPARTNER, 
+          C_CURRENCY_CONVERT(P.AMOUNT, P.C_CURRENCY_ID, ?, (CASE WHEN P.C_INVOICE_ID IS NOT NULL THEN I.DATEINVOICED 
+                                                                 WHEN P.C_SETTLEMENT_GENERATE_ID IS NOT NULL THEN S.DATETRX 
+                                                                 ELSE P.DATEPLANNED END), null, P.ad_client_id, P.ad_org_id) AS AMOUNT, 
+          P.ISRECEIPT, C_AGING_GET_SCOPE(P.DATEPLANNED, TO_NUMBER(?), TO_NUMBER(?), TO_NUMBER(?), TO_NUMBER(?)) AS SCOPE, P.C_DEBT_PAYMENT_ID
+          FROM  C_DEBT_PAYMENT P LEFT JOIN C_INVOICE I ON (I.C_INVOICE_ID = P.C_INVOICE_ID)
+          LEFT JOIN C_SETTLEMENT S ON (S.C_SETTLEMENT_ID = P.C_SETTLEMENT_GENERATE_ID)
+          WHERE C_DEBT_PAYMENT_STATUS(P.C_SETTLEMENT_CANCEL_ID, P.CANCEL_PROCESSED, P.GENERATE_PROCESSED, P.ISPAID, P.ISVALID, P.C_CASHLINE_ID, P.C_BANKSTATEMENTLINE_ID) = 'P'
+          AND P.ISRECEIPT = ?
+          AND 1=1
+          AND P.AD_ORG_ID IN('2')
+          AND P.AD_CLIENT_ID IN ('1')
+          AND P.AD_ORG_ID IN ('1')
+          ) AAA
+        GROUP BY BPARTNER, ISRECEIPT
+      ]]></Sql>
+    <Parameter name="adLanguage"/>  
+    <Parameter name="orgTrx"></Parameter>
+    <Parameter name="cCurrencyConv"/>
+    <Parameter name="one"></Parameter>
+    <Parameter name="two"></Parameter>
+    <Parameter name="three"></Parameter>
+    <Parameter name="four"></Parameter>
+    <Parameter name="isreceipt"></Parameter>
+    <Parameter name="cBpartnerId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND P.C_BPARTNER_ID IN ]]></Parameter>
+    <Parameter name="orgFamily" type="replace" optional="true" after="P.AD_ORG_ID IN(" text="'2'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="P.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="P.AD_ORG_ID IN (" text="'1'"/>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment>Create a registry</SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

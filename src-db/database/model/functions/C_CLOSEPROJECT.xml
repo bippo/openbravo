@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CLOSEPROJECT">
+    <function name="C_CLOSEPROJECT" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_p_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    v_ProjectStatus VARCHAR(60) ;
+    v_projectcategory   VARCHAR(60);
+    v_temppricelist     VARCHAR(60);
+    v_Created NUMBER:=0;
+    FINISH_PROCESS BOOLEAN:=false;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get PARAMETERS
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        i.AD_User_ID,
+        i.AD_Client_ID,
+        i.AD_Org_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date,
+        p.P_Date_To
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_p_Record_ID:=Cur_Parameter.Record_ID;
+      v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+      IF(Cur_Parameter.ParameterName='ChangeProjectStatus') THEN
+        v_ProjectStatus:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  ChangeProjectStatus=' || v_ProjectStatus) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_p_Record_ID) ;
+    -- Check that we have some restrictions
+
+    SELECT projectcategory, createtemppricelist
+    INTO v_projectcategory, v_temppricelist
+    FROM c_project
+    WHERE c_project_id = v_p_Record_ID;
+
+    v_ResultStr:='CheckRestriction';
+    IF(v_ProjectStatus IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@Notprojectstatus@');
+    ELSIF v_ProjectStatus<>'OC' THEN
+      RAISE_APPLICATION_ERROR(-20000, '@Invalidprojectstatus@');
+    END IF;
+    IF(NOT FINISH_PROCESS) THEN
+      v_ResultStr:='StartLoop';
+      IF (v_projectcategory<>'S' AND v_temppricelist='Y') THEN
+        UPDATE M_PRICELIST_VERSION
+          SET ISACTIVE='N',
+          updated=now(),
+          updatedby=v_AD_User_ID
+        WHERE M_PRICELIST_ID IN
+          (  SELECT M_PRICELIST_ID FROM C_PROJECT WHERE C_PROJECT_ID=v_p_Record_ID)
+          ;
+        UPDATE M_PRICELIST
+          SET ISACTIVE='N',
+          updated=now(),
+          updatedby=v_AD_User_ID
+        WHERE M_PRICELIST_ID IN
+          (  SELECT M_PRICELIST_ID FROM C_PROJECT WHERE C_PROJECT_ID=v_p_Record_ID)
+          ;
+        UPDATE M_PRICELIST_VERSION
+          SET ISACTIVE='N',
+          updated=now(),
+          updatedby=v_AD_User_ID
+        WHERE M_PRICELIST_ID IN
+          ( SELECT M_PRICELIST_ID FROM C_PROJECT_VENDOR WHERE C_PROJECT_ID=v_p_Record_ID)
+          ;
+        UPDATE M_PRICELIST
+          SET ISACTIVE='N',
+          updated=now(),
+          updatedby=v_AD_User_ID
+        WHERE M_PRICELIST_ID IN
+          (  SELECT M_PRICELIST_ID FROM C_PROJECT_VENDOR WHERE C_PROJECT_ID=v_p_Record_ID)
+          ;
+      END IF;
+      UPDATE C_PROJECT
+        SET projectstatus=v_ProjectStatus,
+        DATEFINISH=now(),
+        updated=now(),
+        updatedby=v_AD_User_ID
+      WHERE c_project_id=v_p_Record_ID;
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_CLOSEPROJECT
+]]></body>
+    </function>
+  </database>

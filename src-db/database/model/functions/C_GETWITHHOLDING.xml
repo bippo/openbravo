@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_GETWITHHOLDING">
+    <function name="C_GETWITHHOLDING" type="NUMERIC">
+      <parameter name="id_invoice_in" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  _Francesco Finamore_______________________.
+************************************************************************/
+
+--Cursori usati
+TYPE RECORD IS REF CURSOR;
+    curInvoice     RECORD;
+    curBusPart     RECORD;
+    curBP_WithHold RECORD;
+    curWithHold    RECORD;
+    curTaxInps     RECORD;
+
+--Business Partner
+IdBusPart varchar(32);
+--Business Partner WithHolding
+IdWithHolding varchar(32);
+IsIncludedTax char(1);
+IdTax varchar(32);
+IsPercentWh char(1);
+baseamountpercent NUMBER;
+--WithHolding
+withpercent NUMBER;
+--Tax
+IsWithHoldingTax char(1);
+
+TotCompensi NUMBER;
+base_amount NUMBER;
+Withholding varchar(32);
+TaxInps NUMBER;
+TaxAmount NUMBER;
+
+BEGIN
+Withholding:=0;
+-- Fattura
+FOR curInvoice IN
+    (SELECT *
+        FROM C_INVOICE
+        WHERE C_INVOICE_ID = id_invoice_in
+    )
+    LOOP
+        IdBusPart:=curInvoice.C_BPARTNER_ID;
+        IdWithHolding:=curInvoice.C_WITHHOLDING_ID;
+    EXIT;
+END LOOP;
+
+-- Compensi da linee di fattura
+select sum(LINENETAMT) into TotCompensi from C_INVOICELINE
+where C_INVOICE_ID= id_invoice_in
+and COALESCE(EXCLUDEFORWITHHOLDING,'N') <> 'Y' ;
+
+-- Dati del Businness Partner
+FOR curBusPart IN
+    (SELECT *
+        FROM C_BPARTNER
+        WHERE C_BPARTNER_ID = IdBusPart
+    )
+    LOOP
+        -- IdBusPart:=curBusPart.C_BPARTNER_ID;
+    EXIT;
+END LOOP;
+-- WithHolding del Businness Partner
+FOR curBP_WithHold IN
+    (SELECT *
+        FROM C_BP_WITHHOLDING
+        WHERE C_BPARTNER_ID = IdBusPart
+        and C_WITHHOLDING_ID = IdWithHolding
+    )
+    LOOP
+        IsIncludedTax := curBP_WithHold.INCLUDE_TAX;
+        IdTax := curBP_WithHold.C_TAX_ID;
+        -- This parameters is for manage the agents, for the other is 100%
+        IsPercentWh := curBP_WithHold.IS_PERCENT_WH;
+        if IsPercentWh ='Y' then
+            baseamountpercent := curBP_WithHold.WH_PERCENT;
+         else
+            baseamountpercent := 100;
+         end if;
+    EXIT;
+END LOOP;
+
+if (IdWithHolding is null) then
+  return 0;
+end if;
+-- 1) Calcolo la %ritenuta
+FOR curWithHold IN
+    (SELECT *
+        FROM C_WITHHOLDING
+        WHERE C_WITHHOLDING_ID = IdWithHolding
+    )
+    LOOP
+        withpercent:=curWithHold.RATE;
+    EXIT;
+END LOOP;
+
+-- 1) Calcolo la %inps
+if IsIncludedTax = 'Y' then
+   select coalesce(sum(TAXAMT),0) into  TaxAmount from C_invoicetax
+   where C_TAX_ID= IdTax and C_INVOICE_ID = id_invoice_in;
+
+   FOR curTaxInps IN
+    (SELECT *
+        FROM C_TAX
+        WHERE C_TAX_ID = IdTax
+    )
+    LOOP
+        IsWithHoldingTax:=curTaxInps.ISWITHHOLDINGTAX;
+    EXIT;
+    END LOOP;
+
+     if not (IsWithHoldingTax='Y') then
+      TaxAmount := 0;
+     end if;
+else
+  TaxInps :=0 ;
+  TaxAmount := 0;
+end if;
+-- 3) base imponibile
+base_amount:=TotCompensi*baseamountpercent/100 ;
+--TaxAmount := TaxInps*base_amount/100;
+base_amount := base_amount + TaxAmount ;
+-- 4) Calcolo finale
+Withholding:=(withpercent*base_amount)/100;
+
+
+Return Withholding;
+END C_GETWITHHOLDING
+]]></body>
+    </function>
+  </database>

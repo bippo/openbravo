@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ORDERLINE_TRG">
+    <trigger name="C_ORDERLINE_TRG" table="C_ORDERLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************/
+
+  v_newTaxBaseAmt NUMBER;
+  v_oldTaxBaseAmt NUMBER;
+  v_oldLine NUMBER:= 0;
+  v_newLineNetAmt NUMBER:= 0;
+  v_newLineAlternate NUMBER:= 0;
+  v_taxAmt NUMBER:= 0;
+  v_BaseAmount C_TAX.BASEAMOUNT%TYPE;
+  v_HasTaxLine  BOOLEAN := FALSE;
+  v_Prec   NUMBER;
+  v_ID   VARCHAR2(32);
+  v_Processed  VARCHAR(60);
+  v_UOM_ID    VARCHAR2(32);
+  v_IsSOTrx CHAR(1);
+  v_Count NUMBER;
+  v_taxBaseAmt NUMBER;
+  v_rate NUMBER;
+  v_isSummary CHAR(1);
+  xTaxAmt NUMBER:=0;
+  
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+IF (UPDATING) THEN
+  IF NOT(COALESCE(:old.M_Product_ID,'0') <> COALESCE(:NEW.M_Product_ID,'0')
+  OR COALESCE(:old.LineNetAmt,0) <> COALESCE(:NEW.LineNetAmt,0)
+  OR COALESCE(:old.FreightAmt,0) <> COALESCE(:NEW.FreightAmt,0)
+  OR COALESCE(:old.ChargeAmt,0) <> COALESCE(:NEW.ChargeAmt,0)
+  OR COALESCE(:old.C_Tax_ID,'0') <> COALESCE(:NEW.C_Tax_ID,'0')
+  OR COALESCE(:old.C_Uom_ID,'0') <> COALESCE(:NEW.C_Uom_ID,'0')
+  OR COALESCE(:old.qtyOrdered,0) <> COALESCE(:NEW.qtyOrdered,0)
+  OR COALESCE(:old.PriceActual,0) <> COALESCE(:NEW.PriceActual,0))
+ THEN
+  RETURN;
+  END IF;
+ END IF;
+ /**
+  * Check Product changes = not possible when reservation, invoice or delivery exists
+  */
+ IF (DELETING) THEN
+  IF (:old.QtyReserved <> 0 AND :old.C_ORDER_DISCOUNT_ID IS NULL) THEN
+   RAISE_APPLICATION_ERROR(-20200, 'Changed Product had Reservation=' || :old.QtyReserved);
+  ELSIF (:old.QtyDelivered <> 0) THEN
+   RAISE_APPLICATION_ERROR(-20201, 'Changed Product had Delieveries=' || :old.QtyDelivered);
+  ELSIF (:old.QtyInvoiced <> 0) THEN
+   RAISE_APPLICATION_ERROR(-20202, 'Changed Product was Invoiced=' || :old.QtyInvoiced);
+  END IF;
+ ELSIF (UPDATING) THEN
+   SELECT issotrx INTO v_IsSOTrx
+   FROM c_order
+   WHERE c_order_id = :old.c_order_id;
+   IF (:old.M_Product_ID <> :NEW.M_Product_ID) THEN
+     IF (:old.QtyReserved <> 0) THEN
+       RAISE_APPLICATION_ERROR(-20203, 'Changed Product had Reservation=' || :old.QtyReserved);
+     ELSIF (:old.QtyDelivered <> 0) THEN
+       RAISE_APPLICATION_ERROR(-20204, 'Changed Product had Delieveries=' || :old.QtyDelivered);
+     ELSIF (:old.QtyInvoiced <> 0) THEN
+       RAISE_APPLICATION_ERROR(-20205, 'Changed Product was Invoiced=' || :old.QtyInvoiced);
+     ELSIF (v_IsSOTrx = 'N') THEN
+       SELECT count(*) INTO v_Count
+       FROM m_inoutline
+       WHERE c_orderline_id = :old.c_orderline_id;
+       IF (v_count > 0) THEN
+         RAISE_APPLICATION_ERROR(-20206, 'Changed Product has good receipts');
+       END IF;
+     END IF;
+   END IF;
+ END IF;
+
+ -- Get ID
+ IF (UPDATING OR INSERTING) THEN
+     IF (:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+       SELECT C_UOM_ID INTO v_UOM_ID FROM M_PRODUCT WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+       IF (COALESCE(v_UOM_ID,'0') <> COALESCE(:NEW.C_UOM_ID,'0')) THEN
+         RAISE_APPLICATION_ERROR(-20111, 'Unit of Measure mismatch (product/transaction)');
+       END IF;
+     END IF;
+  v_ID := :new.C_Order_ID;
+ ELSE
+  v_ID := :old.C_Order_ID;
+ END IF;
+
+ SELECT StdPrecision
+ INTO v_Prec
+ FROM C_Currency, C_Order
+ WHERE C_Currency.C_Currency_ID = C_Order.C_Currency_ID
+ AND C_Order_ID = v_ID;
+ /**
+  * Round Base
+  */
+ --v_Prec := 2;
+ IF (INSERTING OR UPDATING) THEN
+     -- Modified by I.Ciordia. Sometimes js fails calculting lineNet
+  :new.LineNetAmt := ROUND(:new.QtyOrdered*:new.PriceActual, v_Prec);-- Modified by I.Ciordia
+  :new.FreightAmt := ROUND(:new.FreightAmt, v_Prec);
+  :new.ChargeAmt := ROUND(:new.ChargeAmt, v_Prec);
+  IF (round(to_number(:NEW.QTYORDERED) * to_number(:NEW.PRICEACTUAL),v_Prec) != to_number(:NEW.LINENETAMT)) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@LineAmountNotCorrect@') ;
+    END IF;
+ END IF;
+
+
+END C_ORDERLINE_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+  <database name="VIEW AD_REF_LIST_V">
+    <view name="AD_REF_LIST_V"><![CDATA[SELECT ad_ref_list.ad_ref_list_id, ad_ref_list.value, to_char(ad_ref_list.name) AS name, 'en_US' AS ad_language, ad_ref_list.ad_reference_id
+FROM ad_ref_list
+UNION 
+SELECT v1.ad_ref_list_id, v1.value, COALESCE(v1.name_trl, v2.name) AS name, v1.ad_language, v1.ad_reference_id
+FROM (SELECT ad_ref_list.ad_ref_list_id, ad_ref_list.value, to_char(ad_ref_list_trl.name) AS name_trl, '' AS name, ad_ref_list_trl.ad_language, ad_ref_list.ad_reference_id
+FROM ad_ref_list, ad_ref_list_trl
+WHERE ad_ref_list.ad_ref_list_id = ad_ref_list_trl.ad_ref_list_id) v1, (SELECT ad_ref_list.ad_ref_list_id, ad_ref_list.value, to_char(ad_ref_list.name) AS name, ad_language.ad_language, ad_ref_list.ad_reference_id
+FROM ad_ref_list, ad_language
+WHERE ad_language.issystemlanguage = 'Y') v2
+WHERE v1.ad_ref_list_id = v2.ad_ref_list_id AND v1.ad_reference_id = v2.ad_reference_id]]></view>
+  </database>

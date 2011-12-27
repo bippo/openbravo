@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_PROJECTLINE_TRG3">
+    <trigger name="C_PROJECTLINE_TRG3" table="C_PROJECTLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+      
+      v_oldLine_PlannedQty NUMBER:=0;
+      v_newLine_PlannedQty NUMBER:=0;
+      v_oldLine_PlannedAmt NUMBER:=0;
+      v_newLine_PlannedAmt NUMBER:=0;
+      v_oldLine_PlannedMarginAmt NUMBER:=0;
+      v_newLine_PlannedMarginAmt NUMBER:=0;
+      v_oldLine_CommittedAmt NUMBER:=0;
+      v_newLine_CommittedAmt NUMBER:=0;
+      v_oldLine_CommittedQty NUMBER:=0;
+      v_newLine_CommittedQty NUMBER:=0;
+      v_oldLine_InvoicedAmt NUMBER:=0;
+      v_newLine_InvoicedAmt NUMBER:=0;
+      v_oldLine_InvoicedQty NUMBER:=0;
+      v_newLine_InvoicedQty NUMBER:=0;
+      v_oldLine_PlannedPOAmt NUMBER:=0;
+      v_newLine_PlannedPOAmt NUMBER:=0;
+     
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_ProjectLine_Trg2.sql,v 1.2 2003/05/26 22:31:15 jjanke Exp $
+    ***
+    * Title:   Trigger recalculation of all projects
+    * Description:
+    *         Where lines were updated in the last minute
+    ************************************************************************/
+
+ IF(UPDATING OR DELETING) THEN
+ v_oldLine_PlannedQty:= COALESCE(:old.PlannedQty,0);
+ v_oldLine_PlannedAmt:=COALESCE(:old.PlannedAmt,0);
+ IF (:old.PLANNEDPRICE = 0) THEN
+   v_oldLine_PlannedMarginAmt := 0;
+ ELSE
+   v_oldLine_PlannedMarginAmt:=COALESCE((COALESCE(:old.PLANNEDPRICE,0)-COALESCE(:old.PLANNEDPOPRICE,0))*100/COALESCE(:old.PLANNEDPRICE,1),0);
+ END IF;
+ v_oldLine_CommittedAmt :=COALESCE(:old.CommittedAmt,0);
+ v_oldLine_CommittedQty :=COALESCE(:old.CommittedQty,0);
+ v_oldLine_InvoicedAmt :=COALESCE(:old.InvoicedAmt,0);
+ v_oldLine_InvoicedQty:=COALESCE(:old.InvoicedQty,0);
+ v_oldLine_PlannedPOAmt:=COALESCE(COALESCE(:old.PlannedPrice, 0) *:old.PlannedQty,0);
+ END IF;
+ IF (INSERTING OR UPDATING) THEN
+ v_newLine_PlannedQty := COALESCE(:new.PlannedQty,0);
+  v_newLine_PlannedAmt:=COALESCE(:new.PlannedAmt,0);
+  IF (:new.PLANNEDPRICE = 0) THEN
+    v_newLine_PlannedMarginAmt := 0;
+  ELSE
+    v_newLine_PlannedMarginAmt:=COALESCE((COALESCE(:new.PLANNEDPRICE,0)-COALESCE(:new.PLANNEDPOPRICE,0))*100/COALESCE(:new.PLANNEDPRICE,1),0);
+  END IF;
+  v_newLine_CommittedAmt :=COALESCE(:new.CommittedAmt,0);
+  v_newLine_CommittedQty :=COALESCE(:new.CommittedQty,0);
+  v_newLine_InvoicedAmt :=COALESCE(:new.InvoicedAmt,0);
+  v_newLine_InvoicedQty:=COALESCE(:new.InvoicedQty,0);
+  v_newLine_PlannedPOAmt:=COALESCE(COALESCE(:new.PlannedPrice, 0) *:new.PlannedQty,0);
+ UPDATE C_PROJECT SET 
+     PlannedQty = PlannedQty - v_oldLine_PlannedQty + v_newLine_PlannedQty,
+     PlannedAmt=PlannedAmt - v_oldLine_PlannedAmt + v_newLine_PlannedAmt,
+     PlannedMarginAmt=PlannedMarginAmt - v_oldLine_PlannedMarginAmt + v_newLine_PlannedMarginAmt,
+     CommittedAmt=CommittedAmt - v_oldLine_CommittedAmt + v_newLine_CommittedAmt,
+     CommittedQty=CommittedQty - v_oldLine_CommittedQty + v_newLine_CommittedQty,
+     InvoicedAmt=InvoicedAmt - v_oldLine_InvoicedAmt + v_newLine_InvoicedAmt,
+     InvoicedQty=InvoicedQty - v_oldLine_InvoicedQty + v_newLine_InvoicedQty,
+     PlannedPOAmt=PlannedPOAmt - v_oldLine_PlannedPOAmt + v_newLine_PlannedPOAmt 
+     WHERE C_PROJECT_ID = :new.C_PROJECT_ID;
+ ELSE
+ UPDATE C_PROJECT SET 
+     PlannedQty = PlannedQty - v_oldLine_PlannedQty + v_newLine_PlannedQty,
+     PlannedAmt=PlannedAmt - v_oldLine_PlannedAmt + v_newLine_PlannedAmt,
+     PlannedMarginAmt=PlannedMarginAmt - v_oldLine_PlannedMarginAmt + v_newLine_PlannedMarginAmt,
+     CommittedAmt=CommittedAmt - v_oldLine_CommittedAmt + v_newLine_CommittedAmt,
+     CommittedQty=CommittedQty - v_oldLine_CommittedQty + v_newLine_CommittedQty,
+     InvoicedAmt=InvoicedAmt - v_oldLine_InvoicedAmt + v_newLine_InvoicedAmt,
+     InvoicedQty=InvoicedQty - v_oldLine_InvoicedQty + v_newLine_InvoicedQty,
+     PlannedPOAmt=PlannedPOAmt - v_oldLine_PlannedPOAmt + v_newLine_PlannedPOAmt 
+     WHERE C_PROJECT_ID = :OLD.C_PROJECT_ID;
+ END IF;
+END C_PROJECTLINE_TRG3
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBCQL_QUERY_COLUMN_MOD_TRG">
+    <trigger name="OBCQL_QUERY_COLUMN_MOD_TRG" table="OBCQL_QUERY_COLUMN" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devtemplate NUMBER;
+  devmodule   CHAR(1);
+  currentwidgetqueryid  VARCHAR2(32);
+
+BEGIN
+  IF (AD_isTriggerEnabled()='N') THEN
+    RETURN;
+  END IF;
+
+  SELECT COUNT(*) INTO devtemplate
+  FROM ad_module
+  WHERE isindevelopment = 'Y'
+    AND type = 'T';
+
+  IF (UPDATING OR INSERTING) THEN
+    currentwidgetqueryid := :new.obcql_widget_query_id;
+  ELSE
+    currentwidgetqueryid := :old.obcql_widget_query_id;
+  END IF;
+
+  SELECT m.isindevelopment INTO devmodule
+  FROM ad_module m, obkmo_widget_class wc, obcql_widget_query wq
+  WHERE m.ad_module_id = wc.ad_module_id
+    AND wq.obkmo_widget_class_id = wc.obkmo_widget_class_id
+    AND wq.obcql_widget_query_id = currentwidgetqueryid;
+
+  IF (UPDATING AND devtemplate=0 AND devmodule='N') THEN
+    IF (
+      COALESCE(:new.ad_client_id , '.') != COALESCE(:old.ad_client_id , '.') OR
+      COALESCE(:new.ad_org_id , '.') != COALESCE(:old.ad_org_id , '.') OR
+      COALESCE(:new.isactive , '.') != COALESCE(:old.isactive , '.') OR
+      COALESCE(:new.obcql_widget_query_id, '.') != COALESCE(:old.obcql_widget_query_id , '.') OR
+      COALESCE(:new.display_expression, '.') != COALESCE(:old.display_expression, '.') OR
+      COALESCE(:new.name, '.') != COALESCE(:old.display_expression, '.') OR
+      COALESCE(:new.summarize_type, '.') != COALESCE(:old.summarize_type, '.') OR
+      COALESCE(:new.width, -1) != COALESCE(:old.width, -1) OR
+      COALESCE(:new.link_expression, '.') != COALESCE(:old.link_expression, '.') OR
+      COALESCE(:new.seqno, -1) != COALESCE(:old.seqno, -1) OR
+      COALESCE(:new.ad_reference_id, '.') != COALESCE(:old.ad_reference_id, '.') OR
+      COALESCE(:new.ad_reference_value_id, '.') != COALESCE(:old.ad_reference_value_id, '.') OR
+      COALESCE(:new.include_in, '.') != COALESCE(:old.include_in, '.') OR
+      1=2) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@20532@');
+    END IF;
+  END IF;
+
+  -- don't allow insert/delete if not in development
+  IF ((DELETING OR INSERTING) AND devmodule='N') THEN
+    RAISE_APPLICATION_ERROR(-20000, '@20533@');
+  END IF;
+END OBCQL_QUERY_COLUMN_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

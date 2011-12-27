@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_MESSAGE_TRG">
+    <trigger name="AD_MESSAGE_TRG" table="AD_MESSAGE" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Compiere Public
+* License 1.1 ("License"); You may not use this file except in
+* compliance with the License. You may obtain a copy of the License in
+* the legal folder of your Openbravo installation.
+* Software distributed under the License is distributed on an
+* "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+* implied. See the License for the specific language governing rights
+* and limitations under the License.
+* The Original Code is  Compiere  ERP &  Business Solution
+* The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+* Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+* parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+* All Rights Reserved.
+* Contributor(s): Openbravo SLU
+* Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+*
+* Specifically, this derivative work is based upon the following Compiere
+* file and version.
+*************************************************************************
+* $Id: AD_Message_Trg.sql,v 1.2 2002/05/11 04:32:33 jjanke Exp $
+***
+* Title: Message Translation
+* Description:
+************************************************************************/
+ v_aux NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF :new.AD_Module_ID != '0' THEN
+    SELECT COUNT(*)
+      INTO v_Aux
+      FROM AD_MODULE_DBPREFIX
+     WHERE AD_MODULE_ID = :new.AD_Module_ID
+       AND (instr(upper(:new.value), upper(name)||'_') = 1
+          OR instr(upper(:new.value), 'EM_'||upper(name)||'_') = 1);
+    
+    IF v_Aux = 0 THEN
+      RAISE_APPLICATION_ERROR(-20536, 'Messages must start with its module DB prefix') ;
+    END IF;
+  END IF;
+
+  -- Insert AD_Ref_List Trigger
+  --  for Translation
+  IF INSERTING
+  THEN
+    INSERT INTO AD_Message_Trl
+                (AD_Message_Trl_ID, AD_Message_ID, AD_Language, AD_Client_ID, AD_Org_ID,
+                 IsActive, Created, CreatedBy, Updated, UpdatedBy, MsgText,
+                 MsgTip, IsTranslated)
+      SELECT get_uuid(), :NEW.AD_Message_ID, AD_Language.AD_Language, :NEW.AD_Client_ID,
+             :NEW.AD_Org_ID, :NEW.IsActive, :NEW.Created, :NEW.CreatedBy,
+             :NEW.Updated, :NEW.UpdatedBy, :NEW.MsgText, :NEW.MsgTip, 'N'
+        FROM AD_Language, aD_Module m
+       WHERE AD_Language.IsActive = 'Y' AND IsSystemLanguage = 'Y'
+       and m.ad_module_id = :new.ad_module_id
+       and m.ad_language != AD_Language.AD_Language;
+  END IF;
+
+-- AD_Message update trigger
+--  synchronize name,...
+  IF UPDATING
+  THEN
+    IF (   COALESCE (:OLD.MsgText, '.') <> COALESCE (:NEW.MsgText, '.')
+        OR COALESCE (:OLD.MsgTip, '.') <> COALESCE (:NEW.MsgTip, '.')
+       )
+    THEN
+      UPDATE AD_Message_Trl
+         SET IsTranslated = 'N',
+             Updated = now()
+       WHERE AD_Message_ID = :NEW.AD_Message_ID;
+    END IF;
+  END IF;
+-- Updating
+END AD_MESSAGE_TRG
+]]></body>
+    </trigger>
+  </database>

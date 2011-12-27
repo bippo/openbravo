@@ -1,0 +1,80 @@
+<html>
+<head>
+<script>var isomorphicDir="../isomorphic/";</script>
+<script src="../isomorphic/system/development/ISC_Core.js"></script>
+<script src="../isomorphic/system/development/ISC_Foundation.js"></script>
+<script src="../isomorphic/system/development/ISC_Containers.js"></script>
+<script src="../isomorphic/system/development/ISC_Grids.js"></script>
+<script src="../isomorphic/system/development/ISC_Forms.js"></script>
+<script src="../isomorphic/system/development/ISC_DataBinding.js"></script>
+<script src="../isomorphic/skins/Enterprise/load_skin.js"></script>
+<script src="../isomorphic/login/reloginFlow.js"></script>
+<!-- <script src=../js/js/DataSource.js></SCRIPT>  -->
+<script src="../../../org.openbravo.client.kernel/OBSERDS_Datasource/ADTab"></script>
+</head>
+<body>
+<script>
+
+isc.DynamicForm.selectOnFocus = true;
+
+isc.TabSet.create({
+    ID: "tabSet_1",
+    tabBarPosition: "top",
+    top: 40,
+    left: 20,
+    width: 900,
+    height: 600,
+    tabs: []
+});
+
+function doAddTab(tabRecord, destinyTabSetId) {
+  if (typeof destinyTabSetId == "undefined") {
+    destinyTabSetId = 'tabSet_1';
+  }
+  var tab = tabRecord.id;
+  var tabId = "tab_" + tab;
+  var tabTitle = tabRecord._identifier;
+  var viewLoaderId = "ViewLoader_" + tab;
+  var viewLoaderUrl = '../../../org.openbravo.userinterface.smartclient.obscripting/masterdetailview/' + tab;
+
+  if (TabSet.getById(destinyTabSetId).getTab(tabId) != null) {
+      TabSet.getById(destinyTabSetId).selectTab(tabId);
+      return;
+  }
+
+  TabSet.getById(destinyTabSetId).addTab({
+      ID: tabId, 
+      title: tabTitle, 
+      canClose: true,
+      pane : isc.ViewLoader.create({
+          ID: viewLoaderId,
+          autoDraw: false,
+          viewURL: viewLoaderUrl,
+          loadingMessage : 'Loading Grid...'
+      })
+  });
+  TabSet.getById(destinyTabSetId).selectTab(tabId);
+  //TabSet.getById(tabId).setTitle(tabTitle);
+  //ViewLoader.getById(viewLoaderId).setViewURL(viewLoaderUrl);
+}
+
+isc.DynamicForm.create({
+    width: 400,
+    numCols: 2,
+    top: 10,
+    left: 20,
+    fields : [{
+    	name: "fld_identifier", displayField: "_identifier", valueField: "id", title: "Tab Name", editorType: "comboBox", 
+        optionDataSource: 'ADTab', pickListWidth: 600, fetchDelay: 300, selectOnFocus: true,
+        dataPageSize : 15, 
+        width: 250, pickListCriteria: {
+            _sortBy : "_identifier"
+        },
+        pickListFields: [{name:"_identifier"}, {name:"description"}],
+        changed: "doAddTab(this.getSelectedRecord());"
+    }]
+});
+
+</script>
+</body>
+</html>

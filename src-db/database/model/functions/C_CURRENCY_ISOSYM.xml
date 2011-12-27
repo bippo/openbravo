@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CURRENCY_ISOSYM">
+    <function name="C_CURRENCY_ISOSYM" type="VARCHAR">
+      <parameter name="p_currency_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+
+* Test:
+*  SELECT C_CURRENCY_ISOSYM('100') FROM DUAL => (USD-$)
+************************************************************************/
+  v_isocode NVARCHAR2(10);
+  v_symbol NVARCHAR2(10);
+  v_isosymbol NVARCHAR2(30);
+BEGIN
+  v_isosymbol := '(';
+  
+  SELECT ISO_CODE, CURSYMBOL
+  INTO v_isocode, v_symbol 
+  FROM C_CURRENCY WHERE C_CURRENCY_ID = p_currency_id;
+
+  IF (v_isocode IS NOT NULL AND v_symbol IS NOT NULL) THEN
+      v_isosymbol := v_isosymbol || v_isocode || '-' || v_symbol;
+  ELSIF (v_isocode IS NOT NULL) THEN
+      v_isosymbol := v_isosymbol || v_isocode;
+  ELSIF (v_symbol IS NOT NULL) THEN
+      v_isosymbol := v_isosymbol || v_symbol;  
+  END IF;
+
+  v_isosymbol := v_isosymbol || ')';
+  
+  RETURN v_isosymbol;
+END C_CURRENCY_ISOSYM
+]]></body>
+    </function>
+  </database>

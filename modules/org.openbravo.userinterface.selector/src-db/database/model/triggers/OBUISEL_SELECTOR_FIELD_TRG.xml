@@ -1,0 +1,141 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBUISEL_SELECTOR_FIELD_TRG">
+    <trigger name="OBUISEL_SELECTOR_FIELD_TRG" table="OBUISEL_SELECTOR_FIELD" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  currentModuleID  VARCHAR2(32);
+  vAux NUMBER;
+
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    -- check table and datasource
+    IF (UPDATING OR INSERTING) THEN
+        IF :NEW.PROPERTY IS NULL AND :NEW.OBSERDS_DATASOURCE_FIELD_ID IS NULL  AND :NEW.DISPLAY_EXPRESSION IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@OBUISEL_DATASOURCE_FIELD_OR_PROPERTY_MUST_BE_SET@');
+        END IF; 
+    END IF;
+
+    -- check that we can't change to a module not in development
+    IF (UPDATING) THEN
+        IF (COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.')) THEN
+            SELECT COUNT(*) 
+                INTO vAux
+                FROM AD_MODULE
+                WHERE AD_MODULE_ID = :old.AD_Module_ID
+                AND isindevelopment = 'N';
+            IF (vAux!=0) THEN
+                RAISE_APPLICATION_ERROR(-20000, '@ChangeNotInDevModule@');
+            END IF;
+        END IF;
+    END IF;
+
+    SELECT COUNT(*)
+        INTO devTemplate
+        FROM AD_MODULE
+        WHERE IsInDevelopment = 'Y'
+        AND Type = 'T';
+     
+    IF (UPDATING OR INSERTING) THEN
+        currentModuleID := :new.AD_Module_ID;
+    ELSE
+        currentModuleID := :old.AD_Module_ID;
+    END IF;
+
+    SELECT M.IsInDevelopment
+        INTO devModule
+        FROM AD_MODULE M
+        WHERE M.AD_MODULE_ID = currentModuleID;
+
+    IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+        IF (
+            COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+            COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+            COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.') OR
+            COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+            COALESCE(:NEW.Property , '.') != COALESCE(:OLD.Property , '.') OR
+            COALESCE(:NEW.IsCentrallyMaintained , '.') != COALESCE(:OLD.IsCentrallyMaintained , '.') OR
+            COALESCE(:NEW.Sort , '.') != COALESCE(:OLD.Sort , '.') OR
+            COALESCE(:NEW.Filter , '.') != COALESCE(:OLD.Filter , '.') OR
+            COALESCE(:NEW.SearchInSuggestionBox , '.') != COALESCE(:OLD.SearchInSuggestionBox , '.') OR
+            COALESCE(:NEW.ShowInGrid , '.') != COALESCE(:OLD.ShowInGrid , '.') OR
+            COALESCE(:NEW.Sortno , 0) != COALESCE(:OLD.Sortno , 0) OR
+            COALESCE(:NEW.OBUISEL_Selector_ID , '.') != COALESCE(:OLD.OBUISEL_Selector_ID , '.') OR
+            COALESCE(:NEW.AD_Column_ID , '.') != COALESCE(:OLD.AD_Column_ID , '.') OR
+            1=2) THEN
+            RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+        END IF;
+	IF (:NEW.IsCentrallyMaintained = 'N' 
+		AND (COALESCE(:NEW.Name , '.') != COALESCE(:OLD.Name , '.') OR
+		COALESCE(:NEW.Description , '.') != COALESCE(:OLD.Description , '.') OR
+		COALESCE(:NEW.Help , '.') != COALESCE(:OLD.Help , '.'))) THEN
+		RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+	END IF;
+    END IF;
+
+    -- don't allow insert/delete if not in development
+    IF ((DELETING OR INSERTING) AND devModule='N') THEN
+        RAISE_APPLICATION_ERROR(-20533, 'Cannot insert/delete objects in a module not in development.');
+    END IF;
+
+    -- automatically create a trl entry for the module language
+    IF INSERTING THEN
+        INSERT
+        INTO OBUISEL_SELECTOR_FIELD_Trl
+        (
+          OBUISEL_Selector_Field_Trl_ID, OBUISEL_SELECTOR_FIELD_ID, AD_Language_ID, AD_Client_ID,
+          AD_Org_ID, IsActive, Created,
+          CreatedBy, Updated, UpdatedBy,
+          Name, Description, Help,
+          IsTranslated
+        )
+        SELECT get_uuid(), :new.OBUISEL_SELECTOR_FIELD_ID,
+            AD_Language.AD_Language_ID, :new.AD_Client_ID, :new.AD_Org_ID,
+            :new.IsActive, :new.Created, :new.CreatedBy,
+            :new.Updated, :new.UpdatedBy, :new.Name,
+            :new.Description, :new.Help, 'N'
+        FROM AD_Language, ad_module m
+        WHERE AD_Language.IsActive='Y'
+        AND IsSystemLanguage='Y'
+            and m.ad_module_id = :new.ad_module_id
+            and m.ad_language != AD_Language.AD_Language;
+    END IF;
+ 
+    -- set trl records to not-translated if not centrally maintained
+    IF UPDATING THEN
+        IF (
+            COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+            OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')
+            OR COALESCE(:old.Help, '.') <> COALESCE(:NEW.Help, '.'))
+            AND :NEW.IsCentrallyMaintained='N'
+        THEN
+            UPDATE OBUISEL_SELECTOR_FIELD_Trl
+            SET IsTranslated='N'
+            WHERE OBUISEL_SELECTOR_FIELD_ID=:new.OBUISEL_SELECTOR_FIELD_ID;
+        END IF;
+    END IF;
+
+END OBUISEL_SELECTOR_FIELD_TRG
+]]></body>
+    </trigger>
+  </database>

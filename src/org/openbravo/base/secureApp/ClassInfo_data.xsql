@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ************************************************************************************
+ * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Licensed under the Apache Software License version 2.0
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to  in writing,  software  distributed
+ * under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+ * CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+ * specific language governing permissions and limitations under the License.
+ ************************************************************************************
+-->
+
+
+
+<SqlClass name="ClassInfoData" package="org.openbravo.base.secureApp" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT mo.action AS TYPE, (CASE mo.action WHEN 'X' THEN mo.ad_form_id
+                                                  WHEN 'P' THEN mo.ad_process_id
+                                                  WHEN 'R' THEN mo.ad_process_id
+                                                  WHEN 'S' THEN mo.ad_reference_id
+                                                  WHEN 'C' THEN mo.ad_callout_id
+                                                  ELSE null END) AS ID,
+          m.name AS NAME, /*Name is only maintained for backwards compatibility, now REPORT_TITLE is automatically filled*/
+          COALESCE((CASE mo.action WHEN 'X' THEN f.ad_module_id
+                                   WHEN 'P' THEN p.ad_module_id
+                                   WHEN 'R' THEN p.ad_module_id
+                                   WHEN 'S' THEN r.ad_module_id
+                                   WHEN 'C' THEN c.ad_module_id
+                                   ELSE null END), mo.ad_module_id) AS ad_module_id
+        FROM ad_model_object mo
+             LEFT JOIN ad_menu m ON mo.ad_process_id = m.ad_process_id
+                                    AND mo.action IN ('P', 'R')
+                                    AND m.action IN ('P', 'R')
+             LEFT JOIN ad_form f ON mo.ad_form_id = f.ad_form_id
+             LEFT JOIN ad_process p ON mo.ad_process_id = p.ad_process_id
+             LEFT JOIN ad_reference r ON mo.ad_reference_id = r.ad_reference_id
+             LEFT JOIN ad_callout c ON mo.ad_callout_id = c.ad_callout_id
+        WHERE mo.classname = ?
+          AND mo.isdefault = 'Y'
+          AND mo.isactive = 'Y'
+      ]]></Sql>
+      <Parameter name="className"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+</SqlClass>

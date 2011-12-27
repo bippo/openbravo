@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="PreferenceConflictData" package="org.openbravo.buildvalidation">
+    <SqlMethod name="differentOrgDifferentValues" type="preparedStatement" return="multiple">
+      <Sql><![CDATA[
+          select distinct attribute, '' as count
+            from ad_preference p 
+            where exists (
+                SELECT 1
+                  FROM AD_Preference 
+                   WHERE IsActive='Y' 
+                   and p.attribute = attribute
+                  group by ad_client_id, AD_Window_ID, aD_user_id
+                  having count(*)>1)
+            and exists (select 1
+                   from ad_preference p1
+                  where p1.isactive='Y'
+                    and p1.ad_org_id != p.ad_org_id
+                    and p1.attribute = p.attribute
+                    and to_char(p1.value) != to_char(p.value)
+                    and coalesce(ad_window_id,'.') = coalesce(p.ad_window_id,'.')
+                    and coalesce(ad_user_id, '.') = coalesce(p.ad_user_id, '.')
+                    and coalesce(ad_client_id, '.') = coalesce(p.ad_client_id, '.'))
+          ]]>
+      </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="alreadymp16" type="preparedStatement" return="boolean">
+      <Sql><![CDATA[
+         select count(*) as count 
+           from user_tab_columns 
+          where table_name ='AD_PREFERENCE' 
+            and column_name = 'AD_MODULE_ID'
+          ]]>
+      </Sql>
+  </SqlMethod>  
+
+</SqlClass>

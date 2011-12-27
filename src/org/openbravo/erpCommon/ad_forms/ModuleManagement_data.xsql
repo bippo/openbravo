@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="ModuleManagementData" package="org.openbravo.erpCommon.ad_forms">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectLog" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT L.CREATED,
+               to_char(l.created, 'HH24:MI:SS') AS CREATEDHOUR,
+               COALESCE(TO_CHAR(RLT.NAME), TO_CHAR(RL.NAME), TO_CHAR(L.ACTION)) AS ACTION,
+               COALESCE(TO_CHAR(U.NAME), TO_CHAR(L.CREATEDBY)) AS CREATEDBY,
+               L.MODULENAME,
+               L.LOG, 
+               '' as total,
+               '' as AD_MODULE_ID,
+               '' as ad_module_version_id
+          FROM AD_MODULE_LOG L LEFT JOIN AD_REF_LIST RL
+                                  ON L.ACTION = RL.VALUE
+                                  AND  RL.AD_REFERENCE_ID = '7CD9193198B94EF5B174D0F8512B0857'
+                               LEFT JOIN AD_REF_LIST_TRL RLT
+                                  ON RL.AD_REF_LIST_ID = RLT.AD_REF_LIST_ID
+                                  AND RLT.AD_LANGUAGE=?
+                               LEFT JOIN AD_USER U
+                                 ON L.CREATEDBY = U.AD_USER_ID
+         WHERE 1=1
+         ORDER BY L.CREATED DESC
+      </Sql>
+      <Parameter name="lang"/>
+      <Parameter name="parUser" optional="true" after="WHERE 1=1"><![CDATA[ AND L.CREATEDBY = ?]]></Parameter>
+      <Parameter name="parDateFrom" optional="true" after="WHERE 1=1"><![CDATA[ AND L.CREATED >= TO_DATE(?)]]></Parameter>
+      <Parameter name="parDateTo" optional="true" after="WHERE 1=1"><![CDATA[ AND L.CREATED < TO_DATE(?)]]></Parameter>
+   </SqlMethod>
+   
+   <SqlMethod name="selectInstalled" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT AD_MODULE_ID
+          FROM AD_MODULE
+         UNION 
+        SELECT AD_MODULE_ID
+          FROM AD_MODULE_INSTALL
+      </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="selectUpdateable" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT UPDATE_VER_ID AS ad_module_version_id
+          FROM AD_MODULE
+         WHERE UPDATE_AVAILABLE IS NOT NULL
+      </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="selectRebuild" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+         SELECT COUNT(*) AS TOTAL
+           FROM (SELECT AD_MODULE_ID 
+                   FROM AD_MODULE 
+                  WHERE STATUS IN ('I','U','P')
+                  UNION
+                 SELECT AD_MODULE_ID
+                   FROM AD_MODULE_INSTALL) A
+      </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="selectRestartTomcat" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+         SELECT COUNT(*) AS TOTAL
+           FROM AD_SYSTEM_INFO WHERE SYSTEM_STATUS='RB60'
+      </Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="selectUpdate" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+         SELECT COUNT(*) AS TOTAL
+           FROM AD_MODULE 
+          WHERE UPDATE_AVAILABLE IS NOT NULL
+            AND ISACTIVE = 'Y'
+      </Sql>
+   </SqlMethod>
+   
+    <SqlMethod name="cleanModulesUpdates" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        UPDATE  AD_MODULE 
+            SET update_available=null, 
+                update_ver_id=null      
+      </Sql>
+   </SqlMethod>
+   
+</SqlClass>

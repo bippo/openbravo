@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_CASHLINE_CHK_RESTRICT_TRG">
+    <trigger name="C_CASHLINE_CHK_RESTRICT_TRG" table="C_CASHLINE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+  v_Processed VARCHAR(60) ;
+  v_C_CASH_ID VARCHAR2(32) ;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF INSERTING THEN
+    v_C_CASH_ID:=:NEW.C_CASH_ID;
+  ELSE
+    v_C_CASH_ID:=:OLD.C_CASH_ID;
+  END IF;
+  SELECT PROCESSED INTO v_Processed FROM C_CASH WHERE C_CASH_ID=v_C_CASH_ID;
+  IF UPDATING THEN
+    IF(v_Processed='Y'
+      AND (
+        (COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
+        OR(COALESCE(:OLD.C_CHARGE_ID, '0') <> COALESCE(:NEW.C_CHARGE_ID, '0'))
+        OR(COALESCE(:OLD.CASHTYPE, '.') <> COALESCE(:NEW.CASHTYPE, '.'))
+        OR(COALESCE(:OLD.AMOUNT, 0) <> COALESCE(:NEW.AMOUNT, 0))
+        OR(COALESCE(:OLD.DISCOUNTAMT, 0) <> COALESCE(:NEW.DISCOUNTAMT, 0))
+        OR(COALESCE(:OLD.WRITEOFFAMT, 0) <> COALESCE(:NEW.WRITEOFFAMT, 0))
+        OR(
+          COALESCE(:OLD.C_DEBT_PAYMENT_ID, '0') <> COALESCE(:NEW.C_DEBT_PAYMENT_ID, '0')
+          AND(:OLD.C_ORDER_ID IS NULL))
+        OR(COALESCE(:OLD.C_ORDER_ID, '0') <> COALESCE(:NEW.C_ORDER_ID, '0'))
+        OR(COALESCE(:old.AD_CLIENT_ID, '0') <> COALESCE(:new.AD_CLIENT_ID, '0')))) THEN
+      RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+    END IF;
+  END IF;
+  IF((DELETING OR INSERTING) AND v_Processed='Y') THEN
+    RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+  END IF;
+END C_CASHLINE_CHK_RESTRICT_TRG
+]]></body>
+    </trigger>
+  </database>

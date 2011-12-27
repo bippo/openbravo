@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER S_RESOURCETYPE_TRG">
+    <trigger name="S_RESOURCETYPE_TRG" table="S_RESOURCETYPE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: S_ResourceType_Trg.sql,v 1.1 2002/06/21 04:08:34 jjanke Exp $
+    ***
+    * Title: Resource Type
+    * Description:
+    *   Syncronize Resource Type with Product
+    ************************************************************************/
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  UPDATE M_Product
+    SET C_UOM_ID=:new.C_UOM_ID,
+    M_Product_Category_ID=:new.M_Product_Category_ID,
+    C_TaxCategory_ID=:new.C_TaxCategory_ID
+  WHERE S_Resource_ID IN
+    (
+    SELECT S_Resource_ID
+    FROM S_Resource
+    WHERE S_ResourceType_ID=:new.S_ResourceType_ID
+    )
+    ;
+END S_RESOURCETYPE_TRG
+]]></body>
+    </trigger>
+  </database>

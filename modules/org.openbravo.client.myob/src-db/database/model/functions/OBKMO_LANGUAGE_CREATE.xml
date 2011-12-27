@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION OBKMO_LANGUAGE_CREATE">
+    <function name="OBKMO_LANGUAGE_CREATE" type="NULL">
+      <parameter name="ep_instance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_rowcount NUMBER;
+
+  BEGIN
+  
+    INSERT INTO OBKMO_Widget_Class_Trl
+           (OBKMO_WIDGET_CLASS_TRL_ID , OBKMO_WIDGET_CLASS_ID, AD_LANGUAGE,
+            AD_CLIENT_ID              , AD_ORG_ID            , ISACTIVE   ,
+            CREATED                   , CREATEDBY            , UPDATED    ,
+            UPDATEDBY                 , TITLE                , DESCRIPTION,
+            ISTRANSLATED)
+     SELECT get_uuid()                , OBKMO_WIDGET_CLASS_ID, l.AD_LANGUAGE,
+            w.AD_CLIENT_ID            , w.AD_ORG_ID          , w.ISACTIVE   ,
+            now()                     , '0'                  , now()        ,
+            '0'                       , w.TITLE              , w.DESCRIPTION,
+            'N'
+      FROM OBKMO_Widget_Class w, AD_Language l, AD_Module m
+     WHERE l.isActive = 'Y'
+       AND l.IsSystemLanguage='Y'
+       AND m.AD_Module_ID = w.AD_Module_ID
+       AND M.AD_Language != l.AD_Language
+       AND NOT EXISTS (SELECT 1 
+                         FROM OBKMO_Widget_Class_Trl t
+                        WHERE t.OBKMO_Widget_Class_ID = w.OBKMO_Widget_Class_ID
+                          AND t.AD_Language = l.AD_Language);
+                          
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('- OBKMO_LANGUAGE_CREATE: OBKMO_Widget_Class_Trl ' || v_rowcount) ;
+
+    INSERT INTO obkmo_widget_class_menu_trl
+           (obkmo_widget_class_menu_trl_id , obkmo_widget_class_menu_ID, AD_LANGUAGE,
+            AD_CLIENT_ID                   , AD_ORG_ID                 , ISACTIVE   ,
+            CREATED                        , CREATEDBY                 , UPDATED    ,
+            UPDATEDBY                      , TITLE                     ,
+            ISTRANSLATED)
+     SELECT get_uuid()                , obkmo_widget_class_menu_id, l.AD_LANGUAGE,
+            w.AD_CLIENT_ID            , w.AD_ORG_ID               , w.ISACTIVE   ,
+            now()                     , '0'                       , now()        ,
+            '0'                       , w.TITLE                   ,
+            'N'
+      FROM obkmo_widget_class w, obkmo_widget_class_menu wm, AD_Language l, AD_Module m
+     WHERE l.isActive = 'Y'
+       AND l.IsSystemLanguage='Y'
+       AND w.obkmo_widget_class_id = wm.obkmo_widget_class_id
+       AND m.AD_Module_ID = w.AD_Module_ID
+       AND M.AD_Language != l.AD_Language
+       AND NOT EXISTS (SELECT 1 
+                         FROM obkmo_widget_class_menu_Trl t
+                        WHERE t.obkmo_widget_class_menu_ID = wm.obkmo_widget_class_menu_ID
+                          AND t.AD_Language = l.AD_Language);
+                          
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('- OBKMO_LANGUAGE_CREATE: obkmo_widget_class_menu_trl ' || v_rowcount) ;
+END OBKMO_LANGUAGE_CREATE
+]]></body>
+    </function>
+  </database>

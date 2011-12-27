@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER A_AMORTIZATIONLINE_TRG2">
+    <trigger name="A_AMORTIZATIONLINE_TRG2" table="A_AMORTIZATIONLINE" fires="after" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+      
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+ null;
+/* mutating table
+  update a_asset
+  set DepreciatedPlan=(select sum(AmortizationAmt)
+  from A_AmortizationLine
+  where  A_AmortizationLine_ID=:new.A_AmortizationLine_ID)
+  where a_Asset_ID=:new.A_Asset_ID:
+   exception when others then null; */
+END A_AMORTIZATIONLINE_TRG2
+]]></body>
+    </trigger>
+  </database>

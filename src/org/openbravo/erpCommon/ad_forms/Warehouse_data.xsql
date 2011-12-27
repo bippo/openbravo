@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="WarehouseData" package="org.openbravo.erpCommon.ad_forms">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT AD_ROLE_ORGACCESS.AD_ROLE_ID || '-' || M_Warehouse.AD_Client_ID as PADRE, M_Warehouse.M_WAREHOUSE_ID AS ID, 
+        M_Warehouse.Name AS Name 
+        FROM M_Warehouse, AD_ORG , AD_ROLE_ORGACCESS
+        WHERE M_Warehouse.AD_ORG_ID = AD_ORG.AD_ORG_ID
+        AND AD_ORG.AD_ORG_ID = AD_ROLE_ORGACCESS.AD_ORG_ID
+        AND M_Warehouse.IsActive='Y' 
+        ORDER BY AD_ROLE_ORGACCESS.AD_ROLE_ID, M_Warehouse.Name
+      </Sql>
+   </SqlMethod>
+  <SqlMethod name="selectByRoleAndClient" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_ROLE_ORGACCESS.AD_ROLE_ID || '-' || M_Warehouse.AD_Client_ID as PADRE, M_Warehouse.M_WAREHOUSE_ID AS ID,
+        M_Warehouse.Name AS Name
+        FROM M_Warehouse, AD_ORG , AD_ROLE_ORGACCESS
+        WHERE M_Warehouse.AD_ORG_ID = AD_ORG.AD_ORG_ID
+        AND AD_ORG.AD_ORG_ID = AD_ROLE_ORGACCESS.AD_ORG_ID
+        AND M_Warehouse.IsActive='Y'
+        AND AD_ROLE_ORGACCESS.AD_ROLE_ID = ?
+        AND M_Warehouse.AD_Client_ID = ?
+        ORDER BY AD_ROLE_ORGACCESS.AD_ROLE_ID, M_Warehouse.Name
+      ]]>
+    </Sql>
+    <Parameter name="role"/>
+    <Parameter name="client"/>
+  </SqlMethod>
+</SqlClass>

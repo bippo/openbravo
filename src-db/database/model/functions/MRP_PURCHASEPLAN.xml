@@ -1,0 +1,189 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_PURCHASEPLAN">
+    <function name="MRP_PURCHASEPLAN" type="NULL">
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_run_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_vendor_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_timehorizon" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planningdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_securitymargin" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+
+  v_Aux_New VARCHAR2(32);
+
+  v_Stock NUMBER:=0;
+  v_neededQty_New NUMBER;
+  v_neededQty_Old NUMBER;
+  v_Qty_New NUMBER;
+  v_Qty_Old NUMBER;
+
+  v_plannedorderdate_new DATE;
+  v_planneddate_new DATE;
+  v_planneddate_old DATE;
+
+  FINISH_PROCESS BOOLEAN DEFAULT FALSE;
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_PlanProduct RECORD;
+  Cur_Lines RECORD;
+
+BEGIN
+  BEGIN --BODY
+    v_ResultStr := 'Purchase mrp';
+
+    FOR Cur_PlanProduct IN (
+        SELECT MRP_RUN_PURCHASELINE.M_PRODUCT_ID, M_PRODUCT.NAME AS PRODUCTNAME,
+          COALESCE(M_PRODUCT_PO.CAPACITY, M_PRODUCT_ORG.CAPACITY, M_PRODUCT.CAPACITY) AS CAPACITY,
+          COALESCE(M_PRODUCT_PO.DELIVERYTIME_PROMISED, M_PRODUCT_ORG.DELAYMIN, M_PRODUCT.DELAYMIN, 0) AS DELAYMIN,
+          COALESCE(M_PRODUCT_PO.QTYTYPE, M_PRODUCT_ORG.QTYTYPE, M_PRODUCT_ORG.QTYTYPE, 'E') AS qtytype,
+          COALESCE(M_PRODUCT_PO.ORDER_MIN, M_PRODUCT_ORG.QTYMIN, M_PRODUCT_ORG.QTYMIN, 0) AS qtymin,
+          COALESCE(M_PRODUCT_PO.QTYSTD, M_PRODUCT_ORG.QTYSTD, M_PRODUCT_ORG.QTYSTD, 1) AS qtystd,
+          M_PRODUCT_PO.C_BPARTNER_ID AS vendor_ID
+        FROM MRP_RUN_PURCHASELINE, M_PRODUCT_PO,
+             M_PRODUCT LEFT JOIN M_PRODUCT_ORG ON M_PRODUCT.M_PRODUCT_ID = M_PRODUCT_ORG.M_PRODUCT_ID,
+             (SELECT MAX(C_BPARTNER_ID) AS C_BPARTNER_ID, M_PRODUCT_ID
+              FROM M_PRODUCT_PO
+              WHERE ISCURRENTVENDOR = 'Y'
+                AND (p_Vendor_ID IS NULL OR M_PRODUCT_PO.C_BPARTNER_ID = p_Vendor_ID)
+              GROUP BY M_PRODUCT_ID) PRODUCT_PO --CASE WITH MORE THAN ONE DEFAULT VENDOR
+        WHERE MRP_RUN_PURCHASE_ID = p_Run_ID
+          AND M_PRODUCT.M_PRODUCT_ID = M_PRODUCT_PO.M_PRODUCT_ID
+          AND M_PRODUCT.M_PRODUCT_ID = MRP_RUN_PURCHASELINE.M_PRODUCT_ID
+          AND MRP_RUN_PURCHASELINE.AD_ORG_ID = M_PRODUCT_ORG.AD_ORG_ID
+          AND PRODUCT_PO.C_BPARTNER_ID = M_PRODUCT_PO.C_BPARTNER_ID
+          AND PRODUCT_PO.M_PRODUCT_ID = M_PRODUCT_PO.M_PRODUCT_ID
+          AND M_PRODUCT.ISPURCHASED = 'Y'
+      GROUP BY MRP_RUN_PURCHASELINE.M_PRODUCT_ID, M_PRODUCT.NAME, M_PRODUCT_PO.CAPACITY, M_PRODUCT_ORG.CAPACITY, M_PRODUCT.CAPACITY,
+        M_PRODUCT_PO.DELIVERYTIME_PROMISED, M_PRODUCT_ORG.DELAYMIN, M_PRODUCT.DELAYMIN,
+        M_PRODUCT_PO.QTYTYPE, M_PRODUCT_ORG.QTYTYPE, M_PRODUCT_ORG.QTYTYPE,
+        M_PRODUCT_PO.ORDER_MIN, M_PRODUCT_ORG.QTYMIN, M_PRODUCT_ORG.QTYMIN,
+        M_PRODUCT_PO.QTYSTD, M_PRODUCT_ORG.QTYSTD, M_PRODUCT_ORG.QTYSTD, M_PRODUCT_PO.C_BPARTNER_ID --CASE WITH MORE THAN ONE DEFAULT VENDOR
+      ) LOOP
+      v_stock := 0;
+      v_neededqty_old := NULL;
+      v_planneddate_old := NULL;
+      FOR Cur_Lines IN (
+        SELECT pl.*,
+          (CASE WHEN pl.INOUTTRXTYPE = 'ST' THEN 0
+                WHEN pl.INOUTTRXTYPE = 'MS' THEN 2
+                WHEN pl.QTY >= 0 THEN 1
+                ELSE 3 END) AS PRIORITY
+        FROM MRP_RUN_PURCHASELINE pl,
+          M_PRODUCT
+        WHERE pl.MRP_RUN_PURCHASE_ID = p_Run_ID
+          AND M_PRODUCT.M_PRODUCT_ID = pl.M_PRODUCT_ID
+          AND pl.M_PRODUCT_ID = Cur_PlanProduct.M_Product_ID
+        ORDER BY pl.planneddate, priority
+        ) LOOP
+
+        v_neededQty_New :=  - Cur_Lines.qty - v_Stock;
+        IF (v_neededQty_New > 0) THEN
+          v_planneddate_new := TO_DATE(Cur_Lines.planneddate) - p_securitymargin;
+
+          IF (v_Planneddate_old IS NULL OR TRUNC(v_Planneddate_old) <> TRUNC(v_Planneddate_new)) THEN
+            v_planneddate_old := v_planneddate_new;
+            UPDATE MRP_RUN_PURCHASELINE
+            SET iscompleted = 'Y',
+              neededqty = qty
+            WHERE MRP_RUN_PURCHASE_ID = p_Run_ID
+	      AND iscompleted = 'N'
+              AND planneddate <= v_planneddate_new;
+
+            v_Qty_New := GREATEST(v_neededqty_New, Cur_PlanProduct.qtymin);
+            IF (Cur_PlanProduct.qtytype = 'M') THEN --Multiple lot qty
+              v_Qty_new := CEIL(v_qty_new/Cur_PlanProduct.qtystd)*Cur_PlanProduct.qtystd;
+            END IF;
+
+            IF (Cur_PlanProduct.CAPACITY = 0) THEN
+		RAISE_APPLICATION_ERROR(-20000, '@CapacityZero@ ' || Cur_PlanProduct.PRODUCTNAME);
+            END IF;
+
+            v_plannedorderdate_new := TRUNC(v_planneddate_new -
+                                      GREATEST(Cur_PlanProduct.DELAYMIN, (CASE WHEN Cur_PlanProduct.CAPACITY IS NULL THEN 0
+                                                                  ELSE CEIL(v_Qty_new/Cur_PlanProduct.CAPACITY)
+                                                                  END)));
+            Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run_ID, Cur_PlanProduct.M_Product_ID, v_qty_new, v_neededqty_new, NULL, 'PP', 'Y', NULL, NULL, NULL, NULL, NULL, v_Planneddate_new, v_plannedorderdate_new, 'N', 'N', Cur_PlanProduct.Vendor_ID, v_Aux_new);
+            v_stock := v_stock + v_qty_new;
+          ELSE
+            v_neededqty_new := v_neededqty_new + COALESCE(v_neededqty_old,0);
+            v_qty_new := GREATEST(v_qty_new, v_neededqty_new);
+            IF (Cur_PlanProduct.qtytype = 'M') THEN --Multiple lot qty
+              v_Qty_new := CEIL(v_qty_new/Cur_PlanProduct.qtystd)*Cur_PlanProduct.qtystd;
+            END IF;
+
+            IF (Cur_PlanProduct.CAPACITY = 0) THEN
+		RAISE_APPLICATION_ERROR(-20000, '@CapacityZero@ ' || Cur_PlanProduct.PRODUCTNAME);
+            END IF;
+
+            v_plannedorderdate_new := TRUNC(v_planneddate_old -
+                                      GREATEST(Cur_PlanProduct.DELAYMIN, (CASE WHEN Cur_PlanProduct.CAPACITY IS NULL THEN 0
+                                                                  ELSE CEIL(v_Qty_new/Cur_PlanProduct.CAPACITY)
+                                                                  END)));
+            UPDATE MRP_RUN_PURCHASELINE
+            SET neededqty = v_neededqty_new,
+                qty = v_qty_new,
+                plannedorderdate = v_plannedorderdate_new
+            WHERE MRP_RUN_PURCHASELINE_ID = v_Aux_new;
+            v_stock := v_stock + v_qty_new - v_qty_old;
+          END IF;
+          v_neededqty_old := v_neededqty_new;
+          v_qty_old := v_qty_new;
+        END IF;
+
+        v_stock := v_stock + Cur_Lines.qty;
+        UPDATE MRP_RUN_PURCHASELINE
+        SET CUMQTY = v_stock
+        WHERE MRP_RUN_PURCHASELINE_ID = Cur_Lines.MRP_RUN_PURCHASELINE_ID;
+
+      END LOOP;
+    END LOOP;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MRP_PURCHASEPLAN exception: ' || v_ResultStr);
+  RAISE;
+--  RETURN;
+END MRP_PURCHASEPLAN
+]]></body>
+    </function>
+  </database>

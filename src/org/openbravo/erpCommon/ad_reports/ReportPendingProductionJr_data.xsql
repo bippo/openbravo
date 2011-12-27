@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+<SqlClass name="ReportPendingProductionJrData" package="org.openbravo.erpCommon.ad_reports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT C_ORDER.DOCUMENTNO AS DOCNO, C_ORDER.DATEORDERED AS ORDERED, C_ORDER.DATEPROMISED AS PROMISED,
+             C_BPARTNER.NAME AS BPNAME, C_REGION.NAME AS RNAME, M_PRODUCT.VALUE, M_PRODUCT.NAME AS PNAME,
+             C_ORDERLINE.QTYORDERED, STORAGE_DETAIL.QTYONHAND, STORAGE_DETAIL.PREQTYONHAND,
+              CASE  WHEN C_ORDERLINE.QTYORDERED - STORAGE_DETAIL.QTYONHAND - STORAGE_DETAIL.PREQTYONHAND>0 THEN 'Color' ELSE 'Bordes' END AS NEGATIVE
+         FROM C_ORDER, C_ORDERLINE, C_BPARTNER, M_PRODUCT, C_BPARTNER_LOCATION, C_LOCATION, C_REGION,
+            (SELECT M_PRODUCT_ID, SUM(QTYONHAND) AS QTYONHAND, SUM(PREQTYONHAND) AS PREQTYONHAND  
+             FROM M_STORAGE_DETAIL GROUP BY M_STORAGE_DETAIL.M_PRODUCT_ID) STORAGE_DETAIL 
+         WHERE C_ORDER.C_ORDER_ID = C_ORDERLINE.C_ORDER_ID
+           AND C_ORDER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+           AND C_ORDERLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+           AND STORAGE_DETAIL.M_PRODUCT_ID = C_ORDERLINE.M_PRODUCT_ID
+           AND C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID = C_ORDER.C_BPARTNER_LOCATION_ID
+           AND C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+           AND C_LOCATION.C_REGION_ID = C_REGION.C_REGION_ID
+           AND C_ORDER.DOCSTATUS='CO'
+           AND C_ORDER.C_ORDER_ID IN (SELECT C_Order_ID FROM M_InOut_Candidate_v)
+           AND C_ORDER.ISSOTRX='Y' 
+           AND C_ORDER.AD_CLIENT_ID IN ('1')
+           AND C_ORDER.AD_ORG_ID IN ('1')
+         ORDER BY C_ORDER.DATEORDERED
+      ]]>
+      </Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_ORDER.AD_CLIENT_ID IN (" text="'1'"/>  
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND C_ORDER.AD_ORG_ID IN (" text="'1'"/>
+   </SqlMethod>
+
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+</SqlClass>

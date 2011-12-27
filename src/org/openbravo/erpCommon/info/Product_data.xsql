@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ProductData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      SELECT A.*,
+        PriceStd-PriceLimit AS Margin
+      FROM (
+        SELECT p.M_Product_ID, p.Discontinued, p.Value, p.Name,
+        M_BOM_Qty_Available(p.M_Product_ID,?, NULL) AS QtyAvailable, 
+        M_BOM_PriceList(p.M_Product_ID, pv.M_PriceList_Version_ID) AS PriceList,
+        M_BOM_PriceStd(p.M_Product_ID, pv.M_PriceList_Version_ID) AS PriceStd, 
+        M_BOM_Qty_OnHand(p.M_Product_ID,?, NULL) AS QtyOnHand, 
+        M_BOM_Qty_Reserved(p.M_Product_ID,?, null) AS QtyReserved, 
+        M_BOM_Qty_Ordered(p.M_Product_ID,?, NULL) AS QtyOrdered, 
+        M_BOM_PriceLimit(p.M_Product_ID, pv.M_PriceList_Version_ID) AS PriceLimit,
+        p.C_UOM_ID, pl.C_Currency_ID
+        FROM M_Product p join
+        (
+          SELECT * 
+          FROM ( SELECT '0' AS RN1, C.* FROM
+            (
+              SELECT ip.m_product_id, ip.value, ip.name
+              FROM M_Product ip, M_ProductPrice pr
+              WHERE
+                ip.IsSummary='N' AND 
+                ip.IsActive='Y'
+                AND ip.AD_Client_ID IN ('1') 
+                AND ip.AD_Org_ID IN ('1')
+                AND ip.M_Product_ID=pr.M_Product_ID
+                AND pr.M_PriceList_Version_ID = ?
+                AND pr.IsActive='Y'
+				ORDER BY ip.Value
+            ) C
+          ) B WHERE 1=1
+        ) p2 on p.m_product_id = p2.m_product_id,        
+        M_Pricelist pl, M_PriceList_Version pv
+        WHERE
+            pv.M_PriceList_Version_ID = ?
+        AND pv.M_PriceList_ID=pl.M_PriceList_ID
+        ) A ORDER BY Value
+      ]]></Sql>
+        <Field name="position" value="count"/>
+        <Field name="rowKey" value="void" />
+        <Parameter name="warehouse"/>
+        <Parameter name="warehouse"/>
+        <Parameter name="warehouse"/>
+        <Parameter name="warehouse"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="key" ignoreValue="%" optional="true" after="ip.IsSummary='N' AND "><![CDATA[ UPPER(ip.Value) LIKE UPPER(?) AND ]]></Parameter>
+        <Parameter name="name" ignoreValue="%" optional="true" after="ip.IsSummary='N' AND "><![CDATA[ UPPER(ip.Name) LIKE UPPER(?) AND ]]></Parameter>
+        <Parameter name="adUserClient" type="replace" optional="true" after="ip.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="ip.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="priceListVersion"/>
+        <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="ip.Value" />
+        <Parameter name="pgLimit" type="argument" optional="true" after="ORDER BY ip.Value"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") C"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="priceListVersion"/>
+        <Parameter name="orderBy" type="replace" optional="true" after="A ORDER BY " text="Value" />
+   </SqlMethod>
+
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+      SELECT count(*) AS value FROM ( SELECT '0' AS rn1, B.*  FROM ( 
+        SELECT 1 FROM M_Product p, M_ProductPrice pr
+        WHERE p.M_Product_ID=pr.M_Product_ID 
+        AND p.IsSummary='N' 
+        AND p.IsActive='Y' 
+        AND pr.IsActive='Y'
+        AND pr.M_PriceList_Version_ID = ?
+        AND p.AD_Client_ID IN ('1') 
+        AND p.AD_Org_ID IN ('1')
+        AND 1=1
+      ) B
+      ) A 
+      ]]></Sql>
+      <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Parameter name="key" ignoreValue="%" optional="true" after="WHERE "><![CDATA[ UPPER(p.Value) LIKE UPPER(?) AND ]]></Parameter>
+        <Parameter name="name" ignoreValue="%" optional="true" after="WHERE "><![CDATA[ UPPER(p.Name) LIKE UPPER(?) AND ]]></Parameter>
+        <Parameter name="priceListVersion"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="p.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="p.AD_Org_ID IN (" text="'1'"/>
+      <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+      <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+      <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+  
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="priceListDefault" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT M_PRICELIST_ID FROM M_PRICELIST 
+        WHERE ISDEFAULT='Y' 
+        AND AD_Client_ID IN ('1') 
+        AND AD_Org_ID IN ('1') 
+      ]]></Sql>
+      <Parameter name="adUserClient" type="replace" optional="true" after="AD_Client_ID IN (" text="'1'"/>
+      <Parameter name="adUserOrg" type="replace" optional="true" after="AD_Org_ID IN (" text="'1'"/>
+   </SqlMethod>
+   <SqlMethod name="existsActual" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT name as name
+        FROM M_Product 
+        WHERE UPPER(AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(M_Product_ID), TO_CHAR(?))) = UPPER(?)
+        AND M_Product_ID = ? 
+        ORDER BY name
+      ]]></Sql>
+        <Parameter name="language"/>
+        <Parameter name="description"/>
+        <Parameter name="cBpartnerId"/>
+   </SqlMethod>
+   <SqlMethod name="existsActualValue" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT value as value
+        FROM M_Product 
+        WHERE UPPER(AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(M_Product_ID), TO_CHAR(?))) = UPPER(?)
+        AND M_Product_ID = ? 
+        ORDER BY value
+      ]]></Sql>
+        <Parameter name="language"/>
+        <Parameter name="description"/>
+        <Parameter name="cBpartnerId"/>
+   </SqlMethod>
+</SqlClass>

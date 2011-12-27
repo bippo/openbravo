@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION OBUISEL_LANGUAGE_CREATE">
+    <function name="OBUISEL_LANGUAGE_CREATE" type="NULL">
+      <parameter name="ep_instance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2010 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: AD_Syncronize.sql,v 1.12 2003/07/26 04:29:44 jjanke Exp $
+  ***
+  * Title: Create languages for the Selector
+  ************************************************************************/
+
+  v_rowcount NUMBER;
+
+  BEGIN
+  
+    -- Selector
+    INSERT
+    INTO OBUISEL_SELECTOR_Trl
+      (
+        OBUISEL_SELECTOR_Trl_ID, OBUISEL_SELECTOR_ID, AD_Language_ID, Name, Description,
+        Help, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), OBUISEL_SELECTOR_ID, AD_Language.AD_Language_ID, OBUISEL_SELECTOR.Name, OBUISEL_SELECTOR.Description, OBUISEL_SELECTOR.Help, 'N', '0', '0', '0', '0'
+    FROM OBUISEL_SELECTOR, AD_Language, AD_MODULE M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND M.AD_MODULE_ID = OBUISEL_SELECTOR.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND(OBUISEL_SELECTOR_ID, AD_Language.AD_Language_ID) NOT IN
+      (SELECT OBUISEL_SELECTOR_ID, AD_Language_ID FROM OBUISEL_SELECTOR_Trl)
+      ;
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('- OBUISEL_LANGUAGE_CREATE: OBUISEL_SELECTOR_TRL ' || v_rowcount) ;
+
+    -- Selector Field
+    INSERT
+    INTO OBUISEL_SELECTOR_FIELD_Trl
+      (
+        OBUISEL_SELECTOR_FIELD_Trl_ID, OBUISEL_SELECTOR_FIELD_ID, AD_Language_ID, Name, Description, Help, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), OBUISEL_SELECTOR_FIELD_ID, AD_Language.AD_Language_ID, OBUISEL_SELECTOR_FIELD.Name, OBUISEL_SELECTOR_FIELD.Description, OBUISEL_SELECTOR_FIELD.Help, 'N', '0', '0', '0','0'
+    FROM OBUISEL_SELECTOR_FIELD, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND OBUISEL_SELECTOR_FIELD.AD_Module_ID = M.AD_Module_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND AD_Language.IsSystemLanguage='Y'  AND(OBUISEL_SELECTOR_FIELD_ID, AD_Language.AD_Language_ID) NOT IN
+      (SELECT OBUISEL_SELECTOR_FIELD_ID, AD_Language_ID FROM OBUISEL_SELECTOR_FIELD_Trl)
+      ;
+
+    v_rowcount:=SQL%ROWCOUNT;
+    DBMS_OUTPUT.PUT_LINE('- OBUISEL_LANGUAGE_CREATE: OBUISEL_SELECTOR_FIELD_TRL ' || v_rowcount) ;
+END OBUISEL_LANGUAGE_CREATE
+]]></body>
+    </function>
+  </database>

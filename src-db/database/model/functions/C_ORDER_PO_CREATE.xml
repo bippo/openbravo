@@ -1,0 +1,426 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_ORDER_PO_CREATE">
+    <function name="C_ORDER_PO_CREATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_Order_PO_Create.sql,v 1.4 2003/05/26 22:31:16 jjanke Exp $
+  ***
+  * Title: Create PO from SO
+  * Description:
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    v_DateOrdered_From DATE;
+    v_DateOrdered_To DATE;
+    v_C_BPartner_ID VARCHAR2(32);
+    v_Vendor_ID VARCHAR2(32);
+    v_C_Order_ID VARCHAR2(32);
+    --
+    v_Created NUMBER:=0;
+    FINISH_PROCESS BOOLEAN:=false;
+    v_PInstance_Log_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        i.AD_User_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date,
+        p.P_Date_To
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+      IF(Cur_Parameter.ParameterName='DateOrdered') THEN
+        v_DateOrdered_From:=Cur_Parameter.P_Date;
+        v_DateOrdered_To:=Cur_Parameter.P_Date_To;
+        DBMS_OUTPUT.PUT_LINE('  DateOrdered=' || v_DateOrdered_From || '-' || v_DateOrdered_To) ;
+      ELSIF(Cur_Parameter.ParameterName='C_BPartner_ID') THEN
+        v_C_BPartner_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_BPartner_ID=' || v_C_BPartner_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='Vendor_ID') THEN
+        v_Vendor_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  Vendor_ID=' || v_Vendor_ID) ;
+      ELSIF(Cur_Parameter.ParameterName='C_Order_ID') THEN
+        v_C_Order_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  C_Order_ID=' || v_C_Order_ID) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    -- Check that we have some restrictions
+    v_ResultStr:='CheckRestriction';
+    IF(v_DateOrdered_From IS NULL AND v_DateOrdered_To IS NULL  AND v_C_BPartner_ID IS NULL AND v_Vendor_ID IS NULL  AND v_C_Order_ID IS NULL) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@NoParametersSelected@');
+    END IF;
+    IF(NOT FINISH_PROCESS) THEN
+      DECLARE
+        Cur_SO RECORD;
+        --
+        Cur_SOL RECORD;
+        --
+        v_C_PaymentTerm_ID VARCHAR2(32):=NULL;
+        v_C_DocType_ID VARCHAR2(32):=NULL;
+        v_M_PriceList_Version_ID VARCHAR2(32):=NULL;
+        v_C_Tax_ID VARCHAR2(32):=NULL;
+        --
+        v_BillTo_ID VARCHAR2(32);
+        v_C_BPartner_Location_ID VARCHAR2(32);
+        --
+        v_PO_Order_ID VARCHAR2(32);
+        v_DocumentNo NVARCHAR2(30) ;
+        v_NextID varchar2(32);
+        v_Lines NUMBER:=0;
+        --
+      BEGIN
+        v_ResultStr:='StartLoop';
+        FOR Cur_SO IN
+          (SELECT so.AD_Client_ID,
+            so.AD_Org_ID,
+            so.UpdatedBy,
+            so.Description,
+            so.SalesRep_ID,
+            so.DateOrdered,
+            so.DatePromised,
+            so.DateAcct,
+            so.C_Order_ID,
+            so.DocumentNo,
+            so.PriorityRule,
+            so.M_WareHouse_ID,
+            so.C_Campaign_ID,
+            so.C_Project_ID, 
+            so.C_Activity_ID,
+            po.C_BPartner_ID,
+            v.PO_PaymentTerm_ID,
+            v.PaymentRulePO,
+            v.PO_PaymentMethod_ID,
+            v.POReference,
+            pl.M_PriceList_ID,
+            pl.C_Currency_ID
+          FROM C_ORDER so
+          INNER JOIN C_ORDERLINE sol
+            ON(so.C_Order_ID=sol.C_Order_ID)
+          INNER JOIN M_PRODUCT_PO po
+            ON(sol.M_Product_ID=po.M_Product_ID)
+          INNER JOIN C_BPARTNER v
+            ON(po.C_BPartner_ID=v.C_BPartner_ID)
+          INNER JOIN M_PRICELIST pl
+            ON(v.PO_PriceList_ID=pl.M_PriceList_ID)
+          WHERE po.IsCurrentVendor='Y'  -- Optional Order No
+            AND(v_C_Order_ID IS NULL
+            OR so.C_Order_ID=v_C_Order_ID) -- Optional Sales BPartner
+            AND(v_C_BPartner_ID IS NULL
+            OR so.C_BPartner_ID=v_C_BPartner_ID) -- Optional Purchase BPartner
+            AND(v_Vendor_ID IS NULL
+            OR po.C_BPartner_ID=v_Vendor_ID) -- Optional Date Range
+            AND(v_DateOrdered_From IS NULL
+            OR so.DateOrdered BETWEEN v_DateOrdered_From AND v_DateOrdered_To) -- Don't create twice
+            AND sol.Ref_OrderLine_ID IS NULL
+          GROUP BY so.AD_Client_ID,
+            so.AD_Org_ID,
+            so.UpdatedBy,
+            so.Description,
+            so.SalesRep_ID,
+            so.DateOrdered,
+            so.DatePromised,
+            so.DateAcct,
+            so.C_Order_ID,
+            so.DocumentNo,
+            so.PriorityRule,
+            so.M_WareHouse_ID,
+            so.C_Campaign_ID,
+            so.C_Project_ID,
+            so.C_Activity_ID,
+            po.C_BPartner_ID,
+            v.PO_PaymentTerm_ID,
+            v.PaymentRulePO,
+            v.PO_PaymentMethod_ID,
+            v.POReference,
+            pl.M_PriceList_ID,
+            pl.C_Currency_ID
+          ORDER BY po.C_BPartner_ID
+          )
+        LOOP
+          -- All Payment Types are the same for the same Client
+          IF(v_C_PaymentTerm_ID IS NULL) THEN
+            v_ResultStr:='DefaultPaymentTerm';
+            SELECT MAX(C_PaymentTerm_ID)
+            INTO v_C_PaymentTerm_ID
+            FROM C_PAYMENTTERM
+            WHERE IsDefault='Y'
+              AND AD_Client_ID=Cur_SO.AD_Client_ID;
+            IF(v_C_PaymentTerm_ID IS NULL) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@DefaultPaymenttermNotdefined@');
+            END IF;
+          END IF;
+          -- All Document Types are the same for the same Client
+          IF(v_C_DocType_ID IS NULL) THEN
+            v_ResultStr:='DocType';
+            v_C_DocType_ID:=Ad_Get_DocType(Cur_SO.AD_Client_ID, Cur_SO.AD_Org_ID, 'POO') ;
+            IF(v_C_DocType_ID IS NULL) THEN
+              RAISE_APPLICATION_ERROR(-20000, '@PODocumenttypenotfound@');
+            END IF;
+          END IF;
+          -- Tax Default for Client
+          IF(v_C_Tax_ID IS NULL) THEN
+            v_ResultStr:='DefaultTax';
+            SELECT MAX(C_Tax_ID)
+            INTO v_C_Tax_ID
+            FROM C_TAX
+            WHERE IsDefault='Y'
+              AND AD_Client_ID=Cur_SO.AD_Client_ID;
+            IF(v_C_Tax_ID IS NULL) THEN
+             RAISE_APPLICATION_ERROR(-20000, '@TaxNotFound@');
+            END IF;
+          END IF;
+          v_ResultStr:='BPLocation_B';
+          SELECT MAX(C_BPartner_Location_ID)
+          INTO v_BillTo_ID
+          FROM C_BPARTNER_LOCATION
+          WHERE IsBillTo='Y'
+            AND C_BPartner_ID=Cur_SO.C_BPartner_ID;
+          v_ResultStr:='BPLocation_S';
+          SELECT MAX(C_BPartner_Location_ID)
+          INTO v_C_BPartner_Location_ID
+          FROM C_BPARTNER_LOCATION
+          WHERE IsShipTo='Y'
+            AND C_BPartner_ID=Cur_SO.C_BPartner_ID;
+          -- What PO PriceListVersion to use (first record only)
+          v_ResultStr:='PriceListVersion';
+          DECLARE
+            Cur_PLV RECORD;
+          BEGIN
+            FOR Cur_PLV IN
+              (SELECT plv.M_PriceList_Version_ID
+              FROM C_ORDERLINE sol
+              INNER JOIN M_PRODUCT_PO po
+                ON(sol.M_Product_ID=po.M_Product_ID)
+              INNER JOIN C_BPARTNER v
+                ON(po.C_BPartner_ID=v.C_BPartner_ID)
+              INNER JOIN M_PRICELIST_VERSION plv
+                ON(v.PO_PriceList_ID=plv.M_PriceList_ID
+                AND plv.ValidFrom<sol.DateOrdered)
+              WHERE sol.C_Order_ID=Cur_SO.C_Order_ID
+                AND v.C_BPartner_ID=Cur_SO.C_BPartner_ID
+              ORDER BY plv.ValidFrom DESC
+              )
+            LOOP
+              IF(v_M_PriceList_Version_ID IS NULL) THEN
+                v_M_PriceList_Version_ID:=Cur_PLV.M_PriceList_Version_ID;
+              END IF;
+            END LOOP;
+          END;
+          IF(v_M_PriceList_Version_ID IS NULL) THEN
+            v_Message:='No valid Price List Version for Order ' || Cur_SO.DocumentNo;
+            v_Result:=0;
+            FINISH_PROCESS:=true;
+            EXIT;
+          END IF;
+          --
+          v_ResultStr:='ID/DocNo';
+          Ad_Sequence_Next('C_Order', Cur_SO.AD_Client_ID, v_PO_Order_ID) ;
+          Ad_Sequence_Doctype(v_C_DocType_ID, Cur_SO.AD_Client_ID, 'Y', v_DocumentNo) ;
+          IF(v_DocumentNo IS NULL) THEN
+            Ad_Sequence_Doc('DocumentNo_C_Order', Cur_SO.AD_Client_ID, 'Y', v_DocumentNo) ;
+          END IF;
+          --
+          v_ResultStr:='InsertPOrder';
+          INSERT
+          INTO C_ORDER
+            (
+              AD_Client_ID, AD_Org_ID, IsActive, Created,
+              CreatedBy, Updated, UpdatedBy, C_Order_ID,
+              IsSOTrx, DocumentNo, DocStatus, DocAction,
+              Processing, Processed, C_DocType_ID, C_DocTypeTarget_ID,
+              Description,
+              IsDelivered, IsInvoiced, IsPrinted,
+              IsSelected, SalesRep_ID, DateOrdered, DatePromised,
+              DatePrinted, DateAcct, C_BPartner_ID, BillTo_ID,
+              C_BPartner_Location_ID, AD_User_ID, POReference, IsDiscountPrinted,
+              C_Currency_ID, PaymentRule, FIN_PaymentMethod_ID, C_PaymentTerm_ID, InvoiceRule,
+              DeliveryRule, FreightCostRule, FreightAmt, DeliveryViaRule,
+              M_Shipper_ID, C_Charge_ID, ChargeAmt, PriorityRule,
+              TotalLines, GrandTotal,
+              M_WareHouse_ID, M_PriceList_ID, IsTaxIncluded,
+              C_Campaign_ID, C_Project_ID, C_Activity_ID, Posted
+            )
+            VALUES
+            (
+              Cur_SO.AD_Client_ID, Cur_SO.AD_Org_ID, 'Y', now(),
+              v_AD_User_ID, now(), v_AD_User_ID, v_PO_Order_ID,
+               'N', v_DocumentNo, 'DR', 'CO',
+               'N', 'N', '0', v_C_DocType_ID,
+              Cur_SO.DocumentNo || ': ' || Cur_SO.Description,
+              'N', 'N', 'N',
+               'N', Cur_SO.SalesRep_ID, Cur_SO.DateOrdered, Cur_SO.DatePromised,
+              NULL, Cur_SO.DateAcct, Cur_SO.C_BPartner_ID, v_BillTo_ID,
+              v_C_BPartner_Location_ID, NULL, Cur_SO.POReference, 'Y',
+              Cur_SO.C_Currency_ID, COALESCE(Cur_SO.PaymentRulePO, 'P'), COALESCE(Cur_SO.PO_PaymentMethod_ID, 'P'), COALESCE(Cur_SO.PO_PaymentTerm_ID, v_C_PaymentTerm_ID), 'D',
+              'A', 'I', 0, 'P',
+              NULL, NULL, 0, Cur_SO.PriorityRule,
+              0, 0,
+              -- M_WareHouse_ID, M_PriceList_ID, IsTaxIncluded,
+              Cur_SO.M_WareHouse_ID, Cur_SO.M_PriceList_ID, 'N',
+              -- C_Campaign_ID, C_Project_ID, C_Activity_ID, Posted, C_Payment_ID, C_CashLine_ID)
+              Cur_SO.C_Campaign_ID, Cur_SO.C_Project_ID, Cur_SO.C_Activity_ID, 'N'
+            )
+            ;
+          v_ResultStr:='InsertPOrderLine';
+          v_Lines:=0; -- should ne one line ony.
+          FOR Cur_SOL IN
+            (SELECT sol.AD_Client_ID,
+              sol.AD_Org_ID,
+              sol.C_OrderLine_ID,
+              sol.Line,
+              sol.DateOrdered,
+              sol.DatePromised,
+              sol.M_Product_ID,
+              sol.C_UOM_ID,
+              sol.QtyOrdered,
+              sol.M_Warehouse_ID,
+              sol.DirectShip,
+              sol.Description,
+              sol.m_attributesetinstance_id,
+              pp.PriceList,
+              pp.PriceStd,
+              pp.PriceLimit  --MODIFIED BY F.IRIAZABAL
+              ,
+              sol.QUANTITYORDER,
+              sol.M_PRODUCT_UOM_ID
+            FROM C_ORDERLINE sol
+            INNER JOIN C_ORDER so
+              ON(sol.C_Order_ID=so.C_Order_ID)
+            INNER JOIN M_PRODUCT_PO po
+              ON(sol.M_Product_ID=po.M_Product_ID)
+            INNER JOIN C_BPARTNER v
+              ON(po.C_BPartner_ID=v.C_BPartner_ID)
+            INNER JOIN M_PRICELIST pl
+              ON(v.PO_PriceList_ID=pl.M_PriceList_ID)
+            INNER JOIN M_PRODUCTPRICE pp
+              ON(sol.M_Product_ID=pp.M_Product_ID
+              AND M_PriceList_Version_ID=v_M_PriceList_Version_ID) -- #2
+            WHERE sol.C_Order_ID=Cur_SO.C_Order_ID -- #1
+              AND po.IsCurrentVendor='Y'  -- Optional Order No
+              AND(v_C_Order_ID IS NULL
+              OR so.C_Order_ID=v_C_Order_ID) -- Optional Sales BPartner
+              AND(v_C_BPartner_ID IS NULL
+              OR so.C_BPartner_ID=v_C_BPartner_ID) -- Optional Purchase BPartner
+              AND(v_Vendor_ID IS NULL
+              OR po.C_BPartner_ID=v_Vendor_ID) -- Optional Date Range
+              AND(v_DateOrdered_From IS NULL
+              OR so.DateOrdered BETWEEN v_DateOrdered_From AND v_DateOrdered_To) -- Don't create twice
+              AND po.C_BPartner_ID=Cur_SO.C_BPartner_ID
+              AND sol.Ref_OrderLine_ID IS NULL
+            ORDER BY sol.Line
+            )
+          LOOP
+            Ad_Sequence_Next('C_OrderLine', Cur_SO.AD_Client_ID, v_NextID) ;
+            INSERT
+            INTO C_ORDERLINE
+              (
+                AD_Client_ID, AD_Org_ID, IsActive, Created,
+                CreatedBy, Updated, UpdatedBy, C_Order_ID,
+                C_OrderLine_ID, Line, C_BPartner_ID, C_BPartner_Location_ID,
+                DateOrdered, DatePromised, DateDelivered, DateInvoiced,
+                Description, M_Product_ID, M_AttributeSetInstance_ID, M_WareHouse_ID,
+                DirectShip, C_UOM_ID, QtyOrdered, QtyReserved,
+                QtyDelivered, QtyInvoiced, M_Shipper_ID, C_Currency_ID,
+                PriceList, PriceActual, PriceLimit, LineNetAmt,
+                Discount, FreightAmt, C_Charge_ID, ChargeAmt,
+                C_Tax_ID, S_ResourceAssignment_ID,
+                Ref_OrderLine_ID,  --MODIFIED BY F.IRIAZABAL
+                QuantityOrder, M_Product_UOM_ID, PriceStd, M_Offer_ID
+              )
+              VALUES
+              (
+                Cur_SOL.AD_Client_ID, Cur_SOL.AD_Org_ID, 'Y', now(),
+                v_AD_User_ID, now(), v_AD_User_ID, v_PO_Order_ID,
+                v_NextID, Cur_SOL.Line, Cur_SO.C_BPartner_ID, v_C_BPartner_Location_ID,
+                Cur_SOL.DateOrdered, Cur_SOL.DatePromised, NULL, NULL,
+                Cur_SOL.Description, Cur_SOL.M_Product_ID, Cur_SOL.M_AttributeSetInstance_ID, Cur_SOL.M_WareHouse_ID,
+                Cur_SOL.DirectShip, Cur_SOL.C_UOM_ID, Cur_SOL.QtyOrdered, 0,
+                0, 0, NULL, Cur_SO.C_Currency_ID,
+                Cur_SOL.PriceList, Cur_SOL.PriceStd, Cur_SOL.PriceLimit, ROUND(Cur_SOL.QtyOrdered*Cur_SOL.PriceStd, 2),
+                NULL, 0, NULL, 0,
+                v_C_Tax_ID, NULL,
+                Cur_SOL.C_OrderLine_ID,  --MODIFIED BY F.IRIAZABAL
+                Cur_SOL.QUANTITYORDER, Cur_SOL.M_PRODUCT_UOM_ID, Cur_SOL.PriceStd, NULL
+              )
+              ;
+            --
+            UPDATE C_ORDERLINE
+              SET Ref_OrderLine_ID=v_NextID
+            WHERE C_OrderLine_ID=Cur_SOL.C_OrderLine_ID;
+            --
+            v_Lines:=v_Lines + 1;
+          END LOOP; -- For all SO Lines
+          
+          v_Created:=v_Created + 1;
+        END LOOP; -- For all SO
+      END;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      v_Message:='@Created@=' || v_Created;
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_ORDER_PO_CREATE
+]]></body>
+    </function>
+  </database>

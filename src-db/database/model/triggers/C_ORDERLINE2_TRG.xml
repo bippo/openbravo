@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_ORDERLINE2_TRG">
+    <trigger name="C_ORDERLINE2_TRG" table="C_ORDERLINE" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+
+
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_ID VARCHAR2(32);
+  v_QtyReserved      NUMBER;
+  v_QtyOrderReserved NUMBER;
+  V_STOCKED          NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(UPDATING) THEN
+    IF(:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+      IF((COALESCE(:old.QtyDelivered, 0) <> COALESCE(:NEW.QtyDelivered, 0))) THEN
+        -- Get ID
+        v_ID:=:new.C_Order_ID;
+        v_QtyReserved:=-(:new.qtydelivered - :old.qtydelivered) ;
+        IF :old.qtydelivered=0 AND :new.qtydelivered=:new.qtyordered THEN
+          v_QtyOrderReserved:=-:new.QuantityOrder;
+        ELSIF :new.M_Product_UOM_ID IS NOT NULL THEN
+          v_QtyOrderReserved:=C_Uom_Convert(v_QtyReserved, :new.C_UOM_ID, :new.m_product_uom_id, 'Y') ;
+        END IF;
+        SELECT COUNT(*)
+        INTO V_STOCKED
+        FROM M_PRODUCT
+        WHERE M_Product_ID=:NEW.M_PRODUCT_ID
+          AND IsStocked='Y'
+          AND ProductType='I';
+        IF V_STOCKED > 0 THEN
+          M_UPDATE_STORAGE_PENDING(:new.AD_Client_ID, :new.AD_Org_ID, :new.UpdatedBy, :new.M_Product_ID, :new.M_Warehouse_ID, :new.M_AttributeSetInstance_ID, :new.C_UOM_ID, :new.M_PRODUCT_UOM_ID, v_QtyReserved, v_QtyOrderReserved, 0, NULL) ;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+END C_ORDERLINE2_TRG
+]]></body>
+    </trigger>
+  </database>

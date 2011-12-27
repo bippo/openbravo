@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER A_ASSET_GROUP_TRG">
+    <trigger name="A_ASSET_GROUP_TRG" table="A_ASSET_GROUP" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  Cur_Defaults RECORD;
+
+BEGIN
+
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  FOR Cur_Defaults IN
+    (
+    SELECT *
+    FROM C_AcctSchema_Default d
+    WHERE EXISTS
+      (
+      SELECT 1
+      FROM AD_Org_AcctSchema
+      WHERE (AD_IsOrgIncluded(AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1 OR AD_IsOrgIncluded(:new.AD_ORG_ID, AD_Org_ID, :new.AD_Client_ID)<>-1)
+      AND IsActive = 'Y'
+      AND AD_Org_AcctSchema.C_AcctSchema_ID = d.C_AcctSchema_ID
+      )
+      AND d.AD_CLIENT_ID = :new.AD_Client_ID
+    )
+  LOOP
+    INSERT
+    INTO A_Asset_Group_Acct
+      (
+        A_Asset_Group_Acct_ID, A_ASSET_GROUP_ID, C_ACCTSCHEMA_ID, AD_CLIENT_ID,
+        AD_ORG_ID, ISACTIVE, CREATED,
+        CREATEDBY, UPDATED, UPDATEDBY,
+        A_DEPRECIATION_ACCT, A_ACCUMDEPRECIATION_ACCT, A_DISPOSAL_LOSS,
+        A_DISPOSAL_GAIN
+      )
+      VALUES
+      (
+        get_uuid(), :new.A_Asset_Group_ID, Cur_Defaults.C_AcctSchema_ID, :new.AD_Client_ID,
+        :new.AD_Org_ID,  'Y', now(),
+        :new.CreatedBy, now(), :new.UpdatedBy,
+        Cur_Defaults.A_DEPRECIATION_ACCT, Cur_Defaults.A_ACCUMDEPRECIATION_ACCT, Cur_Defaults.A_DISPOSAL_LOSS,
+        Cur_Defaults.A_DISPOSAL_GAIN
+      )
+      ;
+  END LOOP;
+END A_ASSET_GROUP_TRG
+]]></body>
+    </trigger>
+  </database>

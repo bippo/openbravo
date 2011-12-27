@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_INVOICE_CANDIDATE_V">
+    <view name="C_INVOICE_CANDIDATE_V"><![CDATA[SELECT sq.ad_client_id, sq.ad_org_id, sq.c_bpartner_id, sq.c_order_id, sq.documentno, sq.dateordered, sq.c_doctype_id, sq.amountlines, sq.amountlinesgross, sq.notinvoicedlines, round(sq.notinvoicedlinesgross, c.stdprecision) AS notinvoicedlinesgross, sq.term, sq.pendinglines, round(sq.pendinglinesgross, c.stdprecision) AS pendinglinesgross, sq.qtyordered, sq.qtydelivered
+FROM (SELECT o.ad_client_id, o.ad_org_id, o.c_bpartner_id, o.c_order_id, o.documentno, o.dateordered, o.c_doctype_id, o.totallines AS amountlines, o.grandtotal AS amountlinesgross, sum(round((l.qtyordered - l.qtyinvoiced) * l.priceactual, c.stdprecision)) AS notinvoicedlines, sum(round((l.qtyordered - l.qtyinvoiced) * l.priceactual, c.stdprecision) * (1 + t.rate / 100)) AS notinvoicedlinesgross, o.invoicerule AS term, sum(round((l.qtydelivered - l.qtyinvoiced) * l.priceactual, c.stdprecision)) AS pendinglines, sum(round((l.qtydelivered - l.qtyinvoiced) * l.priceactual, c.stdprecision) * (1 + t.rate / 100)) AS pendinglinesgross, sum(l.qtyordered) AS qtyordered, sum(l.qtydelivered) AS qtydelivered, o.m_pricelist_id, c.c_currency_id
+FROM c_order o
+JOIN m_pricelist p ON o.m_pricelist_id = p.m_pricelist_id
+JOIN c_currency c ON p.c_currency_id = c.c_currency_id
+JOIN c_orderline l ON o.c_order_id = l.c_order_id
+JOIN c_bpartner bp ON o.c_bpartner_id = bp.c_bpartner_id
+JOIN c_tax t ON t.c_tax_id = l.c_tax_id
+LEFT JOIN c_invoiceschedule si ON bp.c_invoiceschedule_id = si.c_invoiceschedule_id
+WHERE (o.docstatus IN ('CO', 'CL', 'IP')) AND (o.c_doctype_id IN (SELECT c_doctype.c_doctype_id
+FROM c_doctype
+WHERE c_doctype.docbasetype = 'SOO' AND (c_doctype.docsubtypeso NOT IN ('ON', 'OB', 'WR')))) AND (o.invoicerule = 'I' OR o.invoicerule = 'O' OR o.invoicerule = 'N' OR o.invoicerule = 'D' OR o.invoicerule = 'S' AND (si.invoicefrequency IS NULL OR si.invoicefrequency = 'D' OR si.invoicefrequency = 'W' OR si.invoicefrequency = 'T' AND trunc(o.dateordered) <= (TRUNC(now(), 'MM') + si.invoicedaycutoff - 1) AND trunc(now()) >= (TRUNC(o.dateordered, 'MM') + si.invoiceday - 1) OR trunc(o.dateordered) <= (TRUNC(now(), 'MM') + si.invoicedaycutoff + 14) AND trunc(now()) >= (TRUNC(o.dateordered, 'MM') + si.invoiceday + 14) OR si.invoicefrequency = 'M' AND trunc(o.dateordered) <= (TRUNC(now(), 'MM') + si.invoicedaycutoff - 1) AND trunc(now()) >= (TRUNC(o.dateordered, 'MM') + si.invoiceday - 1)))
+GROUP BY o.ad_client_id, o.ad_org_id, o.c_bpartner_id, o.c_order_id, o.documentno, o.dateordered, o.c_doctype_id, o.totallines, o.grandtotal, l.c_tax_id, o.invoicerule, o.m_pricelist_id, c.c_currency_id
+HAVING sum(l.qtyordered - l.qtyinvoiced) <> 0 OR sum(l.qtydelivered - l.qtyinvoiced) <> 0) sq
+JOIN m_pricelist p ON sq.m_pricelist_id = p.m_pricelist_id
+JOIN c_currency c ON sq.c_currency_id = c.c_currency_id]]></view>
+  </database>

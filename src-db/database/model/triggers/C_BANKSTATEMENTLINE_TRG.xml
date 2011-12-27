@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BANKSTATEMENTLINE_TRG">
+    <trigger name="C_BANKSTATEMENTLINE_TRG" table="C_BANKSTATEMENTLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_BankStatementLine_Trg.sql,v 1.4 2003/01/27 06:22:11 jjanke Exp $
+    ***
+    * Title: Update Balance of Statement, RO check
+    * Description:
+    ************************************************************************/
+  v_Difference NUMBER:=0;
+  v_ID VARCHAR2(32);
+  v_RO NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Difference, ID
+  IF(UPDATING OR INSERTING) THEN
+    v_Difference:=:new.StmtAmt;
+    v_ID:=:new.C_BankStatement_ID;
+  END IF;
+  IF(DELETING OR UPDATING) THEN
+    v_Difference:=v_Difference - :old.StmtAmt;
+    v_ID:=:old.C_BankStatement_ID;
+  END IF;
+  -- ReadOnly Check
+  /*SELECT COUNT(*)
+  INTO v_RO
+  FROM C_BankStatement
+  WHERE C_BankStatement_ID=v_ID
+  AND Processed='Y';
+  IF (v_RO > 0) THEN
+  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+  END IF;*/
+  -- Update header
+  UPDATE C_BankStatement
+    SET StatementDifference=StatementDifference + v_Difference,
+    EndingBalance=EndingBalance + v_Difference
+  WHERE C_BankStatement_ID=v_ID;
+END C_BANKSTATEMENTLINE_TRG
+]]></body>
+    </trigger>
+  </database>

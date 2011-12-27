@@ -1,0 +1,191 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_COLUMN_IDENTIFIER_REF_SQL">
+    <function name="AD_COLUMN_IDENTIFIER_REF_SQL" type="VARCHAR">
+      <parameter name="p_tableref" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_tablename" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_columnname" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_reference_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_reference_value_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_SQL               VARCHAR2(4000):='';
+  v_TableDir          VARCHAR2(50) ;
+  v_FieldValue        VARCHAR2(50) ;
+  v_FieldDisplay      VARCHAR2(50) ;
+  v_DisplayValue      CHAR(1):='N';
+  v_IsTranslated      CHAR(1):='N';
+  v_NewTableName      VARCHAR2(60) ;
+  v_NewColumnName     VARCHAR2(60) ;
+  v_NewReference      VARCHAR2(32);
+  v_NewReferenceValue VARCHAR2(32);
+  v_KeyReference      VARCHAR2(32);
+  v_firstColumn       BOOLEAN:=TRUE;
+  END_PROCESS         BOOLEAN:=FALSE;
+BEGIN
+  IF p_Reference_ID='17' THEN -- LIST
+    v_SQL:='coalesce ((SELECT NAME FROM AD_REF_LIST_V ';
+    v_SQL:=v_SQL || 'WHERE AD_Language=L.AD_LANGUAGE ';
+    v_SQL:=v_SQL || 'AND Value=' || p_TableRef||'.'|| p_ColumnName || ' ';
+    v_SQL:=v_SQL || 'AND AD_Reference_ID=''' || p_Reference_Value_ID || '''), '''')';
+  ELSIF p_Reference_ID='18' THEN -- TABLE
+    SELECT ad_table.tablename,
+      c1.columnname as keyName,
+      c1.ad_reference_id,
+      c2.columnname as displayName,
+      isvaluedisplayed,
+      c2.AD_REFERENCE_ID,
+      c2.AD_REFERENCE_VALUE_ID
+    INTO v_TableDir,
+      v_FieldValue,
+      v_KeyReference,
+      v_FieldDisplay,
+      v_DisplayValue,
+      v_NewReference,
+      v_NewReferenceValue
+    FROM ad_ref_table,
+      ad_table,
+      ad_column c1,
+      ad_column c2
+    WHERE ad_ref_table.ad_table_id=ad_table.ad_table_id
+      AND ad_ref_table.ad_key=c1.ad_column_id
+      AND ad_ref_table.ad_display=c2.ad_column_id
+      AND ad_ref_table.ad_reference_id=p_Reference_Value_ID;
+    v_SQL:='coalesce ((SELECT ';
+    IF v_DisplayValue='Y' THEN
+      v_SQL:=v_SQL || 'VALUE || '' - '' || ';
+    END IF;
+    v_SQL:=v_SQL || AD_COLUMN_IDENTIFIER_REF_SQL(p_TableRef||'T', v_TableDir, v_FieldDisplay, v_NewReference, v_NewReferenceValue) ;
+    v_SQL:=v_SQL || ' FROM ' || v_TableDir || ' '||p_TableRef||'T WHERE '||p_TableRef||'T.' || v_FieldValue || '='|| p_TableRef||'.'|| p_ColumnName||'),'''') ';
+  ELSIF p_Reference_ID IN('19', '30', '31', '35', '25', '800011', '32') THEN -- SEARCHS
+    IF p_Reference_ID='25' THEN
+      v_TableDir:='C_ValidCombination';
+    ELSIF p_Reference_ID='31' THEN
+      v_TableDir:='M_Locator';
+    ELSIF p_Reference_ID='800011' THEN
+      v_TableDir:='M_Product';
+    ELSIF p_Reference_ID='32' THEN
+      v_TableDir:='AD_Image';
+    ELSE
+      v_TableDir:=SUBSTR(p_ColumnName, 1, LENGTH(p_ColumnName) -3) ;
+    END IF;
+  ELSE
+    SELECT c.ISTRANSLATED
+    INTO v_IsTranslated
+    FROM AD_COLUMN c,
+      AD_TABLE t
+    WHERE c.AD_TABLE_ID=t.AD_TABLE_ID
+      AND UPPER(t.TABLENAME)=UPPER(p_TableName)
+      AND UPPER(c.COLUMNNAME)=UPPER(p_ColumnName) ;
+    IF v_IsTranslated='Y' THEN
+      SELECT MAX(TableName)
+      INTO v_NewTableName
+      FROM AD_TABLE
+      WHERE UPPER(TableName)=UPPER(p_TableName) || '_TRL';
+      IF v_NewTableName IS NOT NULL THEN
+        SELECT MAX(c.COLUMNNAME)
+        INTO v_NewColumnName
+        FROM AD_COLUMN c,
+          AD_TABLE t
+        WHERE c.AD_TABLE_ID=t.AD_TABLE_ID
+          AND UPPER(t.TABLENAME)=UPPER(v_NewTableName)
+          AND UPPER(c.COLUMNNAME)=UPPER(p_ColumnName) ;
+        IF v_NewColumnName IS NOT NULL THEN
+          SELECT MAX(COLUMNNAME)
+          INTO v_FieldValue
+          FROM AD_COLUMN c,
+            AD_TABLE t
+          WHERE c.AD_TABLE_ID=t.AD_TABLE_ID
+            AND UPPER(t.TABLENAME)=UPPER(p_TableName)
+            AND(c.ISKEY='Y'
+            OR c.ISSECONDARYKEY='Y')
+            AND UPPER(c.COLUMNNAME) <> 'AD_LANGUAGE';
+          v_SQL:='coalesce ((SELECT COALESCE(TO_CHAR(MAX(' || p_TableRef || 'T.' || v_NewColumnName || ')), TO_CHAR(' || p_TableRef || '.' || p_ColumnName || ')) FROM ' || v_NewTableName || ' ' || p_TableRef || 'T WHERE '|| p_TableRef||'T.' || v_FieldValue || '='|| p_TableRef||'.'|| v_FieldValue || ' AND ' || p_TableRef || 'T.AD_LANGUAGE=L.AD_LANGUAGE), '''') ';
+        END IF;
+      END IF;
+    END IF;
+    IF v_SQL IS NULL OR v_SQL='' THEN
+      v_SQL:='TO_CHAR(COALESCE(TO_CHAR('||p_TableRef||'.'|| p_ColumnName||'),''''))';
+    END IF;
+  END IF;
+  IF p_Reference_ID IN('19', '32', '30', '31', '35', '25', '800011') THEN
+    DECLARE
+      v_PartialDisplay VARCHAR2(2000) ;
+      v_KeyName        VARCHAR2(50) ;
+TYPE RECORD IS REF CURSOR;
+      Cur_Columns RECORD;
+      Cur_KeyName RECORD;
+    BEGIN
+      FOR Cur_KeyName IN
+        (SELECT c.ColumnName
+        FROM AD_Column c,
+          AD_Table t
+        WHERE c.AD_Table_ID=t.AD_Table_ID
+          AND UPPER(t.TableName)=UPPER(v_TableDir)
+          AND c.isKey='Y'
+        )
+      LOOP
+        v_KeyName:=Cur_KeyName.ColumnName;
+        EXIT;
+      END LOOP;
+      IF v_KeyName IS NULL THEN
+        v_SQL:='--No key found';
+        END_PROCESS:=true;
+      END IF;
+      IF(NOT END_PROCESS) THEN
+        FOR Cur_Columns IN
+          (SELECT c.ColumnName,
+            c.AD_Reference_ID,
+            c.AD_Reference_Value_ID,
+            t.TableName
+          FROM AD_Column c,
+            AD_Table t
+          WHERE c.AD_Table_ID=t.AD_Table_ID
+            AND UPPER(t.TableName)=UPPER(v_TableDir)
+            AND c.isIdentifier='Y'
+          ORDER BY c.seqno
+          )
+        LOOP
+          IF v_firstColumn THEN
+            v_firstColumn:=FALSE;
+          ELSE
+            v_SQL:=v_SQL || '||'' - ''||';
+          END IF;
+          v_SQL:=v_SQL || AD_COLUMN_IDENTIFIER_REF_SQL(p_TableRef||'T', v_TableDir, Cur_Columns.ColumnName, Cur_Columns.AD_Reference_ID, Cur_Columns.AD_Reference_Value_ID) ;
+        END LOOP;
+        v_SQL:='coalesce ((SELECT ' || v_SQL || ' FROM '|| v_TableDir || ' '||p_TableRef||'T WHERE '||p_TableRef||'T.' || v_KeyName || '='|| p_TableRef||'.'|| p_ColumnName||'), '''') ';
+      END IF; --END_PROCESS
+    END;
+  END IF;
+  --<<END_PROCESS>>
+  RETURN v_SQL;
+  /*EXCEPTION
+  WHEN OTHERS THEN
+  RETURN '**'; */
+END AD_COLUMN_IDENTIFIER_REF_SQL
+]]></body>
+    </function>
+  </database>

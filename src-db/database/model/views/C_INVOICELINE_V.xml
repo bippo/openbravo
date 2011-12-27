@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_INVOICELINE_V">
+    <view name="C_INVOICELINE_V"><![CDATA[SELECT il.ad_client_id, il.ad_org_id, il.c_invoiceline_id, i.c_invoice_id, i.salesrep_id, i.c_bpartner_id, il.m_product_id, i.documentno, i.dateinvoiced, i.dateacct, i.issotrx, i.docstatus, round(i.multiplier * il.linenetamt, 2) AS linenetamt, round(i.multiplier * il.pricelist * il.qtyinvoiced, 2) AS linelistamt, 
+CASE
+WHEN il.pricelimit IS NULL THEN round(i.multiplier * il.linenetamt, 2)
+ELSE round(i.multiplier * il.pricelimit * il.qtyinvoiced, 2)
+END AS linelimitamt, round(i.multiplier * il.pricelist * il.qtyinvoiced - il.linenetamt, 2) AS linediscountamt, 
+CASE
+WHEN il.pricelimit IS NULL THEN 0
+ELSE round(i.multiplier * il.linenetamt - il.pricelimit * il.qtyinvoiced, 2)
+END AS lineoverlimitamt, il.qtyinvoiced, il.line, il.c_orderline_id, il.c_uom_id
+FROM c_invoice_v i, c_invoiceline il
+WHERE i.c_invoice_id = il.c_invoice_id]]></view>
+  </database>

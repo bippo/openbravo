@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ALERTRECIPIENT_TRG">
+    <trigger name="AD_ALERTRECIPIENT_TRG" table="AD_ALERTRECIPIENT" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2001-2006 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+      n NUMBER;
+        
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+   IF INSERTING or UPDATING THEN
+     select count(*)
+       into n
+       from ad_user_roles
+      where ad_user_id = :new.ad_user_id
+        and ad_role_id = :new.ad_role_id;
+     IF :new.AD_USER_ID is not null and n=0 then
+       RAISE_APPLICATION_ERROR(-20515, 'User not in role') ;
+     end if;
+   END IF;
+END AD_ALERTRECIPIENT_TRG
+]]></body>
+    </trigger>
+  </database>

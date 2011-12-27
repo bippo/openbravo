@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BP_GROUP_TRG">
+    <trigger name="C_BP_GROUP_TRG" table="C_BP_GROUP" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_BP_Group_Trg.sql,v 1.2 2001/11/26 05:25:19 jjanke Exp $
+    ***
+    * Title:  New Accounting Defaults
+    * Description:
+    ************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  Cur_Defaults RECORD;
+  v_acc_ID VARCHAR2(32) ;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+    FOR Cur_Defaults IN
+      (
+      SELECT *
+      FROM C_AcctSchema_Default d
+      WHERE EXISTS
+        (
+      SELECT 1 
+      FROM AD_Org_AcctSchema
+      WHERE (AD_IsOrgIncluded(AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
+         OR AD_IsOrgIncluded(:new.AD_ORG_ID, AD_Org_ID, :new.AD_Client_ID)<>-1)
+      AND IsActive = 'Y'
+      AND AD_Org_AcctSchema.C_AcctSchema_ID = d.C_AcctSchema_ID
+      AND AD_Org_AcctSchema.AD_Client_ID = :new.AD_Client_ID
+        )
+      )
+    LOOP
+      Ad_Sequence_Next('C_BP_Group_Acct', Cur_Defaults.AD_Org_Id, v_acc_id) ;
+      INSERT
+      INTO C_BP_Group_Acct
+        (
+          C_BP_Group_Acct_ID, C_BP_Group_ID, C_AcctSchema_ID,
+          AD_Client_ID, AD_Org_ID, IsActive,
+          Created, CreatedBy, Updated,
+          UpdatedBy, C_Receivable_Acct, C_PrePayment_Acct,
+          V_Liability_Acct, V_Liability_Services_Acct, V_PrePayment_Acct,
+          PayDiscount_Exp_Acct, PayDiscount_Rev_Acct, WriteOff_Acct,
+          UnRealizedGain_Acct, UnRealizedLoss_Acct, RealizedGain_Acct,
+          RealizedLoss_Acct, NotInvoicedReceipts_Acct, UnEarnedRevenue_Acct,
+          NotInvoicedRevenue_Acct, NotInvoicedReceivables_Acct
+        )
+        VALUES
+        (
+          v_acc_id, :new.C_BP_Group_ID, Cur_Defaults.C_AcctSchema_ID,
+          :new.AD_Client_ID, :new.AD_ORG_ID, 'Y',
+          now(), :new.CreatedBy, now(),
+          :new.UpdatedBy, Cur_Defaults.C_Receivable_Acct, Cur_Defaults.C_PrePayment_Acct,
+          Cur_Defaults.V_Liability_Acct, Cur_Defaults.V_Liability_Services_Acct, Cur_Defaults.V_PrePayment_Acct,
+          Cur_Defaults.PayDiscount_Exp_Acct, Cur_Defaults.PayDiscount_Rev_Acct, Cur_Defaults.WriteOff_Acct,
+          Cur_Defaults.UnRealizedGain_Acct, Cur_Defaults.UnRealizedLoss_Acct, Cur_Defaults.RealizedGain_Acct,
+          Cur_Defaults.RealizedLoss_Acct, Cur_Defaults.NotInvoicedReceipts_Acct, Cur_Defaults.UnEarnedRevenue_Acct,
+          Cur_Defaults.NotInvoicedRevenue_Acct, Cur_Defaults.NotInvoicedReceivables_Acct
+        )
+        ;
+    END LOOP;
+  ELSIF (UPDATING) THEN
+    UPDATE C_BP_GROUP_ACCT SET AD_ORG_ID = :new.AD_ORG_ID  
+    WHERE C_BP_GROUP_ID = :new.C_BP_GROUP_ID;
+  END IF;
+END C_BP_GROUP_TRG
+]]></body>
+    </trigger>
+  </database>

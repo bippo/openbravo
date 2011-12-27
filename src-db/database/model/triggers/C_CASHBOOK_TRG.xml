@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_CASHBOOK_TRG">
+    <trigger name="C_CASHBOOK_TRG" table="C_CASHBOOK" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_Cashbook_Trg.sql,v 1.2 2002/01/02 04:53:50 jjanke Exp $
+    ***
+    * Title: New Accounting Defaults
+    * Description:
+    ************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  Cur_Defaults RECORD;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF (INSERTING) THEN
+    FOR Cur_Defaults IN
+      (
+      SELECT *
+      FROM C_AcctSchema_Default d
+      WHERE EXISTS
+        (
+      SELECT 1 
+      FROM AD_Org_AcctSchema
+      WHERE (AD_IsOrgIncluded(AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
+      or AD_IsOrgIncluded(:new.AD_ORG_ID, AD_Org_ID, :new.AD_Client_ID)<>-1)
+      AND IsActive = 'Y'
+      AND AD_Org_AcctSchema.C_AcctSchema_ID = d.C_AcctSchema_ID)
+      AND d.AD_Client_ID = :new.AD_Client_ID
+      )
+    LOOP
+      INSERT
+      INTO C_Cashbook_Acct
+        (
+          C_Cashbook_Acct_ID, C_Cashbook_ID, C_AcctSchema_ID, AD_Client_ID,
+          AD_Org_ID, IsActive, Created,
+          CreatedBy, Updated, UpdatedBy,
+          CB_Asset_Acct, CB_Differences_Acct, CB_Expense_Acct,
+          CB_Receipt_Acct, CB_CashTransfer_Acct
+        )
+        VALUES
+        (
+          get_uuid(), :new.C_Cashbook_ID, Cur_Defaults.C_AcctSchema_ID, :new.AD_Client_ID,
+          :new.AD_ORG_ID,  'Y', now(),
+          :new.CreatedBy, now(), :new.UpdatedBy,
+          Cur_Defaults.CB_Asset_Acct, Cur_Defaults.CB_Differences_Acct, Cur_Defaults.CB_Expense_Acct,
+          Cur_Defaults.CB_Receipt_Acct, Cur_Defaults.CB_CashTransfer_Acct
+        )
+        ;
+    END LOOP;
+  ELSIF (UPDATING) THEN
+    UPDATE C_CASHBOOK_ACCT SET AD_ORG_ID = :new.AD_ORG_ID
+    WHERE C_CASHBOOK_ID = :new.C_CASHBOOK_ID;
+  END IF;
+END C_CASHBOOK_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<!-- See ReportBankJR_data.xsql for example -->
+
+<SqlClass name="ReportRegisterByVatJRData" package="org.openbravo.erpReports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+ select taxreg.name, 
+	(tax.name||'-'||tax.rate || '%' ) as Aliquota,
+ 	coalesce(taxregline.taxbaseamt,0) as Imponibile, 
+ 	coalesce(taxregline.novatamt,0) as NonImponibile, 
+ 	coalesce(taxregline.exemptamt,0) as Esente , 
+ 	coalesce(taxregline.taxundamt,0) as IvaIndeducibile, 
+ 	coalesce(taxregline.taxamt,0) as Iva, 
+ 	coalesce(taxregline.totalamt,0) as Totale,
+ 	coalesce(taxreg.lastregaccumamt,0) as TotalePrecedente,
+	case 
+ 	when taxregtyp.issotrx ='Y' then 'Sales'
+ 	else 'Purchase'
+ 	end 
+ 	as IsSale
+ from c_taxregister taxreg, 
+ c_taxregisterline taxregline , 
+ c_taxregister_type taxregtyp, 
+ c_tax tax
+ where
+     taxreg.c_taxregister_id = taxregline.c_taxregister_id
+ and taxreg.c_taxregister_type_id = taxregtyp.c_taxregister_type_id 
+ and taxregline.c_tax_id = tax.c_tax_id
+ and 1=1
+ order by  taxreg.name,(tax.name||'-'||tax.rate || '%' )
+     ]]></Sql>
+    <Parameter name="parDateFrom" optional="true" after="and 1=1"><![CDATA[ and taxregline.invoicedate >= to_date(?,'DD/MM/YYYY') ]]></Parameter>
+    <Parameter name="parDateTo" optional="true" after="and 1=1"><![CDATA[ and taxregline.invoicedate <= to_date(?,'DD/MM/YYYY')]]></Parameter>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  
+</SqlClass>

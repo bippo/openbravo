@@ -1,0 +1,184 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_COPY_VERSION">
+    <function name="MA_COPY_VERSION" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  --  Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_Result NUMBER:=1; --  Success
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --  Record Info
+    v_Version VARCHAR2(32);
+    v_ProcessPlanVersion_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    v_Org_ID VARCHAR2(32);
+    v_User_ID VARCHAR2(32);
+    v_UpdatedBy VARCHAR2(32);
+    v_DocumentNo NUMBER;
+    v_Sequence_ID VARCHAR2(32);
+    v_Product_ID VARCHAR2(32);
+    v_DateFrom DATE :=trunc(now());
+    v_DateTo DATE :=TO_DATE('31-12-9999', 'DD-MM-YYYY');
+    v_Count NUMBER;
+    --  v_Processing        CHAR;
+    --  v_Processed         CHAR;
+    Cur_Sequence RECORD;
+    Cur_Product RECORD;
+  BEGIN
+    v_Result:=1;
+    --  Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        i.AD_User_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date,
+        p.AD_Org_ID,
+        p.AD_Client_ID
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+      v_Org_ID:=Cur_Parameter.AD_Org_ID;
+      v_Client_ID:=Cur_Parameter.AD_Client_ID;
+      IF(Cur_Parameter.ParameterName='MA_Processplan_Version_ID') THEN
+        v_Version:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  Version=' || v_Version) ;
+      END IF;
+    END LOOP; --  Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  v_Record_ID=' || v_Record_ID) ;
+    v_ResultStr:='UpdateCurrentVersion';
+    SELECT count(*) INTO v_Count
+    FROM MA_ProcessPlan_Version
+    WHERE MA_Processplan_ID = v_Record_ID
+      AND dateto>=v_DateFrom
+      AND datefrom<=v_DateFrom;
+    IF (v_count >= 0) THEN
+      UPDATE MA_Processplan_Version
+        SET dateto=v_DateFrom
+      WHERE MA_Processplan_ID=v_Record_ID
+        AND dateto>=v_DateFrom
+        AND datefrom<=v_DateFrom;
+    END IF;
+    SELECT count(*) INTO v_Count
+    FROM MA_Processplan_Version
+    WHERE MA_Processplan_ID = v_Record_ID
+      AND datefrom > v_dateFrom;
+    IF (v_Count > 0) THEN
+      SELECT min(datefrom) INTO v_DateTo
+      FROM MA_Processplan_version
+      WHERE MA_Processplan_ID = v_Record_ID
+        AND datefrom > v_DateFrom;
+    END IF;
+    v_ResultStr:='InsertVersion';
+    Ad_Sequence_Next('MA_ProcessPlan_Version', v_Client_ID, v_ProcessPlanVersion_ID) ;
+    Ad_Sequence_Doc('DocumentNo_MA_ProcessPlan_Version', v_Client_ID, 'Y', v_DocumentNo) ;
+    INSERT
+    INTO MA_Processplan_Version
+      (
+        MA_Processplan_Version_ID, AD_Client_ID, AD_Org_ID, Isactive,
+        Created, Createdby, Updated, Updatedby,
+        MA_Processplan_ID, DocumentNo, Datefrom, Dateto
+      )
+      VALUES
+      (
+        v_ProcessPlanVersion_ID, v_Client_ID, v_Org_ID, 'Y',
+        now(), COALESCE(v_User_ID, '0'), now(), COALESCE(v_User_ID, '0'),
+        v_Record_ID, v_DocumentNo, v_DateFrom, v_DateTo
+      )
+      ;
+    FOR Cur_Sequence IN
+      (SELECT *  FROM MA_Sequence  WHERE MA_Processplan_Version_ID=v_Version)
+    LOOP
+      v_ResultStr:='InsertSequence';
+      Ad_Sequence_Next('MA_Sequence', v_Client_ID, v_Sequence_ID) ;
+      INSERT
+      INTO MA_Sequence
+        (
+          MA_Sequence_ID, AD_Client_ID, AD_Org_ID, Isactive,
+          Created, Createdby, Updated, Updatedby,
+          MA_Processplan_Version_ID, MA_Process_ID, Value, Name,
+          Description, CostCenterUse, Preptime, Multiplier,
+          Seqno, Noqty, Groupuse, Calculated
+        )
+        VALUES
+        (
+          v_Sequence_ID, v_Client_ID, v_Org_ID, 'Y',
+          now(), COALESCE(v_User_ID, '0'), now(), COALESCE(v_User_ID, '0'),
+          v_ProcessPlanVersion_ID, Cur_Sequence.MA_Process_ID, Cur_Sequence.Value, Cur_Sequence.Name,
+          Cur_Sequence.Description, Cur_Sequence.CostCenterUse, Cur_Sequence.Preptime, Cur_Sequence.Multiplier,
+          Cur_Sequence.Seqno, Cur_Sequence.Noqty, Cur_Sequence.Groupuse, Cur_Sequence.Calculated
+        )
+        ;
+      FOR Cur_Product IN
+        (SELECT *
+        FROM MA_SequenceProduct
+        WHERE MA_Sequence_ID=Cur_Sequence.MA_Sequence_ID
+        )
+      LOOP
+        v_ResultStr:='InsertProducts';
+        Ad_Sequence_Next('MA_SequenceProduct', v_Client_ID, v_Product_ID) ;
+        INSERT
+        INTO MA_SequenceProduct
+          (
+            MA_Sequenceproduct_ID, AD_Client_ID, AD_Org_ID, Isactive,
+            Created, Createdby, Updated, Updatedby,
+            MA_Sequence_ID, M_Product_ID, Quantity, Productiontype,
+            C_Uom_ID, Quantityorder, M_Product_Uom_ID, Componentcost,
+            Decrease, Rejected
+          )
+          VALUES
+          (
+            v_Product_ID, v_Client_ID, v_Org_ID, 'Y',
+            now(), COALESCE(v_User_ID, '0'), now(), COALESCE(v_User_ID, '0'),
+            v_Sequence_ID, Cur_Product.M_Product_ID, Cur_Product.Quantity, Cur_Product.Productiontype,
+            Cur_Product.C_Uom_ID, Cur_Product.Quantityorder, Cur_Product.M_Product_Uom_ID, Cur_Product.Componentcost,
+            Cur_Product.Decrease, Cur_Product.Rejected
+          )
+          ;
+      END LOOP;
+    END LOOP;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, v_User_ID, 'N', v_Result, v_Message) ;
+    RETURN;
+EXCEPTION
+  WHEN OTHERS THEN
+    v_ResultStr:= '@ERROR=' || SQLERRM;
+    DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+    RETURN;
+END MA_COPY_VERSION
+]]></body>
+    </function>
+  </database>

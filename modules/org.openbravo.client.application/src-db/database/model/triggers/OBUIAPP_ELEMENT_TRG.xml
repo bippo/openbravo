@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBUIAPP_ELEMENT_TRG">
+    <trigger name="OBUIAPP_ELEMENT_TRG" table="AD_ELEMENT" fires="before" insert="false" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SL
+* All portions are Copyright (C) 2011 Openbravo SL
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+BEGIN
+
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  --  synchronize Selector Field
+  IF UPDATING THEN
+    IF (COALESCE (:OLD.NAME, '.') <> COALESCE (:NEW.NAME, '.')
+        OR COALESCE (:OLD.Description, '.') <> COALESCE (:NEW.Description, '.')
+        OR COALESCE (:OLD.HELP, '.') <> COALESCE (:NEW.HELP, '.')
+        OR COALESCE (:OLD.PrintName, '.') <> COALESCE (:NEW.PrintName, '.')) THEN
+
+      -- Same parameter's module language and element's language
+      UPDATE obuiapp_parameter
+        SET name = :new.name,
+            description = :new.description,
+            help = :new.help
+        WHERE iscentrallymaintained= 'Y'
+          AND ad_element_id = :new.ad_element_id
+          AND EXISTS (SELECT 1
+                      FROM ad_module elemmod, ad_module parammod
+                      WHERE parammod.ad_module_id = obuiapp_parameter.ad_module_id
+                        AND elemmod.ad_module_id = :new.ad_module_id
+                        AND parammod.ad_language = elemmod.ad_language);
+  
+      -- Different parameter's module language and element's language.
+      -- In this case parameter's translation is updated
+      UPDATE obuiapp_parameter_trl
+        SET name = :new.name,
+            description = :new.description,
+            help = :new.help,
+            istranslated = 'Y'
+        WHERE EXISTS (SELECT 1
+                      FROM obuiapp_parameter param, ad_module elemmod
+                      WHERE param.obuiapp_parameter_id = obuiapp_parameter_trl.obuiapp_parameter_id
+                        AND param.ad_element_id = :new.ad_element_id
+                        AND param.iscentrallymaintained= 'Y'
+                        AND elemmod.ad_module_id = :new.ad_module_id
+                        AND elemmod.ad_language = obuiapp_parameter_trl.ad_language);
+
+    END IF;
+  END IF;
+
+-- UPDATING
+END OBUIAPP_ELEMENT_TRG
+]]></body>
+    </trigger>
+  </database>

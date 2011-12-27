@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="RptMInoutLinesData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      	SELECT M_PRODUCT.VALUE,
+		COALESCE((SELECT M_PRODUCT_CUSTOMER.NAME 
+			FROM M_PRODUCT_CUSTOMER 
+			WHERE M_PRODUCT_CUSTOMER.M_PRODUCT_ID=M_INOUTLINE.M_PRODUCT_ID
+			AND M_PRODUCT_CUSTOMER.C_BPARTNER_ID=M_INOUT.C_BPARTNER_ID)
+			,M_PRODUCT.NAME) AS NAME,SUM(M_INOUTLINE.MOVEMENTQTY) AS MOVEMENTQTY, M_ATTRIBUTESETINSTANCE.LOT || ' - ' || M_ATTRIBUTESETINSTANCE.GUARANTEEDATE AS LOT, REPLACE(M_INOUTLINE.DESCRIPTION, CHR(10), '') AS LLOT, REPLACE(M_INOUT.DESCRIPTION, CHR(10), '') AS DESCRIPTION, M_PRODUCT.UPC
+        FROM M_INOUTLINE left join C_ORDERLINE on M_INOUTLINE.C_ORDERLINE_ID = C_ORDERLINE.C_ORDERLINE_ID
+                         left join C_ORDER on C_ORDERLINE.C_ORDER_ID = C_ORDER.C_ORDER_ID
+                         left join M_ATTRIBUTESETINSTANCE on M_INOUTLINE.M_ATTRIBUTESETINSTANCE_ID = M_ATTRIBUTESETINSTANCE.M_ATTRIBUTESETINSTANCE_ID,
+             M_INOUT, M_PRODUCT
+        WHERE M_INOUT.M_INOUT_ID = M_INOUTLINE.M_INOUT_ID
+        AND M_INOUTLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+        AND M_INOUT.M_INOUT_ID = ?
+        GROUP BY C_ORDER.DOCUMENTNO, M_INOUT.C_BPARTNER_ID, C_ORDER.POREFERENCE, M_PRODUCT.VALUE, M_INOUTLINE.M_PRODUCT_ID, M_PRODUCT.NAME, M_ATTRIBUTESETINSTANCE.LOT, M_ATTRIBUTESETINSTANCE.GUARANTEEDATE, M_INOUT.DESCRIPTION, M_INOUTLINE.DESCRIPTION, M_PRODUCT.UPC
+        ORDER BY C_ORDER.DOCUMENTNO, M_PRODUCT.NAME
+        ]]>
+        </Sql>
+        <Parameter name="mInoutId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+</SqlClass>

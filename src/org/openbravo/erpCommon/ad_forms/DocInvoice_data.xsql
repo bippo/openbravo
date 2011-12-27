@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DocInvoiceData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT t.IsTaxUndeductable as rateTaxUndeductable, (select IsTaxUndeductable from ad_orginfo o where o.ad_org_id=it.ad_org_id) as orgTaxUndeductable, it.C_Tax_ID, t.Name, t.Rate, t.IsTaxDeductable, it.TaxBaseAmt, it.TaxAmt, '' AS C_INVOICE_ID, '' AS AD_CLIENT_ID, '' AS AD_ORG_ID,
+        '' AS ISACTIVE, '' AS CREATED, '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS ISSOTRX, '' AS DOCUMENTNO,
+        '' AS DOCSTATUS, '' AS DOCACTION, '' AS PROCESSING, '' AS PROCESSED, '' AS POSTED, '' AS C_DOCTYPE_ID, '' AS C_DOCTYPETARGET_ID,
+        '' AS C_ORDER_ID, '' AS DESCRIPTION, '' AS ISTRANSFERRED, '' AS ISPRINTED, '' AS SALESREP_ID, '' AS DATEINVOICED,
+        '' AS DATEPRINTED, '' AS DATEACCT, '' AS C_BPARTNER_ID, '' AS C_BPARTNER_LOCATION_ID, '' AS POREFERENCE, '' AS ISDISCOUNTPRINTED,
+        '' AS DATEORDERED, '' AS C_CURRENCY_ID, '' AS PAYMENTRULE, '' AS C_PAYMENTTERM_ID, '' AS C_CHARGE_ID, '' AS CHARGEAMT, '' AS TOTALLINES,
+        '' AS GRANDTOTAL, '' AS M_PRICELIST_ID, '' AS ISTAXINCLUDED, '' AS C_CAMPAIGN_ID, '' AS C_PROJECT_ID, '' AS C_ACTIVITY_ID,
+        '' AS ISPAID, '' AS CREATEFROM, '' AS GENERATETO, '' AS SENDEMAIL, '' AS AD_USER_ID, '' AS COPYFROM, '' AS ISSELFSERVICE,
+        '' AS AD_ORGTRX_ID, '' AS USER1_ID, '' AS USER2_ID, '' as AMOUNT, '' AS STATUS, '' AS ISRECEIPT, '' AS ISMANUAL, '' AS WRITEOFFAMT,
+        '' AS C_DEBT_PAYMENT_ID, '' AS P_REVENUE_ACCT, '' AS P_EXPENSE_ACCT, '' as FIN_PAYMENT_SCHEDULE_ID, '' as FIN_PAYMENTMETHOD_ID, '' AS PREPAIDAMT,
+        '' AS FININVCOUNT, '' AS FINACCTCOUNT, '' AS FIN_PAYMENT_ID
+        FROM C_Tax t, C_InvoiceTax it
+        WHERE t.C_Tax_ID=it.C_Tax_ID AND it.C_Invoice_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="invoice"/>
+  </SqlMethod>
+  <SqlMethod name="selectRegistro" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT I.AD_CLIENT_ID, I.AD_ORG_ID, I.C_BPARTNER_ID, I.AD_ORGTRX_ID, I.C_PROJECT_ID,
+        I.C_CAMPAIGN_ID, I.C_ACTIVITY_ID, I.USER1_ID, I.USER2_ID, I.DOCUMENTNO, I.DATEACCT,
+        I.C_CURRENCY_ID, I.C_DOCTYPE_ID, I.C_CHARGE_ID, I.CHARGEAMT, I.POSTED, I.DATEINVOICED,
+        I.ISTAXINCLUDED, I.C_BPARTNER_LOCATION_ID, I.GRANDTOTAL, I.TOTALLINES, I.CHARGEAMT
+        FROM C_INVOICE I
+        WHERE AD_Client_ID=?
+        AND C_INVOICE_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+  <SqlMethod name="selectDebtPayments" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT (AMOUNT + coalesce(WITHHOLDINGAMOUNT,0)) AS AMOUNT, C_CURRENCY_ID, STATUS_INITIAL AS STATUS, ISRECEIPT, ISPAID, ISMANUAL, WRITEOFFAMT, C_DEBT_PAYMENT_ID
+      FROM C_DEBT_PAYMENT
+      WHERE C_INVOICE_ID =?
+     ]]>
+     </Sql>
+     <Parameter name="invoice"/>
+   </SqlMethod>
+  <SqlMethod name="selectPayments" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT MAX(FIN_PAYMENT_SCHEDULE.AMOUNT) - SUM(CASE WHEN (FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_SCHEDULE_ORDER is not null AND COALESCE(FIN_PAYMENT_DETAIL.ISPREPAYMENT,'N') = 'Y') THEN FIN_PAYMENT_SCHEDULEDETAIL.AMOUNT ELSE 0 END) AS AMOUNT, MAX(FIN_PAYMENT_SCHEDULE.C_CURRENCY_ID) AS C_CURRENCY_ID,
+      FIN_PAYMENT_SCHEDULE.FIN_PAYMENT_SCHEDULE_ID, MAX(FIN_PAYMENT_SCHEDULE.FIN_PAYMENTMETHOD_ID) AS FIN_PAYMENTMETHOD_ID,
+      SUM(CASE WHEN (FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_SCHEDULE_ORDER is not null AND COALESCE(FIN_PAYMENT_DETAIL.ISPREPAYMENT,'N') = 'Y') THEN FIN_PAYMENT_SCHEDULEDETAIL.AMOUNT ELSE 0 END) AS PREPAIDAMT
+      FROM FIN_PAYMENT_SCHEDULE LEFT JOIN FIN_PAYMENT_SCHEDULEDETAIL ON FIN_PAYMENT_SCHEDULE.FIN_PAYMENT_SCHEDULE_ID = FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_SCHEDULE_INVOICE
+      LEFT JOIN FIN_PAYMENT_DETAIL ON FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_DETAIL_ID = FIN_PAYMENT_DETAIL.FIN_PAYMENT_DETAIL_ID
+      WHERE FIN_PAYMENT_SCHEDULE.C_INVOICE_ID =?
+      GROUP BY FIN_PAYMENT_SCHEDULE.FIN_PAYMENT_SCHEDULE_ID
+     ]]>
+     </Sql>
+     <Parameter name="invoice"/>
+   </SqlMethod>
+  <SqlMethod name="selectPrepayments" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    SELECT FIN_PAYMENT_SCHEDULEDETAIL.AMOUNT AS PREPAIDAMT, FIN_PAYMENT_DETAIL.FIN_PAYMENT_ID
+    FROM FIN_PAYMENT_SCHEDULE 
+    LEFT JOIN FIN_PAYMENT_SCHEDULEDETAIL ON FIN_PAYMENT_SCHEDULE.FIN_PAYMENT_SCHEDULE_ID = FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_SCHEDULE_INVOICE
+    LEFT JOIN FIN_PAYMENT_DETAIL ON FIN_PAYMENT_SCHEDULEDETAIL.FIN_PAYMENT_DETAIL_ID = FIN_PAYMENT_DETAIL.FIN_PAYMENT_DETAIL_ID
+    WHERE COALESCE(FIN_PAYMENT_DETAIL.ISPREPAYMENT,'N') = 'Y'
+    AND FIN_PAYMENT_SCHEDULE.FIN_PAYMENT_SCHEDULE_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="paymentSchedule"/>
+   </SqlMethod>    
+   <SqlMethod name="selectProductAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT a.P_Revenue_Acct, a.P_Expense_Acct, t.TaxAmt
+        FROM M_Product_Acct a, C_InvoiceLineTax t, C_InvoiceLine l, M_Product p
+        WHERE t.C_InvoiceLine_Id = l.C_InvoiceLine_Id
+        AND l.M_Product_Id = p.M_Product_Id
+        AND p.M_Product_Id = a.M_Product_Id
+        AND a.C_AcctSchema_Id = ?
+        AND t.C_Tax_Id= ?
+        AND t.C_Invoice_Id= ?
+     ]]>
+     </Sql>
+     <Parameter name="acctSchemaId"/>
+     <Parameter name="taxId"/>
+     <Parameter name="invoiceId"/>
+    </SqlMethod>
+  <SqlMethod name="updateProductPO" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE M_Product_PO SET PriceLastInv =
+                (SELECT AVG(C_Currency_Convert(il.PriceActual,i.C_Currency_ID,M_Product_PO.C_Currency_ID,i.DateInvoiced,null,i.AD_Client_ID,i.AD_Org_ID))
+                FROM C_Invoice i, C_InvoiceLine il
+                WHERE i.C_Invoice_ID=il.C_Invoice_ID
+                AND M_Product_PO.M_Product_ID=il.M_Product_ID
+                AND M_Product_PO.C_BPartner_ID=i.C_BPartner_ID
+                AND i.C_Invoice_ID=?)
+        WHERE EXISTS (SELECT *
+        FROM C_Invoice i, C_InvoiceLine il
+        WHERE i.C_Invoice_ID=il.C_Invoice_ID
+        AND M_Product_PO.M_Product_ID=il.M_Product_ID
+        AND M_Product_PO.C_BPartner_ID=i.C_BPartner_ID
+        AND i.C_Invoice_ID=?)
+     ]]>
+     </Sql>
+     <Parameter name="invoice"/>
+     <Parameter name="invoice"/>
+   </SqlMethod>
+   <SqlMethod name="selectGLItemAcctForTaxLine" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    SELECT a.GLITEM_CREDIT_ACCT AS P_REVENUE_ACCT, a.GLITEM_DEBIT_ACCT AS P_EXPENSE_ACCT, t.TaxAmt
+    FROM C_GLITEM_ACCT a, C_InvoiceLineTax t, C_InvoiceLine l
+    WHERE t.C_InvoiceLine_Id = l.C_InvoiceLine_Id 
+    AND l.Account_ID = a.C_GLITEM_id
+    AND a.C_ACCTSCHEMA_id = ?
+    AND t.C_Tax_Id= ? 
+    AND t.C_Invoice_Id= ? 
+       ]]>
+    </Sql>
+    <Parameter name="acctSchemaId"/>
+    <Parameter name="taxId"/>
+    <Parameter name="invoiceId"/>
+   </SqlMethod>
+    <SqlMethod name="getTaxLineCount" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+    SELECT count(*) as TOTALLINES
+    FROM C_InvoiceLineTax
+    WHERE C_Tax_Id= ? 
+    AND C_Invoice_Id= ? 
+       ]]>
+    </Sql>
+    <Parameter name="taxId"/>
+    <Parameter name="invoiceId"/>
+   </SqlMethod>
+   <SqlMethod name="selectFinInvCount" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT (SELECT count(distinct account_id)
+                FROM c_invoiceline
+                WHERE financial_invoice_line='Y'
+                      AND c_invoice_id = ?) AS FININVCOUNT,
+               (SELECT count(distinct glact.c_glitem_id)
+                FROM c_invoiceline invline JOIN c_glitem_acct glact ON (invline.account_id = glact.c_glitem_id)
+                     JOIN c_acctschema acctschema on (glact.c_acctschema_id = acctschema.c_acctschema_id)
+                WHERE invline.financial_invoice_line = 'Y' AND
+                      invline.c_invoice_id = ? AND
+                      acctschema.c_acctschema_id = ? AND
+                      glact.glitem_debit_acct IS NOT NULL AND 
+                      glact.glitem_credit_acct IS NOT NULL) AS FINACCTCOUNT
+        FROM DUAL
+     ]]>
+     </Sql>
+     <Parameter name="invoiceId"/>
+     <Parameter name="invoiceId"/>
+     <Parameter name="acctschemaId"/>
+   </SqlMethod>
+</SqlClass>

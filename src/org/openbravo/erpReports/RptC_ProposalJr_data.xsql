@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="RptCProposalJrData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+    <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+SELECT DISTINCT REPLACE(table3.HEADERNOTE, CHR(10), '') AS headernote, table3.C_PROJECTPROPOSAL_ID,
+		table7.C_BPARTNER_ID, TO_CHAR(table8.address1) AS address1, to_char(table8.address2) as address2,
+        TO_CHAR(table5.DESCRIPTION )  AS proposal, table5.VALUE AS reference,
+        TO_CHAR(table8.ADDRESS1)|| ', '||TO_CHAR(table8.POSTAL)||' '|| TO_CHAR(table8.CITY)||' ('||TO_CHAR(table9.description)||')' AS ADDRESS, 
+        table8.CITY as CITY,
+        to_date (table3.DATESEND) AS fecha, table7.FAX as FAX, table7.PHONE as PHONE,table5.NAME as NAME,
+        TO_CHAR(table10.NAME) AS BPname, table11.FIRSTNAME AS namecontacto, table11.LASTNAME AS contacto, 
+        table15.CURSYMBOL as CURSYMBOL, 
+        '' as line_desc,'' as M_Product_ID_D, '' as description, '' as price,'' as quantity, '' as UOMNAME, table3.FOOTNOTE as FOOTNOTE
+        FROM  C_PROJECTPROPOSAL table3 left join AD_USER table11 on table3.AD_USER_ID = table11.AD_USER_ID
+                                       left join C_GREETING on table11.C_GREETING_ID = C_GREETING.C_GREETING_ID,       
+        C_BPARTNER_LOCATION table7, C_LOCATION table8, C_REGION table9, C_BPARTNER table10,
+        C_BPARTNER table4, C_PROJECT table5, AD_ORGINFO table13,
+        C_CURRENCY table15 
+        WHERE  table3.C_Projectproposal_ID = '1'
+        AND table3.C_BPARTNER_LOCATION_ID = table7.C_BPARTNER_LOCATION_ID
+        AND table7.C_LOCATION_ID = table8.C_LOCATION_ID
+        AND table8.C_REGION_ID = table9.C_REGION_ID
+        AND table10.C_BPARTNER_ID = table7.C_BPARTNER_ID
+        AND table3.C_BPartner_ID = table4.C_BPartner_ID 
+        AND table3.C_Project_ID = table5.C_Project_ID 
+        AND table5.C_CURRENCY_ID = table15.C_CURRENCY_ID
+	AND table3.AD_CLIENT_ID IN ('1')
+        AND table3.AD_ORG_ID IN ('1')
+	AND 1=1
+        ]]>
+        </Sql>
+  <Parameter name="cProjectProposalId" type="replace" optional="true" after="table3.C_Projectproposal_ID = " text="'1'"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="table3.AD_CLIENT_ID IN (" text="'1'"/>
+        <Parameter name="adOrgClient" type="replace" optional="true" after="table3.AD_ORG_ID IN (" text="'1'"/>
+
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   
+</SqlClass>

@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_TABLE_TRG">
+    <trigger name="AD_TABLE_TRG" table="AD_TABLE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_Aux NUMBER;
+  cuerrentModuleID  VARCHAR2(32);
+  v_check BOOLEAN;
+  v_char char;
+    
+BEGIN
+    
+  IF AD_isTriggerEnabled()='N' THEN 
+    RETURN;
+  END IF;
+
+  IF (INSERTING) THEN
+    v_check := true;
+  END IF;
+  
+  IF (UPDATING) THEN
+    v_check := (:new.tableName != :old.tableName) 
+            or (:new.Name != :old.Name) 
+            or (:new.AD_Package_ID != :old.AD_Package_ID)
+            or (:new.IsView != :old.IsView);
+  END IF;
+  
+  IF v_check THEN
+    SELECT M.AD_MODULE_ID
+      INTO cuerrentModuleID
+      FROM AD_MODULE M, AD_PACKAGE P
+     WHERE M.AD_MODULE_ID = P.AD_MODULE_ID
+       AND P.AD_PACKAGE_ID = :new.AD_Package_ID;
+   
+   SELECT COUNT(*)
+     INTO v_Aux
+     FROM (
+      SELECT 1      
+        FROM AD_MODULE_DBPREFIX P
+      WHERE P.AD_MODULE_ID = cuerrentModuleID
+        AND instr(upper(:new.TableName), upper(name)||'_') = 1
+        AND (instr(upper(:new.Name), upper(name)||'_') = 1 OR cuerrentModuleID = '0')
+      UNION
+       SELECT 1
+         FROM AD_EXCEPTIONS 
+         WHERE ((TYPE='TABLE' AND :new.IsView = 'N') or (TYPE='VIEW' AND :new.IsView = 'Y'))
+         AND UPPER(NAME1)=UPPER(:new.Tablename)) AA;
+      
+     IF v_Aux = 0 THEN
+       RAISE_APPLICATION_ERROR(-20536, 'Names must start with its module''s DB prefix ') ;
+     END IF;
+
+     --Check Name for illegal characters
+     FOR I IN 1..LENGTH(trim(:NEW.name)) LOOP
+        v_char := substr(trim(:NEW.name),i,1);
+        IF v_char = ' ' or v_char = '.' or v_char = ',' or v_char='/' THEN
+           RAISE_APPLICATION_ERROR(-20635, '@NameWithInvalidCharacters@') ;
+        END IF;
+     END LOOP;
+
+  END IF;
+
+END AD_TABLE_TRG
+]]></body>
+    </trigger>
+  </database>

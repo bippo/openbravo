@@ -1,0 +1,676 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ******************************************************************************
+ * The contents of this file are subject to the   Compiere License  Version 1.1
+ * ("License"); You may not use this file except in compliance with the License
+ * You may obtain a copy of the License at http://www.compiere.org/license.html
+ * Software distributed under the License is distributed on an  "AS IS"  basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+ * the specific language governing rights and limitations under the License.
+ * The Original Code is                  Compiere  ERP & CRM  Business Solution
+ * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+ * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+ * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+ * Contributor(s): Openbravo SLU
+ * Contributions are Copyright (C) 2001-2011 Openbravo S.L.U.
+ ******************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="AcctServerData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+	      Select * from(
+        SELECT  a.C_INVOICE_ID AS ID, '' AS DOCBASETYPE, '' AS GL_CATEGORY_ID, '' AS AD_CLIENT_ID, '' AS AD_ORG_ID, '' AS ISACTIVE,
+        '' AS CREATED, '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS ISSOTRX, '' AS DOCUMENTNO, '' AS DOCSTATUS,
+        '' AS DOCACTION, '' AS PROCESSING, '' AS PROCESSED, '' AS POSTED, '' AS C_DOCTYPE_ID, '' AS C_DOCTYPETARGET_ID,
+        '' AS C_ORDER_ID, '' AS DESCRIPTION, '' AS ISTRANSFERRED, '' AS ISPRINTED, '' AS SALESREP_ID,
+        '' AS DATEINVOICED, '' AS DATEPRINTED, '' AS DATEACCT, '' AS C_BPARTNER_ID, '' AS C_BPARTNER_LOCATION_ID, '' AS POREFERENCE,
+        '' AS ISDISCOUNTPRINTED, '' AS DATEORDERED, '' AS C_CURRENCY_ID, '' AS PAYMENTRULE, '' AS C_PAYMENTTERM_ID,
+        '' AS C_CHARGE_ID, '' AS CHARGEAMT, '' AS TOTALLINES, '' AS GRANDTOTAL, '' AS M_PRICELIST_ID, '' AS ISTAXINCLUDED,
+        '' AS C_CAMPAIGN_ID, '' AS C_PROJECT_ID, '' AS C_ACTIVITY_ID, '' AS ISPAID, '' AS C_PAYMENT_ID, '' AS C_CASHLINE_ID,
+        '' AS CREATEFROM, '' AS GENERATETO, '' AS SENDEMAIL, '' AS AD_USER_ID, '' AS COPYFROM, '' AS ISSELFSERVICE, '' AS AD_ORGTRX_ID,
+        '' AS USER1_ID, '' AS USER2_ID, '' AS CONVERTED, '' AS PERIOD, '' AS C_INVOICELINE_ID,'' AS M_INOUTLINE_ID, '' AS M_PRODUCT_ID,
+        '' AS DATETRX1, '' AS DATETRX2, '' AS QTY1, '' AS QTY2, '' AS ACCOUNT_ID, '' AS C_INVOICE_ID, '' AS NAME, '' AS CLASSNAME,
+        '' AS ACCTDATECOLUMN, '' AS TABLENAME, '' AS ACCTCLASSNAME, '' as ISREVERSAL
+        FROM C_INVOICE a, ad_org WHERE a.AD_CLIENT_ID=?
+        AND ad_org.ad_org_id=a.ad_org_id
+        AND AD_ISORGINCLUDED(ad_org.ad_org_id, ?, ad_org.ad_client_id)<>-1
+        AND PROCESSED='Y'
+        AND (PROCESSING='N' OR PROCESSING IS NULL)
+        AND POSTED='N'
+        ORDER BY a.CREATED) A
+     ]]>
+     </Sql>
+     <Parameter name="tableName" type="replace" optional="true" after="SELECT  a." text="C_INVOICE"/>
+     <Parameter name="tableName" type="replace" optional="true" after="FROM " text="C_INVOICE"/>
+     <Parameter name="client"/>
+     <Parameter name="org"/>
+     <Parameter name="dateColumn" type="replace" optional="true" after="ORDER BY a." text="CREATED"/>
+   </SqlMethod>
+  <SqlMethod name="update" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE DUAL SET Processing='Y'
+        WHERE CLAVE_ID = ?
+        AND Processed='Y'
+        AND (Processing='N' OR Processing IS NULL)
+        AND Posted<>'Y'
+     ]]>
+     </Sql>
+     <Parameter name="tableName" type="replace" optional="true" after="UPDATE " text="DUAL"/>
+     <Parameter name="tableName"  type="replace" optional="true" after="WHERE " text="CLAVE"/>
+     <Parameter name="id"/>
+   </SqlMethod>
+  <SqlMethod name="selectDocType" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DocBaseType, GL_Category_ID, IsReversal FROM C_DocType WHERE C_DocType_ID=?
+     ]]>
+     </Sql>
+     <Parameter name="docType"/>
+   </SqlMethod>
+  <SqlMethod name="selectGLCategory" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT GL_Category_ID, IsReversal FROM C_DocType WHERE AD_Client_ID=? AND DocBaseType=?
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+     <Parameter name="DocBaseType"/>
+   </SqlMethod>
+  <SqlMethod name="selectDefaultGLCategory" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT GL_Category_ID FROM GL_Category
+        WHERE AD_Client_ID=?
+        ORDER BY IsDefault DESC
+     ]]>
+     </Sql>
+     <Parameter name="client"/>
+   </SqlMethod>
+  <SqlMethod name="delete" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        DELETE FROM Fact_Acct WHERE AD_Table_ID = ? AND Record_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="Table"/>
+    <Parameter name="Record"/>
+    </SqlMethod>
+   <SqlMethod name="currencyConvert" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT C_Currency_Convert(TO_NUMBER(?), ?, ?,TO_DATE(?),TO_CHAR(?), ?, ?) AS CONVERTED FROM DUAL
+      </Sql>
+      <Parameter name="Amt"/>
+      <Parameter name="CurFrom_ID"/>
+      <Parameter name="CurTo_ID"/>
+      <Parameter name="Date"/>
+      <Parameter name="RateType"/>
+      <Parameter name="client"/>
+      <Parameter name="org"/>
+   </SqlMethod>
+   <SqlMethod name="currencyConvertionRate" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT C_Currency_Rate(?, ?,TO_DATE(?),TO_CHAR(?), ?, ?) AS CONVERTED FROM DUAL
+      </Sql>
+      <Parameter name="CurFrom_ID"/>
+      <Parameter name="CurTo_ID"/>
+      <Parameter name="Date"/>
+      <Parameter name="RateType"/>
+      <Parameter name="client"/>
+      <Parameter name="org"/>
+   </SqlMethod>
+   <SqlMethod name="periodOpen" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      select max(c_period.c_period_id) as period
+      from c_period, c_periodcontrol
+      where c_period.c_period_id = c_periodcontrol.c_period_id
+      and c_period.ad_client_id = ?
+      and c_periodcontrol.docbasetype = ?
+      and c_periodcontrol.periodstatus = 'O'
+      and c_periodcontrol.ad_org_id = ad_org_getcalendarowner(?)
+      and to_date(?) >= c_period.StartDate
+      and to_date(?) < c_period.EndDate + 1
+      ]]>
+      </Sql>
+      <Parameter name="AD_Client_ID"/>
+      <Parameter name="DocumentType"/>
+      <Parameter name="Org"/>
+      <Parameter name="DateAcct"/>
+      <Parameter name="DateAcct"/>
+   </SqlMethod>
+  <SqlMethod name="updateUnlock" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE DUAL SET Processing='N'
+        WHERE CLAVE_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="tableName" type="replace" optional="true" after="UPDATE " text="DUAL"/>
+     <Parameter name="tableName"  type="replace" optional="true" after="WHERE " text="CLAVE"/>
+     <Parameter name="Record_ID"/>
+   </SqlMethod>
+  <SqlMethod name="updateSave" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE DUAL SET Posted= ? ,Processing='N', updated=now(), updatedby=?
+        WHERE CLAVE_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="tableName" type="replace" optional="true" after="UPDATE " text="DUAL"/>
+     <Parameter name="status"/>
+     <Parameter name="adUserID"/>
+     <Parameter name="tableName"  type="replace" optional="true" after="WHERE " text="CLAVE"/>
+     <Parameter name="Record_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectMatch" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT m1.AD_Client_ID,m2.AD_Org_ID,m1.C_InvoiceLine_ID,m2.M_InOutLine_ID,m1.M_Product_ID,
+        m1.DateTrx as datetrx1,m2.DateTrx as datetrx2, m1.Qty as qty1, m2.Qty as qty2
+        FROM M_MatchPO m1, M_MatchPO m2
+        WHERE m1.C_OrderLine_ID=m2.C_OrderLine_ID
+        AND m1.M_InOutLine_ID IS NULL
+        AND m2.C_InvoiceLine_ID IS NULL
+        AND m1.M_Product_ID=m2.M_Product_ID
+        AND m1.AD_Client_ID=?
+        AND NOT EXISTS (SELECT * FROM M_MatchInv mi
+        WHERE mi.C_InvoiceLine_ID=m1.C_InvoiceLine_ID AND mi.M_InOutLine_ID=m2.M_InOutLine_ID)
+     ]]>
+     </Sql>
+     <Parameter name="AD_Client_ID"/>
+   </SqlMethod>
+  <SqlMethod name="insertMatchInv" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO M_MatchInv (M_MatchInv_ID,AD_Client_ID,AD_Org_ID,IsActive,Created,CreatedBy,Updated,UpdatedBy,
+        M_InOutLine_ID,C_InvoiceLine_ID,M_Product_ID,DateTrx,Qty, Processing,Processed,Posted)
+        VALUES (?,?,?,'Y',now(),0,now(),0,?,?,
+        ?,TO_DATE(?),TO_NUMBER(?), 'N','Y','N')
+     ]]>
+     </Sql>
+     <Parameter name="M_MatchInv_ID"/>
+     <Parameter name="AD_Client_ID"/>
+     <Parameter name="AD_Org_ID"/>
+     <Parameter name="M_InOutLine_ID"/>
+     <Parameter name="C_InvoiceLine_ID"/>
+     <Parameter name="M_Product_ID"/>
+     <Parameter name="DateTrx"/>
+     <Parameter name="Qty"/>
+   </SqlMethod>
+   <SqlMethod name="selectExpenseAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CH_Expense_Acct as account_ID FROM C_Charge_Acct WHERE C_Charge_ID = ? AND C_AcctSchema_ID = ?
+      </Sql>
+      <Parameter name="C_Charge_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectRevenueAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CH_Revenue_Acct as account_ID FROM C_Charge_Acct WHERE C_Charge_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_Charge_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectLiabilityAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT V_Liability_Acct as account_ID FROM C_BP_Vendor_Acct WHERE C_BPartner_ID=? AND C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectLiabilityServicesAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT V_Liability_Services_Acct as account_ID FROM C_BP_Vendor_Acct WHERE C_BPartner_ID=? AND C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectReceivableAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT C_Receivable_Acct as account_ID FROM C_BP_Customer_Acct WHERE C_BPartner_ID=? AND C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectUnallocatedCashAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_UnallocatedCash_Acct as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectInTransitAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_InTransit_Acct as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectInTransitDefaultAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+	SELECT B_INTRANSIT_ACCT AS ACCOUNT_ID FROM C_Acctschema_Default
+	WHERE C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectConvertChargeDefaultAmtAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+	SELECT B_Revaluationloss_Acct AS ACCOUNT_ID FROM C_ACCTSCHEMA_DEFAULT
+	WHERE C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectConvertGainDefaultAmtAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+	SELECT B_Revaluationgain_Acct AS ACCOUNT_ID FROM C_ACCTSCHEMA_DEFAULT
+	WHERE C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectPaymentSelectAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_PaymentSelect_Acct as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectWriteOffDefault" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT WRITEOFF_ACCT AS ACCOUNT_ID FROM C_ACCTSCHEMA_DEFAULT
+        WHERE C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectWriteOffDefaultRevenue" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT WRITEOFF_REV_ACCT AS ACCOUNT_ID FROM C_ACCTSCHEMA_DEFAULT
+        WHERE C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectDiscountExpAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT a.PayDiscount_Exp_Acct as account_ID FROM C_BP_Group_Acct a, C_BPartner bp
+        WHERE a.C_BP_Group_ID=bp.C_BP_Group_ID AND bp.C_BPartner_ID=? AND a.C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectDiscountRevAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT PayDiscount_Rev_Acct as account_ID FROM C_BP_Group_Acct a, C_BPartner bp
+        WHERE a.C_BP_Group_ID=bp.C_BP_Group_ID AND bp.C_BPartner_ID=? AND a.C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectWriteOffAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT WriteOff_Acct as account_ID FROM C_BP_Group_Acct a, C_BPartner bp
+        WHERE a.C_BP_Group_ID=bp.C_BP_Group_ID AND bp.C_BPartner_ID=? AND a.C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectWriteOffAcctRevenue" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT WriteOff_Rev_Acct as account_ID FROM C_BP_Group_Acct a, C_BPartner bp
+        WHERE a.C_BP_Group_ID=bp.C_BP_Group_ID AND bp.C_BPartner_ID=? AND a.C_AcctSchema_ID=?
+        AND STATUS IS NULL
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectAssetAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_Asset_Acct as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectConvertChargeLossAmt" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_REVALUATIONLOSS_ACCT as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectConvertChargeGainAmt" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_REVALUATIONGAIN_ACCT as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectInterestRevAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_InterestRev_Acct as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectInterestExpAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT B_InterestExp_Acct as account_ID FROM C_BankAccount_Acct WHERE C_BankAccount_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_BankAccount_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectCBAssetAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CB_Asset_Acct as account_ID FROM C_CashBook_Acct WHERE C_CashBook_ID = ? AND C_AcctSchema_ID = ?
+      </Sql>
+      <Parameter name="C_CashBook_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectCashTransferAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CB_CashTransfer_Acct as account_ID FROM C_CashBook_Acct WHERE C_CashBook_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_CashBook_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectCBExpenseAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CB_Expense_Acct as account_ID FROM C_CashBook_Acct WHERE C_CashBook_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_CashBook_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectCBReceiptAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CB_Receipt_Acct as account_ID FROM C_CashBook_Acct WHERE C_CashBook_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_CashBook_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectCBDifferencesAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CB_Differences_Acct as account_ID FROM C_CashBook_Acct WHERE C_CashBook_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_CashBook_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectWDifferencesAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT W_Differences_Acct as account_ID FROM M_Warehouse_Acct WHERE M_Warehouse_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="M_Warehouse_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectNotInvoicedReceiptsAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NotInvoicedReceipts_Acct as account_ID FROM C_BP_Group_Acct a, C_BPartner bp
+        WHERE a.C_BP_Group_ID=bp.C_BP_Group_ID AND bp.C_BPartner_ID=? AND a.C_AcctSchema_ID=?
+        and a.status is null
+      </Sql>
+      <Parameter name="C_BPartner_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectPJAssetAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT PJ_Asset_Acct as account_ID FROM C_Project_Acct WHERE C_Project_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_Project_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectPJWIPAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT PJ_WIP_Acct  as account_ID FROM C_Project_Acct WHERE C_Project_ID=? AND C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_Project_ID"/>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectPPVOffsetAcct" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT PPVOffset_Acct as account_ID FROM C_AcctSchema_GL WHERE C_AcctSchema_ID=?
+      </Sql>
+      <Parameter name="C_AcctSchema_ID"/>
+   </SqlMethod>
+   <SqlMethod name="selectTables" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+     SELECT DISTINCT(AD_Table.AD_Table_ID) as id,
+               AD_Table.tablename || ' (' ||
+               (case when ad_table.po_window_id is null then '' else ad_column_identifier('AD_Window',TO_CHAR(ad_table.po_window_id),?) end)
+               || (case when ad_table.po_window_id is null then '' else ' - ' end)
+               || ad_column_identifier('AD_Window',TO_CHAR(ad_table.ad_window_id),?)  || ')' as name
+        FROM AD_TABLE, C_ACCTSCHEMA_TABLE
+       WHERE AD_TABLE.AD_TABLE_ID = C_ACCTSCHEMA_TABLE.AD_TABLE_ID
+         AND AD_TABLE.ISACTIVE = 'Y'
+         AND C_ACCTSCHEMA_TABLE.ISACTIVE = 'Y'
+         AND C_ACCTSCHEMA_TABLE.AD_CLIENT_ID IN ('1')
+        order by name
+      </Sql>
+      <Parameter name="language"/>
+      <Parameter name="language"/>
+      <Parameter name="adUserClient" type="replace" optional="true" after="C_ACCTSCHEMA_TABLE.AD_CLIENT_ID IN (" text="'1'"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectOrganizations" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      	SELECT AD_Org.AD_Org_ID as ID, AD_Org.Name
+      	FROM AD_Org, AD_OrgType
+      	WHERE AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+      	AND (IsLegalEntity='Y' OR IsBusinessUnit='Y')
+      	AND AD_Org.AD_Client_ID IN ('1')
+        AND AD_Org.ISACTIVE='Y'
+      </Sql>
+      <Parameter name="adUserClient" type="replace" optional="true" after="AD_Org.AD_Client_ID IN (" text="'1'"/>
+   </SqlMethod>
+   <SqlMethod name="selectDocuments" type="preparedStatement" return="single">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        select MIN(C_INVOICE_ID) as id
+        from c_invoice a, ad_org
+        where posted = 'N'
+        and processed = 'Y'
+        and (processing = 'N' or processing is null)
+        AND ad_org.ad_org_id=a.ad_org_id
+        AND a.ad_client_id = ?
+        AND AD_ISORGINCLUDED(ad_org.ad_org_id, ?, ad_org.ad_client_id)<>-1
+        AND EXISTS (select 1
+               from c_year, c_period, c_periodcontrol, ad_org
+               where c_year.c_year_id = c_period.c_year_id
+              and c_period.c_period_id = c_periodcontrol.c_period_id
+              and c_year.c_calendar_id = ad_org.c_calendar_id
+              and ad_org.ad_client_id = a.ad_client_id
+              and c_periodcontrol.docbasetype = ?
+              and c_periodcontrol.periodstatus = 'O'
+              and    a.dateacct >= c_period.StartDate
+              and     a.dateacct < c_period.EndDate + 1)
+      ]]>
+      </Sql>
+      <Parameter name="tableName" type="replace" optional="true" after="select MIN(" text="C_INVOICE"/>
+      <Parameter name="tableName" type="replace" optional="true" after="from " text="c_invoice"/>
+      <Parameter name="adClientId" />
+      <Parameter name="adOrgId"/>
+      <Parameter name="docbasetype"/>
+      <Parameter name="dateColumn" type="replace" optional="true" after="and    a." text="dateacct"/>
+      <Parameter name="dateColumn" type="replace" optional="true" after="and     a." text="dateacct"/>
+   </SqlMethod>
+   <SqlMethod name="selectDocTypes" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      select docbasetype as name from c_doctype
+      where ad_table_id = ?
+      and ad_client_id = ?
+      </Sql>
+      <Parameter name="table"/>
+      <Parameter name="client"/>
+   </SqlMethod>
+   <SqlMethod name="selectGroupLines" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT GROUPACCTINVLINES FROM AD_CLIENTINFO WHERE AD_CLIENT_ID = ?
+      </Sql>
+      <Parameter name="client"/>
+   </SqlMethod>
+   <SqlMethod name="selectDescription" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT ACCTDESCRIPTION FROM C_ACCTSCHEMA_TABLE
+        WHERE AD_TABLE_ID = ?
+        AND C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="tableId"/>
+      <Parameter name="acctschemaId"/>
+   </SqlMethod>
+   <SqlMethod name="selectBpartnerName" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NAME FROM C_BPARTNER
+        WHERE C_BPARTNER_ID = ?
+      </Sql>
+      <Parameter name="bpartnerId"/>
+   </SqlMethod>
+   <SqlMethod name="selectOrgName" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NAME FROM AD_ORG
+        WHERE AD_ORG_ID = ?
+      </Sql>
+      <Parameter name="org"/>
+   </SqlMethod>
+   <SqlMethod name="selectNegate" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+		SELECT ALLOWNEGATIVE
+		FROM C_ACCTSCHEMA_TABLE, C_ACCTSCHEMA_TABLE_DOCTYPE
+		WHERE C_ACCTSCHEMA_TABLE.C_ACCTSCHEMA_TABLE_ID = C_ACCTSCHEMA_TABLE_DOCTYPE.C_ACCTSCHEMA_TABLE_ID
+		AND C_ACCTSCHEMA_ID = ?
+		AND C_ACCTSCHEMA_TABLE_DOCTYPE.DOCBASETYPE = ?
+      </Sql>
+      <Parameter name="cAcctschemaId"/>
+      <Parameter name="docbasetype"/>
+   </SqlMethod>
+   <SqlMethod name="selectDefaultNegate" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+		SELECT ALLOWNEGATIVE
+		FROM C_ACCTSCHEMA
+		WHERE C_ACCTSCHEMA_ID = ?
+      </Sql>
+      <Parameter name="cAcctschemaId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTemplate" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT CLASSNAME
+        FROM C_ACCTSCHEMA_TABLE, AD_CREATEFACT_TEMPLATE
+        WHERE C_ACCTSCHEMA_TABLE.AD_CREATEFACT_TEMPLATE_ID = AD_CREATEFACT_TEMPLATE.AD_CREATEFACT_TEMPLATE_ID
+        AND C_ACCTSCHEMA_ID = ?
+        AND C_ACCTSCHEMA_TABLE.AD_TABLE_ID = ?
+      </Sql>
+      <Parameter name="cAcctschemaId"/>
+      <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="selectTemplateDoc" type="preparedStatement" return="string" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT AD_CREATEFACT_TEMPLATE.CLASSNAME
+      FROM C_ACCTSCHEMA_TABLE, C_ACCTSCHEMA_TABLE_DOCTYPE, AD_CREATEFACT_TEMPLATE
+      WHERE C_ACCTSCHEMA_TABLE_DOCTYPE.AD_CREATEFACT_TEMPLATE_ID = AD_CREATEFACT_TEMPLATE.AD_CREATEFACT_TEMPLATE_ID
+      AND C_ACCTSCHEMA_TABLE.C_ACCTSCHEMA_TABLE_ID = C_ACCTSCHEMA_TABLE_DOCTYPE.C_ACCTSCHEMA_TABLE_ID
+      AND C_ACCTSCHEMA_TABLE.C_ACCTSCHEMA_ID = ?
+      AND C_ACCTSCHEMA_TABLE_DOCTYPE.DOCBASETYPE = ?
+      </Sql>
+      <Parameter name="cAcctschemaId"/>
+      <Parameter name="docbasetype"/>
+   </SqlMethod>
+   <SqlMethod name="selectAcctProcess" type="preparedStatement" return="multiple" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT AD_ACCTPROCESS.CLASSNAME
+      FROM C_ACCTSCHEMA_PROCESS, AD_ACCTPROCESS
+      WHERE C_ACCTSCHEMA_PROCESS.AD_ACCTPROCESS_ID = AD_ACCTPROCESS.AD_ACCTPROCESS_ID
+      AND C_ACCTSCHEMA_PROCESS.C_ACCTSCHEMA_ID = ?
+      ORDER BY SEQNO
+      </Sql>
+      <Parameter name="cAcctschemaId"/>
+   </SqlMethod>
+   <SqlMethod name="getTableInfo" type="preparedStatement" return="multiple" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      SELECT COLUMNNAME AS ACCTDATECOLUMN, TABLENAME, ACCTCLASSNAME
+      FROM AD_TABLE, AD_COLUMN
+      WHERE AD_TABLE.ACCTDATE_COLUMN_ID = AD_COLUMN.AD_COLUMN_ID
+        AND AD_TABLE.AD_TABLE_ID = ?
+      </Sql>
+      <Parameter name="adTableId"/>
+   </SqlMethod>
+   <SqlMethod name="selectBackgroundEnabled" type="preparedStatement" return="boolean" default="false">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql><![CDATA[
+       SELECT COUNT(*) AS NAME FROM C_ACCTSCHEMA_TABLE
+       WHERE C_ACCTSCHEMA_ID = ?
+       AND AD_TABLE_ID = ?
+       AND ISACTIVE = 'Y'
+       AND ISBACKGROUNDDISABLED = 'N'
+     ]]></Sql>
+     <Parameter name="acctschemaId"/>
+     <Parameter name="tableId"/>
+   </SqlMethod>
+  </SqlClass>

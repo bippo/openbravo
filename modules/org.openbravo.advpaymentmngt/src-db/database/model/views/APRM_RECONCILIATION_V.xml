@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+  <database name="VIEW APRM_RECONCILIATION_V">
+    <view name="APRM_RECONCILIATION_V"><![CDATA[SELECT fin_reconciliation.fin_reconciliation_id AS aprm_reconciliation_v_id, fin_reconciliation.fin_reconciliation_id, fin_reconciliation.ad_client_id, fin_reconciliation.ad_org_id, fin_reconciliation.created, fin_reconciliation.createdby, fin_reconciliation.updated, fin_reconciliation.updatedby, fin_reconciliation.isactive, fin_reconciliation.fin_financial_account_id, fin_reconciliation.documentno, fin_reconciliation.c_doctype_id, fin_reconciliation.dateto, fin_reconciliation.statementdate, fin_reconciliation.endingbalance, fin_reconciliation.startingbalance, fin_reconciliation.docstatus, fin_reconciliation.processing, fin_reconciliation.processed, fin_reconciliation.posted, fin_reconciliation.printdetailed, fin_reconciliation.em_aprm_process_reconciliation AS process_reconciliation, fin_reconciliation.printsummary, COALESCE(item.item_no, 0) AS item_no, COALESCE(item.item_amt, 0) AS item_amt, COALESCE(unrec.unrec_no, 0) AS unrec_no, COALESCE(unrec.unrec_amt, 0) AS unrec_amt, COALESCE(outstanding.payment_no, 0) AS payment_no, COALESCE(outstanding.payment_amt, 0) AS payment_amt, COALESCE(outstanding.deposit_no, 0) AS deposit_no, COALESCE(outstanding.deposit_amt, 0) AS deposit_amt, (SELECT ad_table.ad_table_id
+FROM ad_table
+WHERE lower(ad_table.tablename) = 'fin_reconciliation') AS forced_table_id
+FROM fin_reconciliation
+LEFT JOIN (SELECT fin_finacc_transaction.fin_reconciliation_id, count(*) AS item_no, COALESCE(sum(fin_finacc_transaction.depositamt - fin_finacc_transaction.paymentamt), 0) AS item_amt
+FROM fin_finacc_transaction
+GROUP BY fin_finacc_transaction.fin_reconciliation_id) item ON fin_reconciliation.fin_reconciliation_id = item.fin_reconciliation_id
+LEFT JOIN (SELECT fin_reconciliation.fin_reconciliation_id, count(*) AS unrec_no, COALESCE(sum(fin_bankstatementline.cramount - fin_bankstatementline.dramount), 0) AS unrec_amt
+FROM fin_bankstatementline, fin_bankstatement, fin_reconciliation
+WHERE (fin_bankstatementline.fin_finacc_transaction_id IS NULL OR (EXISTS (SELECT 1
+FROM fin_finacc_transaction, fin_reconciliation rec
+WHERE fin_finacc_transaction.fin_reconciliation_id = rec.fin_reconciliation_id AND fin_bankstatementline.fin_finacc_transaction_id = fin_finacc_transaction.fin_finacc_transaction_id AND fin_finacc_transaction.fin_financial_account_id = fin_bankstatement.fin_financial_account_id AND rec.created > fin_reconciliation.created))) AND fin_bankstatementline.datetrx <= fin_reconciliation.dateto AND fin_bankstatement.fin_bankstatement_id = fin_bankstatementline.fin_bankstatement_id AND fin_bankstatement.fin_financial_account_id = fin_reconciliation.fin_financial_account_id
+GROUP BY fin_reconciliation.fin_reconciliation_id) unrec ON fin_reconciliation.fin_reconciliation_id = unrec.fin_reconciliation_id
+LEFT JOIN (SELECT fin_reconciliation.fin_reconciliation_id, COALESCE(sum(
+CASE COALESCE(fin_finacc_transaction.paymentamt, 0)
+WHEN 0 THEN 0
+ELSE 1
+END), 0) AS payment_no, COALESCE(sum(fin_finacc_transaction.paymentamt), 0) AS payment_amt, COALESCE(sum(
+CASE COALESCE(fin_finacc_transaction.depositamt, 0)
+WHEN 0 THEN 0
+ELSE 1
+END), 0) AS deposit_no, COALESCE(sum(fin_finacc_transaction.depositamt), 0) AS deposit_amt
+FROM fin_finacc_transaction, fin_reconciliation
+WHERE (fin_finacc_transaction.fin_reconciliation_id IS NULL OR (EXISTS (SELECT 1
+FROM fin_reconciliation r
+WHERE r.dateto > fin_reconciliation.dateto AND fin_finacc_transaction.fin_reconciliation_id = r.fin_reconciliation_id))) AND fin_finacc_transaction.statementdate <= fin_reconciliation.dateto AND fin_finacc_transaction.fin_financial_account_id = fin_reconciliation.fin_financial_account_id
+GROUP BY fin_reconciliation.fin_reconciliation_id) outstanding ON fin_reconciliation.fin_reconciliation_id = outstanding.fin_reconciliation_id]]></view>
+  </database>

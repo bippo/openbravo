@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="RptPromissoryNoteHeaderData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+          SELECT C_DEBT_PAYMENT_ID, PARTNER_NAME, ADDRESS, POSTAL, REGION, AMOUNT, (CASE WHEN MAX(DOCUMENTNO_VENDOR) IS NOT NULL THEN 'Pago su fra. nº:' ||MAX(DOCUMENTNO_VENDOR) END) AS DOCUMENTNO_VENDOR , (CASE WHEN MAX(DOCUMENTNO_CUSTOMER) IS NOT NULL THEN 'Nuestra fra. nº: '|| MAX(DOCUMENTNO_CUSTOMER) END) AS DOCUMENTNO_CUSTOMER, '' AS DOCUMENTNO, 
+          TO_CHAR(now(), 'DD')||' de '||TO_CHAR(now(), 'Month')||' de '||TO_CHAR(now(), 'YYYY') AS DATEINVOICED
+          FROM (
+          SELECT C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID, C_BPARTNER.NAME AS PARTNER_NAME, (CASE WHEN C_INVOICE.C_INVOICE_ID IS NULL THEN MAX(C_LOCATION.ADDRESS1||C_LOCATION.ADDRESS2) ELSE CL.ADDRESS1||CL.ADDRESS2 END) AS ADDRESS, (CASE WHEN C_INVOICE.C_INVOICE_ID IS NULL THEN MAX(C_LOCATION.POSTAL||'-'||C_LOCATION.CITY) ELSE CL.POSTAL||'-'||CL.CITY END) AS POSTAL, 
+          (CASE WHEN C_INVOICE.C_INVOICE_ID IS NULL THEN MAX(C_REGION.NAME) ELSE CR.NAME END) AS REGION, C_DEBT_PAYMENT_GENERATE.AMOUNT, C_INVOICE.DOCUMENTNO AS DOCUMENTNO_CUSTOMER, NULL AS DOCUMENTNO_VENDOR
+          FROM C_DEBT_PAYMENT_GENERATE left join C_INVOICE on C_DEBT_PAYMENT_GENERATE.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+                                       left join C_BPARTNER on C_DEBT_PAYMENT_GENERATE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID 
+                                       left join C_BPARTNER_LOCATION on C_BPARTNER.C_BPARTNER_ID = C_BPARTNER_LOCATION.C_BPARTNER_ID
+                                       left join C_LOCATION on C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+                                       left join C_REGION on C_LOCATION.C_REGION_ID = C_REGION.C_REGION_ID
+                                       left join C_BPARTNER_LOCATION CBL on C_INVOICE.C_BPARTNER_LOCATION_ID = CBL.C_BPARTNER_LOCATION_ID
+                                       left join C_LOCATION CL on CBL.C_LOCATION_ID = CL.C_LOCATION_ID 
+                                       left join C_REGION CR on CL.C_REGION_ID = CR.C_REGION_ID
+          WHERE COALESCE(C_INVOICE.ISSOTRX, 'Y') = 'Y'
+          AND COALESCE(C_BPARTNER_LOCATION.ISSHIPTO, 'Y') = 'Y'
+          AND C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID = ?
+          GROUP BY C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID, C_BPARTNER.NAME, C_INVOICE.C_INVOICE_ID, CL.ADDRESS1, CL.ADDRESS2, CL.POSTAL, CL.CITY, CR.NAME, C_DEBT_PAYMENT_GENERATE.AMOUNT, C_INVOICE.DOCUMENTNO
+          UNION
+          SELECT C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID, C_BPARTNER.NAME AS PARTNER_NAME, (CASE WHEN C_INVOICE.C_INVOICE_ID IS NULL THEN MAX(C_LOCATION.ADDRESS1||C_LOCATION.ADDRESS2) ELSE CL.ADDRESS1||CL.ADDRESS2 END) AS ADDRESS, (CASE WHEN C_INVOICE.C_INVOICE_ID IS NULL THEN MAX(C_LOCATION.POSTAL||'-'||C_LOCATION.CITY) ELSE CL.POSTAL||'-'||CL.CITY END) AS POSTAL, 
+          (CASE WHEN C_INVOICE.C_INVOICE_ID IS NULL THEN MAX(C_REGION.NAME) ELSE CR.NAME END) AS REGION, C_DEBT_PAYMENT_GENERATE.AMOUNT, NULL AS DOCUMENTNO_CUSTOMER, C_INVOICE.DOCUMENTNO AS DOCUMENTNO_VENDOR
+          FROM C_DEBT_PAYMENT_GENERATE left join C_INVOICE on C_DEBT_PAYMENT_GENERATE.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+                                       left join C_BPARTNER on C_DEBT_PAYMENT_GENERATE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+                                       left join C_BPARTNER_LOCATION on C_BPARTNER.C_BPARTNER_ID = C_BPARTNER_LOCATION.C_BPARTNER_ID
+                                       left join C_LOCATION on C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID 
+                                       left join C_REGION on C_LOCATION.C_REGION_ID = C_REGION.C_REGION_ID
+                                       left join C_BPARTNER_LOCATION CBL on C_INVOICE.C_BPARTNER_LOCATION_ID = CBL.C_BPARTNER_LOCATION_ID 
+                                       left join C_LOCATION CL on CBL.C_LOCATION_ID = CL.C_LOCATION_ID 
+                                       left join C_REGION CR on CL.C_REGION_ID = CR.C_REGION_ID 
+          WHERE  COALESCE(C_INVOICE.ISSOTRX, 'N') = 'N'
+          AND COALESCE(C_BPARTNER_LOCATION.ISSHIPTO, 'Y') = 'Y'
+          AND C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID = ?
+          GROUP BY C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID, C_BPARTNER.NAME, C_INVOICE.C_INVOICE_ID, CL.ADDRESS1, CL.ADDRESS2, CL.POSTAL, CL.CITY, CR.NAME, C_DEBT_PAYMENT_GENERATE.AMOUNT, C_INVOICE.DOCUMENTNO) AA
+          GROUP BY C_DEBT_PAYMENT_ID, PARTNER_NAME, ADDRESS, POSTAL, REGION, AMOUNT
+        ]]>
+        </Sql>
+        <Parameter name="cDebtPaymenntId"/>
+        <Parameter name="cDebtPaymenntId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="selectDebtPayment" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+          SELECT C_BPARTNER.NAME AS PARTNER_NAME, C_LOCATION.ADDRESS1||C_LOCATION.ADDRESS2 AS ADDRESS, C_LOCATION.POSTAL||'-'||C_LOCATION.CITY AS POSTAL, 
+          C_REGION.NAME AS REGION, C_DEBT_PAYMENT.AMOUNT, (CASE C_INVOICE.ISSOTRX WHEN 'N' THEN 'Pago su fra. nº: '||C_INVOICE.POREFERENCE ELSE 'Nuestra fra. nº: '||C_INVOICE.DOCUMENTNO END) AS DOCUMENTNO, 
+          TO_CHAR(now(), 'DD')||' de '||TO_CHAR(now(), 'Month')||' de '||TO_CHAR(now(), 'YYYY') AS DATEINVOICED
+          FROM C_BPARTNER_LOCATION left join C_LOCATION on C_BPARTNER_LOCATION.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+                                   left join C_REGION on C_LOCATION.C_REGION_ID = C_REGION.C_REGION_ID,
+          C_DEBT_PAYMENT, C_INVOICE, C_BPARTNER
+          WHERE C_DEBT_PAYMENT.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+          AND C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+          AND C_INVOICE.C_BPARTNER_LOCATION_ID = C_BPARTNER_LOCATION.C_BPARTNER_LOCATION_ID
+          AND C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID = ?
+        ]]>
+        </Sql>
+        <Parameter name="cDebtPaymenntId"/>
+   </SqlMethod>
+</SqlClass>

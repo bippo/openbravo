@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="ReportOfferData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT C_BPARTNER_ID, M_OFFER_ID, C_BPARTNER_NAME, DATEFROM, DATETO,
+        ADDAMT, DISCOUNT, FIXED, C_BPARTNER_ID AS ID, C_BPARTNER_NAME AS NAME,
+        M_OFFER_NAME, 'datawarehouseclose' AS CLASS_TREE,
+        M_OFFER_ID ||':'||C_BPARTNER_ID AS M_OFFER_ID_C_BPARTNER_ID
+        FROM(SELECT M_OFFER_BPARTNER.C_BPARTNER_ID, M_OFFER.M_OFFER_ID, M_OFFER.NAME AS M_OFFER_NAME,
+             C_BPARTNER.NAME AS C_BPARTNER_NAME, M_OFFER.DATEFROM, M_OFFER.DATETO,
+             M_OFFER.AD_CLIENT_ID, M_OFFER.AD_ORG_ID, M_OFFER.ADDAMT,
+             M_OFFER.DISCOUNT, M_OFFER.FIXED
+             FROM M_OFFER, M_OFFER_BPARTNER, C_BPARTNER
+             WHERE M_OFFER.BPARTNER_SELECTION = 'N'
+             AND M_OFFER.M_OFFER_ID = M_OFFER_BPARTNER.M_OFFER_ID
+             AND M_OFFER_BPARTNER.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+             UNION
+             SELECT C_BPARTNER.C_BPARTNER_ID, M_OFFER.M_OFFER_ID, M_OFFER.NAME AS M_OFFER_NAME,
+             C_BPARTNER.NAME AS C_BPARTNER_NAME, M_OFFER.DATEFROM, M_OFFER.DATETO,
+             M_OFFER.AD_CLIENT_ID, M_OFFER.AD_ORG_ID, M_OFFER.ADDAMT,
+             M_OFFER.DISCOUNT, M_OFFER.FIXED
+             FROM M_OFFER, C_BPARTNER
+             WHERE M_OFFER.BPARTNER_SELECTION = 'Y'
+             AND C_BPARTNER.C_BPARTNER_ID NOT IN (SELECT C_BPARTNER_ID FROM M_OFFER_BPARTNER WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID)) A
+        WHERE A.AD_CLIENT_ID IN ('1')
+        AND A.AD_ORG_ID IN ('1')
+        AND DATEFROM >= TO_DATE(?)
+        AND (DATETO IS NULL OR DATETO <= TO_DATE(?))
+        AND 1=1
+        ORDER BY C_BPARTNER_NAME, M_OFFER_NAME
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="A.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="A.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="datefrom"/>
+    <Parameter name="dateto"/>    
+    <Parameter name="parBPartnerId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND A.C_BPARTNER_ID IN]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>
+
+
+

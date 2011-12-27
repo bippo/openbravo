@@ -1,0 +1,855 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>Rebuild the System</title>
+  <link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"/>
+  <script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+  <script language="JavaScript" type="text/javascript" id="paramLanguage"></script>
+  <script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+  <script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+  <script language="JavaScript" type="text/javascript" id="paramDirectory"></script>
+  <script language="JavaScript" type="text/javascript" id="jsparam">
+
+  </script>
+  <script language="JavaScript" type="text/javascript">
+    var lc_isTimerEnabled = true;
+    var current_state=0;
+    var start=false;
+    var processing = false;
+    var stopAddingWarns=false;
+    var restarting=false;
+    var pending_states=0;
+    var andmore=false;
+    var process_finished=false;
+
+
+    function contains(a, obj){
+      for(var i = 0; i < a.length; i++) {
+        if(a[i] === obj){
+          return true;
+        }
+      }
+      return false;
+    }
+   
+    //Changes the status of one node (corresponding icon, ...)
+    function progList_changeNode(node, newStatus, text) {
+      try {
+        node=node.toString();
+        if (newStatus == "Success") {
+          document.getElementById("processing_" + node).innerHTML = " ";
+          document.getElementById("processing_" + node).style.display = "none";
+          document.getElementById("error_" + node).style.display = "none";
+          document.getElementById("exception_" + node).style.display = "none";
+          document.getElementById("warning_" + node).style.display = "none";
+        } else if (newStatus == "Error") {
+          document.getElementById("processing_" + node).innerHTML = " ";
+          document.getElementById("processing_" + node).style.display = "none";
+          document.getElementById("error_" + node).style.display = "";
+          document.getElementById("exception_" + node).style.display = "none";
+          document.getElementById("warning_" + node).style.display = "none";
+        } else if (newStatus == "Exception") {
+          document.getElementById("processing_" + node).innerHTML = " ";
+          document.getElementById("processing_" + node).style.display = "none";
+          document.getElementById("error_" + node).style.display = "none";
+          document.getElementById("exception_" + node).style.display = "";
+          document.getElementById("warning_" + node).style.display = "none";
+        } else if (newStatus == "Warning") {
+          document.getElementById("processing_" + node).innerHTML = " ";
+          document.getElementById("processing_" + node).style.display = "none";
+          document.getElementById("error_" + node).style.display = "none";
+          document.getElementById("exception_" + node).style.display = "none";
+          document.getElementById("warning_" + node).style.display = "";
+        } else if (newStatus == "Pending") {
+          document.getElementById("processing_" + node).innerHTML = " ";
+          document.getElementById("processing_" + node).style.display = "none";
+          document.getElementById("error_" + node).style.display = "none";
+          document.getElementById("exception_" + node).style.display = "none";
+          document.getElementById("warning_" + node).style.display = "none";
+        } else if (newStatus == "Processing") {
+          if (text) {
+            document.getElementById("processing_" + node).innerHTML = text;
+          } else {
+            document.getElementById("processing_" + node).innerHTML = " ";
+          }
+          document.getElementById("processing_" + node).style.display = "";
+          document.getElementById("error_" + node).style.display = "none";
+          document.getElementById("exception_" + node).style.display = "none";
+          document.getElementById("warning_" + node).style.display = "none";
+        }
+      } catch(e) {}
+    }
+    function progList_changeIcon(node, newStatus, text) {
+      try {
+        node=node.toString();
+        if (newStatus == "Success") {
+          document.getElementById("icon_" + node).className = "CheckList_Icon_Success";
+        } else if (newStatus == "Error") {
+          document.getElementById("icon_" + node).className = "CheckList_Icon_Error";
+        } else if (newStatus == "Exception") {
+          document.getElementById("icon_" + node).className = "CheckList_Icon_Exception";
+        } else if (newStatus == "Warning") {
+          document.getElementById("icon_" + node).className = "CheckList_Icon_Warning";
+        } else if (newStatus == "Pending") {
+          document.getElementById("icon_" + node).className = "CheckList_Icon_Pending";
+        } else if (newStatus == "Processing") {
+          document.getElementById("icon_" + node).className = "CheckList_Icon_Processing";
+        }
+      } catch(e) {}
+    }
+
+    //Sets text of textarea
+    function progList_setTextToTextArea(text) {
+      try {
+        document.getElementById('warningsAndErrors').innerHTML = text;
+      } catch(e) {}
+    }
+
+    //Adds text to the textarea
+    function progList_addTextToTextArea(text) {
+      if(stopAddingWarns){
+          return;
+      }
+      var charn= document.getElementById('warningsAndErrors').innerHTML.length;
+      if(charn>2000){
+          if(!andmore){
+             andmore=true;
+             document.getElementById('warningsAndErrors').innerHTML += "<p class='CL_RSW_ta_line'>" + "and more..." + "</p>";
+          }
+        }
+        else{
+          document.getElementById('warningsAndErrors').innerHTML += "<p class='CL_RSW_ta_line'>" + text + "</p>";
+        } 
+    }
+    
+    //Starts a timer (used to periodically trigger a request to update the status of the window)
+    function LocalTimer(targetvar, referenceDate) {
+      var actualDate = new Date();
+      actualDate = actualDate.getTime();
+
+      var difDate = actualDate - referenceDate;
+      difDate = difDate / 1000;
+      difDate = Math.floor(difDate);
+
+      var seconds = difDate%60;
+      var minutes = Math.floor(difDate/60);
+
+      var seconds_string = seconds.toString();
+      var minutes_string = minutes.toString();
+
+      if (seconds_string.length == 1) {
+        seconds_string = "0" + seconds_string;
+      }
+      if (minutes_string.length == 1) {
+        minutes_string = "0" + minutes_string;
+      }
+      var output = minutes_string + ":" + seconds_string;
+      document.getElementById(targetvar).innerHTML=output;
+
+      submitXmlHttpRequest(update, document.frmMain, "UPDATESTATUS", "ApplyModulesCallServlet.html", false, null, null);
+
+      if (lc_isTimerEnabled) {
+        setTimeout(function() {LocalTimer(targetvar, referenceDate);},1000);
+      }
+    }
+
+    //Stops the local timer
+    function stopLocalTimer() {
+      lc_isTimerEnabled = false;
+    }
+
+    //Starts the local timer
+    function startLocalTimer(targetvar) {
+      var referenceDate = new Date();
+      referenceDate = referenceDate.getTime();
+      LocalTimer(targetvar, referenceDate);
+    }
+
+    //Returns the corresponding node for a given state index
+    function correspondingNode(state_index){
+      state_index=parseFloat(state_index)/10;
+      return state_index.toString();
+    }
+
+    //Returns the index of the specified state in the state array
+    function getStatusIndex(state){
+      for(var i=0;i<possible_states.length;i++){
+        if(possible_states[i]==state){
+          return i;
+        }
+      }
+    }
+
+    //Restarts tomcat/Reloads tomcat/Just closes the window
+    function restart() {
+      if (document.frmMain.option[0].checked) {
+        restarting=true;
+        if(window.opener){
+          window.opener.submitCommandForm('RESTART', false, null, '../ad_process/ApplyModules.html', '_self', null, false);
+          closePage();
+          return false;
+        }else{
+          top.opener.location="./ApplyModules.html?Command=RESTART";
+          closePage();
+          return false;
+        }
+      } else if (document.frmMain.option[1].checked) {
+        closePage();
+        return;
+      }
+    } 
+
+    //Inserts warnings and errors in the textarea
+    function insertWarnsAndErrors(response){
+      if(start===true && !stopAddingWarns){
+        if(response.statusofstate=="Warning"){
+          var warns=response.warnings.string;
+          if(warns){
+            if(!(warns instanceof Array)){
+              warns=[warns];
+            }
+            for(i=0;i<warns.length;i++){
+              var old=document.getElementById("warning_"+correspondingNode(response.state)).title;
+              var l=old.length;
+              if(l>300){
+                //add nothing else to the tooltip, already too long
+              }else{
+                if(old===""){
+                  old="Warnings: ";
+                }else{
+                  old+=",";
+                }
+                document.getElementById("warning_"+correspondingNode(response.state)).title=old+warns[i];
+              }
+              if(warns[i]!==undefined){
+                progList_addTextToTextArea('<b><i>Warning: </b></i>'+warns[i]);
+              }
+            }
+            numofwarns[getStatusIndex(response.state)]=warns.length;
+          }
+        }
+        if(response.statusofstate=="Error"){
+          var errs;
+          if(response.errors instanceof Array){
+              errs=response.errors[0].string;
+          }else{
+              errs=response.errors.string;
+          }
+          if(errs){
+            if(!(errs instanceof Array)){
+              errs=[errs];
+            }
+            if(numoferrs[getStatusIndex(response.state)]<errs.length){
+              for(i=0;i<errs.length;i++){
+                progList_addTextToTextArea('<b><i>Error: </b></i>'+errs[i]);
+              }
+              numoferrs[getStatusIndex(response.state)]=errs.length;
+            }
+          }
+        }
+      }
+    }
+
+
+    function updateMainSteps(){
+        for(i=0;i<nodestructure.length;i++){
+            var mainStep=nodestructure[i][0];
+            var subSteps=nodestructure[i][1];
+            var success=true;
+            for(var j=0;j<subSteps.length && success;j++){
+                var ind=getStatusIndex(subSteps[j]);
+                if(error_status[ind]!=='Success'){
+                    success=false;
+                }
+            }
+            if(success){
+                progList_changeNode(correspondingNode(mainStep), 'Success');
+                progList_changeIcon(correspondingNode(mainStep), 'Success');
+            }else{
+                var error=false;
+                for(j=0;j<subSteps.length && !error;j++){
+                    var ind=getStatusIndex(subSteps[j]);
+                    if(error_status[ind]==='Error'){
+                       error=true;
+                    }
+                }
+                if(error){
+                    progList_changeNode(correspondingNode(mainStep), 'Error');
+                    progList_changeIcon(correspondingNode(mainStep), 'Error');
+                }else{
+                    var warning=false;
+                    for(j=0;j<subSteps.length && !warning;j++){
+                        var ind=getStatusIndex(subSteps[j]);
+                        if(error_status[ind]==='Warning'){
+                            warning=true;
+                        }
+                    }
+                    if(warning){
+                        progList_changeNode(correspondingNode(mainStep), 'Warning');
+                        progList_changeIcon(correspondingNode(mainStep), 'Warning');
+                    }
+                }
+            }
+        }
+    }
+    
+    //This function is called when status information of intermediate states is required
+    function askForErrorStatus(paramXMLParticular, XMLHttpRequestObj) {
+      var strText = "";
+      var i;
+      var j;
+      if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+        if (XMLHttpRequestObj.responseText) {
+          strText = XMLHttpRequestObj.responseText;
+        }
+        pending_states=pending_states-1;
+        strText = strText.toString();
+        var msg = eval("("+strText+")");
+ 
+        var state=msg.Response.state;
+        var errorStatus=msg.Response.statusofstate;
+        var stateindex=getStatusIndex(state);
+        progList_changeNode(correspondingNode(state), errorStatus);
+        progList_changeIcon(correspondingNode(state), errorStatus);
+        error_status[stateindex]=errorStatus;
+        insertWarnsAndErrors(msg.Response);
+        updateMainSteps();
+      }
+    }
+
+
+    //This function sets the succes/warning/error message after the information returned by the server
+    function getError(paramXMLParticular, XMLHttpRequestObj) {
+      var strText = "";
+      if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+        try {
+          if (XMLHttpRequestObj.responseText) {
+              strText = XMLHttpRequestObj.responseText;
+          }
+        } catch (e) {
+          initialize_MessageBox('messageBoxID');
+          setValues_MessageBox('messageBoxID','ERROR','ERROR',e);
+        }
+        if (strText == "") {
+          showJSMessage(22);
+        } else {
+          //Expecting msg in JSON format
+          strText = strText.toString();
+          var msg = eval("("+strText+")");
+          initialize_MessageBox('messageBoxID');
+          setValues_MessageBox('messageBoxID',msg.OBError.type, msg.OBError.title, msg.OBError.message);
+          if(msg.OBError.type!="Error"){
+              displayLogicElement('restartOptions',true);
+          }
+          document.getElementById("rebuildMessage").style.display = "none";
+          if(msg.OBError.type=="Error"){
+              var node=correspondingNode(possible_states[current_state]);
+              progList_changeNode(node, 'Error');
+              progList_changeIcon(node, 'Error');
+          }
+          //Make a final call to requesterrorstate, to get the last errors/warnings, if they were any
+          submitXmlHttpRequest(askForErrorStatus, null, "REQUESTLASTERRORSTATE", "ApplyModulesCallServlet.html", false, null, null);
+          //Also, make calls to update all possible substeps, and states
+          var endState=possible_states.length;
+          if(msg.OBError.type=="Error"){
+              endState=current_state;
+          }
+          for(i=0;i<endState;i++){
+            //We need to ask for warning/error state for the intermediate status
+            document.getElementById("reqStatus").value=possible_states[i];
+            submitXmlHttpRequest(askForErrorStatus, null, "REQUESTERRORSTATE", "ApplyModulesCallServlet.html", false, null, null);
+          }
+          updateMainSteps();
+        }
+      }
+      return true;
+    }
+ 
+
+
+
+    //This function is called by the servlet after a request from the timer, and updates the status of the build
+    //in the window according to the data sent by the servlet
+    function update(paramXMLParticular, XMLHttpRequestObj) {
+      var strText = "";
+      if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+        if (XMLHttpRequestObj.responseText) {
+          strText = XMLHttpRequestObj.responseText;
+        }
+        strText = strText.toString();
+        var msg = eval("("+strText+")");
+          
+        var state=msg.Response.state;
+        var errorStatus=msg.Response.statusofstate;
+        if(msg.Response.processFinished==='Y' && !process_finished){
+            process_finished=true;
+            var frm = document.frmMain;
+            submitXmlHttpRequest(update, frm, "UPDATESTATUS", "ApplyModulesCallServlet.html", false, null, null);
+            submitXmlHttpRequest(getError, frm, "GETERR", "ApplyModulesCallServlet.html", false, null, null);
+            return;
+        }
+        if(state==first_state || start===true){
+          if(contains(end_states,state) || errorStatus=="Error"){
+            stopLocalTimer();
+            processing = false;
+          }
+          start=true;
+          var stateindex=getStatusIndex(state);
+          if(stateindex>current_state){
+            pending_states=stateindex-current_state;
+            for(i=current_state;i<stateindex;i++){
+              //We need to ask for warning/error state for the intermediate status
+              document.getElementById("reqStatus").value=possible_states[i];
+              submitXmlHttpRequest(askForErrorStatus, null, "REQUESTERRORSTATE", "ApplyModulesCallServlet.html", false, null, null);
+            }
+          }
+ 
+          error_status[getStatusIndex(state)]=errorStatus;
+          var message;
+          if(msg.Response.lastmessage!==null){
+            message=msg.Response.lastmessage.substring(0,30);
+          }else{
+            message="";
+          }
+
+          insertWarnsAndErrors(msg.Response);
+          if(!contains(end_states, state)){
+              if(pending_states<=0){
+                progList_changeNode(correspondingNode(state), errorStatus, message);
+                progList_changeIcon(correspondingNode(state), "Processing", message);
+              }
+          }
+          current_state=stateindex;
+
+        }
+      }
+    }
+    
+    function endProcess(paramXMLParticular, XMLHttpRequestObj) {
+        //This function was the responsible for making a final call to get the success/warning/error message
+        //Now it's not needed as the session variable FinishedProcessing has been added
+    }
+
+    
+    function buildInit(paramXMLParticular, XMLHttpRequestObj) {
+        if (getReadyStateHandler(XMLHttpRequestObj)) { 
+            var frm = document.frmMain;
+            startLocalTimer('localTimer');
+            processing = true;
+            if(window.opener && window.opener.setProcessingMode){
+              window.opener.setProcessingMode('window', true, false);
+            }
+            displayLogicElement('confirmation',false);
+            displayLogicElement('rebuildTable',true);
+            return submitXmlHttpRequest(endProcess, frm, "STARTAPPLY", "ApplyModules.html", false, null, null);
+        }
+      }
+
+    //This function starts the ApplyModules task, and is called when the user presses the "Yes" button
+    function startProcessing() {
+      var frm = document.frmMain;
+      submitXmlHttpRequest(buildInit, frm, "RESETREBUILDSTATE", "ApplyModules.html", false, null, null);
+    }
+      
+  </script>
+  <script language="JavaScript" type="text/javascript">
+
+    function onLoadDo() {
+      this.windowTables = new Array(
+        new windowTableId('client', 'buttonOK')
+      );
+      setWindowTableParentElement();
+      enableShortcuts('popup');
+      setBrowserAutoComplete(false);
+
+      setWindowElementFocus('firstElement');
+      displayLogicElement('confirmation',true);
+      displayLogicElement('rebuildTable',false);
+      displayLogicElement('restartOptions',false);
+    }
+
+    function onResizeDo() {
+    }
+    
+    function onUnloadDo() {
+      if(window.opener && window.opener.setProcessingMode){
+          window.opener.setProcessingMode('window', false);
+      }
+      if(!restarting){
+        reloadOpener();
+      }
+    }
+
+  </script>
+
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" onload="onLoadDo();" onunload="onUnloadDo();" id="paramMessage">
+  <form id="form" method="post" action="ApplyModules.html" name="frmMain" target="hiddenFrame">
+    <input type="hidden" name="Command"/>
+    <input type="hidden" name="IsPopUpCall" value="1"/>
+    <input type="hidden" name="inpLastFieldChanged"/>
+    <input type="hidden" name="inpSelected" id="paramSelected" value=""/>
+    <input type="hidden" name="reqStatus" id="reqStatus" value=""/>
+    <input type="hidden" name="logfile" id="logfile" value="xx"/>
+    <div class="Popup_ContentPane_CircleLogo">
+
+      <div class="Popup_WindowLogo">
+        <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_process" src="../web/images/blank.gif" border="0"/>
+      </div>
+    </div>
+
+    <table cellspacing="0" cellpadding="0" width="100%">
+
+      <tr>
+        <td>
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+
+            <tr class="Popup_NavBar_bg"><td></td>
+              <td class="Popup_NavBar_separator_cell"></td>
+              <td class="Popup_NavBar_bg_logo_left"></td>
+              <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo"/></td>
+              <td class="Popup_NavBar_bg_logo_right"></td>
+              <td class="Popup_NavBar_Popup_title_cell"><span>Rebuild the System</span></td>
+              <td class="Popup_NavBar_separator_cell"></td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+            <tr>
+              <td class="Popup_SeparatorBar_bg"></td>
+
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client">
+            
+            <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxHIDDEN">
+              <tbody>
+                <tr class="MessageBox_TopMargin">
+
+                  <td class="MessageBox_LeftMargin"></td>
+                  <td></td>
+                  <td class="MessageBox_RightMargin"></td>
+                </tr>
+                <tr>
+                  <td class="MessageBox_LeftMargin"></td>
+                  <td>
+
+                    <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+
+                      <tbody>
+                        <tr>
+                          <td class="MessageBox_LeftTrans">
+                            <table style="width: 100%; height: 100%;" cellpadding="0" cellspacing="0">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_TopLeft"></td>
+                              </tr>
+                              <tr>
+
+                                <td class="MessageBox_Left"></td>
+                              </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                          <td class="MessageBox_bg">
+
+                            <table class="MessageBox_Top">
+                              <tbody>
+
+                                <tr>
+                                  <td>
+                                    <span>
+                                      <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                        <tbody>
+                                          <tr>
+                                            <td class="MessageBox_Icon_ContentCell">
+                                              <div class="MessageBox_Icon"></div>
+                                            </td>
+
+                                            <td style="vertical-align: top;" id="messageBoxIDContent">
+                                              <span>
+                                                <div class="MessageBox_TextTitle" id="messageBoxIDTitle"></div>
+                                                <div class="MessageBox_TextDescription" id="messageBoxIDMessage"></div>
+                                                <div class="MessageBox_TextSeparator"></div>
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        </tbody>
+
+                                      </table>
+                                    </span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                          </td>
+                          <td class="MessageBox_RightTrans">
+
+                            <table style="width: 100%; height: 100%;" cellpadding="0" cellspacing="0">
+                              <tbody>
+                              <tr>
+                                <td class="MessageBox_TopRight"></td>
+                              </tr>
+                              <tr>
+                                <td class="MessageBox_Right"></td>
+                              </tr>
+                              </tbody>
+
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td rowspan="2" class="MessageBox_BottomLeft">
+                          </td>
+                          <td class="MessageBox_BottomTrans MessageBox_bg">
+                          </td>
+                          <td rowspan="2" class="MessageBox_BottomRight">
+
+                          </td>
+                        </tr>
+                        <tr>
+                          <td class="MessageBox_Bottom">
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                  </td>
+                  <td class="MessageBox_RightMargin"></td>
+                </tr>
+                <tr class="MessageBox_BottomMargin">
+                  <td class="MessageBox_LeftMargin"></td>
+                  <td></td>
+                  <td class="MessageBox_RightMargin"></td>
+                </tr>
+              </tbody>
+
+            </table>
+            
+            
+            <table style="width: 550px !important;" cellspacing="0" cellpadding="0" border ="0" class="Login_Home_TableEdition" id="confirmation">
+              <tr><td style="height: 20px;"></td></tr>
+              <tr>
+                <td colspan="2">
+                  <div style="overflow: auto;">
+                    <span class="PlainText_normal" style="font-size: 10pt; padding-left: 165px;">Do you want to rebuild the system now?</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="height: 20px;"></td>
+              </tr>
+              <tr>
+                <td class="Button_RightAlign_ContentCell">
+                  <div>
+                    <button type="button"
+                      id="buttonOK" 
+                      class="ButtonLink" 
+                      onclick="startProcessing();return false;" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Accept'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Accept'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Accept" title="Accept" src="../../../../../web/images/blank.gif" border="0" /></td>
+                          <td class="Button_text Button_width">Yes</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                 </div>
+               </td>
+               <td class="Button_LeftAlign_ContentCell">
+                <button type="button" 
+                  id="buttonCancel" 
+                  class="ButtonLink" 
+                  onclick="closePage();return false;" 
+                  onfocus="buttonEvent('onfocus', this); window.status='Cancel'; return true;" 
+                  onblur="buttonEvent('onblur', this);" 
+                  onkeyup="buttonEvent('onkeyup', this);" 
+                  onkeydown="buttonEvent('onkeydown', this);" 
+                  onkeypress="buttonEvent('onkeypress', this);" 
+                  onmouseup="buttonEvent('onmouseup', this);" 
+                  onmousedown="buttonEvent('onmousedown', this);" 
+                  onmouseover="buttonEvent('onmouseover', this); window.status='Cancel'; return true;" 
+                  onmouseout="buttonEvent('onmouseout', this);">
+                  <table class="Button">
+                    <tr>
+                      <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
+                      <td class="Button_text Button_width">Cancel</td>
+                      <td class="Button_right"></td>
+                    </tr>
+                  </table>
+                </button>
+               </td>
+               <td></td>
+             </tr>
+            </table>
+            
+            <table class="Popup_Client_TablePopup" cellpadding="0" cellspacing="0" style="margin-top: 15px;" id="rebuildTable">
+           
+
+              <tr><td colspan="4">
+                <div style="overflow: auto; width: 600px;">
+                  <span id="rebuildMessage" class="CheckList_RebuildSystemWindow_title">Elapsed time: <span id="localTimer">00:00</span>.</br> Do not close this window.</span>
+                 </div>
+              </td></tr>
+
+    
+    <tr><td><table class="Popup_Client_TablePopup" cellpadding="0" cellspacing="0" id="restartOptions" style="margin-top: 5px;">
+              
+              <tr><td colspan="2">
+                <div style="overflow: auto; width: 600px;">
+                  <span class="PlainText_normal">In order for the changes to take effect, you need to restart the servlet container.</span>
+                </div>
+              </td></tr>
+              <tr><td height="10"></td></tr>
+              <tr>
+                <td colspan="4"><span class="Radio_container_NOT_focused"><input name="option" required="true" value="restart" type="radio" checked></span><span class="PlainText_normal" style="padding: 0 0 0 10;">Restart servlet container now &nbsp;<a onclick="openHelp(null, '../ad_help/DisplayHelp.html', 'HELP', false, null, null, 'X', '25C886DA08E947F29AAC1D30D8B753A1', true);return false;" target="_blank" href="#restart">learn more</a></span></td>
+              </tr>
+              <tr>
+                <td colspan="4"><span class="Radio_container_NOT_Focused"><input name="option" required="true" value="doNothing" type="radio"></span><span class="PlainText_normal" style="padding: 0 0 0 10;">Don't do anything now. I will reload the Openbravo application manually later &nbsp;<a onclick="openHelp(null, '../ad_help/DisplayHelp.html', 'HELP', false, null, null, 'X', '25C886DA08E947F29AAC1D30D8B753A1', true);return false;" target="_blank" href="#nothing">learn more</a></span></td>
+              </tr>
+
+              <tr><td height="20"></td></tr>
+              <tr>
+                <td></td>
+                <td>
+                  <div>
+                    <button type="button" 
+                      id="buttonContinue" 
+                      class="ButtonLink" 
+                      onclick="restart();return false;" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Continue'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Continue'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Continue" title="Continue" src="../../../../../web/images/blank.gif" border="0" /></td>
+                          <td class="Button_text Button_width">Continue</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+            </table></td></tr>
+              <tr><td colspan="4">
+
+
+                <div class="TextArea_FourCells_width" id="CheckList">
+                  <div style="padding: 15 5 15 5;" id="CheckListContainer">
+                    <div id=sectionStepTree>
+                      <div class="CheckList_Row" id="node_xxyy">
+                        <div id="padding_xxyy" class="CheckList_Padding_xxyy"></div>
+                        <div id="icon_xxyy" class="CheckList_Icon_Pending"></div>
+                        <div class="CheckList_Text_Container">
+                         <div class="CheckList_Text_Title" id="title_xxyy">Database update</div>
+                        </div>
+                        <div class="CheckList_Text_Separator"></div>
+                        <div class="CheckList_Text_Message_Processing" id="processing_xxyy" style="display: none;"> </div>
+                        <div class="CheckList_Text_Message_Error" id="error_xxyy" style="display: none;">ERROR</div>
+                        <div class="CheckList_Text_Message_Exception" id="exception_xxyy" style="display: none;">EXCEPTION</div>
+                        <div class="CheckList_Text_Message_Warning" id="warning_xxyy" style="display: none;">WARNING</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </td></tr>
+
+              <tr><td colspan="4">
+                <div style="overflow: auto; width: 600px;">
+                  <span class="CheckList_RebuildSystemWindow_title">Warnings and errors:</span>
+                </div>
+              </td></tr>
+
+              <tr><td height="10"></td></tr>
+              <tr>
+                <td colspan="4">
+                  <div class="CheckList_RebuildSystemWindow_textarea" id="warningsAndErrors">
+                </td>
+              </tr>
+
+
+              <tr><td height="10"></td></tr>
+              <tr>
+                <td colspan="4">
+                  <div>
+                    <button type="button" id="buttonLog" class="ButtonLink" onclick="openServletNewWindow('DEFAULT', false, '../ad_forms/ShowLogFile.html?filePath=xx', 'Show Log', null, false, 600, 900, null, null, false, null, true);" onfocus="buttonEvent('onfocus', this); window.status='Show log'; return true;" onblur="buttonEvent('onblur', this);" onkeyup="buttonEvent('onkeyup', this);" onkeydown="buttonEvent('onkeydown', this);" onkeypress="buttonEvent('onkeypress', this);" onmouseup="buttonEvent('onmouseup', this);" onmousedown="buttonEvent('onmousedown', this);" onmouseover="buttonEvent('onmouseover', this); window.status='Show log'; return true;" onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon" alt="Show log" title="Show log" src="../web/images/blank.gif" border="0"/></td>
+                          <td class="Button_text">Show log</td>
+                          <td class="Button_right"></td>
+                        </tr>
+
+                      </table>
+                    </button>
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+              
+        </td>
+
+      </tr>
+    </table>
+    
+    
+  </form>
+
+
+</body></html>

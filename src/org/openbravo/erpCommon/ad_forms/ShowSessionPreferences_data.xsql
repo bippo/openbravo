@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass id="class" name="ShowSessionPreferencesData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT AD_WINDOW_ID AS ID, NAME FROM AD_WINDOW WHERE ISACTIVE='Y' 
+      ORDER BY NAME
+    ]]></Sql>
+    <Parameter name="windows" optional="true" type="argument" after="WHERE ISACTIVE='Y' " text="AND AD_WINDOW.AD_WINDOW_ID IN "/>
+  </SqlMethod>
+  <SqlMethod name="selectTrl" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT AD_WINDOW.AD_WINDOW_ID AS ID, (CASE WHEN AD_WINDOW_TRL.NAME IS NULL THEN AD_WINDOW.NAME ELSE AD_WINDOW_TRL.NAME END) AS NAME 
+      FROM AD_WINDOW, AD_WINDOW_TRL 
+      WHERE AD_WINDOW.ISACTIVE='Y' 
+      AND AD_WINDOW.AD_WINDOW_ID = AD_WINDOW_TRL.AD_WINDOW_ID
+      AND AD_WINDOW_TRL.AD_LANGUAGE = ? 
+      ORDER BY 2
+    ]]></Sql>
+    <Parameter name="windows" optional="true" type="argument" after="WHERE AD_WINDOW.ISACTIVE='Y' " text="AND AD_WINDOW.AD_WINDOW_ID IN "/>
+    <Parameter name="adLanguage"/>
+  </SqlMethod>
+  <SqlMethod name="usuario" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT USERNAME FROM AD_USER WHERE AD_USER_ID = ?
+    ]]></Sql>
+    <Parameter name="adUserId"/>
+  </SqlMethod>
+  <SqlMethod name="rol" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT NAME FROM AD_ROLE WHERE AD_ROLE_ID = ?
+    ]]></Sql>
+    <Parameter name="adRoleId"/>
+  </SqlMethod>
+  <SqlMethod name="cliente" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT NAME FROM AD_CLIENT WHERE AD_CLIENT_ID = ?
+    ]]></Sql>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="organizacion" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT NAME FROM AD_ORG WHERE AD_ORG_ID = ?
+    ]]></Sql>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  <SqlMethod name="selectPreference" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT AD_Preference_ID 
+      FROM AD_Preference 
+      WHERE AD_Client_ID IN ('1') 
+      AND AD_Org_ID IN ('2') 
+      AND (AD_User_ID IS NULL OR AD_User_ID='0' OR AD_User_ID = ?) 
+      AND IsActive='Y' 
+      AND UPPER(Attribute) = UPPER(?)
+      ORDER BY AD_Client_ID, AD_Org_ID, AD_User_ID
+    ]]></Sql>
+    <Parameter name="adClientId" type="replace" optional="true" after="AD_Client_ID IN (" text="'1'"/>
+    <Parameter name="adOrgId" type="replace" optional="true" after="AD_Org_ID IN (" text="'2'"/>
+    <Parameter name="adUserId"/>
+    <Parameter name="columnname"/>
+  </SqlMethod>
+  <SqlMethod name="update" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      UPDATE AD_PREFERENCE SET UPDATED=now(), UPDATEDBY = ?, VALUE=?
+      WHERE AD_Preference_ID = ?
+    ]]></Sql>
+      <Parameter name="adUserId"/>
+      <Parameter name="value"/>
+      <Parameter name="adPreferenceId"/>
+  </SqlMethod>
+  <SqlMethod name="updateRange" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      UPDATE AD_SYSTEM SET UPDATED=now(), UPDATEDBY = ?, TAD_RECORDRANGE=TO_NUMBER(?), TAD_RECORDRANGE_INFO=TO_NUMBER(?), TAD_TRANSACTIONALRANGE=TO_NUMBER(?), TAD_THEME=?
+      WHERE AD_System_ID = '0'
+    ]]></Sql>
+      <Parameter name="adUserId"/>
+      <Parameter name="tadRecordrange"/>
+      <Parameter name="tadRecordrangeInfo"/>
+      <Parameter name="tadTransactionalrange"/>
+      <Parameter name="tadTheme"/>
+  </SqlMethod>
+  <SqlMethod name="insert" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      INSERT INTO AD_PREFERENCE (AD_PREFERENCE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, 
+      CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_USER_ID, ATTRIBUTE, VALUE)
+      VALUES (?,?,?,'Y', 
+      now(), ?, now(), ?, ?, ?, ?)
+    ]]></Sql>
+      <Parameter name="adPreferenceId"/>
+      <Parameter name="adClientId"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="adUserId"/>
+      <Parameter name="adUserId"/>
+      <Parameter name="adUserId"/>
+      <Parameter name="attribute"/>
+      <Parameter name="value"/>
+  </SqlMethod>
+</SqlClass>

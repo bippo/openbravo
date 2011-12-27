@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ************************************************************************************
+ * Copyright (C) 2001-2010 Openbravo S.L.U.
+ * Licensed under the Apache Software License version 2.0
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to  in writing,  software  distributed
+ * under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+ * CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+ * specific language governing permissions and limitations under the License.
+ ************************************************************************************
+-->
+
+
+
+<SqlClass name="DefaultSessionValuesData" package="org.openbravo.base.secureApp">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT t.TableName, c.ColumnName 
+        FROM AD_Column c 
+        INNER JOIN AD_Table t ON (c.AD_Table_ID=t.AD_Table_ID) 
+        WHERE c.IsKey='Y' AND t.IsActive='Y'
+        AND EXISTS (SELECT * FROM AD_Column cc 
+        WHERE ColumnName = 'IsDefault' AND t.AD_Table_ID=cc.AD_Table_ID AND cc.IsActive='Y')
+      ]]></Sql>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="InvoiceCustomerEditionData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment>InvoiceCustomerEditionData Class</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Select for invoice customer data</SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO) AS DOCUMENTNO, C_INVOICE.DATEINVOICED AS DATEINVOICED, 
+      C_BPARTNER.NAME AS CLIENT_NAME, M_PRODUCT.NAME AS PRODUCT_NAME,  CASE WHEN C_DOCTYPE.DOCBASETYPE = 'ARC' THEN SUM(C_INVOICELINE.QTYINVOICED)*-1 ELSE  SUM(C_INVOICELINE.QTYINVOICED) END AS QUANTITYORDER, C_UOM.NAME AS UOMNAME, 
+      C_INVOICELINE.PRICEACTUAL AS PRICEACTUAL, 
+      C_CURRENCY_SYMBOL(C_INVOICE.C_CURRENCY_ID, C_INVOICELINE.PRICEACTUAL, 'Y') AS PRICEACTUALSYM,
+	  C_CURRENCY_CONVERT(C_INVOICELINE.PRICEACTUAL, C_INVOICE.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID) AS CONVPRICEACTUAL,
+      CASE WHEN C_DOCTYPE.DOCBASETYPE = 'ARC' THEN SUM(C_INVOICELINE.LINENETAMT)*-1 ELSE SUM(C_INVOICELINE.LINENETAMT) END AS PRICELIST,
+      C_CURRENCY_SYMBOL (C_INVOICE.C_CURRENCY_ID, SUM(C_INVOICELINE.LINENETAMT), 'Y') AS PRICELISTSYM,
+	  SUM(C_CURRENCY_CONVERT(CASE WHEN C_DOCTYPE.DOCBASETYPE = 'ARC' THEN C_INVOICELINE.LINENETAMT*-1 ELSE C_INVOICELINE.LINENETAMT END, C_INVOICE.C_CURRENCY_ID, ?, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID)) AS CONVPRICELIST,
+	  C_CURRENCY_SYMBOL(?, '0', 'Y') AS CONVSYM,
+	  C_CURRENCY_ISOSYM(?) AS CONVISOSYM,
+	  TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, NOW())) AS TRANSDATE,
+	  C_INVOICE.C_CURRENCY_ID AS TRANSCURRENCYID,
+      C_INVOICELINE.AD_CLIENT_ID AS TRANSCLIENTID, 
+	  C_INVOICELINE.AD_ORG_ID AS TRANSORGID
+      FROM C_INVOICE LEFT JOIN C_PROJECT ON C_INVOICE.C_PROJECT_ID = C_PROJECT.C_PROJECT_ID 
+                     LEFT JOIN C_LOCATION ON C_PROJECT.C_LOCATION_ID = C_LOCATION.C_LOCATION_ID
+                     LEFT JOIN C_DOCTYPE ON C_INVOICE.C_DOCTYPE_ID = C_DOCTYPE.C_DOCTYPE_ID,
+                     C_INVOICELINE, M_PRODUCT, C_UOM, C_BPARTNER
+                                       
+      WHERE C_INVOICE.C_INVOICE_ID = C_INVOICELINE.C_INVOICE_ID
+      AND C_INVOICELINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND C_INVOICELINE.C_UOM_ID = C_UOM.C_UOM_ID
+      AND C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID      
+      AND C_INVOICE.AD_ORG_ID IN ('1')
+      AND C_INVOICE.AD_CLIENT_ID IN ('1')
+      AND C_INVOICE.ISSOTRX = 'Y'
+      AND 1=1
+      GROUP BY C_BPARTNER.NAME, M_PRODUCT.NAME, C_UOM.NAME, C_INVOICELINE.PRICEACTUAL, 
+      COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO), C_INVOICE.DATEINVOICED,
+      C_INVOICE.C_CURRENCY_ID, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID, C_DOCTYPE.DOCBASETYPE
+      ORDER BY C_BPARTNER.NAME, COALESCE(C_INVOICE.POREFERENCE, C_INVOICE.DOCUMENTNO), C_INVOICE.DATEINVOICED
+
+     ]]></Sql>
+    <Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+	<Parameter name="cCurrencyConv"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND C_INVOICE.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND C_INVOICE.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="dateFrom" optional="true" after="AND 1=1"><![CDATA[ AND C_INVOICE.DATEINVOICED >= to_date(?)]]></Parameter>
+    <Parameter name="dateTo" optional="true" after="AND 1=1"><![CDATA[ AND C_INVOICE.DATEINVOICED <= to_date(?)]]></Parameter>
+    <Parameter name="cbPartnerId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND C_BPARTNER.C_BPARTNER_ID IN]]></Parameter>
+    <Parameter name="cProjectId" optional="true" after="AND 1=1"><![CDATA[ AND C_PROJECT.C_PROJECT_ID = ?]]></Parameter>
+    <Parameter name="cProductCategoryId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_CATEGORY_ID IN]]></Parameter>
+    <Parameter name="cProjectKind" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND C_PROJECT.PROJECTKIND IN]]></Parameter>
+    <Parameter name="cProjectPhase" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND C_PROJECT.PROJECTPHASE IN]]></Parameter>
+    <Parameter name="cProjectStatus" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND C_PROJECT.PROJECTSTATUS IN]]></Parameter>
+    <Parameter name="cProjectPublic" optional="true" after="AND 1=1"><![CDATA[ AND C_PROJECT.PUBLICPRIVATE = ?]]></Parameter>
+    <Parameter name="cRegionId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND C_LOCATION.C_REGION_ID IN]]></Parameter>
+    <Parameter name="salesRep" optional="true" after="AND 1=1"><![CDATA[ AND C_PROJECT.SALESREP_ID = ?]]></Parameter>
+    <Parameter name="productId" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID IN]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment>Create a registry</SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectProject" type="preparedStatement" return="String" default="">
+    <SqlMethodComment>Standard Precision</SqlMethodComment>
+    <Sql>
+    SELECT VALUE || ' - ' ||NAME FROM C_PROJECT 
+    WHERE C_PROJECT_ID = ?
+    </Sql>
+    <Parameter name="cProjectId"/>
+  </SqlMethod>
+</SqlClass>

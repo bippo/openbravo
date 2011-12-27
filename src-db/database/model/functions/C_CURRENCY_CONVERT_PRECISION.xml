@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_CURRENCY_CONVERT_PRECISION">
+    <function name="C_CURRENCY_CONVERT_PRECISION" type="NUMERIC">
+      <parameter name="p_amount" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curfrom_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_curto_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_convdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ratetype" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default><![CDATA[0]]></default>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default><![CDATA[0]]></default>
+      </parameter>
+      <parameter name="p_precisiontype" type="CHAR" mode="in">
+        <default><![CDATA[A]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010 Openbravo SLU
+ * All Rights Reserved.
+************************************************************************/
+  v_Rate NUMBER;
+BEGIN
+  -- Return Amount
+  IF(p_Amount=0 OR p_CurFrom_ID=p_CurTo_ID) THEN
+    RETURN p_Amount;
+  END IF;
+  -- Return NULL
+  IF(p_Amount IS NULL OR p_CurFrom_ID IS NULL OR p_CurTo_ID IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Get Rate
+  v_Rate:=C_Currency_Rate(p_CurFrom_ID, p_CurTo_ID, p_ConvDate, p_RateType, p_Client_ID, p_Org_ID) ;
+  IF(v_Rate IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  -- Standard Precision
+  RETURN ROUND(p_Amount * v_Rate, C_GET_CURRENCY_PRECISION(p_CurTo_ID, p_precisiontype)) ;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM) ;
+  RAISE;
+END C_CURRENCY_CONVERT_PRECISION
+]]></body>
+    </function>
+  </database>

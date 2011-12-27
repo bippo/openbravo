@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_TAX_GET_LEVEL">
+    <function name="C_TAX_GET_LEVEL" type="NUMERIC">
+      <parameter name="p_parenttax" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_targettax" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_level" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+/*
+* For the given target tax, it returns level. Level indicates the sequence NUMBER for the calculation of the given tax in its tree
+*/
+v_ParentTax C_TAX.C_TAX_ID%TYPE;
+TYPE RECORD IS REF CURSOR;
+      Cur_taxes RECORD;
+v_Level NUMBER;
+v_Count NUMBER;
+BEGIN
+  v_Level:=p_Level;
+    FOR Cur_taxes IN
+      (  SELECT C_Tax_ID, IsSummary
+          FROM C_TAX
+          WHERE Parent_Tax_ID=p_ParentTax
+          ORDER BY Line
+      )
+    LOOP
+      IF (Cur_taxes.IsSummary='Y') THEN
+        v_Level:=C_TAX_GET_LEVEL(Cur_taxes.C_Tax_ID, p_TargetTax, v_Level);
+        SELECT COUNT(C_TAX_ID)
+        INTO v_Count
+        FROM C_TAX 
+        WHERE C_TAX_ISMEMBER(Cur_taxes.C_Tax_ID, p_TargetTax)=1
+        AND C_TAX_ID=p_TargetTax;
+        IF(v_Count=1) THEN
+          RETURN v_Level;
+        END IF;
+        --v_Level:=v_Level + 1;
+      END IF;
+      IF (Cur_taxes.IsSummary='N') THEN
+        v_Level:=v_Level + 1;
+      END IF;
+      IF (Cur_taxes.C_Tax_ID=p_TargetTax) THEN
+        RETURN v_Level;
+      END IF;
+    END LOOP;
+  RETURN v_Level;
+END C_TAX_GET_LEVEL
+]]></body>
+    </function>
+  </database>

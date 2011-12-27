@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_COMMISSIONDETAIL_TRG">
+    <trigger name="C_COMMISSIONDETAIL_TRG" table="C_COMMISSIONDETAIL" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Update Commission Amount Line
+    * Convert Amount to Commission Currrency
+    */
+  v_C_Currency_ID VARCHAR2(32);
+  v_ConvDate DATE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(UPDATING OR DELETING) THEN
+    -- DBMS_OUTPUT.PUT_LINE('C_CommissionDetail_Trg - Subtract');
+    -- Subtract old Amount/Qty from Amount
+    UPDATE C_CommissionAmt
+      SET ConvertedAmt=ConvertedAmt - :old.ConvertedAmt,
+      ActualQty=ActualQty - :old.ActualQty
+    WHERE C_CommissionAmt_ID=:old.C_CommissionAmt_ID;
+  END IF;
+  IF(INSERTING OR UPDATING) THEN
+    -- DBMS_OUTPUT.PUT_LINE('C_CommissionDetail_Trg - Get Info');
+    -- Get Info From CommissionRun
+    SELECT cr.StartDate,
+      c.C_Currency_ID
+    INTO v_ConvDate,
+      v_C_Currency_ID
+    FROM C_Commission c,
+      C_CommissionRun cr,
+      C_CommissionAmt ca
+    WHERE ca.C_CommissionAmt_ID=:new.C_CommissionAmt_ID
+      AND cr.C_CommissionRun_ID=ca.C_CommissionRun_ID
+      AND cr.C_Commission_ID=c.C_Commission_ID;
+    -- Convert
+    :new.ConvertedAmt:=C_Currency_Convert(:new.ActualAmt, :new.C_Currency_ID, v_C_Currency_ID, v_ConvDate, 'S', :new.AD_Client_ID, :new.AD_Org_ID) ;
+    -- Add new Amount/Qty to Amount
+    -- DBMS_OUTPUT.PUT_LINE('C_CommissionDetail_Trg - Add');
+    UPDATE C_CommissionAmt
+      SET ConvertedAmt=ConvertedAmt + :new.ConvertedAmt,
+      ActualQty=ActualQty + :new.ActualQty
+    WHERE C_CommissionAmt_ID=:new.C_CommissionAmt_ID;
+  END IF;
+END C_COMMISSIONDETAIL_TRG
+]]></body>
+    </trigger>
+  </database>

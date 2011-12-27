@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html 
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License. 
+* The Original Code is Openbravo ERP. 
+* The Initial Developer of the Original Code is Openbravo SLU 
+* All portions are Copyright (C) 2001-2008 Openbravo SLU 
+* All Rights Reserved. 
+* Contributor(s):  ______________________________________.
+************************************************************************
+-->
+<REPORT>
+  <template file="ReportParetoProduct.html"/>
+  <PARAMETER id="paramToolBar" name="toolbar" default=""/>
+  <PARAMETER id="fieldCalendar" name="calendar" attribute="src" replace="es" default="en"/>
+  <PARAMETER id="paramDirectory" name="directory" default=""/>
+  <PARAMETER id="paramLanguage" name="paramLanguage" default=""/>
+  <PARAMETER id="paramCSS" name="theme" attribute="href" replace="Default"/>
+  <PARAMETER id="tdleftTabs" name="leftTabs" default=""/>
+  <PARAMETER id="paramParentTabContainer" name="parentTabContainer" default=" "/>
+  <PARAMETER id="paramMainTabContainer" name="mainTabContainer" default=" "/>
+  <PARAMETER id="paramChildTabContainer" name="childTabContainer" default=" "/>
+  <PARAMETER id="tdtopButtons" name="navigationBar" default=""/>
+  <PARAMETER id="messageBoxID" name="messageType" attribute="class" replace="yy" default="HIDDEN"/>
+  <PARAMETER id="messageBoxIDTitle" name="messageTitle" default=""/>
+  <PARAMETER id="messageBoxIDMessage" name="messageMessage" default=""/>
+  
+  <PARAMETER id="paramWarehouseArray" name="warehouseArray"/>
+  
+  <PARAMETER id="paramM_Warehouse_ID" name="mWarehouseId" default=""/>
+  <SUBREPORT id="reportM_Warehouse_ID" name="reportM_Warehouse_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramM_Warehouse_ID"/>
+  </SUBREPORT>
+
+  <PARAMETER id="paramAD_Org_ID" name="adOrg" default=""/>
+  <SUBREPORT id="reportAD_Org_ID" name="reportAD_Org_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramAD_Org_ID"/>
+  </SUBREPORT>
+	  
+  <PARAMETER id="param2" name="param2" default="2"/>
+
+  <structure name="structure1">
+    <FIELD id="fieldRownum1">rownum</FIELD>
+    <FUNCTION id="funcEvenOddRow1xx" name="MODULE" arg1="fieldRownum1" arg2="param2" format="integerEdition" attribute="class" replace="yy"/>
+    <FIELD id="fieldAdOrg">orgid</FIELD>
+    <FIELD id="fieldName">name</FIELD>	
+	<FIELD id="fieldQty" format="integerInform">qty</FIELD>		
+    <FIELD id="fieldSearchKey">searchkey</FIELD>
+    <FIELD id="fieldCost" format="euroInform">cost</FIELD>
+    <FIELD id="fieldValue" format="euroInform">value</FIELD>	
+    <FIELD id="fieldPercentage" format="euroInform">percentage</FIELD>
+    <FIELD id="fieldUnit">unit</FIELD>
+    <FIELD id="fieldIsabc">isabc</FIELD>
+	<SECTION id="sectionOrg" field="orgid"/>     
+    <SECTION id="sectionDetail"/>
+  </structure>
+  
+  <PARAMETER id="paramC_Currency_ID" name="ccurrencyid" attribute="value"/>
+  <SUBREPORT id="reportC_Currency_ID" name="reportC_Currency_ID" report="org/openbravo/erpCommon/reference/List">
+    <ARGUMENT name="parameterListSelected" withId="paramC_Currency_ID"/>
+  </SUBREPORT> 
+</REPORT>

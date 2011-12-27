@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="SLJournalPeriodData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT PeriodType, StartDate, EndDate 
+      FROM C_Period WHERE C_Period_ID=?
+    </Sql>
+    <Parameter name="cPeriodId"/>
+  </SqlMethod>
+  <SqlMethod name="period" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      SELECT C_Period_ID 
+      FROM C_Period 
+      WHERE C_Year_ID IN 
+      (SELECT C_Year_ID FROM C_Year WHERE C_Calendar_ID =
+      (SELECT C_Calendar_ID FROM AD_ORG WHERE AD_Client_ID=? AND AD_ORG_ID=(SELECT AD_ORG_GETCALENDAROWNER(?) from dual)))
+      AND to_date(?) BETWEEN StartDate AND EndDate
+      AND PeriodType='S'
+      AND exists (select 1 from c_periodcontrol where c_periodcontrol.c_period_id = c_period.c_period_id
+      AND periodstatus = 'O')
+    </Sql>
+    <Parameter name="adCientId"/>
+    <Parameter name="adOrgId"/>
+    <Parameter name="DateAcct"/>
+  </SqlMethod>
+</SqlClass>

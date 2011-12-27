@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="AdminFlagOnCreateDefaultsData" package="org.openbravo.modulescript">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT 1 AS admin FROM dual
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateClientAdmin" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE ad_role
+        SET is_client_admin = (
+              SELECT CASE WHEN EXISTS (SELECT 1
+                                       FROM ad_form_access, ad_role_orgaccess
+                                       WHERE ad_form_access.ad_role_id = ad_role_orgaccess.ad_role_id
+                                         AND ad_role.ad_role_id = ad_form_access.ad_role_id
+                                         AND ad_form_id = 'DE2329ABCAA84D5F99B59043CFFFE454'
+                                         AND isreadwrite = 'Y'
+                                         AND ad_role_orgaccess.ad_org_id = '0') THEN 'Y'
+                     ELSE 'N'
+                     END as admin
+              FROM dual)
+        WHERE is_client_admin IS NULL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateOrgAdmin" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE ad_role_orgaccess
+        SET is_org_admin = (
+              SELECT CASE WHEN EXISTS (SELECT 1
+                                       FROM ad_form_access
+                                       WHERE ad_role_orgaccess.ad_role_id = ad_form_access.ad_role_id
+                                         AND ad_form_id = 'DE2329ABCAA84D5F99B59043CFFFE454'
+                                         AND isreadwrite = 'Y'
+                                         AND NOT EXISTS (SELECT 1 FROM ad_role_orgaccess ro
+                                                         WHERE ro.ad_role_id = ad_form_access.ad_role_id
+                                                           AND ro.ad_org_id = '0')) THEN 'Y'
+                     ELSE 'N'
+                     END as admin
+              FROM dual)
+        WHERE is_org_admin IS NULL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="updateRoleAdmin" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE ad_user_roles
+        SET is_role_admin = (
+              SELECT CASE WHEN EXISTS (SELECT 1
+                                       FROM ad_window_access, ad_user_roles ur
+                                       WHERE ad_window_id = '111'
+                                         AND isreadwrite = 'Y'
+                                         AND ur.ad_role_id = ad_window_access.ad_role_id
+                                         AND ur.ad_user_id = ad_user_roles.ad_user_id) THEN 'Y'
+                          ELSE 'N' END as admin
+              FROM dual)
+        WHERE is_role_admin IS NULL
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

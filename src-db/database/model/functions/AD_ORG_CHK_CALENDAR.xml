@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_ORG_CHK_CALENDAR">
+    <function name="AD_ORG_CHK_CALENDAR" type="NUMERIC">
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/      
+
+  v_parent_id ad_treenode.parent_id%TYPE;
+  v_node_id ad_treenode.parent_id%TYPE;
+  
+  v_num_calendars INTEGER;
+  v_calendar_id ad_org.c_calendar_id%TYPE;
+  v_calendar_id_old ad_org.c_calendar_id%TYPE;
+  
+  TYPE RECORD IS REF CURSOR;
+  cur_org_le RECORD;
+  
+
+BEGIN
+  
+  -- Get Legal Entities with accounting
+  FOR cur_org_le IN
+  (
+   SELECT ad_org.ad_org_id
+   FROM ad_org, ad_orgtype
+   WHERE IsLegalEntity='Y'
+   AND IsReady='Y'
+   AND IsAcctLegalEntity='Y'
+   AND ad_org.ad_orgtype_id= ad_orgtype.ad_orgtype_id
+  )
+  
+  LOOP
+  
+    -- The number of calendars must be < 1
+    SELECT COUNT(DISTINCT c_calendar_id), COALESCE(MAX(c_calendar_id), 'NO CALENDAR')
+    INTO v_num_calendars, v_calendar_id
+    FROM ad_org
+    WHERE AD_ISORGINCLUDED(ad_org.ad_org_id, cur_org_le.ad_org_id, ad_org.ad_client_id)<>-1
+    AND IsReady='Y';
+    
+    IF (v_num_calendars>1) THEN
+      RETURN -2;
+    END IF;
+       
+    v_calendar_id_old := v_calendar_id;
+    v_node_id := cur_org_le.ad_org_id;
+    v_parent_id := 'XX';
+    WHILE ( v_parent_id <> '0' AND v_node_id <> '0' ) LOOP      
+      
+      SELECT parent_id
+      INTO v_parent_id
+      FROM ad_treenode t
+      WHERE node_id=v_node_id
+      AND EXISTS (SELECT 1 
+                  FROM ad_tree, ad_org
+                  WHERE ad_tree.ad_client_id = ad_org.ad_client_id
+                  AND ad_tree.ad_client_id=t.ad_client_id
+                  AND ad_tree.treetype='OO'
+                  AND t.ad_tree_id=ad_tree.ad_tree_id
+                  AND IsReady='Y'
+                  );
+  
+  
+      SELECT COALESCE(ad_org.c_calendar_id, 'NO CALENDAR')
+      INTO v_calendar_id
+      FROM ad_org
+      WHERE ad_org_id=v_parent_id;
+           
+      
+      IF ((v_calendar_id_old <> v_calendar_id) AND ((v_calendar_id_old <> 'NO CALENDAR') AND (v_calendar_id <> 'NO CALENDAR' ))) THEN
+        RETURN -1;
+      END IF;
+      
+      IF (v_calendar_id<>'NO CALENDAR') THEN
+        v_num_calendars:= v_num_calendars+1;
+        v_calendar_id_old:= v_calendar_id;
+      END IF;
+  
+      
+      v_node_id:=v_parent_id;
+    END LOOP;
+    
+    IF (v_num_calendars=0) THEN
+      RETURN -3;
+    END IF;
+
+ END LOOP;
+
+ 
+ RETURN 0;
+END AD_ORG_CHK_CALENDAR
+]]></body>
+    </function>
+  </database>

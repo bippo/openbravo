@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="ApplyModulesData" package="org.openbravo.erpCommon.ad_process">
+  <SqlMethod name="selectUnappliedModules" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT JAVAPACKAGE AS NAME
+           FROM AD_MODULE M
+          WHERE ISACTIVE='Y'
+            AND (STATUS='I' OR STATUS='U' OR STATUS='P')  
+            AND NOT EXISTS (SELECT 1 
+                              FROM AD_MODULE_INSTALL
+                             WHERE AD_MODULE_ID = M.AD_MODULE_ID)
+          UNION
+          SELECT JAVAPACKAGE AS NAME
+           FROM AD_MODULE_INSTALL         
+          ]]>
+      </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="isUpdatingCoreOrTemplate" type="preparedStatement" return="boolean">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT count(*) as NAME FROM
+            ((SELECT 1  
+                FROM AD_MODULE
+                WHERE (STATUS='I' OR STATUS='P')      
+               AND (AD_MODULE_ID = '0' OR TYPE='T'))
+            UNION
+            (SELECT 1
+                FROM AD_MODULE_INSTALL
+                WHERE (STATUS='I' OR STATUS='P')      
+               AND (AD_MODULE_ID = '0' OR TYPE='T'))) q
+          ]]>
+      </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="compileCompleteNeeded" type="preparedStatement" return="boolean">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT count(*) as NAME
+           FROM AD_MODULE
+          WHERE ((STATUS='I' OR STATUS='P')      
+                 AND TYPE = 'T')
+             OR (STATUS='U')
+          ]]>
+      </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectUninstalledModules" type="preparedStatement" return="boolean">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT count(*) as NAME
+           FROM AD_MODULE
+          WHERE STATUS='U'           
+          ]]>
+      </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="getHelp" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+         SELECT COALESCE(T.HELP, P.HELP) AS NAME
+           FROM AD_PROCESS P LEFT JOIN AD_PROCESS_TRL T 
+                                       ON T.AD_PROCESS_ID = P.AD_PROCESS_ID
+                                      AND AD_LANGUAGE = ?
+          WHERE P.AD_PROCESS_ID = 'BDB3B6FCA0AB453DB4E83503BAB82470'
+           
+          ]]>
+      </Sql>
+      <Parameter name="adLanguage"/>
+  </SqlMethod>
+</SqlClass>

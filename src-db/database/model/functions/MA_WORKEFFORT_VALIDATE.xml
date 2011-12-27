@@ -1,0 +1,371 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MA_WORKEFFORT_VALIDATE">
+    <function name="MA_WORKEFFORT_VALIDATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_Toolset RECORD;
+    Cur_PP RECORD;
+    --
+    v_Record_ID VARCHAR2(32):=NULL;
+    v_User_ID VARCHAR2(32);
+    v_Org_ID VARCHAR2(32);
+    v_Client_ID VARCHAR2(32);
+    v_count NUMBER;
+--    v_count2 NUMBER;
+--    v_Production_ID VARCHAR2(32);
+    v_ProductionDate DATE;
+--    v_Name NVARCHAR2(60) ;
+    -- p_ppline            NUMBER;
+    -- p_plline          NUMBER;
+--    v_ProductionPlan_ID VARCHAR2(32);
+--    v_ProductionLine_ID VARCHAR2(32);
+--    v_Quantity NUMBER;
+--    v_UOM_ID VARCHAR2(32);
+--    v_PInstance NUMBER;
+--    v_doneQty NUMBER;
+--    v_needQty NUMBER;
+    v_QtyOnHand NUMBER;
+    p_Processed CHAR;
+    v_ProductQty NUMBER;
+    v_NextNo VARCHAR2(32);
+    Quantity NUMBER:=99999; -- unlimited
+    v_Result NUMBER:=1;
+
+    CUR_PL_Post RECORD;
+    Cur_ProductionPlan RECORD;
+
+    FINISH_PROCESS BOOLEAN:=FALSE;
+    v_is_included NUMBER:=0;
+    v_available_period NUMBER:=0;
+    v_is_ready AD_Org.IsReady%TYPE;
+    v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+    v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+    v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+    v_AD_Org_ID VARCHAR2(32);
+    v_prodline NUMBER;
+    v_line NUMBER;
+  BEGIN
+    -- Process Parameters
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID, i.AD_User_ID, i.AD_Org_ID, i.AD_Client_ID, p.ParameterName,
+          p.P_String, p.P_Number, p.P_Date
+        FROM AD_PINSTANCE i
+        LEFT JOIN AD_PINSTANCE_PARA p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo) LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User_ID:=Cur_Parameter.AD_User_ID;
+        v_Org_ID:=Cur_Parameter.AD_Org_ID;
+        v_Client_ID:=Cur_Parameter.AD_Client_ID;
+      END LOOP; -- Get Parameter
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<MA_WorkEffort_Validate>>') ;
+    END IF;
+  BEGIN --BODY
+    SELECT Processed, MOVEMENTDATE, AD_ORG_ID
+    INTO p_Processed, v_ProductionDate, v_AD_Org_ID
+    FROM M_PRODUCTION
+    WHERE M_Production_ID=v_Record_ID;
+    --Check if is has been already processed
+    IF(p_Processed='Y') THEN
+      v_ResultStr:='Work Effort is already validated';
+      v_Message:='@WorkEffortValidated@';
+      RAISE_APPLICATION_ERROR(-20000, v_Message);
+    END IF;
+    IF(NOT FINISH_PROCESS) THEN
+      -- Check that there are some parts of the job and that theay are processed
+      
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+      INTO v_is_ready, v_is_tr_allow
+      FROM M_PRODUCTION, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=M_PRODUCTION.AD_Org_ID
+      AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+      AND M_PRODUCTION.M_PRODUCTION_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+      
+      SELECT AD_ORG_CHK_DOCUMENTS('M_PRODUCTION', 'M_PRODUCTIONPLAN', v_Record_ID, 'M_PRODUCTION_ID', 'M_PRODUCTION_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+      FOR CUR_PP IN
+        (SELECT M_PRODUCTIONPLAN_ID
+         FROM M_PRODUCTIONPLAN
+         WHERE M_PRODUCTION_ID = v_Record_ID) LOOP
+        SELECT AD_ORG_CHK_DOCUMENTS('M_PRODUCTIONPLAN', 'M_PRODUCTIONLINE', CUR_PP.M_PRODUCTIONPLAN_ID, 'M_PRODUCTIONPLAN_ID', 'M_PRODUCTIONPLAN_ID') INTO v_is_included FROM dual;
+        IF (v_is_included=-1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+        END IF;
+      END LOOP;      
+      
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('M_PRODUCTION', v_Record_ID, 'M_PRODUCTION_ID', 'LE')
+      INTO v_org_bule_id
+      FROM DUAL;
+      
+      SELECT AD_OrgType.IsAcctLegalEntity
+      INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+      AND AD_Org.AD_Org_ID=v_org_bule_id;
+      
+      IF (v_isacctle='Y') THEN
+        SELECT C_CHK_OPEN_PERIOD(v_AD_Org_ID, v_ProductionDate, 'MMP', NULL) 
+        INTO v_available_period
+        FROM DUAL;
+        
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;
+      
+      
+      v_ResultStr:='Checking ProductionRun';
+      SELECT COUNT(*)
+      INTO v_count
+      FROM M_PRODUCTIONPLAN
+      WHERE M_Production_ID=v_Record_ID;
+      IF(v_count=0) THEN
+        v_ResultStr := 'There are not Production Runs to validate';
+        v_Message:='@NoProductionRun@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+    END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+      INTO v_count
+      FROM M_PRODUCTIONPLAN pp
+      WHERE M_Production_ID=v_Record_ID
+        AND PROCESSED='N';
+      IF(v_count<>0) THEN
+        v_Message:='@ProducionRunNoProcessed@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      --Check if there's any global use production phase.
+      SELECT COUNT(*)
+      INTO v_count
+      FROM M_PRODUCTIONPLAN pp,
+        MA_WRPHASE wp
+      WHERE pp.MA_WRPHASE_ID=wp.MA_WRPHASE_ID
+        AND pp.M_PRODUCTION_ID=v_Record_ID
+        AND wp.GROUPUSE='Y';
+      IF(v_count<>0) THEN
+        v_ResultStr:='Distributing product of global use';
+        MA_GLOBALUSE_DISTRIBUTE(v_Client_ID, v_AD_Org_ID, v_User_ID, v_Record_ID) ;
+      END IF;
+    END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      --Check if all the ProductionLine have a warehouse
+      v_ResultStr:='Checking Locators';
+      SELECT COUNT(*)
+      INTO v_count
+      FROM M_PRODUCTIONLINE l,
+        M_PRODUCTIONPLAN p
+      WHERE l.M_ProductionPlan_ID=p.M_ProductionPlan_ID
+        AND p.M_Production_ID=v_Record_ID
+        AND l.M_Locator_ID IS NULL;
+      IF(v_count<>0) THEN
+        v_ResultStr := 'There are produts without Locator';
+        v_Message:='@NeedLocator@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF; --FINISH_PROCESS
+    --Check if exist any product in a productionplan with the same locator and productiontype P+ and P-
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*)
+      INTO v_count
+      FROM M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp
+      WHERE pl.PRODUCTIONTYPE='+'
+        AND pl.M_PRODUCTIONPLAN_ID = pp.M_PRODUCTIONPLAN_ID
+        AND pp.M_PRODUCTION_ID = v_Record_ID
+        AND EXISTS
+        (SELECT 1
+        FROM M_PRODUCTIONLINE
+        WHERE M_PRODUCTIONPLAN_ID=pl.M_PRODUCTIONPLAN_ID
+          AND M_PRODUCT_ID=pl.M_PRODUCT_ID
+          AND PRODUCTIONTYPE='-'
+        )
+        ;
+      IF(v_count<>0) THEN
+        ROLLBACK;
+        v_ResultStr := 'Same product in a production plan as P+ and P-';
+        v_Message:='@P+AndP-InSamePlan@';
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF; --FINISH_PROCESS
+    IF (NOT FINISH_PROCESS) THEN
+      SELECT COUNT(*), MAX(pp.line), MAX(PL.LINE)
+      INTO v_Count, v_prodline, v_line
+      FROM M_PRODUCTIONPLAN PP, M_PRODUCTIONLINE PL, M_PRODUCT P
+      WHERE PL.M_PRODUCT_ID=P.M_PRODUCT_ID
+        AND P.M_ATTRIBUTESET_ID IS NOT NULL
+        AND (P.ATTRSETVALUETYPE IS NULL OR P.ATTRSETVALUETYPE <> 'F')
+        AND (SELECT ISONEATTRSETVALREQUIRED FROM M_ATTRIBUTESET WHERE M_ATTRIBUTESET_ID = P.M_ATTRIBUTESET_ID) = 'Y'
+        AND COALESCE(PL.M_ATTRIBUTESETINSTANCE_ID, '0') = '0'
+        AND PL.M_ProductionPlan_ID=pp.M_ProductionPlan_ID
+        AND pp.M_Production_ID=v_Record_ID;
+      IF v_Count<>0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@inProductionPlan@'||' '||'@line@'||' '||v_prodline||', '||'@Inline@'||' '||v_line||' '||'@productWithoutAttributeSet@') ;
+        FINISH_PROCESS:=TRUE;
+      END IF;
+    END IF;
+    -- All Production Lines
+    IF(NOT FINISH_PROCESS) THEN
+      FOR CUR_PL_Post IN
+        (SELECT pl.M_ProductionLine_ID, pl.AD_Client_ID, pl.AD_Org_ID, p.MovementDate,
+          pl.M_Product_ID, pl.M_AttributeSetInstance_ID, pl.MovementQty, pl.M_Locator_ID,
+          pl.M_Product_UOM_ID, pl.QuantityOrder, pl.C_UOM_ID, pl.LINE, pl.PRODUCTIONTYPE,
+          pr.ISSTOCKED, pr.PRODUCTTYPE
+        FROM M_PRODUCTION p, M_PRODUCTIONLINE pl, M_PRODUCTIONPLAN pp, M_PRODUCT pr
+        WHERE p.M_Production_ID=pp.M_Production_ID
+          AND pp.M_ProductionPlan_ID=pl.M_ProductionPlan_ID
+          AND pp.M_Production_ID=v_Record_ID
+          AND pl.M_PRODUCT_ID=pr.M_PRODUCT_ID
+          AND pr.ISSTOCKED='Y'
+        ORDER BY pp.Line, pl.Line)
+      LOOP
+        -- M_ProductionLine_ID, AD_Client_ID, AD_Org_ID, MovementDate, M_Product_ID, MovementQty, M_Locator_ID
+        -- DBMS_OUTPUT.PUT_LINE('ProductionLine=' || CUR_PL_Post.M_ProductionLine_ID);
+        -- DBMS_OUTPUT.PUT_LINE('  Qty=' || CUR_PL_Post.MovementQty || ', OnHand=' || M_BOM_Qty_OnHand(CUR_PL_Post.M_Product_ID, NULL, CUR_PL_Post.M_Locator_ID));
+        -- Check Stock levels for reductions
+        -- Check, if product exists and if it is stocked
+        -- Unlimited capacity if no item
+        IF(CUR_PL_Post.ProductType<>'I' OR CUR_PL_Post.IsStocked='N') THEN
+          v_QtyOnHand:=Quantity;
+          -- Stocked item
+        ELSIF(CUR_PL_Post.IsStocked='Y') THEN
+          -- Get ProductQty
+          SELECT COALESCE(SUM(QtyOnHand), 0)
+          INTO v_ProductQty
+          FROM M_STORAGE_DETAIL s
+          WHERE M_Product_ID=CUR_PL_Post.M_Product_ID
+            AND EXISTS
+            (SELECT * FROM M_LOCATOR l WHERE s.M_Locator_ID=l.M_Locator_ID)
+            ;
+          --DBMS_OUTPUT.PUT_LINE('Qty=' || ProductQty);
+          v_QtyOnHand:=v_ProductQty;
+        END IF;
+        -- Create Transaction Entry
+        v_ResultStr:='CreateTransaction';
+        Ad_Sequence_Next('M_Transaction', v_Org_ID, v_NextNo) ;
+        INSERT
+        INTO M_TRANSACTION
+          (
+            M_Transaction_ID, M_ProductionLine_ID, AD_Client_ID, AD_Org_ID,
+            IsActive, Created, CreatedBy, Updated,
+            UpdatedBy, MovementType, M_Locator_ID, M_Product_ID,
+            M_AttributeSetInstance_ID, MovementDate, MovementQty, M_Product_UOM_ID,
+            QuantityOrder, C_UOM_ID
+          )
+          VALUES
+          (
+            v_NextNo, CUR_PL_Post.M_ProductionLine_ID, CUR_PL_Post.AD_Client_ID, CUR_PL_Post.AD_Org_ID,
+             'Y', now(), v_User_ID, now(),
+            v_User_ID, 'P+', CUR_PL_Post.M_Locator_ID, CUR_PL_Post.M_Product_ID,
+            COALESCE(CUR_PL_Post.M_AttributeSetInstance_ID, '0'), -- not distinguishing between assemby/disassembly
+            CUR_PL_Post.MovementDate,(CASE CUR_PL_Post.PRODUCTIONTYPE WHEN '+' THEN CUR_PL_Post.MovementQty ELSE -CUR_PL_Post.MOVEMENTQTY END), CUR_PL_Post.M_Product_UOM_ID,(CASE CUR_PL_Post.PRODUCTIONTYPE WHEN '+' THEN CUR_PL_Post.QUANTITYORDER ELSE -CUR_PL_Post.QuantityOrder END), CUR_PL_Post.C_UOM_ID
+          )
+          ;
+        IF(CUR_PL_Post.IsStocked<>'N') THEN
+          M_Check_Stock(CUR_PL_Post.M_Product_ID, v_Client_ID, v_AD_Org_ID, v_Result, v_Message) ;
+          IF (v_Result=0) THEN
+            v_Message:=v_Message || ' @Inline@ ' || CUR_PL_Post.line;
+            RAISE_APPLICATION_ERROR(-20000, v_Message);
+          END IF;
+        END IF;
+      END LOOP;
+    END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+        --Calculate Production Cost
+        Ma_Production_Cost(v_Record_ID, v_User_ID, v_Message);
+    END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      -- Update donequantity on workrequirements
+      v_ResultStr:='Updating workrequirement';
+      FOR Cur_ProductionPlan IN
+        (SELECT *  FROM M_PRODUCTIONPLAN pp  WHERE pp.M_PRODUCTION_ID=v_Record_ID)
+      LOOP
+        UPDATE MA_WRPHASE
+          SET DONEQUANTITY=DONEQUANTITY + Cur_ProductionPlan.PRODUCTIONQTY
+        WHERE MA_WRPhase_ID=Cur_ProductionPlan.MA_WRPHASE_ID;
+      END LOOP;
+      -- Indicate that we are done
+      UPDATE M_PRODUCTION
+        SET Processed='Y',
+        updated=now(),
+        updatedby=v_User_ID
+      WHERE M_Production_ID=v_Record_ID;
+    END IF; --FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      v_ResultStr:='Updating used toolsets';
+      FOR Cur_Toolset IN
+        (SELECT MA_TOOLSETUSED.*
+         FROM MA_TOOLSETUSED, M_PRODUCTIONPLAN
+         WHERE MA_TOOLSETUSED.M_PRODUCTIONPLAN_ID = M_PRODUCTIONPLAN.M_PRODUCTIONPLAN_ID
+           AND M_PRODUCTIONPLAN.M_PRODUCTION_ID = v_Record_ID) LOOP
+        UPDATE MA_TOOLSET
+        SET NUMBERUSES = NUMBERUSES + Cur_Toolset.USED
+        WHERE MA_TOOLSET_ID = Cur_Toolset.MA_TOOLSET_ID;
+      END LOOP;
+    END IF;
+    --<<FINISH_PROCESS>>
+    --v_Message := v_Message || '@Created@: ' || v_NoRecords;
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END MA_WORKEFFORT_VALIDATE
+]]></body>
+    </function>
+  </database>

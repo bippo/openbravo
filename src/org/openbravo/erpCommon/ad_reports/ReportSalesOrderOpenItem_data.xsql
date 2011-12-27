@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportSalesOrderOpenItemData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT A.CLIENT_NAME, A.DOCUMENTNO, A.DATEORDERED,A.LINENETAMT, 
+      C_CASH.NAME AS CASHNAME, C_CASHLINE.C_CASHLINE_ID, C_CASHLINE.LINE, C_CASHLINE.DESCRIPTION, C_CASHLINE.AMOUNT
+      FROM   C_CASHLINE right join
+      (SELECT CORDER.C_ORDER_ID, C_BPARTNER.NAME AS CLIENT_NAME, CORDER.DOCUMENTNO AS DOCUMENTNO, CORDER.DATEORDERED AS DATEORDERED,
+      CORDER.GRANDTOTAL AS LINENETAMT
+      FROM C_ORDER CORDER, (SELECT C_ORDER_ID FROM C_ORDERLINE WHERE qtydelivered <> qtyinvoiced) CO, 
+      C_BPARTNER
+      WHERE CORDER.C_ORDER_ID=CO.C_ORDER_ID
+      AND CORDER.PROCESSED= 'Y'
+      AND CORDER.PAYMENTRULE='C'
+      AND NOT EXISTS (SELECT 1 FROM C_CASHLINE
+                      WHERE C_CASHLINE.C_ORDER_ID=CORDER.C_ORDER_ID
+                      HAVING SUM(C_CASHLINE.AMOUNT)=CORDER.GRANDTOTAL)
+      AND CORDER.AD_CLIENT_ID IN ('1')
+      AND CORDER.AD_ORG_ID IN ('1')
+      AND CORDER.C_BPARTNER_ID=C_BPARTNER.C_BPARTNER_ID
+      AND 1=1
+      GROUP BY CORDER.C_ORDER_ID, C_BPARTNER.NAME , CORDER.DOCUMENTNO, CORDER.DATEORDERED,CORDER.GRANDTOTAL) A on A.C_ORDER_ID = C_CASHLINE.C_ORDER_ID
+          left join C_CASH on C_CASHLINE.C_CASH_ID = C_CASH.C_CASH_ID
+      ORDER BY CLIENT_NAME
+     ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND CORDER.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND CORDER.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="mWarehouseId" optional="true" after="AND 1=1"><![CDATA[AND CORDER.M_WAREHOUSE_ID = ?]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="RptPromissoryNoteAfterData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID, TO_CHAR(C_DEBT_PAYMENT_GENERATE.DATEPLANNED, 'DD') AS DAYPLANNED, TO_CHAR(C_DEBT_PAYMENT_GENERATE.DATEPLANNED, 'Month') AS MONTHPLANNED, TO_CHAR(C_DEBT_PAYMENT_GENERATE.DATEPLANNED, 'YYYY') AS YEARPLANNED, 
+        ROUND(C_DEBT_PAYMENT_GENERATE.AMOUNT,2) AS AMOUNT, C_BPARTNER.NAME AS PARTNER_NAME, COALESCE(to_char(C_LOCATION.CITY),'***') AS BANKLOCATION , TO_CHAR(now(), 'Month') AS MONTHTODAY, 
+        TO_CHAR(now(), 'YYYY') AS YEARTODAY, LINE1TOP, LINE1LEFT, LINE2TOP, LINE2LEFT, LINE3TOP, LINE3LEFT, LINE4TOP, LINE4LEFT, 
+        FONTDAYPLANNED, FONTMONTHPLANNED, FONTYEARPLANNED, FONTAMOUNT, FONTPARTNERNAME, FONTAMOUNTTEXT, FONTDAYTODAY, FONTMONTHTODAY, FONTYEARTODAY, FONTBANKLOCATION, '' AS PRINTBANKLOC,
+        RPAD(' ', PARAM11 , ' ') as PARAM11, 
+        RPAD(' ', PARAM12 , ' ') as PARAM12, 
+        RPAD(' ', PARAM13 , ' ') as PARAM13, 
+        RPAD(' ', PARAM31 , ' ') as PARAM31, 
+        RPAD(' ', PARAM32 , ' ') as PARAM32, 
+        RPAD(' ', PARAM41 , ' ') as PARAM41, 
+        RPAD(' ', PARAM42 , ' ') as PARAM42, 
+        RPAD(' ', PARAM43 , ' ') as PARAM43,
+        '' AS BANK, '' AS PROMISSORYFORMAT 
+        FROM C_DEBT_PAYMENT_GENERATE, C_BPARTNER, C_PROMISSORYFORMAT, AD_ORGINFO left join C_LOCATION on AD_ORGINFO.C_LOCATION_ID= C_LOCATION.C_LOCATION_ID
+        WHERE C_DEBT_PAYMENT_GENERATE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        AND C_DEBT_PAYMENT_GENERATE.C_BANKACCOUNT_ID = C_PROMISSORYFORMAT.C_BANKACCOUNT_ID
+        AND C_DEBT_PAYMENT_GENERATE.AD_ORG_ID = AD_ORGINFO.AD_ORG_ID
+        AND C_DEBT_PAYMENT_GENERATE.C_DEBT_PAYMENT_ID = ?
+        ]]>
+        </Sql>
+        <Parameter name="cDebtPaymenntId"/>
+   </SqlMethod>
+
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="selectDebtPaymentBank" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT C_BANKACCOUNT_ID AS BANK FROM C_DEBT_PAYMENT WHERE C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID IN ('1')
+        ]]>
+        </Sql>
+        <Parameter name="cDebtPaymenntId" type="replace" optional="true" after="WHERE C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID IN ('" text="1"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectPromissoryformat" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT C_PROMISSORYFORMAT_ID AS PROMISSORYFORMAT FROM C_PROMISSORYFORMAT WHERE C_PROMISSORYFORMAT.C_BANKACCOUNT_ID = ?
+        ]]>
+        </Sql>
+        <Parameter name="cBankId"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectDebtPayment" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID, TO_CHAR(C_DEBT_PAYMENT.DATEPLANNED, 'DD') AS DAYPLANNED, TO_CHAR(C_DEBT_PAYMENT.DATEPLANNED, 'Month') AS MONTHPLANNED, TO_CHAR(C_DEBT_PAYMENT.DATEPLANNED, 'YYYY') AS YEARPLANNED, 
+        ROUND(C_DEBT_PAYMENT.AMOUNT,2) AS AMOUNT, C_BPARTNER.NAME AS PARTNER_NAME, COALESCE(to_char(C_LOCATION.CITY),'***') AS BANKLOCATION , TO_CHAR(now(), 'Month') AS MONTHTODAY, 
+        TO_CHAR(now(), 'YYYY') AS YEARTODAY, LINE1TOP, LINE1LEFT, LINE2TOP, LINE2LEFT, LINE3TOP, LINE3LEFT, LINE4TOP, LINE4LEFT, 
+        FONTDAYPLANNED, FONTMONTHPLANNED, FONTYEARPLANNED, FONTAMOUNT, FONTPARTNERNAME, FONTAMOUNTTEXT, FONTDAYTODAY, FONTMONTHTODAY, FONTYEARTODAY, FONTBANKLOCATION, '' AS PRINTBANKLOC,
+        RPAD(' ', PARAM11 , ' ') as PARAM11, 
+        RPAD(' ', PARAM12 , ' ') as PARAM12, 
+        RPAD(' ', PARAM13 , ' ') as PARAM13, 
+        RPAD(' ', PARAM31 , ' ') as PARAM31, 
+        RPAD(' ', PARAM32 , ' ') as PARAM32, 
+        RPAD(' ', PARAM41 , ' ') as PARAM41, 
+        RPAD(' ', PARAM42 , ' ') as PARAM42, 
+        RPAD(' ', PARAM43 , ' ') as PARAM43 
+        FROM C_DEBT_PAYMENT, C_INVOICE, C_BPARTNER, C_PROMISSORYFORMAT, AD_ORGINFO left join C_LOCATION on AD_ORGINFO.C_LOCATION_ID= C_LOCATION.C_LOCATION_ID
+        WHERE C_DEBT_PAYMENT.C_INVOICE_ID = C_INVOICE.C_INVOICE_ID
+        AND C_INVOICE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        AND C_DEBT_PAYMENT.C_BANKACCOUNT_ID = C_PROMISSORYFORMAT.C_BANKACCOUNT_ID
+        AND C_DEBT_PAYMENT.AD_ORG_ID = AD_ORGINFO.AD_ORG_ID
+        AND C_DEBT_PAYMENT.C_DEBT_PAYMENT_ID = ?
+        ]]>
+        </Sql>
+        <Parameter name="cDebtPaymenntId"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectBanklocation" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        SELECT PRINTBANKLOC FROM C_PROMISSORYFORMAT WHERE C_PROMISSORYFORMAT.C_BANKACCOUNT_ID = ?
+        ]]>
+        </Sql>
+        <Parameter name="cBankAccountId"/>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_INVOICELINE_V2">
+    <view name="C_INVOICELINE_V2"><![CDATA[SELECT il.ad_client_id, il.ad_org_id, il.c_invoiceline_id, i.c_invoice_id, i.salesrep_id, i.c_bpartner_id, i.c_bp_group_id, il.m_product_id, p.m_product_category_id, i.dateinvoiced, i.dateacct, il.qtyinvoiced * i.multiplier AS qtyinvoiced, il.pricelist, il.priceactual, il.pricelimit, 
+CASE il.pricelist
+WHEN 0 THEN 0
+ELSE round((il.pricelist - il.priceactual) / il.pricelist * 100, 2)
+END AS discount, 
+CASE il.pricelimit
+WHEN 0 THEN 0
+ELSE round((il.priceactual - il.pricelimit) / il.pricelimit * 100, 2)
+END AS margin, round(i.multiplier * il.linenetamt, 2) AS linenetamt, round(i.multiplier * il.pricelist * il.qtyinvoiced, 2) AS linelistamt, 
+CASE
+WHEN il.pricelimit IS NULL THEN round(i.multiplier * il.linenetamt, 2)
+ELSE round(i.multiplier * il.pricelimit * il.qtyinvoiced, 2)
+END AS linelimitamt, round(i.multiplier * il.pricelist * il.qtyinvoiced - il.linenetamt, 2) AS linediscountamt, 
+CASE
+WHEN il.pricelimit IS NULL THEN 0
+ELSE round(i.multiplier * il.linenetamt - il.pricelimit * il.qtyinvoiced, 2)
+END AS lineoverlimitamt, il.account_id
+FROM c_invoice_v2 i, c_invoiceline il
+LEFT JOIN m_product p ON il.m_product_id = p.m_product_id
+WHERE i.c_invoice_id = il.c_invoice_id]]></view>
+  </database>

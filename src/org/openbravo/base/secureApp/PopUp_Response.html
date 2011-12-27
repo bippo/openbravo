@@ -1,0 +1,56 @@
+<!--
+ ************************************************************************************
+ * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Licensed under the Apache Software License version 2.0
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to  in writing,  software  distributed
+ * under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+ * CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+ * specific language governing permissions and limitations under the License.
+ ************************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Response</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">    defaultLang = "en_US";</script>
+<script language="JavaScript" type="text/javascript">
+function submitThisPage(ref) {
+  var process, layoutMDI;
+  if (top && top.opener && top.opener.submitCommandForm) {
+    // 2.50 poup process
+    top.opener.submitCommandForm("DEFAULT", false, null, ref, '_self');
+  } else {
+    layoutMDI = getFrame('LayoutMDI');
+    if (layoutMDI) {
+      process = layoutMDI.OB.ActionButton.executingProcess;
+    } else if (top && top.opener) {
+      process = top.opener.OB.ActionButton.executingProcess;
+    }
+     
+    if (process) {
+      // 3.0 window process
+      process.closeProcessPopup(ref);
+    } else if (layoutMDI && layoutMDI.OB.MainView.TabSet.getSelectedTab().pane.getAppFrameWindow
+               && layoutMDI.OB.MainView.TabSet.getSelectedTab().pane.getAppFrameWindow()
+               && layoutMDI.OB.MainView.TabSet.getSelectedTab().pane.getAppFrameWindow().submitCommandForm) {
+      // 2.50 modal popup process
+      layoutMDI.OB.MainView.TabSet.getSelectedTab().pane.getAppFrameWindow().submitCommandForm("DEFAULT", false, null, ref, '_self');
+    }
+  }
+  closePage(true);
+  return true;
+}
+</script>
+</head>
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0"  onload="submitThisPage(xx);" id="paramHref">
+<form>
+    <input type="hidden" name="messageType" id="messageType" value=""/>
+    <input type="hidden" name="messageTitle" id="messageTitle" value=""/>
+    <input type="hidden" name="messageMessage" id="messageMessage" value=""/>
+</form>
+</body>
+</html>

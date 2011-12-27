@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="TaxData" package="org.openbravo.erpCommon.businessUtility">
+   <SqlClassComment></SqlClassComment>
+   <!--SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT t.C_Tax_ID, '' AS billToC_Location_ID, '' AS IsTaxExempt, '' AS IsSpecialTax
+        FROM C_Tax t, C_Location lf, C_Location lt
+        WHERE t.Parent_Tax_ID IS NULL
+        AND t.C_TaxCategory_ID=? 
+        AND lf.C_Location_ID=? 
+        AND (t.C_Country_ID=lf.C_Country_ID OR (t.C_Country_ID IS NULL))
+        AND (t.C_Region_ID=lf.C_Region_ID OR (t.C_Region_ID IS NULL)) 
+        AND lt.C_Location_ID=? 
+        AND (t.To_Country_ID=lt.C_Country_ID OR (t.To_Country_ID IS NULL))
+        AND (t.To_Region_ID=lt.C_Region_ID OR (t.To_Region_ID IS NULL)) 
+        AND t.ValidFrom <= to_date(?) 
+        AND t.IsSpecialTax = ?
+        ORDER BY t.C_Country_ID, t.To_Country_ID, t.C_Region_ID, t.To_Region_ID, ValidFrom
+      ]]></Sql>
+      <Parameter name="cTaxcategoryId"/>
+      <Parameter name="billFromLocation"/>
+      <Parameter name="shipToLocation"/>
+      <Parameter name="dateOrdered"/>
+      <Parameter name="isspecialtax"/>
+   </SqlMethod>
+   <SqlMethod name="select2" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT t.C_Tax_ID 
+        FROM C_Tax t, C_Location lf
+        WHERE t.Parent_Tax_ID IS NULL
+        AND t.C_TaxCategory_ID = ? 
+        AND lf.C_Location_ID = ? 
+        AND (t.C_Country_ID=lf.C_Country_ID OR (t.C_Country_ID IS NULL))
+        AND (t.C_Region_ID=lf.C_Region_ID OR (t.C_Region_ID IS NULL))
+        AND t.To_Country_ID IS NULL AND t.To_Region_ID IS NULL 
+        AND t.ValidFrom <= to_date(?) 
+        AND t.IsSpecialTax = ? 
+        ORDER BY t.C_Country_ID, t.C_Region_ID, t.ValidFrom
+      ]]></Sql>
+      <Parameter name="cTaxcategoryId"/>
+      <Parameter name="billFromLocation"/>
+      <Parameter name="dateOrdered"/>
+      <Parameter name="isspecialtax"/>
+   </SqlMethod>
+   <SqlMethod name="select3" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT t.C_Tax_ID 
+        FROM C_Tax t, C_Location lf 
+        WHERE t.AD_Client_ID=lf.AD_Client_ID 
+        AND lf.C_Location_ID=? 
+        AND t.IsDefault='Y'
+        AND t.ValidFrom <= to_date(?)
+        ORDER BY t.ValidFrom
+      ]]></Sql>
+      <Parameter name="billFromLocation"/>
+      <Parameter name="dateOrdered"/>
+   </SqlMethod>
+   <SqlMethod name="billTo" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT il.C_Location_ID AS billToC_Location_ID, b.IsTaxExempt, b.IsSpecialTax
+        FROM C_BPartner_Location il, C_BPartner b
+        WHERE il.C_BPartner_ID=b.C_BPartner_ID
+        AND il.C_BPartner_Location_ID=?
+      ]]></Sql>
+      <Parameter name="cBpartnerLocationId"/>
+   </SqlMethod>
+   <SqlMethod name="taxId" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT t.C_Tax_ID
+        FROM C_Tax t
+        INNER JOIN AD_Org o ON (t.AD_Client_ID=o.AD_Client_ID)
+        WHERE t.ISTAXEXEMPT = 'Y' 
+        AND o.AD_Org_ID=?
+        ORDER BY t.VALIDFROM DESC 
+      ]]></Sql>
+      <Parameter name="adOrgId"/>
+   </SqlMethod>
+   <SqlMethod name="taxCategory" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_TaxCategory_ID FROM M_Product
+        WHERE M_Product_ID=?
+      ]]></Sql>
+      <Parameter name="mProductId"/>
+   </SqlMethod>
+   <SqlMethod name="shipLocation" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_Location_ID AS shipFromC_Location_ID FROM M_Warehouse
+        WHERE M_Warehouse_ID=?
+      ]]></Sql>
+      <Parameter name="mWarehouseId"/>
+   </SqlMethod>
+   <SqlMethod name="shipTo" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_Location_ID AS shipToC_Location_ID FROM C_BPartner_Location
+        WHERE C_BPartner_Location_ID=? 
+      ]]></Sql>
+      <Parameter name="cBpartnerLocationId"/>
+   </SqlMethod>
+   <SqlMethod name="billLocation" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_Location_ID AS billFromC_Location_ID FROM AD_OrgInfo 
+        WHERE AD_Org_ID = ?
+      ]]></Sql>
+      <Parameter name="adOrgId"/>
+   </SqlMethod-->
+   <SqlMethod name="taxGet" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_GetTax(?, TO_DATE(?), ?, ?, ?, ?, ?, ?) AS TAX FROM DUAL
+      ]]></Sql>
+      <Parameter name="mProductId"/>
+      <Parameter name="shipdate"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="mWarehouseId"/>
+      <Parameter name="billPartnerLoc"/>
+      <Parameter name="shipPartnerLoc"/>
+      <Parameter name="cProjectId"/>
+      <Parameter name="issotrx"/>
+   </SqlMethod>
+    <SqlMethod name="taxGet" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT C_GetTax(?, TO_DATE(?), ?, ?, ?, ?, ?, ?, ?) AS TAX FROM DUAL
+      ]]></Sql>
+      <Parameter name="mProductId"/>
+      <Parameter name="shipdate"/>
+      <Parameter name="adOrgId"/>
+      <Parameter name="mWarehouseId"/>
+      <Parameter name="billPartnerLoc"/>
+      <Parameter name="shipPartnerLoc"/>
+      <Parameter name="cProjectId"/>
+      <Parameter name="issotrx"/>
+      <Parameter name="cGlitemId"/>
+   </SqlMethod>
+</SqlClass>

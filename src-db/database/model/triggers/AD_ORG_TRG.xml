@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_ORG_TRG">
+    <trigger name="AD_ORG_TRG" table="AD_ORG" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+  /*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************/
+  v_xTree_ID VARCHAR2(32);
+  v_xParent_ID VARCHAR2(32);
+  TYPE RECORD IS REF CURSOR;
+    CUR_PeriodControl RECORD;
+    v_count NUMBER;
+  
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+    -- Add to all roles of the client
+    INSERT
+    INTO AD_Role_OrgAccess
+      (
+        AD_Role_OrgAccess_ID, AD_Role_ID, AD_Client_ID, AD_Org_ID,
+        IsActive, Created, CreatedBy,
+        Updated, UpdatedBy, is_org_admin
+      )
+    SELECT get_uuid(), AD_Role_ID, :new.AD_Client_ID, :new.AD_Org_ID,
+       'Y', now(), :new.CreatedBy,
+      now(), :new.CreatedBy, 'Y'
+    FROM AD_Role
+    WHERE AD_Client_ID=:new.AD_Client_ID
+      AND IsManual='N';
+      
+    --  Create TreeNode --
+    --  get AD_Tree_ID + ParentID
+    SELECT c.AD_Tree_Org_ID,
+      n.Node_ID
+    INTO v_xTree_ID,
+      v_xParent_ID
+    FROM AD_ClientInfo c,
+      AD_TreeNode n
+    WHERE c.AD_Tree_Org_ID=n.AD_Tree_ID
+      AND n.Parent_ID IS NULL
+      AND c.AD_Client_ID=:new.AD_Client_ID;
+    -- DBMS_OUTPUT.PUT_LINE('Tree='||v_xTree_ID||'  Node='||:new.AD_Org_ID||'  Parent='||v_xParent_ID);
+    --  Insert into TreeNode
+    INSERT
+    INTO AD_TreeNode
+      (
+        ad_treeNode_Id, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated,
+        UpdatedBy, AD_Tree_ID, Node_ID,
+        Parent_ID, SeqNo
+      )
+      VALUES
+      (
+        get_uuid(), :new.AD_Client_ID, :new.AD_Org_ID, :new.IsActive,
+        :new.Created, :new.CreatedBy, :new.Updated,
+        :new.UpdatedBy, v_xTree_ID, :new.AD_Org_ID,
+        v_xParent_ID,(
+        CASE :new.IsSummary
+          WHEN 'Y'
+          THEN 100
+          ELSE 999
+        END
+        )
+      )
+      ;
+    -- Summary Nodes first
+    -- Org Info
+    INSERT
+    INTO AD_OrgInfo
+      (
+        AD_Org_ID, AD_Client_ID, IsActive,
+        Created, CreatedBy, Updated,
+        UpdatedBy, C_Location_ID, Duns,
+        TaxID
+      )
+      VALUES
+      (
+        :new.AD_Org_ID, :new.AD_Client_ID, 'Y',
+        now(), :new.CreatedBy, now(),
+        :new.CreatedBy, NULL, '?',
+         '?'
+      )
+      ;
+        
+  ELSIF(DELETING) THEN
+    --  Delete TreeNode --
+    --  get AD_Tree_ID
+    SELECT c.AD_Tree_Org_ID
+    INTO v_xTree_ID
+    FROM AD_ClientInfo c
+    WHERE c.AD_Client_ID=:old.AD_Client_ID;
+    select COUNT(*) INTO v_count from AD_TREENODE where parent_id=:old.AD_ORG_ID
+  	and AD_TREE_ID=v_xTree_ID;
+    IF(v_count>0) THEN
+    	RAISE_APPLICATION_ERROR(-20000, '@ChildOrgCheck@') ;
+    END IF;
+    DELETE
+    FROM AD_TREENODE
+    WHERE AD_CLIENT_ID=:old.AD_Client_ID
+      AND AD_Tree_ID=v_xTree_ID
+      AND Node_ID=:old.AD_Org_ID;     
+  END IF;
+  -- Deleting
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20014, 'AD_Org InsertTrigger Error: No ClientInfo or parent TreeNode') ;
+END AD_ORG_TRG
+]]></body>
+    </trigger>
+  </database>

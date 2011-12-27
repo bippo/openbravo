@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_CLIENT_TRG">
+    <trigger name="AD_CLIENT_TRG" table="AD_CLIENT" fires="after" insert="true" update="false" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: AD_Client_Trg.sql,v 1.2 2002/05/29 04:25:38 jjanke Exp $
+    ***
+    * Title: AD_Client
+    * Description:
+    *  Add DocumentNo Sequences for the new Client
+    ************************************************************************/
+    TYPE RECORD IS REF CURSOR;
+  CUR_DSequence RECORD;
+  v_NextNo VARCHAR2(32);
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- See also: AD_Sequence_Check
+  FOR CUR_DSequence IN
+    (
+    SELECT TableName
+    FROM AD_Table t
+    WHERE IsActive='Y'
+      -- Get all Tables with DocumentNo or Value
+      AND AD_Table_ID IN
+      (
+      SELECT AD_Table_ID
+      FROM AD_Column
+      WHERE ColumnName='DocumentNo'
+        OR ColumnName='Value'
+      )
+      AND NOT EXISTS
+      (SELECT 1 FROM AD_Sequence s  WHERE s.Name = 'DocumentNo_' || t.TableName
+    AND s.AD_Client_ID=:NEW.AD_Client_ID)
+    )
+  LOOP
+    -- DBMS_OUTPUT.PUT_LINE(' ' || :new.AD_Client_ID || ' - ' || CUR_DSequence.TableName);
+    --
+    Ad_Sequence_Next('AD_Sequence', :NEW.AD_Client_ID, v_NextNo) ;
+    INSERT
+    INTO AD_Sequence
+      (
+        AD_Sequence_ID, AD_Client_ID, AD_Org_ID,
+        IsActive, Created, CreatedBy,
+        Updated, UpdatedBy, Name,
+        Description, VFormat, IsAutoSequence,
+        IncrementNo, StartNo, CurrentNext,
+        CurrentNextSys, IsTableID,
+        Prefix, Suffix, StartNewYear
+      )
+      VALUES
+      (
+        v_NextNo, :NEW.AD_Client_ID, 0,  'Y',
+        now(), '0', now(),
+        '0', 'DocumentNo_' || CUR_DSequence.TableName,  'DocumentNo/Value for Table ' || CUR_DSequence.TableName,
+        NULL,  'Y', 1,
+        10000000, 10000000, 10000000,
+        'N',  NULL,
+        NULL,  'N'
+      )
+      ;
+  END LOOP;
+  -- Sequences
+END AD_CLIENT_TRG
+]]></body>
+    </trigger>
+  </database>

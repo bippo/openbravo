@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="MInOutTraceReportsData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT DISTINCT t.M_PRODUCT_ID, AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(T.M_PRODUCT_ID), TO_CHAR(?)) AS product_name, 
+          t.M_ATTRIBUTESETINSTANCE_ID, AD_COLUMN_IDENTIFIER(TO_CHAR('M_AttributeSetInstance'), TO_CHAR(T.M_ATTRIBUTESETINSTANCE_ID), TO_CHAR(?)) AS attribute_name, 
+          t.M_LOCATOR_ID, AD_COLUMN_IDENTIFIER(TO_CHAR('M_LOCATOR'), TO_CHAR(T.M_LOCATOR_ID), TO_CHAR(?)) as locator_name,
+          '' AS html, ''  AS ID, '' AS MOVEMENTTYPE, '' AS MOVEMENTDATE, '' AS MOVEMENTQTY, '' AS M_INVENTORYLINE_ID, '' AS M_MOVEMENTLINE_ID,
+          '' AS M_INOUTLINE_ID, '' AS M_PRODUCTIONLINE_ID, '' AS C_PROJECTISSUE_ID, '' AS M_PRODUCT_UOM_ID, '' AS QUANTITYORDER, '' AS C_UOM_ID,
+          '' AS MOVEMENTTYPE_NAME, '' AS PRODUCT_UOM_NAME, '' AS UOM_NAME, '' AS VENDOR_NAME, '' AS NAME, '' AS INVENTORY_NAME, '' AS MOVEMENT_NAME,
+          '' AS INOUT_NAME, '' AS PRODUCTION_NAME
+      FROM M_TRANSACTION t
+      WHERE 1=1
+      AND t.AD_ORG_ID IN ('1')
+      AND t.AD_CLIENT_ID IN ('1')
+      AND t.M_ATTRIBUTESETINSTANCE_ID <> '0'
+      GROUP BY t.M_PRODUCT_ID, t.M_ATTRIBUTESETINSTANCE_ID, t.M_LOCATOR_ID
+    ]]></Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="parmProductId" optional="true" after="WHERE 1=1"><![CDATA[AND T.M_PRODUCT_ID = ?]]></Parameter>
+    <Parameter name="parmAttributeSetInstanceId" optional="true" after="WHERE 1=1"><![CDATA[AND T.M_ATTRIBUTESETINSTANCE_ID = ?]]></Parameter>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND t.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND t.AD_CLIENT_ID IN (" text="'1'"/>
+  </SqlMethod>
+
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectChilds" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT T.M_TRANSACTION_ID AS ID, T.MOVEMENTTYPE, T.M_LOCATOR_ID, T.M_PRODUCT_ID, T.MOVEMENTDATE, 
+          RTRIM(RTRIM(TO_CHAR(ROUND(T.MOVEMENTQTY,2)),'0'),'.')  AS MOVEMENTQTY, T.M_INVENTORYLINE_ID, T.M_MOVEMENTLINE_ID, T.M_INOUTLINE_ID, T.M_PRODUCTIONLINE_ID, 
+          T.C_PROJECTISSUE_ID, T.M_ATTRIBUTESETINSTANCE_ID, T.M_PRODUCT_UOM_ID, ROUND(T.QUANTITYORDER,4) AS QUANTITYORDER, T.C_UOM_ID, 
+          L.NAME AS MOVEMENTTYPE_NAME, 
+          (CASE WHEN T.M_PRODUCT_UOM_ID IS NOT NULL THEN TO_CHAR(C2.UOMSYMBOL) END) AS PRODUCT_UOM_NAME, 
+          C1.UOMSYMBOL AS UOM_NAME, 
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(T.M_PRODUCT_ID), TO_CHAR(?)) AS PRODUCT_NAME,
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_AttributeSetInstance'), TO_CHAR(T.M_ATTRIBUTESETINSTANCE_ID), TO_CHAR(?)) AS ATTRIBUTE_NAME,
+          (SELECT NAME FROM C_BPARTNER WHERE C_BPARTNER_ID = M.C_BPARTNER_ID) || ' - ' || M.DOCUMENTNO AS VENDOR_NAME, 
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_LOCATOR'), TO_CHAR(T.M_LOCATOR_ID), TO_CHAR(?)) AS LOCATOR_NAME, '' AS NAME, 
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_InventoryLine'), TO_CHAR(T.M_INVENTORYLINE_ID), TO_CHAR(?)) AS INVENTORY_NAME, 
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_MovementLine'), TO_CHAR(T.M_MOVEMENTLINE_ID), TO_CHAR(?)) AS MOVEMENT_NAME, 
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_InoutLine'), TO_CHAR(T.M_INOUTLINE_ID), TO_CHAR(?)) AS INOUT_NAME, 
+          AD_COLUMN_IDENTIFIER(TO_CHAR('M_ProductionLine'), TO_CHAR(T.M_PRODUCTIONLINE_ID), TO_CHAR(?)) AS PRODUCTION_NAME
+      FROM  M_TRANSACTION T  LEFT OUTER JOIN  M_INOUTLINE ML  ON  T.M_INOUTLINE_ID  = ML.M_INOUTLINE_ID   
+		       LEFT OUTER JOIN  M_INOUT M  ON  ML.M_INOUT_ID  = M.M_INOUT_ID   
+            	       LEFT OUTER JOIN  M_PRODUCT_UOM M_P  ON  T.M_PRODUCT_UOM_ID  = M_P.M_PRODUCT_UOM_ID   
+                       LEFT OUTER JOIN  C_UOM C2  ON  M_P.C_UOM_ID  = C2.C_UOM_ID ,
+       AD_REF_LIST_V L,
+       C_UOM C1 
+    WHERE	 T.MOVEMENTTYPE  = L.VALUE
+     AND	L.AD_REFERENCE_ID  = '189'
+     AND	L.AD_LANGUAGE  = ?
+     AND	T.C_UOM_ID  = C1.C_UOM_ID
+     AND	T.M_ATTRIBUTESETINSTANCE_ID  = ?
+     AND	T.M_PRODUCT_ID  = ?
+     AND	T.M_LOCATOR_ID  = ?
+     AND 1=1
+    ORDER BY T.MOVEMENTDATE,
+       T.CREATED 
+     ]]></Sql>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="mAttributesetinstanceId"/>
+     <Parameter name="mProductId"/>
+     <Parameter name="mLocatorId"/>
+     <Parameter name="plusQty" optional="true" type="none" after="1=1" ><![CDATA[ AND (T.MOVEMENTTYPE <> 'P+' AND  T.MOVEMENTQTY > 0)]]></Parameter>
+     <Parameter name="minusQty" optional="true" type="none" after="1=1" ><![CDATA[ AND (T.MOVEMENTTYPE <> 'P+' AND  T.MOVEMENTQTY < 0)]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="selectProductionOut" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT T.M_TRANSACTION_ID AS ID, T.MOVEMENTTYPE, T.M_LOCATOR_ID, T.M_PRODUCT_ID, T.MOVEMENTDATE, 
+      ROUND(T.MOVEMENTQTY,4) AS MOVEMENTQTY, T.M_INVENTORYLINE_ID, T.M_MOVEMENTLINE_ID, T.M_INOUTLINE_ID, T.M_PRODUCTIONLINE_ID, 
+      T.C_PROJECTISSUE_ID, T.M_ATTRIBUTESETINSTANCE_ID, T.M_PRODUCT_UOM_ID, ROUND(T.QUANTITYORDER,4) AS QUANTITYORDER, T.C_UOM_ID, 
+      L.NAME AS MOVEMENTTYPE_NAME, 
+      (CASE WHEN T.M_PRODUCT_UOM_ID IS NOT NULL THEN TO_CHAR(C2.UOMSYMBOL) END) AS PRODUCT_UOM_NAME, 
+      C1.UOMSYMBOL AS UOM_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(T.M_PRODUCT_ID), TO_CHAR(?)) AS PRODUCT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_LOCATOR'), TO_CHAR(T.M_LOCATOR_ID), TO_CHAR(?)) AS LOCATOR_NAME, '' AS NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_InventoryLine'), TO_CHAR(T.M_INVENTORYLINE_ID), TO_CHAR(?)) AS INVENTORY_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_MovementLine'), TO_CHAR(T.M_MOVEMENTLINE_ID), TO_CHAR(?)) AS MOVEMENT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_InoutLine'), TO_CHAR(T.M_INOUTLINE_ID), TO_CHAR(?)) AS INOUT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_AttributeSetInstance'), TO_CHAR(T.M_ATTRIBUTESETINSTANCE_ID), TO_CHAR(?)) AS ATTRIBUTE_NAME,
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_ProductionLine'), TO_CHAR(T.M_PRODUCTIONLINE_ID), TO_CHAR(?)) AS PRODUCTION_NAME
+      FROM M_PRODUCT_UOM M_P left join C_UOM C2 on M_P.C_UOM_ID = C2.C_UOM_ID
+                             right join M_TRANSACTION T on M_P.M_PRODUCT_UOM_ID = T.M_PRODUCT_UOM_ID,
+      AD_REF_LIST_V L, C_UOM C1 
+      WHERE T.MOVEMENTTYPE = 'P+' 
+      AND T.MOVEMENTTYPE = L.VALUE 
+      AND L.AD_REFERENCE_ID = '189' 
+      AND L.AD_LANGUAGE = ? 
+      AND T.C_UOM_ID = C1.C_UOM_ID 
+      AND EXISTS (SELECT 1 FROM M_PRODUCTIONLINE 
+        WHERE M_PRODUCTIONLINE_ID = T.M_PRODUCTIONLINE_ID 
+        AND M_PRODUCTIONPLAN_ID = (
+        SELECT M_PRODUCTIONPLAN_ID FROM M_PRODUCTIONLINE WHERE M_PRODUCTIONLINE_ID = ?)) 
+      AND T.MOVEMENTQTY > 0
+      AND T.M_PRODUCTIONLINE_ID <> ?
+      AND T.M_ATTRIBUTESETINSTANCE_ID <> '0'
+      ORDER BY T.MOVEMENTDATE, T.CREATED
+     ]]></Sql>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="mProductionlineId"/>
+     <Parameter name="mProductionlineId"/>
+  </SqlMethod>
+  <SqlMethod name="selectProductionIn" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT T.M_TRANSACTION_ID AS ID, T.MOVEMENTTYPE, T.M_LOCATOR_ID, T.M_PRODUCT_ID, T.MOVEMENTDATE, 
+      ROUND(T.MOVEMENTQTY,4) AS MOVEMENTQTY, T.M_INVENTORYLINE_ID, T.M_MOVEMENTLINE_ID, T.M_INOUTLINE_ID, T.M_PRODUCTIONLINE_ID, 
+      T.C_PROJECTISSUE_ID, T.M_ATTRIBUTESETINSTANCE_ID, T.M_PRODUCT_UOM_ID, ROUND(T.QUANTITYORDER,4) AS QUANTITYORDER, T.C_UOM_ID, 
+      L.NAME AS MOVEMENTTYPE_NAME, 
+      (CASE WHEN T.M_PRODUCT_UOM_ID IS NOT NULL THEN TO_CHAR(C2.UOMSYMBOL) END) AS PRODUCT_UOM_NAME, 
+      C1.UOMSYMBOL AS UOM_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(T.M_PRODUCT_ID), TO_CHAR(?)) AS PRODUCT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_LOCATOR'), TO_CHAR(T.M_LOCATOR_ID), TO_CHAR(?)) AS LOCATOR_NAME, '' AS NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_InventoryLine'), TO_CHAR(T.M_INVENTORYLINE_ID), TO_CHAR(?)) AS INVENTORY_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_MovementLine'), TO_CHAR(T.M_MOVEMENTLINE_ID), TO_CHAR(?)) AS MOVEMENT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_InoutLine'), TO_CHAR(T.M_INOUTLINE_ID), TO_CHAR(?)) AS INOUT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_AttributeSetInstance'), TO_CHAR(T.M_ATTRIBUTESETINSTANCE_ID), TO_CHAR(?)) AS ATTRIBUTE_NAME,
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_ProductionLine'), TO_CHAR(T.M_PRODUCTIONLINE_ID), TO_CHAR(?)) AS PRODUCTION_NAME
+      FROM  M_PRODUCT_UOM M_P left join  C_UOM C2 on M_P.C_UOM_ID = C2.C_UOM_ID
+                              right join M_TRANSACTION T on M_P.M_PRODUCT_UOM_ID = T.M_PRODUCT_UOM_ID ,
+      AD_REF_LIST_V L, C_UOM C1
+      WHERE T.MOVEMENTTYPE = 'P+' 
+      AND T.MOVEMENTTYPE = L.VALUE 
+      AND L.AD_REFERENCE_ID = '189' 
+      AND L.AD_LANGUAGE = ? 
+      AND T.C_UOM_ID = C1.C_UOM_ID 
+      AND EXISTS (SELECT 1 FROM M_PRODUCTIONLINE 
+        WHERE M_PRODUCTIONLINE_ID = T.M_PRODUCTIONLINE_ID 
+        AND M_PRODUCTIONPLAN_ID = (
+        SELECT M_PRODUCTIONPLAN_ID FROM M_PRODUCTIONLINE WHERE M_PRODUCTIONLINE_ID = ?)) 
+      AND T.MOVEMENTQTY < 0
+      AND T.M_PRODUCTIONLINE_ID <> ?
+      AND T.M_ATTRIBUTESETINSTANCE_ID <> '0'
+      ORDER BY T.MOVEMENTDATE, T.CREATED
+     ]]></Sql>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="mProductionlineId"/>
+     <Parameter name="mProductionlineId"/>
+  </SqlMethod>
+  <SqlMethod name="selectMovement" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT T.M_TRANSACTION_ID AS ID, T.MOVEMENTTYPE, T.M_LOCATOR_ID, T.M_PRODUCT_ID, T.MOVEMENTDATE, 
+      ROUND(T.MOVEMENTQTY,4) AS MOVEMENTQTY, T.M_INVENTORYLINE_ID, T.M_MOVEMENTLINE_ID, T.M_INOUTLINE_ID, T.M_PRODUCTIONLINE_ID, 
+      T.C_PROJECTISSUE_ID, T.M_ATTRIBUTESETINSTANCE_ID, T.M_PRODUCT_UOM_ID, ROUND(T.QUANTITYORDER,4) AS QUANTITYORDER, T.C_UOM_ID, 
+      L.NAME AS MOVEMENTTYPE_NAME, 
+      (CASE WHEN T.M_PRODUCT_UOM_ID IS NOT NULL THEN TO_CHAR(C2.UOMSYMBOL) END) AS PRODUCT_UOM_NAME, 
+      C1.UOMSYMBOL AS UOM_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_Product'), TO_CHAR(T.M_PRODUCT_ID), TO_CHAR(?)) AS PRODUCT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_LOCATOR'), TO_CHAR(T.M_LOCATOR_ID), TO_CHAR(?)) AS LOCATOR_NAME, '' AS NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_InventoryLine'), TO_CHAR(T.M_INVENTORYLINE_ID), TO_CHAR(?)) AS INVENTORY_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_MovementLine'), TO_CHAR(T.M_MOVEMENTLINE_ID), TO_CHAR(?)) AS MOVEMENT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_InoutLine'), TO_CHAR(T.M_INOUTLINE_ID), TO_CHAR(?)) AS INOUT_NAME, 
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_AttributeSetInstance'), TO_CHAR(T.M_ATTRIBUTESETINSTANCE_ID), TO_CHAR(?)) AS ATTRIBUTE_NAME,
+      AD_COLUMN_IDENTIFIER(TO_CHAR('M_ProductionLine'), TO_CHAR(T.M_PRODUCTIONLINE_ID), TO_CHAR(?)) AS PRODUCTION_NAME
+      FROM M_PRODUCT_UOM M_P left join C_UOM C2 on  M_P.C_UOM_ID = C2.C_UOM_ID 
+                             right join M_TRANSACTION T on  M_P.M_PRODUCT_UOM_ID = T.M_PRODUCT_UOM_ID,
+      AD_REF_LIST_V L, C_UOM C1 
+      WHERE T.MOVEMENTTYPE = ?
+      AND T.MOVEMENTTYPE = L.VALUE 
+      AND L.AD_REFERENCE_ID = '189' 
+      AND L.AD_LANGUAGE = ? 
+      AND T.C_UOM_ID = C1.C_UOM_ID 
+      AND T.M_MOVEMENTLINE_ID = ?
+      AND T.M_ATTRIBUTESETINSTANCE_ID <> '0'
+      ORDER BY T.MOVEMENTDATE, T.CREATED
+     ]]></Sql>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="movementtype"/>
+     <Parameter name="adLanguage"/>
+     <Parameter name="mMovementlineId"/>
+  </SqlMethod>
+
+
+  <SqlMethod name="selectMproduct" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_PRODUCT.NAME
+      FROM M_PRODUCT
+      WHERE M_PRODUCT.M_PRODUCT_ID = ?
+     ]]></Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ ************************************************************************************
+ * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Licensed under the Apache Software License version 2.0
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to  in writing,  software  distributed
+ * under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+ * CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+ * specific language governing permissions and limitations under the License.
+ ************************************************************************************
+-->
+
+
+
+<SqlClass name="AttributeData" package="org.openbravo.base.secureApp">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT distinct a.C_ACCTSCHEMA_ID as VALUE, a.C_CURRENCY_ID as Attribute, a.HASALIAS, 
+        ae.ELEMENTTYPE, '' as AD_Window_ID, '' as C_CURRENCY_ID
+        FROM C_AcctSchema a, C_AcctSchema_Element ae 
+        WHERE a.C_AcctSchema_ID=ae.C_ACCTSCHEMA_ID 
+        AND ae.ISACTIVE = 'Y'
+        AND a.AD_CLIENT_ID IN ('1') 
+        AND a.AD_ORG_ID IN ('1')
+      ]]></Sql>
+      <Parameter name="clientlist" optional="true" type="replace" after="AND a.AD_CLIENT_ID IN (" text="'1'"/>
+      <Parameter name="orglist" optional="true" type="replace" after="AND a.AD_ORG_ID IN (" text="'1'"/>
+   </SqlMethod>
+   <SqlMethod name="selectIsSOTrx" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+        SELECT ad_window_id, isSOTrx as value FROM AD_WINDOW 
+        ]]>
+      </Sql>
+   </SqlMethod>
+   <SqlMethod name="selectStdPrecision" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+          SELECT STDPRECISION 
+          FROM C_CURRENCY 
+          WHERE C_CURRENCY_ID = ? 
+          AND AD_CLIENT_ID IN ('1')
+          AND AD_ORG_ID IN ('1') 
+        ]]>
+      </Sql>
+      <Parameter name="cCurrencyId"/>
+      <Parameter name="clientlist" optional="true" type="replace" after="AND AD_CLIENT_ID IN (" text="'1'"/>
+      <Parameter name="orglist" optional="true" type="replace" after="AND AD_ORG_ID IN (" text="'1'"/>
+   </SqlMethod>
+   <SqlMethod name="selectOrgCurrency" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        <![CDATA[
+          SELECT C_CURRENCY_ID 
+          FROM AD_ORG 
+          WHERE AD_ISORGINCLUDED(?,AD_ORG_ID,?) <> -1 AND C_CURRENCY_ID IS NOT NULL
+          ORDER BY AD_ISORGINCLUDED(?,AD_ORG_ID,?)
+        ]]>
+      </Sql>
+      <Parameter name="organization"/>
+      <Parameter name="client"/>
+      <Parameter name="organization"/>
+      <Parameter name="client"/>
+   </SqlMethod>
+</SqlClass>

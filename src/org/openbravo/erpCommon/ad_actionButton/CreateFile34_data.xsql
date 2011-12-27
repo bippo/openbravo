@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass id="class" name="CreateFile34Data" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+    select lpad(oi.taxID,10)                                                             AS NIF,
+    TO_CHAR(now(), 'DD')||TO_CHAR(now(), 'MM')||TO_CHAR(now(), 'YY')                     AS HOY,
+    TO_CHAR(r.duedate, 'DD')||TO_CHAR(r.duedate, 'MM')||TO_CHAR(r.duedate, 'YY')         AS DUEDATE,
+    LPAD(B.CODEBANK,4,'0')||LPAD(B.CODEBRANCH,4,'0')||LPAD(ba.CODEACCOUNT,10,'0')        AS N_CUENTA,
+    LPAD(B.DIGITCONTROL||ba.DIGITCONTROL,2,'0')                                          AS DC,
+    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(
+    RPAD(O.NAME,36)
+    ),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U')                                       AS NOMBRE,
+    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(
+    RPAD(l.Address1||' '||l.Address2,36)
+    ),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U')                                       AS DOMICILIO,
+    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(
+    RPAD(l.City,36)
+    ),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U')                                       AS PLAZA,
+    rpad(' ',7,' ')                                                                      AS HUECO,
+    ''                                                                                   AS PROVINCIA,
+    ''                                                                                   AS CONCEPTO,
+    ''                                                                                   AS PAYAMT,
+    ''                                                                                   AS LINEAS,
+    ''                                                                                   AS ORDENANTES,
+    oi.taxID                                                                             AS TAXID,
+    ''                                                                                   AS DOM,
+    ''                                                                                   AS PLA,
+    ''                                                                                   AS PROV,
+    ''                                                                                   AS NOM,
+    B.CODEBANK || B.CODEBRANCH || ba.CODEACCOUNT                                         AS ACCT
+     from  c_bankAccount    ba,
+           ad_client        c,
+           c_Bank           b,
+           ad_orgInfo       oi,
+           ad_org           o,
+           c_remittance     r,
+           c_Location       l
+     where c.Ad_Client_ID = r.AD_Client_Id
+       and r.AD_ORG_ID = oi.ad_org_id
+       and oi.ad_org_id = o.ad_org_id
+       and r.C_BANKACCOUNT_ID = ba.c_bankAccount_id
+       and b.c_bank_id = ba.c_bank_Id
+       and oi.C_Location_ID = l.C_location_ID
+      and r.C_Remittance_ID = ?
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+
+   <SqlMethod name="selectLineas" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT LPAD(BP.TAXID,12,' ')                      AS NIF, BP.TAXID,
+             LPAD(TO_CHAR(ROUND(DP.AMOUNT*100)),12,'0')                   AS PAYAMT,
+             SUBSTR(TRIM(LPAD(BP_A.ACCOUNTNO,20,'0')),1,4)|| /*BANCO*/
+             SUBSTR(TRIM(LPAD(BP_A.ACCOUNTNO,20,'0')),5,4)|| /*OFICINA*/
+             SUBSTR(TRIM(LPAD(BP_A.ACCOUNTNO,20,'0')),11) AS N_CUENTA,
+             SUBSTR(TRIM(LPAD(BP_A.ACCOUNTNO,20,'0')),9,2)AS DC, BP_A.ACCOUNTNO AS ACCT,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(RPAD(COALESCE(BP.NAME2,BP.NAME),36,' ')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS nombre,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(COALESCE(BP.NAME2,BP.NAME)),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS NOM,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(RPAD(COALESCE(to_char(L.ADDRESS1),'')||' '||COALESCE(to_char(L.ADDRESS2),''),36,' ')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS DOMICILIO,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(COALESCE(to_char(L.ADDRESS2),'')||COALESCE(to_char(L.ADDRESS1),'')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS DOM,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(RPAD(COALESCE(to_char(L.POSTAL),''),5)||RPAD(COALESCE(to_char(L.CITY),''),31,' ')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS PLAZA,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(COALESCE(to_char(L.POSTAL),'')||COALESCE(to_char(L.CITY),'')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS PLA,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(RPAD(COALESCE(to_char(R.DESCRIPTION),' '),36,' ')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS PROVINCIA,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(R.DESCRIPTION),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS PROV,
+             REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(UPPER(RPAD(COALESCE(to_char(DP.DESCRIPTION),' '),36,' ')),'Á','A'),'É','E'),'Í','I'),'Ó','O'),'Ú','U') AS CONCEPTO
+             FROM c_remittanceline S, C_DEBT_PAYMENT DP,
+                                  C_BPARTNER BP left join C_BP_BANKACCOUNT BP_A on BP.C_BPARTNER_ID = BP_A.C_BPARTNER_ID
+                                  LEFT JOIN C_BPARTNER_LOCATION BP_L on BP.C_BPARTNER_ID = BP_L.C_BPARTNER_ID
+                                  LEFT JOIN C_LOCATION L on BP_L.C_LOCATION_ID = L.C_LOCATION_ID
+                                  LEFT JOIN C_REGION R on L.C_REGION_ID = R.C_REGION_ID
+      WHERE S.C_debt_payment_id = DP.C_debt_payment_id
+      AND DP.C_BPARTNER_ID = BP.C_BPARTNER_ID
+      AND BP_L.C_BPARTNER_LOCATION_ID = COALESCE(C_GETBPLOCATIONID(BP.C_BPARTNER_ID, 'B'),BP_L.C_BPARTNER_LOCATION_ID)
+      AND (BP_A.C_BPARTNER_ID IS NULL OR BP_A.ISACTIVE = 'Y')
+      and s.C_Remittance_ID = ?
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+
+
+  <SqlMethod name="selectTotal" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+          SELECT lpad(Lpad(TO_CHAR(round(sum(DP.AMOUNT)*100)),12,'0'),27,' ') AS PAYAMT
+      FROM C_DEBT_PAYMENT DP,
+           c_remittanceLine rl
+     where dp.c_debt_payment_id = rl.c_debt_payment_id
+       and rl.C_Remittance_ID = ?
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+
+
+  <SqlMethod name="selectNLineas" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+       SELECT LPAD(?,10,'0') AS LINEAS,
+              LPAD(?,8,'0')  AS ORDENANTES,
+              LPAD(' ',13,' ') AS HUECO
+         FROM DUAL
+    ]]>
+    </Sql>
+    <Parameter name="nLineas"/>
+    <Parameter name="nOrdenantes"/>
+    </SqlMethod>
+
+    <SqlMethod name="selectComprobacion341" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+           select count(*)
+             from dual
+            where to_date(?,'DDMMYY') > to_date(?,'DDMMYY')
+    ]]>
+    </Sql>
+    <Parameter name="pNow"/>
+    <Parameter name="pDueDate"/>
+    </SqlMethod>
+
+<!--
+   <SqlMethod name="selectParam" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      select Content
+        from c_Remittance           r,
+             c_Remittance_Type      rt,
+             c_Remittance_Parameter rp
+       where r.C_Remittance_Type_id = rt.C_Remittance_Type_id
+         and rp.C_Remittance_Type_Id =  rt.C_Remittance_Type_id
+         and r.C_Remittance_id = ?
+         and upper(rp.name)=upper(to_char(?))
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    <Parameter name="param"/>
+    </SqlMethod>
+
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+  <SqlMethod name="selectComprobacion1" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+           select count(*)
+             from dual
+            where to_date('220606','DDMMYY') > to_date('080606','DDMMYY')
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+  <SqlMethod name="selectComprobacion2" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT COUNT(*)
+      FROM c_remittanceLine rl
+    WHERE rl.c_remittance_id = ?
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+  <SqlMethod name="selectComprobacion3" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      select count(*)
+      from c_remittance
+    where processed='Y'
+     and c_remittance_id = ?
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+  <SqlMethod name="selectComprobacion4" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+         SELECT count(*)
+     FROM C_DEBT_PAYMENT DP,
+          c_remittanceLine rl
+    WHERE DP.C_DEBT_PAYMENT_ID = rl.C_DEBT_PAYMENT_id
+    AND DP.ISPAID = 'N'
+    AND DP.C_BPARTNER_ID IS NOT NULL
+    and rl.c_remittance_id = ?
+    ]]>
+    </Sql>
+    <Parameter name="cRemittanceId"/>
+    </SqlMethod>
+    -->
+</SqlClass>

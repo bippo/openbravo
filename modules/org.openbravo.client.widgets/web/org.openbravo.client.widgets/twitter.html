@@ -1,0 +1,100 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<body>
+<script src="http://widgets.twimg.com/j/2/widget.js"></script>
+<script>
+(function() {
+
+  function getUrlVars() {
+    var vars = [], hash, href= window.location.href,
+        hashes = href.slice(href.indexOf('?') + 1).split('&');
+
+    for(var i = 0; i < hashes.length; i++) {
+      hash = hashes[i].split('=');
+	  vars.push(hash[0]);
+	  vars[hash[0]] = hash[1];
+    }
+
+    return vars;
+  }
+
+var vars = getUrlVars(),
+    u = vars['u'] || 'Openbravo',
+    s = vars['s'] || 'Openbravo',
+    t = vars['t'] || 'profile',
+    theme = {
+        shell: {
+          background: '#dfdfdf',
+          color: '#000000'
+        },
+        tweets: {
+          background: '#58A618',
+          color: '#ffffff',
+          links: '#fff133'
+        }
+      };
+
+if(t === 'profile') {
+  new TWTR.Widget({
+    version: 2,
+    type: t,
+    rpp: 4,
+    interval: 6000,
+    width: 'auto',
+    height: 160,
+    theme: theme,
+    features: {
+      scrollbar: false,
+      fullscreen: false,
+      loop: true,
+      live: true,
+      hashtags: true,
+      timestamp: true,
+      avatars: false,
+      behavior: 'all'
+    }
+  }).render().setUser(u).start();
+  return;
+}
+new TWTR.Widget({
+  version: 2,
+  type: 'search',
+  search: s,
+  interval: 6000,
+  title: '',
+  subject: 'Tweets including "' + s + '"',
+  width: 'auto',
+  height: 200,
+  theme: theme,
+  features: {
+    scrollbar: false,
+	loop: true,
+	live: true,
+	hashtags: true,
+	timestamp: true,
+	avatars: true,
+	toptweets: true,
+	behavior: 'default'
+  }
+}).render().start();
+}())
+</script>
+</body>
+</html>

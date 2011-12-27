@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="FieldLabelsData" package="org.openbravo.erpCommon.utility">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      select 
+		  colum.ad_column_id as AD_COLUMN_ID 
+		  , colum.name as COL_NAME 
+		  , colum.columnname as COL_COLUMNNAME 
+		  , elemnt.name as ELEMENT_NAME 
+		  , elemnt.printname as ELEMENT_PRINTNAME 
+		  , field.name as FIELD_NAME 
+		  , fieldgroup.name as FIELDGROUP_NAME  
+		  , elmtTrl.name as ELMTTRL_NAME 
+		  , elmtTrl.printname as ELMTTRL_PRINTNAME 
+	  from 
+		  ad_column colum 
+		  left outer join ad_field field 
+		  on colum.ad_column_id = field.ad_column_id 
+		  left outer join ad_element elemnt 
+		  on colum.ad_element_id = elemnt.ad_element_id 
+		  left outer join AD_ELEMENT_TRL elmtTrl 
+		  on elemnt.ad_element_id = elmtTrl.ad_element_id 
+		  left outer join AD_FIELDGROUP fieldGroup 
+		  on field.ad_fieldgroup_id = fieldGroup.ad_fieldgroup_id 
+	  where 
+		  colum.ad_table_id = (select tab.ad_table_id from ad_tab tab where tab.ad_tab_id = ?) 
+    </Sql>
+    <Parameter name="ad_tab_id"/>
+  </SqlMethod>
+</SqlClass>

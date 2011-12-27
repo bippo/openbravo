@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="SEExpenseProductData" package="org.openbravo.erpCommon.ad_callouts">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_BOM_PriceStd(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceStd,
+        M_BOM_PriceList(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceList,
+        M_BOM_PriceLimit(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceLimit,
+        p.C_UOM_ID,pv.ValidFrom,pl.C_Currency_ID 
+        FROM M_Product p, M_ProductPrice pp, M_Pricelist pl, M_PriceList_Version pv 
+        WHERE p.M_Product_ID=pp.M_Product_ID
+        AND pp.M_PriceList_Version_ID=pv.M_PriceList_Version_ID
+        AND pv.M_PriceList_ID=pl.M_PriceList_ID
+        AND pv.IsActive='Y'
+        AND p.M_Product_ID = ?
+        AND pl.M_PriceList_ID = ?
+        ORDER BY pv.ValidFrom DESC
+      ]]>
+    </Sql>
+    <Parameter name="MProductID"/>
+    <Parameter name="MPriceListID"/>
+  </SqlMethod>
+  <SqlMethod name="selectBasePriceList" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT M_BOM_PriceStd(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceStd,
+        M_BOM_PriceList(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceList,
+        M_BOM_PriceLimit(p.M_Product_ID,pv.M_PriceList_Version_ID) AS PriceLimit,
+        p.C_UOM_ID,pv.ValidFrom,pl.C_Currency_ID 
+        FROM M_Product p, M_ProductPrice pp, M_Pricelist pl, M_Pricelist bpl, M_PriceList_Version pv
+        WHERE p.M_Product_ID=pp.M_Product_ID
+        AND pp.M_PriceList_Version_ID=pv.M_PriceList_Version_ID
+        AND pv.M_PriceList_ID=bpl.M_PriceList_ID
+        AND pv.IsActive='Y'
+        AND bpl.M_PriceList_ID=pl.BasePriceList_ID
+        AND p.M_Product_ID=?
+        AND pl.M_PriceList_ID=?
+        ORDER BY pv.ValidFrom DESC
+      ]]>
+    </Sql>
+    <Parameter name="MProductID"/>
+    <Parameter name="MPriceListID"/>
+  </SqlMethod>
+  <SqlMethod name="priceList" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT PO_PRICELIST_ID
+        FROM S_TIMEEXPENSE, C_BPARTNER
+        WHERE S_TIMEEXPENSE.C_BPARTNER_ID = C_BPARTNER.C_BPARTNER_ID
+        AND S_TIMEEXPENSE.S_TIMEEXPENSE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="sTimeexpenseId"/>
+  </SqlMethod>
+  <SqlMethod name="selectUOM" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT C_UOM_ID
+        FROM M_PRODUCT
+        WHERE M_PRODUCT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="mProductId"/>
+  </SqlMethod>
+  <SqlMethod name="selectConvertedAmt" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        select c_currency_convert(TO_NUMBER(?),?,?,TO_DATE(?),null, ?,?) from dual
+      ]]>
+    </Sql>
+    <Parameter name="expenseAmount"/>
+    <Parameter name="currencyFrom"/>
+    <Parameter name="currencyTo"/>
+    <Parameter name="dateExpense"/>
+    <Parameter name="client"/>
+    <Parameter name="org"/>
+  </SqlMethod>
+  <SqlMethod name="selectPrecision" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT PRICEPRECISION 
+        FROM C_CURRENCY C
+        WHERE C.C_CURRENCY_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cCurrencyId"/>
+  </SqlMethod>
+  <SqlMethod name="selectReportDate" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TO_CHAR(S.DATEREPORT) 
+		FROM S_TIMEEXPENSE S
+		WHERE S.S_TIMEEXPENSE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="sTimeExpenseId"/>
+  </SqlMethod>
+</SqlClass>

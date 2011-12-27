@@ -1,0 +1,553 @@
+<HTML>
+<HEAD>
+<!--Needed change in windowKeyboard.js>
+
+--- a/web/js/windowKeyboard.js
++++ b/web/js/windowKeyboard.js
+@@ -167,8 +167,58 @@
+   this.defaultActionButtonId = defaultActionButtonId;
+ }
+
++var isWindowInfoSent = false;
++function sendWindowInfo() {
++  if (isWindowInfoSent) {
++    return true;
++  } else {
++    isWindowInfoSent = true;
++  }
++  var windowId = null;
++  var tabId = null;
++  var keyName = null;
++  var recordId = null;
++  var title = null;
++  var mode = null;
++  if (typeof getElementsByName('inpwindowId','input')[0] != "undefined") {
++    windowId = getElementsByName('inpwindowId','input')[0].value;
++  }
++  if (typeof getElementsByName('inpTabId','input')[0] != "undefined") {
++    tabId = getElementsByName('inpTabId','input')[0].value;
++  }
++  if (typeof getElementsByName('inpKeyName','input')[0] != "undefined") {
++    keyName = getElementsByName('inpKeyName','input')[0].value;
++  }
++  if (typeof getElementsByName(keyName,'input')[0] != "undefined") {
++    recordId = getElementsByName(keyName,'input')[0].value;
++  }
++  if (document.getElementById('tabTitle_text') != null) {
++    title = document.getElementById('tabTitle_text').innerHTML;
++  }
++
++  if (tabId == null && !document.getElementById('buttonAbout')) {
++    mode = "error";
++    title = "Error";
++  } else if (tabId == null) {
++    mode = "manual";
++  } else if (document.getElementById("grid_table_dummy_input")) {
++    mode = "grid";
++  } else if (recordId == "") {
++    mode = "new";
++  } else {
++    mode = "edit";
++  }
++
++  try {
++    if (document.getElementById('buttonBack')) {
++      parent.parent.setTabInformation(windowId, tabId, recordId, title, mode);
++    }
++  } catch (e) { }
++}
++
+
+ function setWindowTableParentElement() {
++  sendWindowInfo();
+   windowTableParentElement = windowTables[focusedWindowTable].tableId;
+ }
+
+<-->
+<SCRIPT>var isomorphicDir="../isomorphic/";</SCRIPT>
+<SCRIPT src="../isomorphic/system/development/ISC_Core.js"></SCRIPT>
+<SCRIPT src="../isomorphic/system/development/ISC_Foundation.js"></SCRIPT>
+<SCRIPT src="../isomorphic/system/development/ISC_Containers.js"></SCRIPT>
+<SCRIPT src="../isomorphic/system/development/ISC_Grids.js"></SCRIPT>
+<SCRIPT src="../isomorphic/system/development/ISC_Forms.js"></SCRIPT>
+<SCRIPT src="../isomorphic/system/development/ISC_DataBinding.js"></SCRIPT>
+<SCRIPT src="../isomorphic/skins/Enterprise/load_skin.js"></SCRIPT>
+<script src="../js/utilities.js" type="text/javascript"></script>
+<script src="../js/ob_widgets.js" type="text/javascript"></script>
+<SCRIPT src="../isomorphic/login/reloginFlow.js"></SCRIPT>
+<SCRIPT src="./tabs-classicob.js"></SCRIPT>
+</HEAD>
+<BODY onload="onLoadDo();">
+<script>
+function particularOpenTab() {  // just for use in this test window button
+  var windowIDValue = windowID.getValue();
+  var tabIDValue = tabID.getValue();
+  var recordIDValue = recordID.getValue();
+  var CommandValue = Command.getValue().toUpperCase();
+  var manualURLValue = manualURL.getValue();
+  var tabTitle = "";
+  if (windowIDValue !== null) {
+    tabTitle = tabTitle + "WindowID: " + windowIDValue + " - ";
+  }
+  if (tabIDValue !== null) {
+    tabTitle = tabTitle + "TabID: " + tabIDValue + " - ";
+  }
+  if (recordIDValue !== null) {
+    tabTitle = tabTitle + "RecID: " + recordIDValue;
+  }
+  tabTitle = "Loading...";
+  openView(tabIDValue, tabTitle, recordIDValue, CommandValue, windowIDValue, manualURLValue)
+}
+
+
+function generateBuiltUrl() {
+  var url = "";
+  var newParam = "";
+  var tab = "";
+  var url = url + "selectedTab=" + tabSet.getSelectedTabNumber();
+  for (var i=1; ; i++) {
+    tab = tabSet.getTab(i);
+
+    if (typeof tab === "undefined") {
+      break;
+    }
+    newParam = "&tab" + i + "=ClassicOB";
+    newParam = newParam + tab.dynamicUrlParam;
+
+    url = url + newParam;
+  }
+  return url;
+}
+
+var firstTime = true;
+function updateBuiltUrl(force) {
+  if (firstTime) {
+    firstTime = false;
+    return true;
+  }
+  if (isAnyWindowBeingLoaded.length === 0 || force === true) {
+    var checkString = "#!/";
+    var url = OB.Layout.UrlManager.getBaseUrl() + checkString + generateBuiltUrl();
+    window.document.location.href = url;
+  } else {
+    return false;
+  }
+}
+
+var isAnyWindowBeingLoaded = new Array;
+function checkBuiltUrl(oldUrl) {
+  if (isAnyWindowBeingLoaded.length === 0) {
+    var newUrl = OB.Layout.UrlManager.getDynamicUrl(window.document.location.href);
+    if (newUrl !== oldUrl) {  // If the url has changed...
+      if (newUrl !== generateBuiltUrl()) {  // ...and also is not which is supposed to be
+        rebuildWindow(oldUrl, newUrl);
+      }
+    }
+  }
+  setTimeout(function () {
+    checkBuiltUrl(newUrl)
+    }, 1000);
+}
+
+function rebuildWindow(oldUrl, newUrl) {
+  if (newUrl === "") {
+    updateBuiltUrl();
+  } else {
+    oldUrl = generateBuiltUrl();
+    oldUrlSplit = oldUrl.split("&");
+    newUrlSplit = newUrl.split("&");
+    var oldSelectedTab = oldUrlSplit[0].replace("selectedTab=","");
+    oldSelectedTab = parseInt(oldSelectedTab);
+    var newSelectedTab = newUrlSplit[0].replace("selectedTab=","");
+    newSelectedTab = parseInt(newSelectedTab);
+
+    var oldUrlSplitLength = oldUrlSplit.length;
+    var oldTab = new Array(oldUrlSplitLength);
+    for (var i = 1; i < oldUrlSplitLength; i++) {
+      oldTab[i] = new Array;
+      oldTab[i].position = oldUrlSplit[i].substring(oldUrlSplit[i].indexOf("tab")+3, oldUrlSplit[i].indexOf("="));
+      if (oldUrlSplit[i].indexOf("ClassicOB-W") !== -1) {
+        oldTab[i].windowId = oldUrlSplit[i].substring(oldUrlSplit[i].indexOf("-W")+2, oldUrlSplit[i].indexOf("-T"));
+        oldTab[i].tabId = oldUrlSplit[i].substring(oldUrlSplit[i].indexOf("-T")+2, oldUrlSplit[i].indexOf("-R"));
+        oldTab[i].recordId = oldUrlSplit[i].substring(oldUrlSplit[i].indexOf("-R")+2, oldUrlSplit[i].indexOf("-M"));
+      } else {
+        oldTab[i].windowId = null;
+        oldTab[i].tabId = null;
+        oldTab[i].recordId = null;
+      }
+      if (oldUrlSplit[i].indexOf("ClassicOB-U") !== -1) {
+        oldTab[i].manualUrl = oldUrlSplit[i].substring(oldUrlSplit[i].indexOf("-U")+2, oldUrlSplit[i].indexOf("-M"));
+      } else {
+        oldTab[i].manualUrl = null;
+      }
+      oldTab[i].mode = oldUrlSplit[i].substring(oldUrlSplit[i].indexOf("-M")+2, oldUrlSplit[i].length);
+    }
+    var newUrlSplitLength = newUrlSplit.length;
+    var newTab = new Array(newUrlSplitLength);
+    for (var j = 1; j < newUrlSplitLength; j++) {
+      newTab[j] = new Array;
+      newTab[j].position = newUrlSplit[j].substring(newUrlSplit[j].indexOf("tab")+3, newUrlSplit[j].indexOf("="));
+      if (newUrlSplit[j].indexOf("ClassicOB-W") !== -1) {
+        newTab[j].windowId = newUrlSplit[j].substring(newUrlSplit[j].indexOf("-W")+2, newUrlSplit[j].indexOf("-T"));
+        newTab[j].tabId = newUrlSplit[j].substring(newUrlSplit[j].indexOf("-T")+2, newUrlSplit[j].indexOf("-R"));
+        newTab[j].recordId = newUrlSplit[j].substring(newUrlSplit[j].indexOf("-R")+2, newUrlSplit[j].indexOf("-M"));
+      } else {
+        newTab[j].windowId = null;
+        newTab[j].tabId = null;
+        newTab[j].recordId = null;
+      }
+      if (newUrlSplit[j].indexOf("ClassicOB-U") !== -1) {
+        newTab[j].manualUrl = newUrlSplit[j].substring(newUrlSplit[j].indexOf("-U")+2, newUrlSplit[j].indexOf("-M"));
+      } else {
+        newTab[j].manualUrl = null;
+      }
+      newTab[j].mode = newUrlSplit[j].substring(newUrlSplit[j].indexOf("-M")+2, newUrlSplit[j].length);
+    }
+
+    //Check if is just a selectedTab change
+    var isSameView;
+    if (oldUrlSplitLength === newUrlSplitLength) {
+      for (var k = 1; k < newUrlSplitLength; k++) {
+        if (oldTab[k].position !== newTab[k].position || oldTab[k].windowId !== newTab[k].windowId || oldTab[k].tabId !== newTab[k].tabId || oldTab[k].recordId !== newTab[k].recordId || oldTab[k].manualUrl !== newTab[k].manualUrl || oldTab[k].mode !== newTab[k].mode) {
+          isSameView = false;
+          break;
+        } else {
+          isSameView = true;
+        }
+      }
+    }
+
+    if (isSameView) {
+      tabSet.selectTab(newSelectedTab);
+    } else {
+      cleanAllTabs();
+      for (var l = 1; l < newUrlSplitLength; l++) {
+        openView(newTab[l].tabId, "Loading...", newTab[l].recordId, newTab[l].mode, newTab[l].windowId, newTab[l].manualUrl, l, false);
+      }
+      ensureTabsLoadContent(newSelectedTab);
+    }
+  }
+}
+
+function ensureTabsLoadContent(newSelectedTab, doTab) {
+  if (doTab === null || typeof doTab === "undefined") {
+    doTab = 1;
+  }
+  var tabCount = getTabCount();
+  tabSet.selectTab(doTab);
+  if (doTab <= tabCount) {
+    if (tabSet.getTab(doTab).title === "Loading..." && doTab !== newSelectedTab) {
+      setTimeout(function() { ensureTabsLoadContent(newSelectedTab, doTab); }, 10);
+    } else {
+      ensureTabsLoadContent(newSelectedTab, doTab+1);
+    }
+  } else {
+    tabSet.selectTab(newSelectedTab);
+  }
+}
+
+function cleanAllTabs() {
+  var tabCount = getTabCount();
+  tabSet.selectTab(0);
+  for (var i = 1; i <= tabCount; i++) {
+    tabSet.removeTab(1);
+  }
+}
+
+function openLinkedItem(tabId, recordId) {
+  openView(tabId, "Loading...", recordId, "EDIT", null, null);
+}
+
+function onLoadDo() {
+//  checkBuiltUrl("xx");
+}
+
+function getTabNumberFromParam(param, value, fromUrl) {
+  if (fromUrl === true) {
+    var urlSplit = OB.Layout.UrlManager.getDynamicUrl().split("&");
+    var selectedTab = urlSplit[0].replace("selectedTab=","");
+    selectedTab = parseInt(selectedTab);
+
+    var urlSplitLength = urlSplit.length;
+    var tab = new Array(urlSplitLength);
+    for (var i = 1; i < urlSplitLength; i++) {
+      tab[i] = new Array;
+      tab[i].position = urlSplit[i].substring(urlSplit[i].indexOf("tab")+3, urlSplit[i].indexOf("="));
+      if (urlSplit[i].indexOf("-U") === -1) {
+        tab[i].windowId = urlSplit[i].substring(urlSplit[i].indexOf("-W")+2, urlSplit[i].indexOf("-T"));
+        tab[i].tabId = urlSplit[i].substring(urlSplit[i].indexOf("-T")+2, urlSplit[i].indexOf("-R"));
+        tab[i].recordId = urlSplit[i].substring(urlSplit[i].indexOf("-R")+2, urlSplit[i].indexOf("-M"));
+      } else {
+        tab[i].manualUrl = urlSplit[i].substring(urlSplit[i].indexOf("-U")+2, urlSplit[i].indexOf("-M"));
+      }
+    }
+  } else {
+    var numberOfTabs = tabSet.tabs.length;
+    var tab = new Array(numberOfTabs);
+    for (var i = 1; i < numberOfTabs; i++) {
+      tab[i] = new Array;
+      tab[i].position = i;
+      tab[i].windowId = tabSet.getTab(i).windowId;
+      tab[i].tabId = tabSet.getTab(i).tabId;
+      tab[i].recordId = tabSet.getTab(i).recordId;
+      tab[i].manualUrl = tabSet.getTab(i).manualUrl;
+    }
+  }
+  var result = false;
+  if (param === "windowId") {
+    for (var j = 1; j < tab.length; j++) {
+      if (tab[j].windowId === value) {
+        result = j;
+      }
+    }
+  } else if (param === "tabId") {
+    for (var j = 1; j < tab.length; j++) {
+      if (tab[j].tabId === value) {
+        result = j;
+      }
+    }
+  } else if (param === "recordId") {
+    for (var k = 1; k < tab.length; k++) {
+      if (tab[k].recordId === value) {
+        result = k;
+      }
+    }
+  } else if (param === "manualUrl") {
+    for (var k = 1; k < tab.length; k++) {
+      if (tab[k].manualUrl === value) {
+        result = k;
+      }
+    }
+  }
+  return result;
+}
+
+function getTabCount() {
+  for (var i = 1; i > 0; i++) {
+    if (typeof tabSet.getTab(i) === "undefined") {
+      break;
+    }
+  }
+  return i-1;
+}
+
+function openView(tabId, title, recordId, mode, windowId, manualUrl, position, replace) {
+  var tabCount = getTabCount();
+  if (typeof position === "undefined" || position === null || position > tabCount+1) {
+    position = tabCount+1;
+  }
+
+  var SCTabId = "";
+
+  var url = "../../../security/Menu.html?";
+  if (manualUrl === null) {
+    SCTabId = "ClassicOB" + "_T" + tabId + "_R" + recordId;
+    url = url + "Command=";
+    url = url + mode.toUpperCase();
+
+    if (windowId !== null) {
+      url = url + "&windowId=" + windowId;
+    }
+    if (tabId !== null) {
+      url = url + "&tabId=" + tabId;
+    }
+    if (recordId !== null) {
+      url = url + "&recordId=" + recordId;
+    }
+  } else {
+    SCTabId = "ClassicOB" + "_U" + manualUrl;
+    SCTabId = SCTabId.replace(/\//g,"_");
+    SCTabId = SCTabId.replace(/\./g,"_");
+    windowId = null;
+    tabId = null;
+    recordId = null;
+    url = url + "url=";
+    url = url + manualUrl;
+  }
+
+  url = url + "&hideMenu=true&noprefs=true";
+  mode = mode.toLowerCase()
+
+  if (manualUrl === null) {
+    var existingCandidate = getTabNumberFromParam("windowId", windowId);
+    if (existingCandidate) {
+      position = existingCandidate;
+      replace = true;
+      if (tabId === tabSet.getTab(existingCandidate).tabId && recordId === tabSet.getTab(existingCandidate).recordId && mode === tabSet.getTab(existingCandidate).mode) {
+        tabSet.selectTab(existingCandidate);
+        return true;
+      }
+    }
+  } else {
+    var existingCandidate = getTabNumberFromParam("manualUrl", manualUrl);
+    if (existingCandidate) {
+      position = existingCandidate;
+      replace = true;
+      tabSet.selectTab(existingCandidate);
+      return true;
+    }
+  }
+
+  if (replace === true) {
+    tabSet.removeTab(position);
+  }
+
+  tabSet.addTab({
+    title: title,
+    canClose: true,
+    ID : SCTabId,
+    windowId: windowId,
+    tabId : tabId,
+    recordId : recordId,
+    mode : mode.toLowerCase(),
+    manualUrl: manualUrl,
+    dynamicUrlParam: "",
+    updateDynamicUrlParam: function() {
+      var newUrlParam = "ClassicOB";
+      if (this.manualUrl === null) {
+        if (this.windowId === null) {
+          this.windowId = "xx";
+        }
+        if (this.tabId === null) {
+          this.tabId = "xx";
+        }
+        if (this.recordId === null) {
+          this.recordId = "xx";
+        }
+        newUrlParam = newUrlParam + "-W" + this.windowId +"-T" + this.tabId + "-R" + this.recordId;
+      } else {
+        newUrlParam = newUrlParam + "-U" + this.manualUrl;
+      }
+      newUrlParam = newUrlParam + "-M" + this.mode;
+      this.dynamicUrlParam = newUrlParam;
+    },
+    pane: isc.HTMLPane.create({
+      showEdges: false,
+      contentsURL: url,
+      contentsType: "page"
+    })
+  }, position);
+  isAnyWindowBeingLoaded.push('xx');
+  tabSet.selectTab(SCTabId);
+}
+
+isc.TabSet.create({
+  ID: "tabSet",
+  tabBarPosition: "top",
+  width: "90%",
+  height: "90%",
+  tabSelected: function(tabNum, tabPane, ID, tab) {
+    this.updateDynamicUrl();
+    this.setDynamicUrlInBrowser();
+  },
+  closeClick: function(tab) {
+    this.removeTab(tab);
+    //updateBuiltUrl(); //Unneeded since when close one tab another is selected and then tabSelected is fired
+  },
+  dynamicUrl: "",
+  updateDynamicUrl: function () {
+    var newUrl = "";
+    var newUrlParam = "";
+    var tab = "";
+    newUrl = newUrl + "selectedTab=" + this.getSelectedTabNumber();
+    var areAllDynamicUrlParamDefined = true;
+    for (var i=0; ; i++) {
+      tab = this.getTab(i);
+      if (typeof tab === "undefined") {
+        break;
+      }
+      if (!tab.dynamicUrlParam) {
+        areAllDynamicUrlParamDefined = false;
+      } else {
+        newUrlParam = "&tab" + i + "=";
+        newUrlParam = newUrlParam + tab.dynamicUrlParam;
+        newUrl = newUrl + newUrlParam;
+      }
+    }
+    if (areAllDynamicUrlParamDefined) {
+      this.dynamicUrl = newUrl;
+    } else {
+      this.dynamicUrl = "error";
+    }
+  },
+  setDynamicUrlInBrowser: function () {
+    if (OB && OB.Layout && OB.Layout.UrlManager && OB.Layout.UrlManager.setDynamicUrl && this.dynamicUrl !== "error") {
+      OB.Layout.UrlManager.setDynamicUrl(this.dynamicUrl);
+    }
+  },
+  rebuildFromUrl: function (newUrl) {
+    alert(newUrl);
+  },
+  tabs: [
+    {
+      title: "Main",
+      canClose: false,
+      //icon: "pieces/16/pawn_blue.png",
+      dynamicUrlParam: "myOB",
+      updateDynamicUrlParam: function() {
+        return true;
+      },
+      pane: isc.DynamicForm.create({
+        ID: "exampleForm",
+        width: 250,
+        fields: [{
+          ID: "windowID",
+          title: "Window ID",
+          type: "text",
+          defaultValue: "123"
+        },{
+          ID: "tabID",
+          title: "Tab ID",
+          type: "text",
+          defaultValue: "220"
+        },{
+          ID: "recordID",
+          title: "Record ID",
+          type: "text"
+        },{
+          ID: "Command",
+          title: "Command",
+          type: "select",
+          defaultValue: "Default",
+          valueMap: {
+            "Default" : "Default",
+            "New" : "New",
+            "Grid" : "Grid",
+            "Edit" : "Edit"
+          }
+        },{
+          ID: "manualURL",
+          title: "Manual URL",
+          type: "text"
+        },{
+          ID: "buttonOpen",
+          title: "Open Window",
+          type: "button",
+          click: function () {
+            particularOpenTab();
+         }
+        }]
+      })
+    }/*,{
+      title: "Openbravo",
+      //icon: "pieces/16/pawn_green.png",
+      canClose: true,
+      windowId: "xx",
+      tabId: "xx",
+      recordId: "xx",
+      mode: "xx",
+      pane: isc.HTMLPane.create({
+        ID: "Openbravo",
+        showEdges: false,
+        contentsURL: "http://vmkubuntu:8880/pi",
+        contentsType: "page"
+      })
+    }*/
+  ]
+});
+
+
+</script>
+
+</BODY>
+</HTML>

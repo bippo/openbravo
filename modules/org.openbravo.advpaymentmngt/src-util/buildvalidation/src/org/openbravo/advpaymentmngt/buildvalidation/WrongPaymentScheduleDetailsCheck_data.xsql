@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="WrongPaymentScheduleDetailsCheckData" package="org.openbravo.advpaymentmngt.buildvalidation">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT '' AS CLIENT, '' AS documentno, '' AS NAME, '' AS AD_ALERTRULE_ID, '' AS SQL,
+              '' AS DESCRIPTION, '' AS RECORD_ID, '' AS REFERENCEKEY_ID, '' AS AD_CLIENT_ID, '' AS AD_ORG_ID,
+              '' AS CREATED, '' AS CREATEDBY, '' AS UPDATED, '' AS UPDATEDBY, '' AS ISACTIVE,
+              '' AS AD_ROLE_ID
+       FROM DUAL
+    ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="existWrongPaymentSchedules" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT count(*) AS existing
+      FROM (
+        SELECT o.c_order_id, o.documentno
+        FROM c_order o
+            JOIN fin_payment_schedule pso ON o.c_order_id = pso.c_order_id
+        WHERE EXISTS (SELECT 1 
+                      FROM c_invoice i
+                          JOIN c_invoiceline il ON il.c_invoice_id = i.c_invoice_id
+                          JOIN c_orderline ol ON il.c_orderline_id = ol.c_orderline_id
+                      WHERE ol.c_order_id = o.c_order_id
+                        AND i.docstatus = 'CO'
+                        AND NOT EXISTS (SELECT 1 FROM fin_payment_scheduledetail psd
+                                                      JOIN fin_payment_schedule psi ON psd.fin_payment_schedule_invoice = psi.fin_payment_schedule_id
+                                        WHERE il.c_invoice_id = psi.c_invoice_id
+                                          AND psd.fin_payment_schedule_order = pso.fin_payment_schedule_id))
+        AND EXISTS (SELECT 1 FROM fin_payment_scheduledetail psdo
+                    WHERE psdo.fin_payment_schedule_order = pso.fin_payment_schedule_id)) o
+          JOIN c_orderline ol ON ol.c_order_id = o.c_order_id
+          JOIN c_invoiceline il ON il.c_orderline_id = ol.c_orderline_id
+          JOIN c_invoice i ON i.c_invoice_id = il.c_invoice_id
+      ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="getUUID" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT get_uuid() as name
+       FROM dual
+    ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="existsAlertRule" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT COUNT(*) AS EXISTING
+       FROM AD_ALERTRULE
+       WHERE NAME LIKE 'Wrong payment plan on invoiced orders'
+         AND ISACTIVE = 'Y'
+      ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="getAlertRuleId" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT MAX(ad_alertrule_id) AS name
+       FROM AD_ALERTRULE
+       WHERE NAME LIKE 'Wrong payment plan on invoiced orders'
+         AND ISACTIVE = 'Y'
+      ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectAlertRule" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT  AD_CLIENT_ID, AD_ORG_ID,
+         CREATED, CREATEDBY, UPDATED, UPDATEDBY, ISACTIVE,
+         '' as RECORD_ID, '' as DESCRIPTION, '' as REFERENCEKEY_ID, '' as AD_ROLE_ID,
+         AD_ALERTRULE_ID, SQL, NAME
+       FROM AD_ALERTRULE
+       WHERE AD_ALERTRULE_ID = ?
+    ]]></Sql>
+    <Parameter name="alertRule"/>
+  </SqlMethod>
+  <SqlMethod name="selectAlert" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT AAA.*
+       FROM (SELECT '' AS DESCRIPTION, '' AS RECORD_ID, '' AS REFERENCEKEY_ID, '' AS AD_CLIENT_ID FROM DUAL) AAA 
+    ]]></Sql>
+    <Parameter name="sql" type="replace" optional="true" after="FROM (" text="SELECT '' AS DESCRIPTION, '' AS RECORD_ID, '' AS REFERENCEKEY_ID, '' AS AD_CLIENT_ID FROM DUAL"/>
+  </SqlMethod>
+  <SqlMethod name="existsStatusColumn" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT COUNT(*) AS EXISTING
+       FROM  user_tab_columns
+       WHERE lower(table_name) like 'ad_alert'
+         AND lower(column_name) like 'status'
+    ]]></Sql>
+  </SqlMethod>
+  <SqlMethod name="existsReference" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT COUNT(*) AS EXISTING
+       FROM AD_ALERT
+       WHERE AD_ALERTRULE_ID = ?
+         AND REFERENCEKEY_ID = ?
+         AND STATUS != 'SOLVED'
+    ]]></Sql>
+    <Parameter name="alertRule"/>
+    <Parameter name="ref"/>
+  </SqlMethod>
+  <SqlMethod name="existsReferenceOld" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT COUNT(*) AS EXISTING
+       FROM AD_ALERT
+       WHERE AD_ALERTRULE_ID = ?
+         AND REFERENCEKEY_ID = ?
+         AND ISFIXED = 'N'
+    ]]></Sql>
+    <Parameter name="alertRule"/>
+    <Parameter name="ref"/>
+  </SqlMethod>
+  <SqlMethod name="insertAlertRule" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      INSERT INTO AD_ALERTRULE (
+        AD_ALERTRULE_ID, AD_CLIENT_ID, AD_ORG_ID,ISACTIVE,
+        CREATED, CREATEDBY,  UPDATED, UPDATEDBY,
+        NAME, AD_TAB_ID, FILTERCLAUSE, TYPE,
+        SQL
+      ) VALUES (
+        ?, '0', '0', 'Y',
+        now(), '100', now(), '100',
+        'Wrong payment plan on invoiced orders', '263', '', 'D',
+        'select distinct inv.c_invoice_id as referencekey_id,
+           ad_column_identifier(''C_Invoice'', inv.c_invoice_id, ''en_US'') as record_id,
+           0 as ad_role_id, null as ad_user_id,
+           ''This invoice belongs to an order that has its payment plan wrong distributed through its invoices. Please reactivate all the invoices related to the order and complete them again.'' as description,
+           ''Y'' as isActive,
+           inv.ad_org_id, inv.ad_client_id,
+           now() as created, 0 as createdBy, now() as updated, 0 as updatedBy
+          FROM (
+            SELECT o.c_order_id
+            FROM c_order o
+                JOIN fin_payment_schedule pso ON o.c_order_id = pso.c_order_id
+            WHERE EXISTS (SELECT 1 
+                          FROM c_invoice i
+                              JOIN c_invoiceline il ON il.c_invoice_id = i.c_invoice_id
+                              JOIN c_orderline ol ON il.c_orderline_id = ol.c_orderline_id
+                          WHERE ol.c_order_id = o.c_order_id
+                            AND i.docstatus = ''CO''
+                            AND NOT EXISTS (SELECT 1 FROM fin_payment_scheduledetail psd
+                                                          JOIN fin_payment_schedule psi ON psd.fin_payment_schedule_invoice = psi.fin_payment_schedule_id
+                                            WHERE il.c_invoice_id = psi.c_invoice_id
+                                              AND psd.fin_payment_schedule_order = pso.fin_payment_schedule_id))
+              AND EXISTS (SELECT 1 FROM fin_payment_scheduledetail psdo
+                        WHERE psdo.fin_payment_schedule_order = pso.fin_payment_schedule_id)) o
+            JOIN c_orderline ol ON ol.c_order_id = o.c_order_id
+            JOIN c_invoiceline il ON il.c_orderline_id = ol.c_orderline_id
+            JOIN c_invoice inv ON inv.c_invoice_id = il.c_invoice_id'
+      )
+    ]]></Sql>
+    <Parameter name="alertRuleId"/>
+  </SqlMethod>
+  <SqlMethod name="insertAlert" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      INSERT INTO AD_Alert (
+        AD_Alert_ID, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated, UpdatedBy,
+        Description, AD_AlertRule_ID, Record_Id, Referencekey_ID
+      ) VALUES (
+        get_uuid(), ?, '0', 'Y',
+        NOW(), '0', NOW(), '0',
+        ?, ?, ?, ?)
+      ]]>
+    </Sql>
+    <Parameter name="client" />
+    <Parameter name="description" />
+    <Parameter name="adAlertRuleId" />
+    <Parameter name="recordId" />
+    <Parameter name="referencekey_id" />
+  </SqlMethod>
+  <SqlMethod name="existAPRMbasetables" type="preparedStatement" return="boolean">
+    <SqlMethodComment>Check if the FIN_Payment_ScheduleDetail table exist</SqlMethodComment>
+    <Sql><![CDATA[
+       SELECT count(*) AS EXISTING
+       FROM ad_table
+       WHERE ad_table_id = 'C0233061EA504EFEAB0483E836BBAF31'
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

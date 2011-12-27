@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<!--
+List of targets:
+
+update.database: updates structure and data in database.
+create.database.script: Creates the database script in the script directory.
+update.database.script: Updates the database script in the script directory.
+export.database.structure: Exports the database structure in the xml's files.
+-->
+<project name="openbravo" basedir=".">
+  <property environment="env" />
+  <condition property="bbdd.owner.url" value="${bbdd.url}/${bbdd.sid}" else="${bbdd.url}">
+    <and>
+      <equals arg1="${bbdd.rdbms}" arg2="POSTGRE" />
+    </and>
+  </condition>
+
+  <path id="runtime-classpath">
+    <dirset dir="${base.modules}">
+      <include name="*/build/classes/" />
+    </dirset>
+    <pathelement path="${basedir}/../../src-util/modulescript/build/classes/" />
+    <fileset dir="./lib">
+      <include name="**/*.jar" />
+      <exclude name="**/dbsourcemanagerlight.jar" />
+    </fileset>
+    <pathelement path="${build}" />
+    <fileset dir="${base.lib}">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+  <taskdef name="createscript" classname="org.openbravo.ddlutils.task.CreateXML2SQL">
+    <classpath refid="runtime-classpath" />
+  </taskdef>
+  <taskdef name="alterdatabasedataall" classname="org.openbravo.ddlutils.task.AlterDatabaseDataAll">
+    <classpath refid="runtime-classpath" />
+  </taskdef>
+  <taskdef name="alterdatabasedatamod" classname="org.openbravo.ddlutils.task.AlterDatabaseDataMod">
+    <classpath refid="runtime-classpath" />
+  </taskdef>
+  <taskdef name="alterscript" classname="org.openbravo.ddlutils.task.AlterXML2SQL">
+    <classpath refid="runtime-classpath" />
+  </taskdef>
+  <taskdef name="exportconfigscript" classname="org.openbravo.ddlutils.task.ExportConfigScript">
+    <classpath refid="runtime-classpath" />
+  </taskdef>
+
+  <target name="export.config.script">
+    <exportconfigscript driver="${bbdd.driver}" url="${bbdd.owner.url}" user="${bbdd.user}" filter="com.openbravo.db.OpenbravoMetadataFilter" password="${bbdd.password}" excludeobjects="com.openbravo.db.OpenbravoExcludeFilter" moduledir="${base.modules}" model="model" coreData="${base.db}/sourcedata" verbosity="${bbdd.verbosity}" industryTemplate="${industryTemplate}" />
+    <antcall target="update.dbupdate.timestamp" />
+  </target>
+
+  <target name="update.database">
+    <alterdatabasedataall driver="${bbdd.driver}" url="${bbdd.owner.url}" user="${bbdd.user}" password="${bbdd.password}" excludeobjects="com.openbravo.db.OpenbravoExcludeFilter" model="model" filter="com.openbravo.db.OpenbravoMetadataFilter" input="sourcedata" object="${bbdd.object}" failonerror="false" verbosity="${bbdd.verbosity}" basedir="${base.modules}/" dirFilter="*/src-db/database/model" datadir="${base.modules}/" dataFilter="*/src-db/database/sourcedata" userId="0" adminMode="true" propertiesFile="${base.config}/Openbravo.properties" force="${force}" onlyIfModified="${onlyIfModified}"/>
+    <antcall target="database.postupdate.${bbdd.rdbms}" />
+    <antcall target="update.dbupdate.timestamp" />
+  </target>
+  
+  
+  <target name="update.database.java">
+    <java classname="org.openbravo.ddlutils.task.AlterDatabaseJava" failonerror="true" fork="true" maxmemory="${build.maxmemory}">
+      <arg value="${bbdd.driver}"/>
+      <arg value="${bbdd.owner.url}"/>
+      <arg value="${bbdd.user}"/>
+      <arg value="${bbdd.password}"/>
+      <arg value="com.openbravo.db.OpenbravoExcludeFilter"/>
+      <arg value="model"/>
+      <arg value="com.openbravo.db.OpenbravoMetadataFilter"/>
+      <arg value="sourcedata"/>
+      <arg value="${bbdd.object}"/>
+      <arg value="false"/>
+      <arg value="${bbdd.verbosity}"/>
+      <arg value="${base.modules}/"/>
+      <arg value="*/src-db/database/model"/>
+      <arg value="${base.modules}/"/>
+      <arg value="*/src-db/database/sourcedata"/>
+      <arg value="${force}"/>
+      <arg value="${strict.template.application}"/>
+      <classpath refid="runtime-classpath" />
+      <syspropertyset>
+         <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+    <antcall target="database.postupdate.${bbdd.rdbms}" />
+    <antcall target="update.dbupdate.timestamp" />
+  </target>
+
+  <target name="update.database.mod.java">
+    <java classname="org.openbravo.ddlutils.task.AlterDatabaseModJava" failonerror="true" fork="true" maxmemory="${build.maxmemory}">
+      <arg value="${bbdd.driver}"/>
+      <arg value="${bbdd.owner.url}"/>
+      <arg value="${bbdd.user}"/>
+      <arg value="${bbdd.password}"/>
+      <arg value="com.openbravo.db.OpenbravoExcludeFilter"/>
+      <arg value="model"/>
+      <arg value="com.openbravo.db.OpenbravoMetadataFilter"/>
+      <arg value="sourcedata"/>
+      <arg value="${bbdd.object}"/>
+      <arg value="false"/>
+      <arg value="${bbdd.verbosity}"/>
+      <arg value="${base.modules}/"/>
+      <arg value="${base.config}/"/>
+      <arg value="*/src-db/database/model"/>
+      <arg value="${base.modules}/"/>
+      <arg value="*/src-db/database/sourcedata"/>
+      <arg value="${module}"/>
+      <arg value="${force}"/>
+      <arg value="${strict.template.application}"/>
+      <classpath refid="runtime-classpath" />
+      <syspropertyset>
+         <propertyref name="java.security.egd" />
+      </syspropertyset>
+    </java>
+    <antcall target="database.postupdate.${bbdd.rdbms}" />
+    <antcall target="update.dbupdate.timestamp" />
+  </target>
+  
+  <target name="update.database.mod">
+    <alterdatabasedatamod driver="${bbdd.driver}" url="${bbdd.owner.url}" user="${bbdd.user}" password="${bbdd.password}" excludeobjects="com.openbravo.db.OpenbravoExcludeFilter" model="model" filter="com.openbravo.db.OpenbravoMetadataFilter" input="sourcedata" object="${bbdd.object}" failonerror="false" verbosity="DEBUG" basedir="${base.modules}/" baseConfig="${base.config}" dirFilter="*/src-db/database/model" datadir="${base.modules}/" dataFilter="*/src-db/database/sourcedata" module="${module}" userId="0" adminMode="true" propertiesFile="${base.config}/Openbravo.properties" force="${force}" />
+    <antcall target="database.postupdate.${bbdd.rdbms}" />
+    <antcall target="update.dbupdate.timestamp" />
+  </target>
+
+  <target name="create.database.script">
+    <createscript driver="${bbdd.driver}" url="${bbdd.owner.url}" user="${bbdd.user}" password="${bbdd.password}" model="model" object="${bbdd.object}" output="${bbdd.outputscript}" dropfirst="false" verbosity="${bbdd.verbosity}" />
+  </target>
+
+  <target name="update.database.script">
+    <alterscript driver="${bbdd.driver}" url="${bbdd.owner.url}" user="${bbdd.user}" password="${bbdd.password}" excludeobjects="com.openbravo.db.OpenbravoExcludeFilter"  model="model/" filter="com.openbravo.db.OpenbravoMetadataFilter"  input="sourcedata" object="${bbdd.object}" failonerror="false" verbosity="${bbdd.verbosity}"  basedir="${base.modules}/" dirFilter="*/src-db/database/model" datadir="${base.modules}/" dataFilter="*/src-db/database/sourcedata" force="${force}" onlyIfModified="${onlyIfModified}" output="${bbdd.outputscript}" />
+  </target>
+
+  <target name="export.database.structure">
+      <taskdef name="exportdatabase" classname="org.openbravo.ddlutils.task.ExportDatabase">
+        <classpath refid="runtime-classpath" />
+      </taskdef>
+      <exportdatabase driver="${bbdd.driver}" url="${bbdd.owner.url}" user="${bbdd.user}" password="${bbdd.password}" excludeobjects="com.openbravo.db.OpenbravoExcludeFilter" model="model" moduledir="${base.modules}" verbosity="${bbdd.verbosity}" output="sourcedata" codeRevision="${code.revision}" userId="0" adminMode="true" propertiesFile="${base.config}/Openbravo.properties" force="${force}" validateModel="${validate.model}" testAPI="${isMinorVersion}" datasetList="AD,ADRD" rd="${rd}" checkTranslationConsistency="${checkTranslationConsistency}"/>
+      <antcall target="update.dbupdate.timestamp" />
+  </target>
+
+  <target name="database.postupdate.ORACLE">
+    <sql driver="${bbdd.driver}" url="${bbdd.owner.url}" userid="${bbdd.user}" password="${bbdd.password}" onerror="abort" autocommit="true">
+      <classpath>
+        <fileset dir="${base.lib}">
+          <include name="**/*.jar">
+          </include>
+        </fileset>
+      </classpath>
+      <transaction>
+          UPDATE AD_SYSTEM_INFO SET CODE_REVISION=SUBSTR('${code.revision}',1,60);
+          CALL AD_UPDATE_ACCESS();
+          UPDATE AD_MODULE SET SEQNO=NULL, STATUS='P', UPDATE_AVAILABLE=NULL WHERE STATUS IS NULL OR STATUS='I';
+          UPDATE AD_MODULE SET ISINDEVELOPMENT='N' WHERE ISINDEVELOPMENT IS NULL;
+          CALL AD_LANGUAGE_CREATE(NULL);
+        </transaction>
+    </sql>
+  </target>
+
+  <target name="database.postupdate.POSTGRE">
+    <sql driver="${bbdd.driver}" url="${bbdd.owner.url}" userid="${bbdd.user}" password="${bbdd.password}" onerror="abort" autocommit="true">
+      <classpath>
+        <fileset dir="${base.lib}">
+          <include name="**/*.jar">
+          </include>
+        </fileset>
+      </classpath>
+      <transaction>
+          UPDATE AD_SYSTEM_INFO SET CODE_REVISION=SUBSTR('${code.revision}',1,60);
+          SELECT AD_UPDATE_ACCESS();
+          UPDATE AD_MODULE SET SEQNO=NULL, STATUS='P', UPDATE_AVAILABLE=NULL WHERE STATUS IS NULL OR STATUS='I';
+          UPDATE AD_MODULE SET ISINDEVELOPMENT='N' WHERE ISINDEVELOPMENT IS NULL;
+          SELECT AD_LANGUAGE_CREATE(NULL);
+        </transaction>
+    </sql>
+  </target>
+
+  <target name="setApplied">
+    <sql driver="${bbdd.driver}" url="${bbdd.owner.url}" userid="${bbdd.user}" password="${bbdd.password}" onerror="abort" autocommit="true">
+      <classpath>
+        <fileset dir="${base.lib}">
+          <include name="**/*.jar">
+          </include>
+        </fileset>
+      </classpath>
+      <transaction>
+          UPDATE AD_MODULE SET STATUS='A' WHERE STATUS='P';
+          DELETE FROM AD_MODULE WHERE STATUS = 'U';
+      </transaction>
+    </sql>
+  </target>
+  
+  <target name="update.dbupdate.timestamp">
+    <sql driver="${bbdd.driver}" url="${bbdd.owner.url}" userid="${bbdd.user}" password="${bbdd.password}" onerror="continue" autocommit="true">
+      <classpath>
+        <fileset dir="${base.lib}">
+          <include name="**/*.jar">
+          </include>
+        </fileset>
+      </classpath>
+      <transaction>
+          UPDATE AD_SYSTEM_INFO SET LAST_DBUPDATE=NOW()
+        </transaction>
+    </sql>
+  </target>
+</project>
+

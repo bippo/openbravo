@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+  <database name="VIEW AD_AUDIT_TRAIL_V">
+    <view name="AD_AUDIT_TRAIL_V"><![CDATA[SELECT at.ad_audit_trail_id, at.ad_client_id, at.ad_org_id, at.isactive, at.created, at.createdby, at.updated, at.updatedby, at.ad_table_id, at.record_id, at.record_revision, at.ad_user_id, at.event_time, at.processtype, at.process_id, at.action, at.ad_column_id, at.old_char, at.new_char, at.old_nchar, at.new_nchar, at.old_number, at.new_number, at.old_date, at.new_date, 
+CASE
+WHEN at.processtype = 'P' THEN (SELECT to_char(p.name) AS to_char
+FROM ad_process p
+WHERE p.ad_process_id = at.process_id)
+WHEN at.processtype = 'W' THEN (SELECT to_char(w.name) AS to_char
+FROM ad_tab t, ad_window w
+WHERE t.ad_tab_id = at.process_id AND t.ad_window_id = w.ad_window_id)
+WHEN at.processtype = 'X' THEN (SELECT to_char(f.name) AS to_char
+FROM ad_form f
+WHERE f.ad_form_id = at.process_id)
+ELSE ''
+END AS process_desc, COALESCE(at.old_char, to_char(at.old_nchar), to_char(at.old_date), to_char(at.old_number)) AS old_value, COALESCE(at.new_char, to_char(at.new_nchar), to_char(at.new_date), to_char(at.new_number)) AS new_value
+FROM ad_audit_trail at]]></view>
+  </database>

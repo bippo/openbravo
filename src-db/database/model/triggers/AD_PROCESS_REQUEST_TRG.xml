@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_PROCESS_REQUEST_TRG">
+    <trigger name="AD_PROCESS_REQUEST_TRG" table="AD_PROCESS_REQUEST" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+IF (INSERTING OR UPDATING) THEN
+
+  IF (:NEW.TIMING_OPTION = 'S') THEN -- SCHEDULE
+
+    IF(:NEW.FREQUENCY = '1' AND (:NEW.SECONDLY_INTERVAL IS NULL OR :NEW.SECONDLY_INTERVAL < 1)) THEN -- SECONDLY
+      RAISE_APPLICATION_ERROR(-20000,'@InvalidProcessRequest@');
+    END IF;
+
+    IF(:NEW.FREQUENCY = '2' AND (:NEW.MINUTELY_INTERVAL IS NULL OR :NEW.MINUTELY_INTERVAL < 1)) THEN -- MINUTELY
+      RAISE_APPLICATION_ERROR(-20000,'@InvalidProcessRequest@');
+    END IF;
+
+    IF(:NEW.FREQUENCY = '3' AND (:NEW.HOURLY_INTERVAL IS NULL OR :NEW.HOURLY_INTERVAL < 1)) THEN -- HOURLY
+      RAISE_APPLICATION_ERROR(-20000,'@InvalidProcessRequest@');
+    END IF;
+
+    IF (:NEW.FREQUENCY = '4' AND (:NEW.DAILY_INTERVAL IS NULL OR :NEW.DAILY_INTERVAL < 1)) THEN -- DAILY
+      RAISE_APPLICATION_ERROR(-20000,'@InvalidProcessRequest@');
+    END IF;
+
+    IF(:NEW.FINISHES = 'Y' AND (:NEW.FINISHES_DATE IS NULL OR :NEW.FINISHES_TIME IS NULL)) THEN
+      RAISE_APPLICATION_ERROR(-20000,'@InvalidProcessRequest@');
+    END IF;
+
+  END IF;
+END IF;
+
+IF (DELETING) THEN
+  IF (:OLD.STATUS = 'SCH' OR :OLD.STATUS = 'MIS') THEN -- Fail on Scheduled or Misfired process request
+    RAISE_APPLICATION_ERROR(-20000,'@20630@');
+  END IF;
+END IF;
+
+END AD_PROCESS_REQUEST_TRG
+]]></body>
+    </trigger>
+  </database>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+  <database name="VIEW FIN_PAYMENT_SCHED_ORD_V">
+    <view name="FIN_PAYMENT_SCHED_ORD_V"><![CDATA[SELECT ps.fin_payment_schedule_id AS fin_payment_sched_ord_v_id, ps.ad_client_id, ps.ad_org_id, ps.isactive, ps.created, ps.createdby, ps.updated, ps.updatedby, ps.c_invoice_id, ps.c_order_id, ps.duedate, ps.fin_paymentmethod_id, ps.amount AS expected, ps.paidamt AS received, ps.outstandingamt AS outstanding, ps.c_currency_id, (SELECT max(p.paymentdate) AS max
+FROM fin_payment p
+LEFT JOIN fin_payment_detail pd ON pd.fin_payment_id = p.fin_payment_id
+LEFT JOIN fin_payment_scheduledetail psd ON pd.fin_payment_detail_id = psd.fin_payment_detail_id
+WHERE ps.c_order_id IS NOT NULL AND psd.fin_payment_schedule_order = ps.fin_payment_schedule_id) AS lastpayment, (SELECT count(*) AS count
+FROM fin_payment_detail pd, fin_payment_scheduledetail psd
+WHERE pd.fin_payment_detail_id = psd.fin_payment_detail_id AND ps.c_order_id IS NOT NULL AND psd.fin_payment_schedule_order = ps.fin_payment_schedule_id) AS numberofpayments, ps.fin_payment_priority_id, ps.update_payment_plan
+FROM fin_payment_schedule ps]]></view>
+  </database>

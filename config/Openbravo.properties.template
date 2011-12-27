@@ -1,0 +1,198 @@
+# *************************************************************************
+# * The contents of this file are subject to the Openbravo  Public  License
+# * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+# * Version 1.1  with a permitted attribution clause; you may not  use this
+# * file except in compliance with the License. You  may  obtain  a copy of
+# * the License at http://www.openbravo.com/legal/license.html 
+# * Software distributed under the License  is  distributed  on  an "AS IS"
+# * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+# * License for the specific  language  governing  rights  and  limitations
+# * under the License. 
+# * The Original Code is Openbravo ERP. 
+# * The Initial Developer of the Original Code is Openbravo SLU 
+# * All portions are Copyright (C) 2007-2010 Openbravo SLU 
+# * All Rights Reserved. 
+# * Contributor(s):  ______________________________________.
+# ************************************************************************
+#
+# Documentation at http://wiki.openbravo.com/wiki/Openbravo.properties
+
+####################
+# Date/time format #
+####################
+
+dateFormat.js=%d-%m-%Y
+dateFormat.sql=DD-MM-YYYY
+dateFormat.java=dd-MM-yyyy
+dateTimeFormat.java=dd-MM-yyyy HH:mm:ss
+dateTimeFormat.sql=DD-MM-YYYY HH24:MI:SS
+
+###########
+# General #
+###########
+
+# Static content URL. Use the default value to make it dynamic.
+# Don't change this unless you know what you are doing
+web.url=@actual_url_context@/web
+
+# Full URL of the context, *only* used by the Web Services installation 
+# and diagnostic task
+context.url=http://localhost:8080/openbravo
+
+# Absolute path to the attachments directory
+attach.path=/opt/openbravo/attachments
+
+# Context name, used in the final war file
+context.name=openbravo
+
+# Root sources directory, used by modularity
+source.path=/opt/openbravo
+
+#Deploy mode: valid values [class, war, none]
+deploy.mode=class
+
+############
+# Database #
+############
+
+# Oracle example:
+#
+# bbdd.rdbms=ORACLE
+# bbdd.driver=oracle.jdbc.driver.OracleDriver
+# bbdd.url=jdbc:oracle:thin:@localhost:1521:xe
+# bbdd.sid=xe
+# bbdd.systemUser=SYSTEM
+# bbdd.systemPassword=SYSTEM
+# bbdd.user=TAD
+# bbdd.password=TAD
+# bbdd.sessionConfig=ALTER SESSION SET NLS_DATE_FORMAT='DD-MM-YYYY' NLS_NUMERIC_CHARACTERS='.,'
+
+# Oracle instances in linux, can delay on getting DB connection (issue #12683). 
+# In these cases this property can be set to solve the problem
+# java.security.egd=file:///dev/urandom
+
+bbdd.rdbms=POSTGRE
+bbdd.driver=org.postgresql.Driver
+bbdd.url=jdbc:postgresql://localhost:5432
+bbdd.sid=openbravo
+bbdd.systemUser=postgres
+bbdd.systemPassword=syspass
+bbdd.user=tad
+bbdd.password=tad
+bbdd.sessionConfig=select update_dateFormat('DD-MM-YYYY')
+
+##################
+# Tomcat manager #
+##################
+
+# From Tomcat 7 manager url is host/manager/text. In previous versions it is
+# host/manager
+tomcat.manager.url=http://localhost:8080/manager
+
+# From Tomcat 7 this user must have manager-script role access. In previous
+# versions. In previous versions it must have manager role access.
+tomcat.manager.username=admin
+tomcat.manager.password=admin
+
+##########################
+# Development parameters #
+##########################
+
+bbdd.outputscript=databasescript.sql
+bbdd.verbosity=INFO
+
+# CSS Sprites Generator
+generateSprites=no
+
+# use js/css minimization (in local-context and war-file)
+minimizeJSandCSS=yes
+
+# How sqlc should execute the queries embedded in xsql file at compilation time
+# traditional: only uses the base query ignoring all optional parameters
+# optimized: includes most optional parameter to achieve better performance
+# If optimized fails for some xsql files, downgrade level to traditional
+sqlc.queryExecutionStrategy=optimized
+
+##################
+# Authentication #
+##################
+
+# Leave this empty to use the default login handler.
+# Examples:
+# - org.openbravo.authentication.basic.AutologonAuthenticationManager (included)
+# - org.openbravo.authentication.lam.LamAuthenticationManager (in external 'LAM Authentication Manager' module)
+authentication.class=
+
+###########
+# Add-ons #
+###########
+
+# External Pentaho Services
+pentahoServer=
+
+##############
+# Validation #
+##############
+
+validate.model=true
+isMinorVersion=false
+
+##############
+# Safe mode  #
+##############
+
+# This property is used to activate/deactivate the safe mode of Openbravo ERP
+# When this property is activated, if the last build wasn't succesful, or Tomcat
+# wasn't restarted, users will only be able to login in the application 
+# with role System Administrator
+
+safe.mode=true
+
+################################
+# Strict Template Application  #
+################################
+
+# This property is used to set the configuration script application mode.
+# If the template application mode is strict, then inconsistencies in the template
+# (such as the value to be changed being different from the value in a column
+# data change of a configuration script) will make the process fail.
+# If it's not strict the process will show a warning, but otherwise continue
+
+# For production environments, this property should be false.
+# For development environments, specially those working with
+# Industry templates and configuration scripts, it is advisable to set this property to true
+
+strict.template.application=false
+
+##############
+# Hibernate #
+##############
+
+# if this property is set then the mapping will be written to the file
+# defined by this property, note the value should be the complete path 
+# including the file name and extension.
+# hibernate.hbm.file=/tmp/hibernate.hbm.xml
+
+
+###################
+# Log in security #
+###################
+
+# If these properties are set, after a failed login the response time 
+# will be delayed, and the user account can be blocked.
+login.trial.delay.increment=0
+login.trial.delay.max=0
+login.trial.user.lock=0
+
+##########
+# Others #
+##########
+
+# You are not allowed to run ant commands with the root user.
+# Set allow.root to true to override this.
+allow.root=false
+
+# Specifies if the current instance is used for automated tests.
+# Setting this to true will enable extra (hidden) functionality used 
+# automated test scripts.
+test.environment=false

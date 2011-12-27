@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="PriceListVersionComboData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT M_PriceList_Version.M_PriceList_Version_ID, 
+        M_PriceList_Version.Name || ' - ' || c.Iso_Code AS Name 
+        FROM M_PriceList_Version, M_PriceList p, C_Currency c 
+        WHERE M_PriceList_Version.M_PriceList_ID=p.M_PriceList_ID 
+        AND p.C_Currency_ID=c.C_Currency_ID 
+        AND M_PriceList_Version.IsActive='Y' 
+        AND M_PriceList_Version.AD_Client_ID IN ('1') 
+        ORDER BY M_PriceList_Version.Name
+      ]]></Sql>
+      <Parameter name="priceList" optional="true" after="AND M_PriceList_Version.IsActive='Y' " text="AND EXISTS (SELECT * FROM M_PriceList xp WHERE xp.M_PriceList_ID= ? AND p.C_Currency_ID=xp.C_Currency_ID)"/>
+      <Parameter name="adUserClient" type="replace" optional="true" after="M_PriceList_Version.AD_Client_ID IN (" text="'1'"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectActual" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT plv.M_PriceList_Version_ID 
+        FROM M_PriceList pl, M_PriceList_Version plv 
+        WHERE pl.M_PriceList_ID=plv.M_PriceList_ID 
+        AND plv.IsActive= 'Y' 
+        AND pl.M_PriceList_ID = ? 
+        AND plv.ValidFrom <= TO_DATE(?) 
+        AND plv.AD_Client_ID IN ('1') 
+        ORDER BY plv.ValidFrom Desc
+      ]]></Sql>
+      <Parameter name="priceList"/>
+      <Parameter name="date"/>
+      <Parameter name="adUserClient" type="replace" optional="true" after="plv.AD_Client_ID IN (" text="'1'"/>
+   </SqlMethod>
+</SqlClass>

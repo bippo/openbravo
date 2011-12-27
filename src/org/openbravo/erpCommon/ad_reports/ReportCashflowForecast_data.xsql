@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportCashflowForecastData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment>Clase ReportToInvoiceConsignmentData</SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <Sql>
+    <![CDATA[
+      SELECT AD_COLUMN_IDENTIFIER(TO_CHAR('C_BankAccount'), TO_CHAR(BANKACCOUNTID), TO_CHAR(?)) as BANKACCOUNT, 
+             INITIALBALANCE,
+             TRUNC(NOW()) AS CURRENTDATE, 
+             INCOME, 
+             PAYMENT, 
+             INCOME-PAYMENT AS INCPAY, 
+             INITIALBALANCE+INCOME-PAYMENT AS 
+             FINALSUMMARY, C_BANKACCOUNT_ID,             
+             '' AS C_DEBT_PAYMENT_ID, 
+             '' AS DATEPLANNED, 
+             '' AS BPARTNER,
+             '' AS DESCRIPTION, 
+             '' AS INVOICENO, 
+             '' AS DATEINVOICED,
+             '' AS AMOUNT,
+             '' AS ISRECEIPT,
+             '' AS URL,
+             '' AS ISRECEIPTMESSAGE FROM (     
+            SELECT BA.C_BANKACCOUNT_ID AS BANKACCOUNTID,
+             SUM(c_currency_convert(STMTAMT, BL.C_CURRENCY_ID, BA.C_CURRENCY_ID, BL.VALUTADATE, NULL, ba.ad_client_id, ba.ad_org_id)) AS INITIALBALANCE,
+             COALESCE((SELECT SUM(c_currency_convert(DP.AMOUNT, dp.C_CURRENCY_ID, ba.c_Currency_ID, dp.dateplanned,null, ba.ad_client_id, ba.ad_org_id))
+                FROM C_DEBT_PAYMENT_V DP
+               WHERE C_SETTLEMENT_CANCEL_ID IS NULL
+                 AND DP.C_BANKACCOUNT_ID IS NOT NULL         
+                 AND C_DEBT_PAYMENT_STATUS(C_SETTLEMENT_CANCEL_ID, CANCEL_PROCESSED, GENERATE_PROCESSED, DP.ISPAID, ISVALID, C_CASHLINE_ID, C_BANKSTATEMENTLINE_ID) = 'P'
+                 AND ISRECEIPT = 'Y'
+                 AND DP.C_BANKACCOUNT_ID = BA.C_BANKACCOUNT_ID
+                 AND 1=1
+                 AND NOT EXISTS (SELECT 1 
+                           FROM C_REMITTANCELINE  RL,
+                                C_REMITTANCE      R,
+                                C_REMITTANCE_TYPE RT
+                          WHERE R.C_REMITTANCE_ID = RL.C_REMITTANCE_ID
+                            AND R.C_REMITTANCE_TYPE_ID = RT.C_REMITTANCE_TYPE_ID
+                            AND CONSOLIDATE = 'Y' 
+                            AND (C_DEBT_PAYMENT_ID  = DP.C_DEBT_PAYMENT_ID
+                             OR C_DEBT_PAYMENT_CANCELLED = DP.C_DEBT_PAYMENT_ID)
+                            AND NOT EXISTS (SELECT 1   /*IF CANCEL DP IS IN BANK (IT IS RETURNED) IT HAS TO APPEAR*/
+                                              FROM C_BANKSTATEMENTLINE BSL,
+                                                   C_BANKSTATEMENT B
+                                            WHERE BSL.C_DEBT_PAYMENT_ID = RL.C_DEBT_PAYMENT_CANCELLED
+                                              AND BSL.C_BANKSTATEMENT_ID = B.C_BANKSTATEMENT_ID
+                                              AND B.PROCESSED='Y'))
+              ),0) AS INCOME,
+            -COALESCE((SELECT SUM(c_currency_convert(DP.AMOUNT, dp.C_CURRENCY_ID, ba.c_Currency_ID, dp.dateplanned,null, ba.ad_client_id, ba.ad_org_id))
+                FROM C_DEBT_PAYMENT_V DP
+               WHERE C_SETTLEMENT_CANCEL_ID IS NULL
+                 AND DP.C_BANKACCOUNT_ID IS NOT NULL         
+                 AND C_DEBT_PAYMENT_STATUS(C_SETTLEMENT_CANCEL_ID, CANCEL_PROCESSED, GENERATE_PROCESSED, DP.ISPAID, ISVALID, C_CASHLINE_ID, C_BANKSTATEMENTLINE_ID) = 'P'
+                 AND ISRECEIPT='N'
+                 AND DP.C_BANKACCOUNT_ID = BA.C_BANKACCOUNT_ID
+                 AND 2=2
+                 AND NOT EXISTS (SELECT 1 
+                           FROM C_REMITTANCELINE  RL,
+                                C_REMITTANCE      R,
+                                C_REMITTANCE_TYPE RT
+                          WHERE R.C_REMITTANCE_ID = RL.C_REMITTANCE_ID
+                            AND R.C_REMITTANCE_TYPE_ID = RT.C_REMITTANCE_TYPE_ID
+                            AND CONSOLIDATE = 'Y' 
+                            AND (C_DEBT_PAYMENT_ID  = DP.C_DEBT_PAYMENT_ID
+                             OR C_DEBT_PAYMENT_CANCELLED = DP.C_DEBT_PAYMENT_ID)
+                            AND NOT EXISTS (SELECT 1   /*IF CANCEL DP IS IN BANK (IT IS RETURNED) IT HAS TO APPEAR*/
+                                              FROM C_BANKSTATEMENTLINE BSL,
+                                                   C_BANKSTATEMENT B
+                                            WHERE BSL.C_DEBT_PAYMENT_ID = RL.C_DEBT_PAYMENT_CANCELLED
+                                              AND BSL.C_BANKSTATEMENT_ID = B.C_BANKSTATEMENT_ID
+                                              AND B.PROCESSED='Y'))
+               ),0) AS PAYMENT,
+             BA.C_BANKACCOUNT_ID
+      FROM C_BANKSTATEMENTLINE BL,
+           C_BANKSTATEMENT     BS,
+           C_BANKACCOUNT       BA
+      WHERE BS.C_BANKSTATEMENT_ID = BL.C_BANKSTATEMENT_ID
+        AND BA.C_BANKACCOUNT_ID = BS.C_BANKACCOUNT_ID
+        AND BS.PROCESSED='Y'  
+        AND BS.STATEMENTDATE <= NOW()
+        AND 3=3
+        AND BA.AD_CLIENT_ID IN ('1')
+        AND BA.AD_ORG_ID IN ('1') 
+       GROUP BY BA.C_BANKACCOUNT_ID, ba.c_Currency_ID, ba.ad_client_id, ba.ad_org_id 
+       ) AAA  
+       ORDER BY 1
+     ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
+    <Parameter name="dateMax" optional="true" after="AND 1=1"><![CDATA[ AND DP.DATEPLANNED <= TO_DATE(?) ]]></Parameter>
+    <Parameter name="dateMax" optional="true" after="AND 2=2"><![CDATA[ AND DP.DATEPLANNED <= TO_DATE(?) ]]></Parameter>
+    <Parameter name="bankaccount" optional="true" after="AND 3=3"><![CDATA[ AND BA.C_BANKACCOUNT_ID = ? ]]></Parameter>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND BA.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="AND BA.AD_ORG_ID IN (" text="'1'"/> 
+  </SqlMethod>
+
+ <SqlMethod name="selectLines" type="preparedStatement" return="multiple">
+    <Sql>
+      <![CDATA[
+      SELECT DATEPLANNED, 
+              ISRECEIPT,
+              COALESCE(mt.msgtext,m.msgtext) as IsReceiptMessage, 
+              DP.C_DEBT_PAYMENT_ID, 
+              BP.NAME AS BPARTNER,
+              DP.DESCRIPTION, 
+              I.DOCUMENTNO AS INVOICENO, 
+              TO_CHAR(I.DATEINVOICED,TO_CHAR(?)) AS DATEINVOICED,
+              c_currency_convert(DP.AMOUNT, dp.C_CURRENCY_ID, ba.c_Currency_ID, dp.dateplanned,null, ba.ad_client_id, ba.ad_org_id) AS AMOUNT,
+              (CASE WHEN DP.C_Invoice_ID IS NOT NULL
+                THEN (CASE ISRECEIPT WHEN 'Y' THEN 'SalesInvoice/Payment_Relation.html' WHEN 'N' THEN 'PurchaseInvoice/Payment_Relation.html' END) 
+               ELSE
+                CASE WHEN DP.C_Order_ID IS NOT NULL
+                  THEN (CASE ISRECEIPT WHEN 'Y' THEN 'SalesOrder/Payment_Relation.html' WHEN 'N' THEN 'PurchaseOrder/Payment_Relation.html' END)
+                ELSE
+                  CASE WHEN DP.C_Settlement_Generate_ID IS NOT NULL
+                    THEN 'Settlement/CreatedPayments_Relation.html'
+                  END                  
+                END
+               END) AS URL,
+              (SELECT SUM(c_currency_convert(STMTAMT, BL.C_CURRENCY_ID, BA.C_CURRENCY_ID, BL.VALUTADATE, NULL, ba.ad_client_id, ba.ad_org_id)) AS BALANCE             
+                 FROM C_BANKSTATEMENTLINE BL,
+                      C_BANKSTATEMENT     BS
+                 WHERE BS.C_BANKSTATEMENT_ID = BL.C_BANKSTATEMENT_ID
+                   AND BS.PROCESSED='Y'  
+                   AND BS.STATEMENTDATE <= NOW()
+                   AND BS.C_BANKACCOUNT_ID = DP.C_BANKACCOUNT_ID ) as initialbalance
+        FROM C_DEBT_PAYMENT_V DP LEFT JOIN C_INVOICE I ON DP.C_INVOICE_ID = I.C_INVOICE_ID,
+             AD_MESSAGE M        LEFT JOIN AD_MESSAGE_TRL MT ON m.ad_message_id = mt.ad_message_id         
+                                                            and mt.ad_language = ?,
+             C_BPARTNER BP,
+             C_BANKACCOUNT       BA             
+       WHERE BA.C_BANKACCOUNT_ID = DP.C_BANKACCOUNT_ID
+         AND C_SETTLEMENT_CANCEL_ID IS NULL
+         AND DP.C_BANKACCOUNT_ID IS NOT NULL         
+         AND C_DEBT_PAYMENT_STATUS(C_SETTLEMENT_CANCEL_ID, CANCEL_PROCESSED, GENERATE_PROCESSED, DP.ISPAID, ISVALID, C_CASHLINE_ID, C_BANKSTATEMENTLINE_ID) = 'P'
+         AND BP.C_BPARTNER_ID = DP.C_BPARTNER_ID
+         AND DP.C_BANKACCOUNT_ID = ?
+         AND M.VALUE = (CASE DP.ISRECEIPT WHEN 'Y' THEN 'Income' WHEN 'N' THEN 'Payments' END)
+         AND NOT EXISTS (SELECT 1 
+                           FROM C_REMITTANCELINE  RL,
+                                C_REMITTANCE      R,
+                                C_REMITTANCE_TYPE RT
+                          WHERE R.C_REMITTANCE_ID = RL.C_REMITTANCE_ID
+                            AND R.C_REMITTANCE_TYPE_ID = RT.C_REMITTANCE_TYPE_ID
+                            AND CONSOLIDATE = 'Y' 
+                            AND (C_DEBT_PAYMENT_ID  = DP.C_DEBT_PAYMENT_ID
+                             OR C_DEBT_PAYMENT_CANCELLED = DP.C_DEBT_PAYMENT_ID)
+                            AND NOT EXISTS (SELECT 1   /*IF CANCEL DP IS IN BANK (IT IS RETURNED) IT HAS TO APPEAR*/
+                                              FROM C_BANKSTATEMENTLINE BSL,
+                                                   C_BANKSTATEMENT B
+                                            WHERE BSL.C_DEBT_PAYMENT_ID = RL.C_DEBT_PAYMENT_CANCELLED
+                                              AND BSL.C_BANKSTATEMENT_ID = B.C_BANKSTATEMENT_ID
+                                              AND B.PROCESSED='Y'))
+         AND 1=1
+       ORDER BY 1,2 DESC
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="dateFormat"/>
+    <Parameter name="language"/>
+    <Parameter name="bankaccount"/>
+    <Parameter name="dateMax" optional="true" after="AND 1=1"><![CDATA[ AND DP.DATEPLANNED <= TO_DATE(?) ]]></Parameter>
+    <Parameter name="order" optional="true" type="replace"  after="ORDER BY " text="1,2,3 DESC"/>
+  </SqlMethod>
+
+  <SqlMethod name="getDate" type="preparedStatement" return="String">
+    <Sql>
+      SELECT TO_CHAR(NOW(),TO_CHAR(?)) AS CURRENTDATE FROM DUAL
+    </Sql>
+    <Parameter name="dateFormat"/>
+  </SqlMethod>
+  <SqlMethod name="selectAllLines" type="preparedStatement" return="multiple">
+    <Sql>
+      <![CDATA[
+      SELECT (B.CODEBANK || '/' || B.CODEBRANCH || B.DIGITCONTROL || BA.CODEACCOUNT || '.' || BA.DIGITCONTROL) AS BANKACCOUNT,
+              DATEPLANNED, 
+              ISRECEIPT, 
+              COALESCE(mt.msgtext,m.msgtext) as IsReceiptMessage, 
+              DP.C_DEBT_PAYMENT_ID, 
+              BP.NAME AS BPARTNER,
+              DP.DESCRIPTION, 
+              I.DOCUMENTNO AS INVOICENO, 
+              TO_CHAR(I.DATEINVOICED,TO_CHAR(?)) AS DATEINVOICED,
+              c_currency_convert(DP.AMOUNT, dp.C_CURRENCY_ID, ba.c_Currency_ID, dp.dateplanned,null, ba.ad_client_id, ba.ad_org_id) AS AMOUNT,
+              (CASE WHEN DP.C_Invoice_ID IS NOT NULL
+                THEN (CASE ISRECEIPT WHEN 'Y' THEN 'SalesInvoice/Payment_Relation.html' WHEN 'N' THEN 'PurchaseInvoice/Payment_Relation.html' END) 
+               ELSE
+                CASE WHEN DP.C_Order_ID IS NOT NULL
+                  THEN (CASE ISRECEIPT WHEN 'Y' THEN 'SalesOrder/Payment_Relation.html' WHEN 'N' THEN 'PurchaseOrder/Payment_Relation.html' END)
+                ELSE
+                  CASE WHEN DP.C_Settlement_Generate_ID IS NOT NULL
+                    THEN 'Settlement/CreatedPayments_Relation.html'
+                  END                  
+                END
+               END) AS URL,
+              (SELECT SUM(c_currency_convert(STMTAMT, BL.C_CURRENCY_ID, BA.C_CURRENCY_ID, BL.VALUTADATE, NULL, ba.ad_client_id, ba.ad_org_id)) AS BALANCE             
+                 FROM C_BANKSTATEMENTLINE BL,
+                      C_BANKSTATEMENT     BS
+                 WHERE BS.C_BANKSTATEMENT_ID = BL.C_BANKSTATEMENT_ID
+                   AND BS.PROCESSED='Y'  
+                   AND BS.STATEMENTDATE <= NOW()
+                   AND BS.C_BANKACCOUNT_ID = DP.C_BANKACCOUNT_ID ) as initialbalance
+        FROM C_DEBT_PAYMENT_V DP LEFT JOIN C_INVOICE I ON DP.C_INVOICE_ID = I.C_INVOICE_ID,
+             AD_MESSAGE M        LEFT JOIN AD_MESSAGE_TRL MT ON m.ad_message_id = mt.ad_message_id         
+                                                            and mt.ad_language = ?,
+             C_BPARTNER BP,
+             C_BANKACCOUNT       BA,
+             C_BANK              B             
+       WHERE BA.C_BANKACCOUNT_ID = DP.C_BANKACCOUNT_ID
+         AND C_SETTLEMENT_CANCEL_ID IS NULL
+         AND BA.C_BANK_ID = B.C_BANK_ID 
+         AND DP.C_BANKACCOUNT_ID IS NOT NULL         
+         AND C_DEBT_PAYMENT_STATUS(C_SETTLEMENT_CANCEL_ID, CANCEL_PROCESSED, GENERATE_PROCESSED, DP.ISPAID, ISVALID, C_CASHLINE_ID, C_BANKSTATEMENTLINE_ID) = 'P'
+         AND BP.C_BPARTNER_ID = DP.C_BPARTNER_ID
+         AND 2=2
+         AND M.VALUE = (CASE DP.ISRECEIPT WHEN 'Y' THEN 'Income' WHEN 'N' THEN 'Payments' END)
+         AND NOT EXISTS (SELECT 1 
+                           FROM C_REMITTANCELINE  RL,
+                                C_REMITTANCE      R,
+                                C_REMITTANCE_TYPE RT
+                          WHERE R.C_REMITTANCE_ID = RL.C_REMITTANCE_ID
+                            AND R.C_REMITTANCE_TYPE_ID = RT.C_REMITTANCE_TYPE_ID
+                            AND CONSOLIDATE = 'Y' 
+                            AND (C_DEBT_PAYMENT_ID  = DP.C_DEBT_PAYMENT_ID
+                             OR C_DEBT_PAYMENT_CANCELLED = DP.C_DEBT_PAYMENT_ID)
+                            AND NOT EXISTS (SELECT 1   /*IF CANCEL DP IS IN BANK (IT IS RETURNED) IT HAS TO APPEAR*/
+                                              FROM C_BANKSTATEMENTLINE BSL,
+                                                   C_BANKSTATEMENT B
+                                            WHERE BSL.C_DEBT_PAYMENT_ID = RL.C_DEBT_PAYMENT_CANCELLED
+                                              AND BSL.C_BANKSTATEMENT_ID = B.C_BANKSTATEMENT_ID
+                                              AND B.PROCESSED='Y'))
+         AND 1=1
+       ORDER BY 1,2 DESC
+    ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="dateFormat"/>
+    <Parameter name="language"/>
+    <Parameter name="bankaccount" optional="true" after="AND 2=2"><![CDATA[AND DP.C_BANKACCOUNT_ID = ?]]></Parameter>
+    <Parameter name="dateMax" optional="true" after="AND 1=1"><![CDATA[ AND DP.DATEPLANNED <= TO_DATE(?)]]></Parameter>
+    <Parameter name="order" optional="true" type="replace"  after="ORDER BY " text="1,2,3 DESC"/>
+  </SqlMethod>
+</SqlClass>

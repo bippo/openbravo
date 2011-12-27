@@ -1,0 +1,384 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_DP_MANAGEMENT_POST">
+    <function name="C_DP_MANAGEMENT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_dp_management_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  --  Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32) ;
+  v_AD_User_ID VARCHAR2(32) ;
+  v_AD_Client_ID VARCHAR2(32) ;
+  v_AD_Org_ID VARCHAR2(32) ;
+  v_PAD_User_ID VARCHAR2(32) ;
+  v_Processed VARCHAR2(60) ;
+  v_Posted VARCHAR2(60) ;
+  v_Currency VARCHAR2(32);
+  v_Date DATE;
+  v_CashBook_ISO_Code VARCHAR(10) ;
+  v_Record_Description VARCHAR2(2000):='';
+  v_Debt_Payment_ID VARCHAR2(32) ;
+  --Addesd by PSarobe 12062007
+  v_line NUMBER;
+  v_DpManagementline_ID VARCHAR2(32);
+  v_Remittanceline_ID VARCHAR2(32);
+  v_documentno_Settlement VARCHAR2(40);
+  v_dateSettlement DATE;
+  v_Cancel_Processed CHAR(1);
+  v_nameBankstatement VARCHAR2 (60);
+  v_dateBankstatement DATE;
+  v_nameCash VARCHAR2 (60);
+  v_dateCash DATE;
+  v_Bankstatementline_ID VARCHAR2(32);
+  v_CashLine_ID VARCHAR2(32);
+  v_ispaid CHAR(1);
+  v_Settlement_Cancel_ID VARCHAR2(32);
+  v_is_included NUMBER:=0;
+  v_available_period NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+  v_DocType_ID VARCHAR2(32);
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --  Parameter Variables
+    v_Aux NUMBER;
+    v_CanceledNotChargeAmt NUMBER:=0;
+    v_GeneratedAmt NUMBER:=0;
+    v_ChargedAmt NUMBER:=0;
+    v_ForcedOrg NUMBER;
+    v_ManualAmt NUMBER:=0;
+    Cur_Lines RECORD;
+    Cur_Line_DP RECORD;
+    Cur_DPDebtpayment RECORD;
+    FINISH_PROCESS BOOLEAN:=false;
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      --  Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,
+          i.AD_User_ID,
+          p.ParameterName,
+          p.P_String,
+          p.P_Number,
+          p.P_Date
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_PAD_User_ID:=Cur_Parameter.AD_User_ID;
+      END LOOP; --  Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<C_Settlement_Post>>') ;
+      v_Record_ID:=p_DP_Management_ID;
+    END IF;
+  BEGIN --BODY
+    SELECT UpdatedBy,
+      AD_Client_ID,
+      Processed,
+      Posted, AD_Org_ID, DateAcct, C_DocType_ID
+    INTO v_AD_User_ID,
+      v_AD_Client_ID,
+      v_processed,
+      v_posted, v_AD_Org_ID, v_Date, v_DocType_ID
+    FROM c_DP_Management
+    WHERE c_DP_Management_ID=v_Record_ID;
+	IF(v_PAD_User_ID IS NOT NULL) THEN
+		v_AD_User_ID:=v_PAD_User_ID;
+	END IF;
+  --Check DP status, this is used for process and unprocess
+  -- Modified by PSarobe 12062007
+
+	 SELECT COUNT(*), MAX(ml.C_DP_ManagementLine_Id)
+      INTO v_Aux, v_DpManagementline_ID
+      FROM C_DP_ManagementLine ml, C_DEBT_PAYMENT dp
+      WHERE C_DP_Management_ID=v_Record_ID
+        AND ml.c_debt_payment_id=dp.c_debt_payment_id
+        AND C_Debt_Payment_Status(dp.C_SETTLEMENT_CANCEL_ID, dp.CANCEL_PROCESSED, dp.GENERATE_PROCESSED, dp.IsPaid, dp.Isvalid, dp.C_CASHLINE_ID, dp.C_BANKSTATEMENTLINE_ID)!='P';
+
+	 IF v_Aux!=0 THEN
+	  	SELECT ml.line, dp.c_Bankstatementline_Id, dp.c_cashline_id, dp.c_settlement_cancel_id, dp.ispaid, dp.cancel_processed
+		INTO v_line, v_Bankstatementline_ID, v_CashLine_ID, v_Settlement_Cancel_ID, v_ispaid, v_Cancel_Processed
+		FROM C_DP_ManagementLine ml, C_DEBT_PAYMENT dp
+		WHERE ml.c_debt_payment_id=dp.c_debt_payment_id
+		AND ml.C_DP_ManagementLine_ID = v_DpManagementline_ID;
+	       	   IF v_Bankstatementline_ID IS NOT NULL THEN
+			   	 SELECT C_BANKSTATEMENT.NAME, C_BANKSTATEMENT.STATEMENTDATE
+				 INTO v_nameBankstatement, v_dateBankstatement
+				 FROM C_BANKSTATEMENT, C_BANKSTATEMENTLINE
+				 WHERE C_BANKSTATEMENT.C_BANKSTATEMENT_ID = C_BANKSTATEMENTLINE.C_BANKSTATEMENT_ID
+				 AND C_BANKSTATEMENTLINE.C_BANKSTATEMENTLINE_ID = v_Bankstatementline_ID;
+          		 RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@debtpayment@'||' '||'@ConciliatedDebtPaymentBank@'||v_nameBankstatement||' '||'@Bydate@'||v_dateBankstatement) ;
+			   END IF;
+			   IF v_CashLine_ID IS NOT NULL THEN
+			   	 SELECT C_CASH.NAME, C_CASH.STATEMENTDATE
+				 INTO v_nameCash, v_dateCash
+				 FROM C_CASH, C_CASHLINE
+				 WHERE C_CASH.C_CASH_ID = C_CASHLINE.C_CASH_ID
+				 AND C_CASHLINE.C_CASHLINE_ID = v_CashLine_ID;
+          		 RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@debtpayment@'||' '||'@ConciliatedDebtPaymentCash@'||v_nameCash||' '||'@Bydate@'||v_dateCash) ;
+			   END IF;
+			   IF v_Cancel_Processed='Y' AND v_ispaid='N' THEN
+			   	 SELECT documentno, datetrx
+				 INTO v_documentno_Settlement, v_dateSettlement
+				 FROM C_SETTLEMENT
+				 WHERE C_SETTLEMENT_ID = v_Settlement_Cancel_ID;
+				 RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@debtpayment@'||' '||'@ConciliatedDebtPaymentCancel@'||v_documentno_Settlement||' '||'@Bydate@'||v_dateSettlement) ;
+			   END IF;
+      END IF;
+
+
+
+    IF(v_Processed='Y') and (not FINISH_PROCESS) THEN
+      --Checking restrictions for unprocessing
+      IF v_Posted='Y' THEN
+        RAISE_APPLICATION_ERROR(-20000, '@DPManagementDocumentPosted@') ;
+      END IF;
+      IF(NOT FINISH_PROCESS) THEN
+        SELECT count(*), MAX(ml.line)
+        INTO v_Aux, v_line
+        FROM C_DP_ManagementLine ml,
+          C_Debt_Payment dp
+        WHERE ml.C_DP_Management_ID=v_Record_ID
+          AND ml.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+          AND coalesce(dp.Status, 'DE')!=coalesce(ml.Status_To, 'DE') ;
+        IF v_Aux!=0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@WrongStatusToFrom@') ;
+        END IF;
+      END IF ;--FINISH_PROCESS
+      IF(NOT FINISH_PROCESS) THEN
+        --unprocessing...
+        UPDATE C_DP_Management
+          SET Processed='N',
+          Updated=now(),
+          UpdatedBy=v_AD_User_ID
+        WHERE C_DP_Management_ID=v_Record_ID;
+        for Cur_Lines in
+          (SELECT *  FROM C_DP_ManagementLine  WHERE C_DP_Management_ID=v_Record_ID)
+        loop
+          UPDATE C_Debt_Payment
+            SET status=Cur_Lines.Status_From,
+            updated=now(),
+            UpdatedBy=v_AD_User_ID
+          WHERE C_Debt_Payment_ID=Cur_Lines.C_Debt_Payment_ID;
+        end loop;
+        v_Message:='@UnProcessedDPManagement@';
+        FINISH_PROCESS:=true;
+      END IF;--FINISH_PROCESS
+    END IF;
+    /*
+    *  Checking Restrictions
+    */
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT count(*), MAX(ml.line)
+      INTO v_Aux, v_line
+      FROM C_DP_ManagementLine ml,
+        C_Debt_Payment dp
+      WHERE ml.C_DP_Management_ID=v_Record_ID
+        AND ml.C_Debt_Payment_ID=dp.C_Debt_Payment_ID
+        AND coalesce(dp.Status, 'DE')!=coalesce(ml.Status_From, 'DE') ;
+      IF v_Aux!=0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@WrongStatusToFrom@') ;
+      END IF;
+    END IF;--FINISH_PROCESS
+  IF(NOT FINISH_PROCESS) THEN
+      SELECT count(*)
+      INTO v_Aux
+      FROM C_DP_Management m,
+       C_DocType
+      WHERE C_DocType.DocBaseType IN ('DPM')
+     AND AD_ISORGINCLUDED(M.AD_Org_ID,C_DocType.AD_Org_ID, M.AD_Client_ID) <> -1
+    AND M.C_DOCTYPE_ID = C_DOCTYPE.C_DOCTYPE_ID
+    AND M.C_DP_MANAGEMENT_ID=V_RECORD_ID;
+
+      if v_Aux=0 then
+        RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgDoctypeDPManagement@') ;
+      end if;
+    END IF;--FINISH_PROCESS
+  	/*To be deprecated. We are checking this restriction at the beginning. To be fixed
+    IF(NOT FINISH_PROCESS) THEN
+      for Cur_Line_DP in
+        (SELECT dp.*
+        FROM C_DP_ManagementLine ml,
+          C_Debt_Payment dp
+        WHERE ml.C_DP_Management_ID=v_Record_ID
+          AND dp.C_Debt_Payment_ID=ml.C_Debt_Payment_ID
+        )
+      loop
+        if C_Debt_Payment_Status(Cur_Line_DP.C_SETTLEMENT_CANCEL_ID, Cur_Line_DP.CANCEL_PROCESSED, Cur_Line_DP.GENERATE_PROCESSED, Cur_Line_DP.ISPAID, Cur_Line_DP.ISVALID, Cur_Line_DP.C_CASHLINE_ID, Cur_Line_DP.C_BANKSTATEMENTLINE_ID)!='P'then
+          v_Message:='@WrongDPStatus@';
+          v_Result:=0;
+          FINISH_PROCESS:=true;
+          EXIT;
+        end if;
+      end loop;
+    END IF;*/
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT count(*), MAX(C_Debt_Payment_ID)
+      INTO v_Aux, v_Debt_Payment_ID
+      FROM
+        (SELECT C_Debt_Payment_ID
+        FROM C_DP_ManagementLine
+        WHERE C_DP_Management_ID=v_Record_ID
+        GROUP BY C_Debt_Payment_ID
+        HAVING count(*)>1
+        )
+        A;
+      IF v_Aux!=0 THEN
+        FOR Cur_DPDebtpayment IN (SELECT line
+		 	 						 	FROM C_DP_ManagementLine
+										WHERE C_DP_ManagementLine.C_DP_Management_id=v_Record_ID
+										AND C_DP_ManagementLine.c_debt_payment_id=v_Debt_Payment_ID) LOOP
+		 v_Message:=v_Message||Cur_DPDebtpayment.line||', ';
+		 END LOOP;
+		 RAISE_APPLICATION_ERROR(-20000, '@Inlines@'||v_Message||' '||'@Samedebtpayment@') ;
+      END IF;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      SELECT count(*), MAX(ml.line)
+      INTO v_Aux, v_line
+      FROM C_DP_ManagementLine ml,
+        C_DP_Management m
+      WHERE ml.C_DP_Management_ID=m.C_DP_Management_ID
+        AND m.C_DP_Management_ID=v_Record_ID
+        AND exists
+        (SELECT 1
+        FROM C_DP_ManagementLine ml1,
+          C_DP_Management m1
+        WHERE m1.C_DP_Management_ID=ml1.C_DP_Management_ID
+          AND ml1.C_Debt_Payment_ID=ml.C_Debt_Payment_ID
+          AND m1.processed='Y'
+          AND m1.DateAcct>m.DateAcct
+        )
+        ;
+      if v_Aux!=0 then
+       RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@LaterChangeStatus@') ;
+      end if;
+    END IF;--FINISH_PROCESS
+    IF(NOT FINISH_PROCESS) THEN
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+      INTO v_is_ready, v_is_tr_allow
+      FROM C_DP_MANAGEMENT, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=C_DP_MANAGEMENT.AD_Org_ID
+      AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+      AND C_DP_MANAGEMENT.C_DP_MANAGEMENT_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;    
+    
+      SELECT AD_ORG_CHK_DOCUMENTS('C_DP_MANAGEMENT', 'C_DP_MANAGEMENTLINE', v_Record_ID, 'C_DP_MANAGEMENT_ID', 'C_DP_MANAGEMENT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+      
+      SELECT AD_ORG_CHK_DOC_PAYMENTS('C_DP_MANAGEMENT', 'C_DP_MANAGEMENTLINE', v_Record_ID, 'C_DP_MANAGEMENT_ID', 'C_DP_MANAGEMENT_ID', 'C_DEBT_PAYMENT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@PaymentsAndHeaderDifferentLEorBU@');
+      END IF;
+      
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('C_DP_MANAGEMENT', v_Record_ID, 'C_DP_MANAGEMENT_ID', 'LE')
+      INTO v_org_bule_id
+      FROM DUAL;
+      
+      SELECT AD_OrgType.IsAcctLegalEntity
+      INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+      AND AD_Org.AD_Org_ID=v_org_bule_id;
+      
+      IF (v_isacctle='Y') THEN     	
+        SELECT C_CHK_OPEN_PERIOD(v_AD_Org_ID, v_Date, NULL, v_DocType_ID) 
+        INTO v_available_period
+        FROM DUAL;
+        
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;   
+      
+      
+    END IF;--FINISH_PROCESS
+    --Processing...
+    IF(NOT FINISH_PROCESS) THEN     
+      UPDATE C_DP_Management
+        SET Processed='Y',
+        Updated=now(),
+        UpdatedBy=v_AD_User_ID
+      WHERE C_DP_Management_ID=v_Record_ID;
+      for Cur_Lines in
+        (SELECT *  FROM C_DP_ManagementLine  WHERE C_DP_Management_ID=v_Record_ID)
+      loop
+        UPDATE C_Debt_Payment
+          SET status=coalesce(Cur_Lines.Status_To, 'DE'),
+          updated=now(),
+          UpdatedBy=v_AD_User_ID
+        WHERE C_Debt_Payment_ID=Cur_Lines.C_Debt_Payment_ID;
+      end loop;
+    END IF;--FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<C_DP_Management_Post finished>> ' || v_Message) ;
+      IF(v_Result=0) THEN
+        RAISE_APPLICATION_ERROR(-20100, v_Message) ;
+      END IF;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END C_DP_MANAGEMENT_POST
+]]></body>
+    </function>
+  </database>

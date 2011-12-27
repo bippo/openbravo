@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="EditCCPMeasureValuesData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT g.MA_MEASURE_GROUP_ID as groupid, cg.NAME as groupname, '' AS name, '' as Type
+        FROM MA_Measure_Shift s, MA_Measure_Group g, MA_CCP_Group cg
+        WHERE g.MA_CCP_GROUP_ID = cg.MA_CCP_GROUP_ID
+          AND s.MA_Measure_Shift_ID = g.MA_Measure_Shift_ID
+          AND s.MA_Measure_Shift_ID = ?
+        ORDER BY g.MA_MEASURE_GROUP_ID, cg.seqno
+      ]]>
+      </Sql>
+      <Parameter name="maMeasureShiftID"/>
+  </SqlMethod>
+  <SqlMethod name="selectShift" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT NAME FROM AD_REF_LIST
+        WHERE AD_REFERENCE_ID = '800038'
+          AND value = ?
+      ]]>
+      </Sql>
+      <Parameter name="shift"/>
+  </SqlMethod>
+  <SqlMethod name="selectShiftTrl" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT NAME
+        FROM AD_REF_LIST_TRL
+        WHERE AD_REF_LIST_ID IN (SELECT AD_REF_LIST_ID FROM AD_REF_LIST
+                WHERE AD_REFERENCE_ID = '800038'
+                  AND value = ?)
+          AND AD_LANGUAGE = ?
+      ]]>
+      </Sql>
+      <Parameter name="maMeasureShiftID"/>
+      <Parameter name="language"/>
+  </SqlMethod>
+  <SqlMethod name="selectType" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT VALUETYPE AS TYPE
+        FROM MA_MEASURE_VALUES
+        WHERE MA_MEASURE_VALUES_ID = ?
+      ]]>
+      </Sql>
+      <Parameter name="maMeasureValueID"/>
+  </SqlMethod>
+  <SqlMethod name="update" connection="true" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE MA_MEASURE_VALUES
+        SET V_NUMBER = TO_NUMBER(?),
+            V_STRING = ?,
+            V_CHAR = ?
+        WHERE MA_MEASURE_VALUES_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="vnumber"/>
+    <Parameter name="vstring"/>
+    <Parameter name="vchar"/>
+    <Parameter name="maMeasureValueId"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_INVENTORYLINE_TRG">
+    <trigger name="M_INVENTORYLINE_TRG" table="M_INVENTORYLINE" fires="after" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+
+
+
+  v_ID VARCHAR2(32);
+  v_RO      NUMBER;
+  V_STOCKED NUMBER;
+  v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+  /******************************************************************************
+  * The contents of this file are subject to the   Compiere License  Version 1.1
+  * ("License"); You may not use this file except in compliance with the License
+  * You may obtain a copy of the License at http://www.compiere.org/license.html
+  * Software distributed under the License is distributed on an  "AS IS"  basis,
+  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+  * the specific language governing rights and limitations under the License.
+  * The Original Code is                  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke  and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
+  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+  ******************************************************************************/
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  -- Get ID
+  IF(UPDATING OR INSERTING) THEN
+    v_ID:=:NEW.M_Inventory_ID;
+  ELSE
+    v_ID:=:OLD.M_Inventory_ID;
+  END IF;
+  -- ReadOnly Check
+  SELECT COUNT(*)
+  INTO v_RO
+  FROM M_INVENTORY
+  WHERE M_Inventory_ID=v_ID
+    AND(Processed='Y'
+    OR Posted='Y') ;
+  IF(v_RO > 0) THEN
+    RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted') ;
+  END IF;
+  -- Updating inventory
+  IF UPDATING OR DELETING THEN
+    SELECT COUNT(*)
+    INTO V_STOCKED
+    FROM M_PRODUCT
+    WHERE M_Product_ID=:OLD.M_PRODUCT_ID
+      AND IsStocked='Y'
+      AND ProductType='I';
+    IF V_STOCKED > 0 THEN
+      M_UPDATE_INVENTORY(:OLD.AD_CLIENT_ID, :OLD.AD_ORG_ID, :OLD.UPDATEDBY, :OLD.M_PRODUCT_ID, :OLD.M_LOCATOR_ID, :OLD.M_ATTRIBUTESETINSTANCE_ID, :OLD.C_UOM_ID, :OLD.M_PRODUCT_UOM_ID, NULL, NULL, NULL, -(:OLD.QTYCOUNT-:OLD.QTYBOOK), :OLD.QUANTITYORDER) ;
+    END IF;
+  END IF;
+  IF INSERTING OR UPDATING THEN
+    SELECT COUNT(*)
+    INTO V_STOCKED
+    FROM M_PRODUCT
+    WHERE M_Product_ID=:NEW.M_PRODUCT_ID
+      AND IsStocked='Y'
+      AND ProductType='I';
+    IF V_STOCKED > 0 THEN
+      M_UPDATE_INVENTORY(:NEW.AD_CLIENT_ID, :NEW.AD_ORG_ID, :NEW.UPDATEDBY, :NEW.M_PRODUCT_ID, :NEW.M_LOCATOR_ID, :NEW.M_ATTRIBUTESETINSTANCE_ID, :NEW.C_UOM_ID, :NEW.M_PRODUCT_UOM_ID, NULL, NULL, NULL,(:NEW.QTYCOUNT-:NEW.QTYBOOK),(:NEW.QUANTITYORDER-:NEW.QUANTITYORDERBOOK)) ;
+    END IF;
+  END IF;
+  IF (INSERTING OR UPDATING) THEN
+   --Does not allow to change the attribute set value
+   -- for products which attribute set value type is Fixed
+   IF (:NEW.M_PRODUCT_ID IS NOT NULL AND COALESCE(:new.M_AttributeSetInstance_ID,'0')!='0') THEN
+    SELECT ATTRSETVALUETYPE 
+    INTO v_AttrSetValueType
+    FROM M_PRODUCT 
+    WHERE M_PRODUCT_ID=:NEW.M_PRODUCT_ID;
+    IF (v_AttrSetValueType='F') THEN
+     RAISE_APPLICATION_ERROR(-20000, '@AttrSetValueFixed@');
+    END IF;
+   END IF;
+  END IF;
+END M_INVENTORYLINE_TRG
+]]></body>
+    </trigger>
+  </database>

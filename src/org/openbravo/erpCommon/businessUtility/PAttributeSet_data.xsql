@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="PAttributeSetData" package="org.openbravo.erpCommon.businessUtility" accessModifier="public">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT A_S.M_ATTRIBUTESET_ID, A_S.NAME, A_S.DESCRIPTION, A_S.GUARANTEEDAYS, A_S.ISGUARANTEEDATE, A_S.ISLOT, A_S.ISSERNO, 
+        A_S.M_LOTCTL_ID, A_S.M_SERNOCTL_ID, A.ISLIST, A.NAME AS ELEMENTNAME, A.M_ATTRIBUTE_ID, 
+        A.ISINSTANCEATTRIBUTE, '' AS M_ATTRIBUTESETINSTANCE_ID, '' as GUARANTEEDATE, '' as LOT, '' as SERNO, 
+        '' as M_ATTRIBUTEVALUE_ID, '' as VALUE, '' AS ATTRSETVALUETYPE, A.ISMANDATORY 
+        FROM M_ATTRIBUTESET A_S left join M_ATTRIBUTEUSE A_U on a_s.M_ATTRIBUTESET_ID = a_u.M_ATTRIBUTESET_ID
+                                left join M_ATTRIBUTE A on A_U.M_ATTRIBUTE_ID = A.M_ATTRIBUTE_ID
+                                                        and A_U.ISACTIVE = 'Y'
+         
+        WHERE  A_S.ISACTIVE = 'Y'
+        AND A_S.M_ATTRIBUTESET_ID = ? 
+        ORDER BY A_U.SEQNO
+      ]]></Sql>
+        <Parameter name="mAttributesetId"/>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+   <SqlMethod name="selectProductAttr" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+         SELECT P.m_attributeset_id, P.m_attributesetinstance_id, P.attrsetvaluetype, M.DESCRIPTION 
+         FROM M_PRODUCT P left join M_ATTRIBUTESETINSTANCE M on P.M_ATTRIBUTESETINSTANCE_ID = M.M_ATTRIBUTESETINSTANCE_ID
+         WHERE P.m_product_id=?
+      ]]></Sql>
+        <Parameter name="mProductId"/>
+   </SqlMethod>
+</SqlClass>

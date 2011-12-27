@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="RptMACCPMeasuresData" package="org.openbravo.erpReports">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+        select s.Measuredate as measuredate, TO_CHAR(cg.frecuency, 'HH:MI') as frecuency, s.MA_MEASURE_SHIFT_ID as shiftid, g.MA_MEASURE_GROUP_ID as groupid, g.MA_CCP_GROUP_ID, cg.NAME as grupo, (CASE s.shift WHEN 'M' THEN 'Mañana' ELSE 'Tarde' END) as shift, cg.seqno, REPLACE(s.observation, CHR(10), '') AS observation, (CASE WHEN s.AD_User_ID IS NULL THEN ' ' ELSE TO_CHAR(u.Name) END) as uname
+        from AD_User u right join MA_Measure_Shift s on u.AD_User_ID  = s.AD_User_ID, MA_Measure_Group g, MA_CCP_Group cg
+        where s.MA_MEASURE_SHIFT_ID = g.MA_MEASURE_SHIFT_ID
+          and g.MA_CCP_GROUP_ID = cg.MA_CCP_GROUP_ID
+          AND 1=1
+        order by s.MA_Measure_Shift_ID, cg.seqno
+      ]]>
+      </Sql>
+      <Parameter name="maCcpGroupId" optional="true" type="argument" after="AND 1=1">
+      <![CDATA[ AND s.MA_Measure_Shift_ID IN ]]>
+      </Parameter>
+   </SqlMethod>
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

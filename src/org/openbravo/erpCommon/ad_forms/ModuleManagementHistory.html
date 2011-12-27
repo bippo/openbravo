@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD Xhtml 1.0 Transitional//EN" "http://www.w3.org/tr/xhtml1/Dtd/xhtml1-transitional.dtd">
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Module Management</title>
+
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</script> 
+<script language="JavaScript" type="text/javascript" id="paramDirectory">var baseDirectory = "http://yourSite/web/";</script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">defaultLang = "en_US";</script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/searchs.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/calendar.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/jscalendar/lang/calendar-es.js" type="text/javascript" id="fieldCalendar"></script>
+<script language="JavaScript" src="../../../../../web/js/djConfig.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/dojotoolkit/dojo/dojo.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/djDependencies.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/DateTextBox.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/calculator.js" type="text/javascript"></script>
+
+
+<script language="JavaScript" type="text/javascript">
+  function validate()
+  {
+    var frm = document.frmMain;
+    if (frm.inpDateFrom.value == null || frm.inpDateFrom.value == "") {
+      setWindowElementFocus(frm.inpDateFrom);
+      showJSMessage(7);
+      return false;
+    } else if (frm.inpDateTo.value == null || frm.inpDateTo.value == ""){
+      setWindowElementFocus(frm.inpDateTo);
+      showJSMessage(7);
+      return false;
+    }
+    return true;
+  }
+  
+  
+  function onloadFunctions() {
+    setProcessingMode('window',false);
+  }
+  
+  </script>
+  <script language="JavaScript" type="text/javascript">
+  function onLoadDo(){
+    this.windowTables = new Array(
+      new windowTableId('client', 'buttonHTML')
+    );
+    setWindowTableParentElement();
+    this.tabsTables = new Array(
+      new tabTableId('tdtopTabs')
+    );
+    setTabTableParentElement();
+    enableShortcuts('edition');
+    setBrowserAutoComplete(false);
+    try {
+      onloadFunctions();
+    } catch (e) {}
+    resizeArea();
+    resizeAreaInstallationHistoryGrid();
+    updateMenuIcon('buttonMenu');
+
+    setWindowElementFocus('firstElement');
+  }
+
+  function onResizeDo(){
+    resizeArea();
+    resizeAreaInstallationHistoryGrid();
+  }
+  </script>
+</head>
+<body onload="onLoadDo();" onresize="onResizeDo();" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" id="paramMessage">
+<form method="post" action="ModuleManagement.html" name="frmMain">
+  <input type="hidden" name="Command">
+  <input type="hidden" name="IsPopUpCall" value="1"></input>
+  
+  <table height="100%" border="0" cellpadding="0" cellspacing="0" id="main">
+    <tr>
+      <td valign="top" id="tdleftTabs"></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Left">
+          <tr><td class="Main_NavBar_bg_left" id="tdleftSeparator"></td></tr>
+          <tr><td class="Main_ToolBar_bg_left" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_left"></td></tr>
+          <tr><td class="Main_Bottom_bg_left"></td></tr>
+        </table>
+      </td>
+      <td valign="top">
+        <div class="Main_ContentPane_NavBar" id="tdtopButtons"></div>
+        <div class="Main_ContentPane_ToolBar" id="paramToolBar"></div>
+        
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_TabPane" id="tdtopTabs">
+          <tr id="paramParentTabContainer"><td class="tabBackGroundInit">
+            <div>
+              <span class="tabTitle">
+                <div class="tabTitle_background">
+                  <span class="tabTitle_elements_container">
+                    <span class="tabTitle_elements_text" id="tabTitle_text">Module Manager</span>
+                    <span class="tabTitle_elements_separator"><div class="tabTitle_elements_separator_icon"></div></span>
+                    <span class="tabTitle_elements_image"><div class="tabTitle_elements_image_normal_icon" id="TabStatusIcon"></div></span>
+                  </span>
+                </div>
+              </span>
+            </div>
+            </td></tr><tr><td class="tabBackGround">  <div class="marginLeft">
+            <div><span class="dojoTabNULL dojoTabparentfirst"></span>
+              </div>
+              </div>
+            </td>
+            </tr>
+            <tr id="paramMainTabContainer">
+              <td class="tabBackGround">
+                <table class="tabTable">
+                  <tr>
+                    <td valign="top"><span class="tabLeft">&nbsp;</span></td>
+                    <td class="tabPaneBackGround">
+                    <div>
+                      <span class="dojoTab"><div><span><a class="dojoTabLink" href="#" onclick="submitCommandForm('DEFAULT', false, null, 'ModuleManagement.html', '_self', null, true);return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabDefault">Installed Modules</a></span></div></span>
+                      <span class="tabSeparator">&nbsp;</span>
+                      <span class="dojoTab"><div><span><a class="dojoTabLink" href="#" onclick="submitCommandForm('ADD', false, null, 'ModuleManagement.html', '_self', null, true);return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabInstall">Add Modules</a></span></div></span>
+                      <span class="tabSeparator">&nbsp;</span>
+                      <span class="dojoTabCurrent"><div><span><a class="dojoTabLink" href="#" onclick="return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabHistory">Installation History</a></span></div></span>
+                      <span class="tabSeparator">&nbsp;</span>
+                      <span class="dojoTab"><div><span><a class="dojoTabLink" href="#" onclick="submitCommandForm('SETTINGS', false, null, 'ModuleManagement.html', '_self', null, true);return false;" onMouseOver="return true;" onMouseOut="return true;" id="tabSettings">Settings</a></span></div></span>
+                    </div>
+                    <td valign="top"><span class="tabRight">&nbsp;</span></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+        </table>
+        <div class="Main_ContentPane_Client" style="overflow: auto; display: none;" id="client">
+                <table class="dojoTabContainer" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                  <tr>
+                    <td>
+                      <table class="dojoTabPaneWrapper" border="0" cellpadding="0" cellspacing="0" width="100%" summary="">
+                        <tr>
+                          <td>
+                            <!-- MessageBox -->
+
+                            <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+                              <tbody>
+                              <tr class="MessageBox_TopMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr>
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td>
+
+                                  <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                                    <tbody>
+                                    <tr>
+                                      <td class="MessageBox_LeftTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopLeft"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Left"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                      <td class="MessageBox_bg">
+
+                                        <table class="MessageBox_Top">
+                                        <tbody>
+                                          <tr>
+                                            <td>
+                                              <span>
+                                              <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                                                <tbody>
+                                                <tr>
+                                                  <td class="MessageBox_Icon_ContentCell">
+                                                    <div class="MessageBox_Icon"></div>
+                                                  </td>
+                                                  <td style="vertical-align: top;" id="messageBoxIDContent">
+                                                    <span>
+                                                      <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                                        xxInfo: AccessTableWithNoView
+                                                      </div>
+                                                      <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                                        xxThe current information is empty.
+                                                      </div>
+                                                      <div class="MessageBox_TextSeparator"></div>
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                                </tbody>
+                                              </table>
+                                              </span>
+                                            </td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+
+                                      </td>
+                                      <td class="MessageBox_RightTrans">
+                                        <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                                          <tbody>
+                                          <tr>
+                                            <td class="MessageBox_TopRight"></td>
+                                          </tr>
+                                          <tr>
+                                            <td class="MessageBox_Right"></td>
+                                          </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td rowspan="2" class="MessageBox_BottomLeft">
+                                      </td>
+                                      <td class="MessageBox_BottomTrans MessageBox_bg">
+                                      </td>
+                                      <td rowspan="2" class="MessageBox_BottomRight">
+                                      </td>
+                                    </tr>
+                                    <tr>
+                                      <td class="MessageBox_Bottom">
+                                      </td>
+                                    </tr>
+                                    </tbody>
+                                  </table>
+
+                                </td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              <tr class="MessageBox_BottomMargin">
+                                <td class="MessageBox_LeftMargin"></td>
+                                <td></td>
+                                <td class="MessageBox_RightMargin"></td>
+                              </tr>
+                              </tbody>
+                            </table>              <!-- USER CONTROLS -->
+              <table class="Main_Client_TableEdition" id="client_top">
+                <tr>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                </tr>
+                
+                <tr>
+                  <td colspan="6">
+                    <table class="FieldGroup" border="0" cellpadding="0" cellspacing="0">
+                    <tbody>
+                      <tr class="FieldGroup_TopMargin"></tr>
+                      <tr>
+                        <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" src="../../../../../web/images/blank.gif" border="0"></td>
+                        <td class="FieldGroupTitle">Primary Filters</td>
+                        <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" src="../../../../../web/images/blank.gif" border="0"></td>
+                        <td class="FieldGroupContent"></td>
+                      </tr>
+                      <tr class="FieldGroup_BottomMargin"></tr>
+                    </tbody>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">From Date</span></td>
+                  <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input type="text" id="paramDateFrom"
+                          class="dojoValidateValid TextBox_btn_OneCell_width"
+                          required="false" value="" maxlength="10" name="inpDateFrom"
+                          onkeyup="autoCompleteDate(this);"
+                          onblur="expandDateYear(this.id);" displayformat="xx" saveformat="yy"/>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDateFrom', document.frmMain.inpDateFrom.value, false);return false;">
+                          <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="TitleCell"></td>
+                  <td class="TitleCell"><span class="LabelText">To Date</span></td>
+                  <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                        <input type="text" id="paramDateTo"
+                          class="dojoValidateValid TextBox_btn_OneCell_width"
+                          required="false" value="" maxlength="10" name="inpDateTo"
+                          onkeyup="autoCompleteDate(this);"
+                          onblur="expandDateYear(this.id);" displayformat="xx" saveformat="yy"/>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDateTo', document.frmMain.inpDateTo.value, false);return false;">
+                          <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr> 
+                  <td class="TitleCell"><span class="LabelText">User</span></td>
+                  <td class="Combo_ContentCell" colspan="2">
+                    <select name="inpUser" id="inpUser" class="Combo Combo_TwoCells_width">
+                      <option value=""> <div id="reportUser">
+                        <div id="sectionDetail">
+                          
+                       </div></div></option>
+                    </select>
+                  </td>
+
+                  <td class="TitleCell"></td>
+                  <td class="TitleCell"></td>
+                </tr>
+                <tr>
+                    <td class="TitleCell"></td>
+                    <td class="Button_LeftAlign_ContentCell" colspan="2">
+                      <div>
+                        <button type="button" 
+                          id="buttonHTML" 
+                          class="ButtonLink" 
+                          onclick="submitCommandForm('HISTORY_SEARCH', false, null, 'ModuleManagement.html', '_self', null, false);return false;" 
+                          onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
+                          onblur="buttonEvent('onblur', this);" 
+                          onkeyup="buttonEvent('onkeyup', this);" 
+                          onkeydown="buttonEvent('onkeydown', this);" 
+                          onkeypress="buttonEvent('onkeypress', this);" 
+                          onmouseup="buttonEvent('onmouseup', this);" 
+                          onmousedown="buttonEvent('onmousedown', this);" 
+                          onmouseover="buttonEvent('onmouseover', this); window.status='Search'; return true;" 
+                          onmouseout="buttonEvent('onmouseout', this);">
+                          <table class="Button" id="fieldTable">
+                            <tr>
+                              <td class="Button_left"><img class="Button_Icon Button_Icon_search" alt="Search" title="Search" src="../../../../../web/images/blank.gif" border="0" /></td>
+                              <td class="Button_text Button_width">Search</td>
+                              <td class="Button_right"></td>
+                            </tr>
+                          </table>
+                        </button>
+                      </div>
+                    </td>
+                    <td class="ContentCell"></td>
+                    <td class="TitleCell"></td>
+                    <td class="ContentCell"></td>
+                </tr>
+                <tr>
+                    <td colspan="6">
+                      <table class="FieldGroup" border="0" cellpadding="0" cellspacing="0">
+                      <tbody>
+                        <tr class="FieldGroup_TopMargin"></tr>
+                        <tr>
+                          <td class="FieldGroupTitle_Left"><img class="FieldGroupTitle_Left_bg" src="../../../../../web/images/blank.gif" border="0"></td>
+                          <td class="FieldGroupTitle">View Results</td>
+                          <td class="FieldGroupTitle_Right"><img class="FieldGroupTitle_Right_bg" src="../../../../../web/images/blank.gif" border="0"></td>
+                          <td class="FieldGroupContent"></td>
+                        </tr>
+                        <tr class="FieldGroup_BottomMargin"></tr>
+                      </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="height: 20px;" colspan="6"></td>
+                    </tr>
+                    
+                    </tbody></table>
+                                           
+
+                      
+                </td>
+              </tr>
+              </tbody></table>
+              </td>
+            </tr>
+          </tbody></table>
+
+                
+               
+       <table class="Main_Client_TableEdition"><tr><td><div style="overflow: auto;" id="installationHistoryGrid">
+        <table class="InstallationHistory_Grid">
+          <tr class="InstallationHistory_Grid_Header_Row">
+            <td class="InstallationHistory_Grid_Header_Cell" style="width: 16%">Date and time</td>
+            <td class="InstallationHistory_Grid_Header_Cell" style="width: 12%">Action</td>
+            <td class="InstallationHistory_Grid_Header_Cell" style="width: 12%">User</td>
+            <td class="InstallationHistory_Grid_Header_Cell" style="width: 25%">Module Name</td>
+            <td class="InstallationHistory_Grid_Header_Cell" style="width: 35%">Log</td>
+          </tr>
+          <FIELD_TMP id="detail">
+            <tr class="InstallationHistory_Grid_Row">
+              <td class="InstallationHistory_Grid_Cell"><span id="date">xx13/10/2008</span>&nbsp;<span id="hour">xx13/10/2008</span></td>
+              <td class="InstallationHistory_Grid_Cell" id="action">xxAction</td>
+              <td class="InstallationHistory_Grid_Cell" id="user">xxUser</td>
+              <td class="InstallationHistory_Grid_Cell" id="module">xxModule</td>
+              <td class="InstallationHistory_Grid_Cell" id="log">xxLog</td>
+            </tr>
+          </FIELD_TMP>
+          
+        </table>
+        </div></td></tr></table>
+        </div>
+
+            
+
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Menu_ContentPane_Bottom" id="tdbottomSeparator">
+          <tr>
+            <td class="Main_Bottom_bg"><img src="../../../../../web/images/blank.gif" border="0"></td>
+          </tr>
+        </table></td>
+      <td valign="top">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="Main_ContentPane_Right" id="tdrightSeparator">
+          <tr><td class="Main_NavBar_bg_right"></td></tr>
+          <tr><td class="Main_ToolBar_bg_right" valign="top"></td></tr>
+          <tr><td class="Main_Client_bg_right"></td></tr>
+          <tr><td class="Main_Bottom_bg_right"></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</form>
+
+  
+  
+</body>
+</html>

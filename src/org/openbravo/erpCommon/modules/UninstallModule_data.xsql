@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+<SqlClass name="UninstallModuleData" package="org.openbravo.erpCommon.modules">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectDependencies" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT M.NAME, M.AD_MODULE_ID, M.VERSION, D.AD_DEPENDENT_MODULE_ID, '' AS JAVAPACKAGE, M2.NAME AS ORIGNAME
+          FROM AD_MODULE_DEPENDENCY D, AD_MODULE M, AD_MODULE M2
+         WHERE AD_DEPENDENT_MODULE_ID IN ('1')
+           AND D.AD_MODULE_ID = M.AD_MODULE_ID
+           AND M.ISACTIVE = 'Y'
+           AND M.STATUS != 'U'
+           AND M2.STATUS != 'U' 
+           AND M2.AD_MODULE_ID = AD_DEPENDENT_MODULE_ID
+           AND D.AD_MODULE_ID NOT IN ('2')
+       </Sql>
+      <Parameter name="modules" type="replace" optional="true" after="AD_DEPENDENT_MODULE_ID IN (" text="'1'"/>
+      <Parameter name="modules" type="replace" optional="true" after="D.AD_MODULE_ID NOT IN (" text="'2'"/>
+   </SqlMethod>
+   <SqlMethod name="selectStatus" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT STATUS
+          FROM AD_MODULE M
+         WHERE M.AD_MODULE_ID IN ('1')
+         UNION
+         SELECT STATUS
+          FROM AD_MODULE_INSTALL MI
+         WHERE MI.AD_MODULE_ID IN ('2')
+      </Sql>
+      <Parameter name="module" type="replace" optional="true" after="M.AD_MODULE_ID IN (" text="'1'"/>
+      <Parameter name="module" type="replace" optional="true" after="MI.AD_MODULE_ID IN (" text="'2'"/>
+   </SqlMethod>
+   <SqlMethod name="selectDirectories" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT NAME, JAVAPACKAGE, VERSION 
+          FROM AD_MODULE M
+         WHERE M.AD_MODULE_ID IN ('1')
+        UNION
+        SELECT NAME, JAVAPACKAGE, VERSION 
+          FROM AD_MODULE_INSTALL MI
+         WHERE MI.AD_MODULE_ID IN ('2')
+      </Sql>
+      <Parameter name="module" type="replace" optional="true" after="M.AD_MODULE_ID IN (" text="'1'"/>
+      <Parameter name="module" type="replace" optional="true" after="MI.AD_MODULE_ID IN (" text="'2'"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectContent" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT AD_DEPENDENT_MODULE_ID AS AD_MODULE_ID 
+          FROM AD_MODULE_DEPENDENCY
+         WHERE AD_MODULE_ID = ? 
+           AND ISINCLUDED = 'Y'
+      </Sql>
+      <Parameter name="module"/>
+   </SqlMethod>
+   
+   <SqlMethod name="updateUninstall" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        UPDATE AD_MODULE
+           SET STATUS = 'U'
+         WHERE AD_MODULE_ID IN ('1')           
+      </Sql>
+      <Parameter name="modules" type="replace" optional="true" after="WHERE AD_MODULE_ID IN (" text="'1'"/>
+   </SqlMethod>
+   
+   <SqlMethod name="deleteTmpModule" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        DELETE FROM AD_MODULE_INSTALL
+         WHERE AD_MODULE_ID IN ('1')           
+      </Sql>
+      <Parameter name="modules" type="replace" optional="true" after="WHERE AD_MODULE_ID IN (" text="'1'"/>
+   </SqlMethod>
+   
+   <SqlMethod name="deleteTmpDependency" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        DELETE FROM AD_MODULE_DEPENDENCY_INST
+         WHERE AD_MODULE_ID IN ('1')           
+      </Sql>
+      <Parameter name="modules" type="replace" optional="true" after="WHERE AD_MODULE_ID IN (" text="'1'"/>
+   </SqlMethod>
+   
+   <SqlMethod name="deleteTmpDBPrefix" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        DELETE FROM AD_MODULE_DBPREFIX_INSTALL
+         WHERE AD_MODULE_ID IN ('1')           
+      </Sql>
+      <Parameter name="modules" type="replace" optional="true" after="WHERE AD_MODULE_ID IN (" text="'1'"/>
+   </SqlMethod>
+   
+   <SqlMethod name="insertLog" type="preparedStatement" return="rowcount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        INSERT INTO AD_MODULE_LOG
+              (AD_MODULE_LOG_ID, AD_CLIENT_ID, AD_ORG_ID,
+              ISACTIVE, CREATED, CREATEDBY,
+              UPDATED, UPDATEDBY, AD_MODULE_ID, 
+              AD_MODULE_VERSION_ID, MODULENAME, LOG, 
+              ACTION)
+            VALUES
+              (get_uuid(), '0', '0',
+              'Y', now(), ?,
+              now(), ?, ?,
+              ?, ?, ?,
+              ?)
+      </Sql>
+      <Parameter name="user"/>
+      <Parameter name="user"/>
+      <Parameter name="moduleId"/>
+      <Parameter name="moduleVersionId"/>
+      <Parameter name="name"/>
+      <Parameter name="log"/>
+      <Parameter name="action"/>
+   </SqlMethod>
+   
+</SqlClass>

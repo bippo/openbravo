@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_FORM_TRG">
+    <trigger name="AD_FORM_TRG" table="AD_FORM" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * Insert AD_Form Trigger
+    *  for Translation
+    *  Access
+    */
+        
+    aux NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+   IF INSERTING
+    THEN
+  INSERT
+  INTO AD_Form_Trl
+    (
+      AD_Form_Trl_ID, AD_Form_ID, AD_Language, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      Name, Description, Help,
+      IsTranslated
+    )
+  SELECT get_uuid(), :new.AD_Form_ID,
+    AD_Language.AD_Language, :new.AD_Client_ID, :new.AD_Org_ID,
+    :new.IsActive, :new.Created, :new.CreatedBy,
+    :new.Updated, :new.UpdatedBy, :new.Name,
+    :new.Description, :new.Help, 'N'
+  FROM AD_Language, AD_Module M
+  WHERE AD_Language.IsActive='Y'
+    AND IsSystemLanguage='Y'
+    and m.ad_module_id = :new.ad_module_id
+    and m.ad_language != AD_Language.AD_Language;
+  -- Access for all
+  INSERT
+  INTO AD_Form_Access
+    (
+      AD_Form_Access_ID, AD_Form_ID, AD_Role_ID, AD_Client_ID,
+      AD_Org_ID, IsActive, Created,
+      CreatedBy, Updated, UpdatedBy,
+      IsReadWrite
+    )
+  SELECT get_uuid(), :new.AD_Form_ID,
+    r.AD_Role_ID,  r.AD_CLIENT_ID, r.AD_ORG_ID,
+     'Y', now(), '0',
+    now(), '0',  'Y'
+  FROM AD_Role r
+  where ismanual = 'N';
+ END IF;
+ -- Inserting
+ -- AD_Form update trigger
+ --  synchronize name,... with Field if not centrally maintained
+ IF(UPDATING) THEN
+  IF((COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
+  OR COALESCE(:old.Help, '.') <> COALESCE(:NEW.Help, '.')
+  OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')))
+ THEN
+    UPDATE AD_Form_Trl
+      SET IsTranslated='N',
+      Updated=now()
+    WHERE AD_Form_ID=:new.AD_Form_ID;
+  END IF;
+ END IF;
+ 
+ select count(*)
+   into aux
+   from ad_module
+  where ad_module_id = :new.ad_module_id
+    and :new.classname like javapackage||'.%';
+    
+  if aux = 0 then
+    RAISE_APPLICATION_ERROR(-20000, '@JavaClassNotInModulePackage@');
+  end if;
+  
+-- Updating
+END AD_FORM_TRG
+]]></body>
+    </trigger>
+  </database>

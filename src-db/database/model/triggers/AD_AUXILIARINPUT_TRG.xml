@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_AUXILIARINPUT_TRG">
+    <trigger name="AD_AUXILIARINPUT_TRG" table="AD_AUXILIARINPUT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2009 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+ v_aux NUMBER;
+ v_MODULE_ID AD_MODULE.AD_MODULE_ID%TYPE;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+    SELECT AD_MODULE_ID
+    INTO v_MODULE_ID	
+    FROM AD_TAB WHERE AD_TAB_ID = :new.AD_TAB_ID;
+
+  IF (:new.AD_Module_ID != '0' AND :new.AD_MODULE_ID <> v_MODULE_ID) THEN
+
+    SELECT COUNT(*)
+      INTO v_Aux
+      FROM AD_MODULE_DBPREFIX
+     WHERE AD_MODULE_ID = :new.AD_Module_ID
+       AND instr(upper(:new.NAME), upper(name)||'_') = 1;
+    
+    IF v_Aux = 0 THEN
+      RAISE_APPLICATION_ERROR(-20536, 'Messages must start with its module DB prefix') ;
+    END IF;
+  END IF;
+
+
+END AD_AUXILIARINPUT_TRG
+]]></body>
+    </trigger>
+  </database>

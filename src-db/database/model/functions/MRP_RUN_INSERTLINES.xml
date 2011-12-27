@@ -1,0 +1,128 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_RUN_INSERTLINES">
+    <function name="MRP_RUN_INSERTLINES" type="NULL">
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_parentrun_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qty" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_neededqty" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_parent_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_inouttrxtype" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_fixed" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_orderline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_workrequirement_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_salesforecastline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_requisitionline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_processplan_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planneddate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_plannedorderdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_production" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_isexploded" type="CHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_vendor_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_line_id" type="VARCHAR" mode="out">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+BEGIN
+  BEGIN --BODY
+    v_ResultStr := 'Inserting run lines';
+    IF (p_Production = 'Y') THEN
+      Ad_Sequence_Next('MRP_Run_ProductionLine', p_User_ID, p_Line_ID);
+      INSERT INTO MRP_RUN_PRODUCTIONLINE (
+        MRP_RUN_PRODUCTIONLINE_ID,
+        AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, UPDATED, UPDATEDBY, CREATED, CREATEDBY,
+        M_PRODUCT_ID, QTY, NEEDEDQTY, PLANNEDDATE, PLANNEDORDERDATE, PARENT_ID, INOUTTRXTYPE,
+        ISFIXED, C_ORDERLINE_ID, MA_WORKREQUIREMENT_ID, MRP_SALESFORECASTLINE_ID,
+        MRP_RUN_PRODUCTION_ID, M_REQUISITIONLINE_ID, MA_PROCESSPLAN_ID, ISEXPLODED )
+      VALUES (
+        p_Line_ID,
+        p_Client_ID, p_Org_ID, 'Y', now(), p_User_ID, now(), p_User_ID,
+        p_Product_ID, p_Qty, p_NeededQty, p_PlannedDate, p_PlannedOrderDate, p_Parent_ID, p_InOutTrxType,
+        p_Fixed, p_OrderLine_ID, p_WorkRequirement_ID, p_SalesForecastLine_ID,
+        p_ParentRun_ID, p_RequisitionLine_ID, p_ProcessPlan_ID, p_IsExploded
+      );
+    ELSE
+      Ad_Sequence_Next('MRP_Run_PurchaseLine', p_User_ID, p_Line_ID);
+      INSERT INTO MRP_RUN_PURCHASELINE (
+        MRP_RUN_PURCHASELINE_ID,
+        AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        M_PRODUCT_ID, QTY, NEEDEDQTY, PLANNEDDATE, PLANNEDORDERDATE, INOUTTRXTYPE,
+        ISFIXED, C_ORDERLINE_ID, MA_WORKREQUIREMENT_ID, MRP_SALESFORECASTLINE_ID,
+        MRP_RUN_PURCHASE_ID, M_REQUISITIONLINE_ID, ISCOMPLETED, C_BPARTNER_ID)
+      VALUES (
+        p_Line_ID,
+        p_Client_ID, p_Org_ID, 'Y', now(), p_User_ID, now(), p_User_ID,
+        p_Product_ID, p_Qty, p_NeededQty, p_PlannedDate, p_PlannedOrderDate, p_InOutTrxType,
+        p_Fixed, p_OrderLine_ID, p_WorkRequirement_ID, p_SalesForecastLine_ID,
+        p_parentRun_ID, p_RequisitionLine_ID, p_IsExploded, p_vendor_Id
+      );
+    END IF;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MRP_RUN_INSERTLINES exception: ' || v_ResultStr) ;
+  RAISE;
+--  RETURN;
+END MRP_RUN_INSERTLINES
+]]></body>
+    </function>
+  </database>

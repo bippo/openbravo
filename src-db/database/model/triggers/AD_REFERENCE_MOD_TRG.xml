@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_REFERENCE_MOD_TRG">
+    <trigger name="AD_REFERENCE_MOD_TRG" table="AD_REFERENCE" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2008-2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  devTemplate NUMBER;
+  devModule   CHAR(1);
+  cuerrentID  VARCHAR2(32);
+  cuerrentModuleID  VARCHAR2(32);
+  vAux NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  SELECT COUNT(*)
+    INTO devTemplate
+    FROM AD_MODULE
+   WHERE IsInDevelopment = 'Y'
+     AND Type = 'T';
+     
+  --Check if trying to move object from module not in dev
+  IF (UPDATING) THEN
+    IF (COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.')) THEN
+      SELECT COUNT(*) 
+        INTO vAux
+        FROM AD_MODULE
+       WHERE AD_MODULE_ID = :old.AD_Module_ID
+        AND isindevelopment = 'N';
+      IF (vAux!=0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ChangeNotInDevModule@');
+      END IF;
+    END IF;
+  END IF;
+     
+  IF (UPDATING OR INSERTING) THEN
+    cuerrentID := :new.AD_Reference_ID;
+    cuerrentModuleID := :new.AD_Module_ID;
+  ELSE
+    cuerrentID := :old.AD_Reference_ID;
+    cuerrentModuleID := :old.AD_Module_ID;
+  END IF;
+  
+  SELECT M.IsInDevelopment
+    INTO devModule
+    FROM AD_MODULE M
+   WHERE M.AD_MODULE_ID = cuerrentModuleID;
+     
+  IF (UPDATING AND devTemplate=0 AND devModule='N') THEN
+    IF (
+        COALESCE(:NEW.AD_Client_ID , '.') != COALESCE(:OLD.AD_Client_ID , '.') OR
+        COALESCE(:NEW.AD_Org_ID , '.') != COALESCE(:OLD.AD_Org_ID , '.') OR
+        COALESCE(:NEW.IsActive , '.') != COALESCE(:OLD.IsActive , '.') OR
+        COALESCE(:NEW.Name , '.') != COALESCE(:OLD.Name , '.') OR
+        COALESCE(:NEW.Description , '.') != COALESCE(:OLD.Description , '.') OR
+        COALESCE(:NEW.Help , '.') != COALESCE(:OLD.Help , '.') OR
+        COALESCE(:NEW.VFormat , '.') != COALESCE(:OLD.VFormat , '.') OR
+        COALESCE(:NEW.AD_Module_ID , '.') != COALESCE(:OLD.AD_Module_ID , '.') OR                                                                                                
+        COALESCE(:NEW.PARENTREFERENCE_ID,'.')   != COALESCE(:OLD.PARENTREFERENCE_ID,'.') OR                                                                                                                                                  
+        COALESCE(:NEW.MODEL_IMPL        ,'.')   != COALESCE(:OLD.MODEL_IMPL        ,'.') OR                                                                                                                                                  
+        COALESCE(:NEW.WAD_IMPL          ,'.')   != COALESCE(:OLD.WAD_IMPL          ,'.') OR                                                                                                                                                  
+        COALESCE(:NEW.UI_IMPL           ,'.')   != COALESCE(:OLD.UI_IMPL           ,'.') OR
+        :NEW.ISBASEREFERENCE !=  :OLD.ISBASEREFERENCE        
+        ) THEN
+      RAISE_APPLICATION_ERROR(-20532, 'Cannot update an object in a module not in developement and without an active template');
+    END IF;
+  END IF;
+  
+  IF ((DELETING OR INSERTING) AND devModule='N') THEN
+    RAISE_APPLICATION_ERROR(-20533, 'Cannot insert/delete objects in a module not in development.');
+  END IF;
+
+  IF (UPDATING OR INSERTING) THEN
+    IF :NEW.ISBASEREFERENCE = 'N' AND :NEW.PARENTREFERENCE_ID IS NULL THEN
+        RAISE_APPLICATION_ERROR(-20000, '@IF_NOT_BASE_THEN_PARENT_MANDATORY@');
+    END IF;
+  END IF;
+  
+  
+  --Force base reference not to have parent
+  IF UPDATING THEN 
+    IF (:new.IsBaseReference='Y') THEN
+      :new.parentReference_ID := null;
+     END IF;
+  END IF;
+
+END AD_REFERENCE_MOD_TRG
+]]></body>
+    </trigger>
+  </database>

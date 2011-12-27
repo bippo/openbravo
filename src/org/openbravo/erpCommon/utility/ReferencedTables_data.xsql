@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReferencedTablesData" package="org.openbravo.erpCommon.utility">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_COLUMN_ID, COLUMNNAME, AD_REFERENCE_ID, AD_REFERENCE_VALUE_ID, AD_VAL_RULE_ID, '' AS TABLENAME 
+        FROM AD_COLUMN 
+        WHERE AD_COLUMN.AD_TABLE_ID = ? 
+        AND AD_COLUMN.ISPARENT = 'Y'
+        ORDER BY AD_REFERENCE_ID
+      ]]>
+    </Sql>
+    <Parameter name="filterField" optional="true" after="WHERE " text="UPPER(AD_COLUMN.COLUMNNAME) = UPPER(?) AND "/>
+    <Parameter name="adTableId"/>
+  </SqlMethod>
+  <SqlMethod name="selectRefTable" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_TABLE.TABLENAME, AD_COLUMN.COLUMNNAME 
+        FROM AD_REF_TABLE, AD_TABLE, AD_COLUMN
+        WHERE AD_REF_TABLE.AD_TABLE_ID = AD_TABLE.AD_TABLE_ID 
+        AND AD_REF_TABLE.AD_KEY = AD_COLUMN.AD_COLUMN_ID
+        AND AD_REF_TABLE.AD_REFERENCE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="referencevalue"/>
+  </SqlMethod>
+  <SqlMethod name="selectKeyId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TABLENAME AS TABLENAME
+        FROM AD_TABLE 
+        WHERE AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="field" optional="true" type="replace" after="SELECT " text="TABLENAME"/>
+    <Parameter name="table" optional="true" type="replace" after="FROM " text="AD_TABLE"/>
+    <Parameter name="keyName" optional="true" type="replace" after="WHERE " text="AD_TABLE_ID"/>
+    <Parameter name="keyId"/>
+  </SqlMethod>
+  <SqlMethod name="selectTableName" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT TABLENAME
+        FROM AD_TABLE 
+        WHERE AD_TABLE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+  </SqlMethod>
+  <SqlMethod name="selectTableId" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT AD_TABLE_ID
+        FROM AD_TABLE 
+        WHERE UPPER(TABLENAME) = UPPER(?)
+      ]]>
+    </Sql>
+    <Parameter name="tablename"/>
+  </SqlMethod>
+  <SqlMethod name="selectSOTrx" type="preparedStatement" return="Boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT (case ISSOTRX when 'Y' then 1 else 0 end) AS ISSOTRX 
+        FROM C_ORDER 
+        WHERE C_ORDER_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="table" optional="true" type="replace" after="FROM " text="C_ORDER"/>
+    <Parameter name="keyName" optional="true" type="replace" after="WHERE " text="C_ORDER_ID"/>
+    <Parameter name="keyId"/>
+  </SqlMethod>
+  <SqlMethod name="selectNotManual" type="preparedStatement" return="Boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT (case SETTLEMENTTYPE when 'I' then 0 else 1 end) AS ISSOTRX 
+        FROM C_SETTLEMENT 
+        WHERE C_SETTLEMENT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="keyId"/>
+  </SqlMethod>
+  <SqlMethod name="hasIsSOTrx" type="preparedStatement" return="Boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(*) AS TOTAL 
+        FROM AD_COLUMN 
+        WHERE AD_TABLE_ID = ? 
+        AND UPPER(COLUMNNAME) = 'ISSOTRX'
+      ]]>
+    </Sql>
+    <Parameter name="adTableId"/>
+  </SqlMethod>
+</SqlClass>

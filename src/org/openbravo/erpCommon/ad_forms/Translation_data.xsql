@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="TranslationData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      select '1' AS C, '' AS AD_MODULE_ID, '' AS VALUE, '' AS TABLENAME,
+             '' AS ISINDEVELOPMENT, '' AS AD_Table_ID, '' as AD_Language, '' AS grandParent
+      from dual 
+    </Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectContributors" type="preparedStatement" return="string">     
+      <Sql>
+        select TranslatedBy
+          from ad_language
+         where ad_language = ?
+      </Sql>
+      <Parameter name="paramLanguage"/>
+  </SqlMethod>
+  
+  <SqlMethod name="version" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT AD_SYSTEM_INFO.OB_VERSION FROM AD_SYSTEM_INFO
+      </Sql>
+  </SqlMethod>
+
+  <SqlMethod name="selectModuleLang" type="preparedStatement" return="string">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+          SELECT AD_LANGUAGE AS C
+            FROM AD_MODULE
+           WHERE AD_MODULE_ID = ?
+      </Sql>
+      <Parameter name="moduleId"/>
+  </SqlMethod>
+
+  <SqlMethod name="centrallyMaintained" type="preparedStatement" return="string">     
+      <Sql>
+         select count(*) AS c
+           from AD_Table t,
+                AD_Column c
+          where c.AD_Table_ID=t.AD_Table_ID 
+            and upper(c.ColumnName)='ISCENTRALLYMAINTAINED'
+            and c.IsActive = 'Y'
+            and upper(t.tableName) = upper(?)
+      </Sql>
+      <Parameter name="tableName"/>
+  </SqlMethod>
+
+   <SqlMethod name="trlColumns" type="preparedStatement" return="multiple">     
+      <Sql>
+         select ColumnName AS c
+           from AD_Table t,
+                AD_Column c
+          where c.AD_Table_ID=t.AD_Table_ID 
+            and upper(t.TableName)=?
+            and c.AD_Reference_ID in ('10','14')
+          order by IsMandatory desc, ColumnName
+      </Sql>
+      <Parameter name="tableName"/>
+  </SqlMethod> 
+
+  <SqlMethod name="trlTables" type="preparedStatement" return="multiple">     
+      <Sql>
+         select upper(tablename) AS c
+           from ad_table 
+          where upper(tablename) like '%TRL'
+      </Sql>
+  </SqlMethod> 
+
+  <SqlMethod name="modules" type="preparedStatement" return="multiple">     
+      <Sql>
+         select ad_module_id AS AD_MODULE_ID, JAVAPACKAGE AS VALUE
+           from ad_module 
+      </Sql>
+  </SqlMethod> 
+
+  <SqlMethod name="trlModulesTables" type="preparedStatement" return="multiple">     
+      <Sql>
+        select upper(t.tablename) AS c
+        from aD_table t
+        where lower(t.tablename) like '%trl'
+         and exists
+          (select 1
+           from ad_column c,
+             ad_table t2
+           where t2.ad_table_id = c.ad_table_id
+           and lower(columnname) = 'ad_module_id'
+           and lower(t2.tablename) || '_trl' = lower(t.tablename)
+           union
+           select 1
+             from ad_table t1, ad_column c, ad_table t2, ad_column c2
+            where t1.ad_table_id = c.ad_table_id
+              and c.isparent='Y'
+              and lower(t2.tablename)||'_id' = lower(c.columnname)
+              and lower(t1.tablename) || '_trl' = lower(t.tablename)
+              and exists (select 1 from ad_column where ad_table_id = t2.ad_table_id and lower(columnname) = 'ad_module_id')
+           union
+           select 1
+              from ad_table t1, ad_column c, ad_table t2, ad_column c2, ad_table t3, ad_column c3
+            where t2.ad_table_id = c2.ad_table_id
+              and t1.ad_table_id = c.ad_table_id
+              and c.isparent='Y'
+              and c2.isparent='Y'
+              and lower(t3.tablename)||'_id' = lower(c2.columnname)
+              and lower(t2.tablename)||'_id' = lower(c.columnname)
+              and lower(t1.tablename) || '_trl' = lower(t.tablename)
+              and exists (select 1 from ad_column where ad_table_id = t3.ad_table_id and lower(columnname) = 'ad_module_id')
+              and not exists (select 1 from ad_column where ad_table_id = t2.ad_table_id and lower(columnname) = 'ad_module_id')
+           )
+      </Sql>
+  </SqlMethod> 
+  
+  <SqlMethod name="parentTable" type="preparedStatement" return="multiple">     
+      <Sql>
+      select t2.tablename as tablename, null as grandParent
+       from ad_table t, ad_table t1, ad_column c, ad_table t2
+      where t1.ad_table_id = c.ad_table_id
+        and c.isparent='Y'
+        and lower(t2.tablename)||'_id' = lower(c.columnname)
+        and lower(t1.tablename) || '_trl' = lower(t.tablename)
+        and exists (select 1 from ad_column where ad_table_id = t2.ad_table_id and lower(columnname) = 'ad_module_id')
+        and not exists (select 1 from ad_column where ad_table_id = t1.ad_table_id and lower(columnname) = 'ad_module_id')
+        and lower(t.tablename) = lower(?)
+      union
+      select t2.tablename, t3.tablename
+        from ad_table t, ad_table t1, ad_column c, ad_table t2, ad_column c2, ad_table t3
+       where t2.ad_table_id = c2.ad_table_id
+         and t1.ad_table_id = c.ad_table_id
+         and c.isparent='Y'
+         and c2.isparent='Y'
+         and lower(t3.tablename)||'_id' = lower(c2.columnname)
+         and lower(t2.tablename)||'_id' = lower(c.columnname)
+         and lower(t1.tablename) || '_trl' = lower(t.tablename)
+         and exists (select 1 from ad_column where ad_table_id = t3.ad_table_id and lower(columnname) = 'ad_module_id')
+         and not exists (select 1 from ad_column where ad_table_id = t2.ad_table_id and lower(columnname) = 'ad_module_id')
+         and lower(t.tablename) = lower(?)
+      </Sql>
+      <Parameter name="tablename"/>
+      <Parameter name="tablename"/>
+  </SqlMethod> 
+  
+  <SqlMethod name="referenceDataTrl" type="preparedStatement" return="multiple">     
+      <Sql>
+      SELECT D.AD_MODULE_ID, M.ISINDEVELOPMENT, t.tablename, 
+             t.AD_Table_ID,  M.AD_Language, M.JavaPackage as Value
+        FROM AD_DATASET D,
+             AD_DATASET_TABLE DT,
+             AD_TABLE T,
+             AD_MODULE M
+       WHERE EXPORTALLOWED='Y'
+         AND DT.AD_DATASET_ID = D.AD_DATASET_ID
+         AND T.AD_TABLE_ID = DT.AD_TABLE_ID
+         AND M.AD_MODULE_ID = D.AD_MODULE_ID
+         AND EXISTS (SELECT 1 
+                       FROM AD_TABLE T1
+                      WHERE UPPER(T1.TABLENAME) = UPPER(T.TABLENAME)||'_TRL')
+      </Sql>
+  </SqlMethod> 
+  
+  <SqlMethod name="insertContrib" type="preparedStatement" return="rowCount">
+      <Sql>
+         update ad_language
+            set translatedBy = ?,
+                updatedby = 0,
+                updated = now()
+          where ad_language = ?
+      </Sql>
+      <Parameter name="contrib"/>
+      <Parameter name="lang"/>
+  </SqlMethod> 
+
+   
+</SqlClass>

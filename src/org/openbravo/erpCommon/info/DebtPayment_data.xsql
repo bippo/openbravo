@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DebtPaymentData" package="org.openbravo.erpCommon.info">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+      	SELECT B.*,
+            C_DEBT_PAYMENT_ID || '@_##_@' || Ad_Column_Identifier(TO_CHAR('C_Debt_Payment'), TO_CHAR(C_DEBT_PAYMENT_ID), TO_CHAR(?)) AS ROWKEY,
+            (SELECT COALESCE(RLT.NAME, RL.NAME) FROM AD_REF_LIST RL LEFT JOIN AD_REF_LIST_TRL RLT on RL.AD_REF_LIST_ID = RLT.AD_REF_LIST_ID AND RLT.AD_LANGUAGE = ?
+             WHERE B.payrule = RL.VALUE AND RL.AD_REFERENCE_ID = '195') AS PAYMENTRULE,
+            (SELECT DOCUMENTNO FROM C_SETTLEMENT S1 WHERE S1.C_SETTLEMENT_ID = b.C_SETTLEMENT_CANCEL_ID) AS DEBTCANCEL,
+            (SELECT DOCUMENTNO FROM C_SETTLEMENT S2 WHERE S2.C_SETTLEMENT_ID = b.C_SETTLEMENT_GENERATE_ID) AS DEBTGENERATE
+      	FROM ( SELECT '0' AS RN1, A.* FROM (
+	        SELECT DP.C_DEBT_PAYMENT_ID, B.NAME AS BPARTNER, I.DOCUMENTNO AS INVOICE, DP.DATEPLANNED,
+	        O.DOCUMENTNO AS ORDERNO, DP.AMOUNT, DP.WRITEOFFAMT, C.ISO_CODE AS CURRENCY,
+	        dp.paymentrule as payrule, dp.c_settlement_cancel_id, dp.c_settlement_generate_id
+	        FROM C_DEBT_PAYMENT DP left join C_BPARTNER B on DP.C_BPARTNER_ID = B.C_BPARTNER_ID
+	                               left join C_INVOICE I  on DP.C_INVOICE_ID = I.C_INVOICE_ID
+	                               left join C_ORDER    O on DP.C_ORDER_ID = O.C_ORDER_ID,
+	            C_CURRENCY C
+	        WHERE DP.C_CURRENCY_ID = C.C_CURRENCY_ID 
+	        AND DP.AD_Client_ID IN ('1') 
+	        AND DP.AD_Org_ID IN ('1') 
+	        AND DP.IsActive='Y'
+	        AND DP.IsValid='Y'
+            AND CASE
+                  WHEN (DP.ISVALID = 'N') THEN 'I'
+                  WHEN (DP.C_CASHLINE_ID IS NOT NULL OR DP.C_BANKSTATEMENTLINE_ID IS NOT NULL) THEN 'C'
+                  WHEN (DP.CANCEL_PROCESSED = 'Y' AND DP.ISPAID = 'N') THEN 'W'
+                  WHEN (DP.CANCEL_PROCESSED = 'Y' OR(DP.C_Settlement_Cancel_ID IS NULL AND DP.GENERATE_PROCESSED = 'Y' AND DP.ISPAID = 'Y')) THEN 'A'
+                  ELSE 'P'
+                END = ''
+	        ORDER BY DP.C_DEBT_PAYMENT_ID
+	        ) A ) B
+		WHERE 1=1
+        ]]>
+        </Sql>
+        <Field name="position" value="count"/>
+        <Parameter name="language"/>
+        <Parameter name="language"/>
+        <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />        
+        <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="businesPartner" optional="true" after="AND DP.IsValid='Y'"><![CDATA[ AND b.C_BPartner_ID=? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned >= TO_DATE(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned < TO_DATE(?) ]]></Parameter>
+        <Parameter name="AmountFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="AmountTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount <= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="paymentRule" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.paymentrule = ? ]]></Parameter>
+        <Parameter name="isPaid" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.ispaid = ? ]]></Parameter>
+        <Parameter name="isReceipt" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.isreceipt = ? ]]></Parameter>
+        <Parameter name="invoiceId" ignoreValue="%" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND i.documentno like ? ]]></Parameter>
+        <Parameter name="orderId" ignoreValue="%" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND o.documentno like ? ]]></Parameter>
+        <Parameter name="isPending" type="replace" optional="true" after="END " text="= ''"/>
+        <Parameter name="orderBy" type="replace" optional="true" after="ORDER BY " text="DP.C_DEBT_PAYMENT_ID" />
+        <Parameter name="oraLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[AND RN1 BETWEEN ]]></Parameter>
+        <Parameter name="pgLimit" type="argument" optional="true" after="WHERE 1=1"><![CDATA[LIMIT ]]></Parameter>
+   </SqlMethod>
+
+   <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+   </SqlMethod>
+
+   <SqlMethod name="countRows" type="preparedStatement" return="String">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+      <![CDATA[
+	        SELECT COUNT(*) AS value
+	        FROM ( SELECT '0' AS rn1, B.*  FROM ( 
+	        SELECT 1 FROM C_DEBT_PAYMENT DP left join C_BPARTNER B on DP.C_BPARTNER_ID = B.C_BPARTNER_ID
+	                               left join C_INVOICE I  on DP.C_INVOICE_ID = I.C_INVOICE_ID
+	                               left join C_ORDER    O on DP.C_ORDER_ID = O.C_ORDER_ID
+	        WHERE 
+	            DP.AD_Client_ID IN ('1') 
+	        AND DP.AD_Org_ID IN ('1') 
+	        AND DP.IsActive='Y'
+	        AND DP.IsValid='Y'
+            AND CASE
+                  WHEN (DP.ISVALID = 'N') THEN 'I'
+                  WHEN (DP.C_CASHLINE_ID IS NOT NULL OR DP.C_BANKSTATEMENTLINE_ID IS NOT NULL) THEN 'C'
+                  WHEN (DP.CANCEL_PROCESSED = 'Y' AND DP.ISPAID = 'N') THEN 'W'
+                  WHEN (DP.CANCEL_PROCESSED = 'Y' OR(DP.C_Settlement_Cancel_ID IS NULL AND DP.GENERATE_PROCESSED = 'Y' AND DP.ISPAID = 'Y')) THEN 'A'
+                  ELSE 'P'
+                END = ''
+                 AND 1=1
+                ) B
+      ) A 
+        ]]>
+        </Sql>
+         <Parameter name="rownum" type="replace" optional="true" after="FROM ( SELECT " text="'0'" />
+        <Field name="position" value="count"/>
+        <Parameter name="adUserClient" type="replace" optional="true" after="DP.AD_Client_ID IN (" text="'1'"/>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="DP.AD_Org_ID IN (" text="'1'"/>
+        <Parameter name="businesPartner" optional="true" after="AND DP.IsValid='Y'"><![CDATA[ AND b.C_BPartner_ID = ? ]]></Parameter>
+        <Parameter name="dateFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned >= TO_DATE(?) ]]></Parameter>
+        <Parameter name="dateTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.Dateplanned < TO_DATE(?) ]]></Parameter>
+        <Parameter name="AmountFrom" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount >= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="AmountTo" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.amount <= TO_NUMBER(?) ]]></Parameter>
+        <Parameter name="paymentRule" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.paymentrule = ? ]]></Parameter>
+        <Parameter name="isPaid" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.ispaid = ? ]]></Parameter>
+        <Parameter name="isReceipt" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND dp.isreceipt = ? ]]></Parameter>
+        <Parameter name="invoiceId" ignoreValue="%" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND i.documentno like ? ]]></Parameter>
+        <Parameter name="orderId" ignoreValue="%" optional="true" after="DP.IsValid='Y'"><![CDATA[ AND o.documentno like ? ]]></Parameter>
+        <Parameter name="isPending" type="replace" optional="true" after="END " text="= ''"/>
+        <Parameter name="pgLimit" type="argument" optional="true" after="AND 1=1"><![CDATA[LIMIT ]]></Parameter>
+        <Parameter name="oraLimit1" type="argument" optional="true" after=") B"><![CDATA[ WHERE ROWNUM <= ]]></Parameter>
+        <Parameter name="oraLimit2" type="argument" optional="true" after=") A "><![CDATA[WHERE RN1 BETWEEN ]]></Parameter>
+   </SqlMethod>
+
+</SqlClass>

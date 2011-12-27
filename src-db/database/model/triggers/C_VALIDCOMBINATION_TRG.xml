@@ -1,0 +1,246 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_VALIDCOMBINATION_TRG">
+    <trigger name="C_VALIDCOMBINATION_TRG" table="C_VALIDCOMBINATION" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+   Cur_Elements RECORD;
+
+
+ v_Combination      VARCHAR(120) := '';
+ v_Description      VARCHAR(255) := '';
+ v_IsFullyQualified CHAR(1) := 'Y';
+ v_Separator      CHAR(1);
+ v_TempValue   VARCHAR(255) := '_';
+ v_TempName   VARCHAR(255) := '_';
+
+ Not_Fully_Qualified Exception;
+
+ --  Individual Statements
+ CURSOR Cur_OO IS
+  SELECT Value, Name
+  FROM AD_Org WHERE AD_Org_ID=:new.AD_Org_ID AND IsActive='Y';
+ CURSOR Cur_AC IS
+  SELECT Value, Name
+  FROM C_ElementValue WHERE C_ElementValue_ID=:new.Account_ID AND IsActive = 'Y';
+ CURSOR Cur_PR IS
+  SELECT Value, Name
+  FROM M_Product WHERE M_Product_ID=:new.M_Product_ID AND IsActive='Y';
+ CURSOR Cur_BP IS
+  SELECT Value, Name
+  FROM C_BPartner WHERE C_BPartner_ID=:new.C_BPartner_ID AND IsActive = 'Y';
+ CURSOR Cur_TO IS
+  SELECT Value, Name
+  FROM AD_Org WHERE AD_Org_ID=:new.AD_OrgTrx_ID AND IsActive='Y';
+ CURSOR Cur_LF IS
+  SELECT Postal, City
+  FROM C_Location WHERE C_Location_ID=:new.C_LocFrom_ID AND IsActive='Y';
+ CURSOR Cur_LT IS
+  SELECT Postal, City
+  FROM C_Location WHERE C_Location_ID=:new.C_LocTo_ID AND IsActive='Y';
+ CURSOR Cur_SR IS
+  SELECT Value, Name
+  FROM C_SalesRegion WHERE C_SalesRegion_ID=:new.C_SalesRegion_ID AND IsActive='Y';
+ CURSOR Cur_PJ IS
+  SELECT Value, Name
+  FROM C_Project WHERE C_Project_ID=:new.C_Project_ID AND IsActive='Y';
+ CURSOR Cur_MC IS
+  SELECT Value, Name
+  FROM C_Campaign WHERE C_Campaign_ID=:new.C_Campaign_ID AND IsActive='Y';
+ CURSOR Cur_AY IS
+  SELECT Value, Name
+  FROM C_Activity WHERE C_Activity_ID=:new.C_Activity_ID AND IsActive='Y';
+ CURSOR Cur_U1 IS
+  SELECT Value, Name
+  FROM C_ElementValue WHERE C_ElementValue_ID=:new.User1_ID AND IsActive = 'Y';
+ CURSOR Cur_U2 IS
+  SELECT Value, Name
+  FROM C_ElementValue WHERE C_ElementValue_ID=:new.User2_ID AND IsActive = 'Y';
+ --
+ v_change    BOOLEAN;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+    IF UPDATING THEN
+        IF (:new.Combination <> :old.Combination) THEN RETURN;
+        END IF;
+        IF (:new.Description <> :old.Description) THEN RETURN;
+        END IF;
+     END IF;
+
+
+ --  Load C_AcctSchema Info (if not valid: 01403 no data found)
+ SELECT Separator
+   INTO v_Separator
+ FROM C_AcctSchema
+ WHERE C_AcctSchema_ID=:new.C_AcctSchema_ID;
+
+ --  Loop for C_AcctSchema_Elements
+ FOR Cur_Elements IN (SELECT *
+               FROM C_AcctSchema_Element
+       WHERE C_AcctSchema_ID=:new.C_AcctSchema_ID
+       AND IsActive='Y'
+       ORDER BY SeqNo) LOOP
+  IF (Cur_Elements.ElementType = 'OO') THEN
+   OPEN Cur_OO;
+   FETCH Cur_OO INTO v_TempValue, v_TempName;
+   IF (Cur_OO%NOTFOUND) THEN -- mandatory
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_OO;
+  ELSIF (Cur_Elements.ElementType = 'AC') THEN
+   OPEN Cur_AC;
+   FETCH Cur_AC INTO v_TempValue, v_TempName;
+   IF (Cur_AC%NOTFOUND) THEN -- mandatory
+    v_IsFullyQualified := 'N';
+   ELSE
+    IF INSERTING THEN
+      IF (:new.Alias IS NULL OR :new.Alias = '%') THEN
+       :new.Alias := v_TempValue; --Alias is the account no
+      END IF;
+    END IF;
+   END IF;
+   CLOSE Cur_AC;
+  ELSIF (Cur_Elements.ElementType = 'PR') THEN
+   IF (:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+     OPEN Cur_PR;
+     FETCH Cur_PR INTO v_TempValue, v_TempName;
+     IF (Cur_PR%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+      v_IsFullyQualified := 'N';
+     END IF;
+     CLOSE Cur_PR;
+   ELSE
+     v_TempValue:= ''; 
+     v_TempName:='';
+   END IF;
+  ELSIF (Cur_Elements.ElementType = 'BP') THEN
+   IF (:NEW.C_BPARTNER_ID IS NOT NULL) THEN
+      OPEN Cur_BP;
+      FETCH Cur_BP INTO v_TempValue, v_TempName;
+      IF (Cur_BP%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+        v_IsFullyQualified := 'N';
+      END IF;
+      CLOSE Cur_BP;
+   ELSE
+     v_TempValue:= ''; 
+     v_TempName:='';
+   END IF;
+  ELSIF (Cur_Elements.ElementType = 'TO') THEN
+   OPEN Cur_TO;
+   FETCH Cur_TO INTO v_TempValue, v_TempName;
+   IF (Cur_TO%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_TO;
+  ELSIF (Cur_Elements.ElementType = 'LF') THEN
+   OPEN Cur_LF;
+   FETCH Cur_LF INTO v_TempValue, v_TempName;
+   IF (Cur_LF%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_LF;
+  ELSIF (Cur_Elements.ElementType = 'LT') THEN
+   OPEN Cur_LT;
+   FETCH Cur_LT INTO v_TempValue, v_TempName;
+   IF (Cur_LT%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_LT;
+  ELSIF (Cur_Elements.ElementType = 'SR') THEN
+   OPEN Cur_SR;
+   FETCH Cur_SR INTO v_TempValue, v_TempName;
+   IF (Cur_SR%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_SR;
+  ELSIF (Cur_Elements.ElementType = 'PJ') THEN
+   OPEN Cur_PJ;
+   FETCH Cur_PJ INTO v_TempValue, v_TempName;
+   IF (Cur_PJ%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_PJ;
+  ELSIF (Cur_Elements.ElementType = 'MC') THEN
+   OPEN Cur_MC;
+   FETCH Cur_MC INTO v_TempValue, v_TempName;
+   IF (Cur_MC%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_MC;
+  ELSIF (Cur_Elements.ElementType = 'AY') THEN
+   OPEN Cur_AY;
+   FETCH Cur_AY INTO v_TempValue, v_TempName;
+   IF (Cur_AY%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_AY;
+  ELSIF (Cur_Elements.ElementType = 'U1') THEN
+   OPEN Cur_U1;
+   FETCH Cur_U1 INTO v_TempValue, v_TempName;
+   IF (Cur_U1%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_U1;
+  ELSIF (Cur_Elements.ElementType = 'U2') THEN
+   OPEN Cur_U2;
+   FETCH Cur_U2 INTO v_TempValue, v_TempName;
+   IF (Cur_U2%NOTFOUND AND Cur_Elements.IsMandatory='Y') THEN
+    v_IsFullyQualified := 'N';
+   END IF;
+   CLOSE Cur_U2;
+  END IF;
+
+  -- Construct Info Fields
+  v_Combination := SUBSTR(COALESCE(v_Combination,'') || COALESCE(v_TempValue,'') || COALESCE(v_Separator,''),1,120);
+  v_Description := SUBSTR(COALESCE(v_Description,'') || COALESCE(v_TempName,'') || COALESCE(v_Separator,''),1,255);
+  v_TempValue := '_';
+  v_TempName := '_';
+ END LOOP;
+
+ --  Fully Qualified
+ IF NOT DELETING THEN
+  IF (:new.IsFullyQualified='Y' AND v_IsFullyQualified='N') THEN
+   RAISE Not_Fully_Qualified;
+  END IF;
+ END IF;
+
+ --  Finish
+ :new.Combination := SUBSTR(v_Combination,1,(CASE LENGTH(v_Combination) WHEN 0 THEN 1 ELSE LENGTH(v_Combination)-1 END));
+ :new.Description := SUBSTR(v_Description,1,(CASE LENGTH(v_Description) WHEN 0 THEN 1 ELSE LENGTH(v_Description)-1 END));
+ :new.IsFullyQualified := v_IsFullyQualified;
+ IF NOT INSERTING THEN
+  IF NOT (:new.Combination=:old.Combination AND :new.Description=:old.Description) THEN
+    DBMS_OUTPUT.PUT_LINE(:new.Combination || ' - ' || :new.Description);
+  END IF;
+ END IF;
+
+EXCEPTION
+ WHEN Not_Fully_Qualified THEN
+  RAISE_APPLICATION_ERROR(-20101, 'Not fully Qualified: ' || v_Combination || '(' || :new.C_ValidCombination_ID || ')');
+
+END C_VALIDCOMBINATION_TRG
+]]></body>
+    </trigger>
+  </database>

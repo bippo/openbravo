@@ -1,0 +1,507 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Openbravo</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" id="favicon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS" />
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/appStatus.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/CheckCleanCache.js?cache=true" type="text/javascript"></script>
+<script language="JavaScript" src="../utility/CheckCleanCache.js?cache=false" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="visualPrefs">var showCompanyLogo = true, showSupportLogo = true, showForgeLogo = true, urlCompany = 'http://www.openbravo.com/', urlSupport = 'http://support.openbravo.com/';/* Parameters retreived from Login.java */</script>
+<script language="JavaScript" type="text/javascript">var urlForge = 'http://forge.openbravo.com/';</script>
+<script language="JavaScript" type="text/javascript" id="expirationMessage"></script>
+<script language="JavaScript" type="text/javascript" id="cacheMsg">var cacheMsg = 'xx';</script>
+<script language="JavaScript" type="text/javascript" id="validBrowserMsg">var validBrowserMsg = 'xx';</script>
+<script language="JavaScript" type="text/javascript" id="validBrowserMsgOrHigher">var validBrowserMsgOrHigher = 'xx';</script>
+<script language="JavaScript" type="text/javascript" id="recBrowserMsgTitle">var recBrowserMsgTitle = 'xx';</script>
+<script language="JavaScript" type="text/javascript" id="recBrowserMsgText">var recBrowserMsgText = 'xx';</script>
+<script language="JavaScript" type="text/javascript" id="identificationFailureTitle">var identificationFailureTitle = 'xx';</script>
+<script language="JavaScript" type="text/javascript" id="errorEmptyContent">var errorEmptyContent = 'xx';</script>
+
+<script language="JavaScript" type="text/javascript">
+var validBrowserFirefox = '3.6.0.0';
+var validBrowserChrome = '8.0.0.0';
+var validBrowserExplorer = '7.0.0.0';
+var validBrowserSafari = '5.0.0.0';
+
+var recBrowserFirefox = '4.0.0.0';
+var recBrowserChrome = '9.0.0.0';
+var recBrowserExplorer = '9.0.0.0';
+var recBrowserSafari = '5.0.0.0';
+</script>
+
+<script type="text/javascript">
+  function redirectWhenPopup() {
+    var permission = false;
+    try {
+      if (top.opener.parent.frames['appFrame']) {
+        permission = true;
+      }
+    }
+    catch (e) {}
+    if (permission && top.opener) {
+      top.opener.parent.location.href = top.document.location.href;
+      top.window.close();
+    }
+  }
+
+  function redirectWhenInsideMDI() {
+    if (typeof isWindowInMDIPage !== 'undefined' && isWindowInMDIPage) {
+      var LayoutMDI = null;
+      if (isWindowInMDIPopup && parent.opener) {
+        LayoutMDI = parent.opener.getFrame('LayoutMDI'); // Since getFrame('LayoutMDI') function frameset checks equals the current opened Login_FS.html modal popup
+      } else {
+        LayoutMDI = getFrame('LayoutMDI');
+      }
+      if (LayoutMDI && typeof parent.document.getElementById('framesetMenu') === 'object') {
+        LayoutMDI.location.href = parent.window.location.href;
+      }
+    }
+  }
+
+  function hideMenuFrame() {
+    if (parent.document.getElementById('framesetMenu')) {
+      parent.document.getElementById('framesetMenu').cols = parent.document.getElementById('framesetMenu').cols.replace(parent.menuWidth, '0%');
+    }
+  }
+</script>
+<script type="text/javascript">
+  function setLoginMessage(type, title, text) {
+    if (type === 'Error') {
+      var msgContainer = document.getElementById('errorMsg');
+      var msgContainerTitle = document.getElementById('errorMsgTitle');
+      var msgContainerTitleContainer = document.getElementById('errorMsgTitle_Container');
+      var msgContainerContent = document.getElementById('errorMsgContent');
+      if (typeof title !== 'undefined' && title !== '' && title !== null) {
+        msgContainerTitle.innerHTML = title.replace(/\n/g, '<br>').replace(/\\n/g, '<br>');
+        msgContainerTitleContainer.style.display = '';
+      } else {
+        msgContainerTitle.innerHTML = '';
+        msgContainerTitleContainer.style.display = 'none';
+      }
+      if (typeof text !== 'undefined' && text !== '' && text !== null) {
+        msgContainerContent.innerHTML = text.replace(/\n/g, '<br>').replace(/\\n/g, '<br>');
+      } else {
+        msgContainerContent.innerHTML = '';
+      }
+      msgContainer.style.display = '';
+      isRecBrowserMsgShown = false;
+    } else if (type === 'Warning') {
+      var alertText = '';
+      if (typeof title !== 'undefined' && title !== '' && title !== null) {
+        alertText += title.replace(/<br>/g, '\n') + '\n';
+      }
+      if (typeof text !== 'undefined' && text !== '' && text !== null) {
+        alertText += text.replace(/<br>/g, '\n')
+      }
+      alert(alertText);
+    }
+  }
+
+  var isRecBrowserMsgShown = false;
+  function setRecommendedBrowserMessage(title, text) {
+    var msgContainer = document.getElementById('errorMsg');
+    var msgContainerTitle = document.getElementById('errorMsgTitle');
+    var msgContainerContent = document.getElementById('errorMsgContent');
+    msgContainerTitle.innerHTML = '';
+    if (typeof title !== 'undefined' && title !== '' && title !== null) {
+      msgContainerContent.innerHTML = '<span class="Login_RecBrowserMsg_Title">' + title.replace(/\n/g, '<br>').replace(/\\n/g, '<br>') + ': ' + '</span>';
+    } else {
+      msgContainerContent.innerHTML = '';
+    }
+    if (typeof text !== 'undefined' && text !== '' && text !== null) {
+      msgContainerContent.innerHTML = msgContainerContent.innerHTML + '<span class="Login_RecBrowserMsg_Content">' + text.replace(/\n/g, '<br>').replace(/\\n/g, '<br>') + '</span>';
+    }
+    msgContainer.style.display = '';
+    isRecBrowserMsgShown = true;
+  }
+
+  function resetLoginMessage() {
+    var msgContainer = document.getElementById('errorMsg');
+    var msgContainerTitle = document.getElementById('errorMsgTitle');
+    var msgContainerTitleContainer = document.getElementById('errorMsgTitle_Container');
+    var msgContainerContent = document.getElementById('errorMsgContent');
+    msgContainerTitle.innerHTML = '';
+    msgContainerTitleContainer.style.display = '';
+    msgContainerContent.innerHTML = '';
+    msgContainer.style.display = 'none';
+    isRecBrowserMsgShown = false;
+  }
+
+  function addInputChangeCheck(input) {
+    setObjAttribute(input, 'onkeypress', 'checkInputKeyDown(this); return true;');
+    setObjAttribute(input, 'oncut', 'checkInputKeyDown(this); return true;');
+    setObjAttribute(input, 'oncopy', 'checkInputKeyDown(this); return true;');
+    setObjAttribute(input, 'onpaste', 'checkInputKeyDown(this); return true;');
+  }
+
+  function checkInputKeyDown(input, valueLength) {
+    var msgContainer = document.getElementById('errorMsg');
+    if (msgContainer.style.display !== 'none' && typeof input === 'object') {
+      if (typeof valueLength === 'undefined' || valueLength === null) {
+        valueLength = input.value.length;
+        setTimeout(function() { checkInputKeyDown(input, valueLength); }, 100);
+      } else {
+        if (valueLength !== input.value.length && !isRecBrowserMsgShown) {
+          resetLoginMessage();
+        }
+      }
+    }
+    return true;
+  }
+</script>
+<script type="text/javascript">
+function buttonOK_click() {
+    if (focusedWindowElement.id === 'user' && document.getElementById('user').value !== '' && document.getElementById('password').value === '') {
+      setTimeout(function() { // To manage browser autocomplete feature if it is active
+       if (focusedWindowElement.id === 'user' && document.getElementById('password').value === '') {
+         setWindowElementFocus(document.getElementById('password')) 
+       } else {
+         return true;
+       }
+      }, 10);
+    } else if (focusedWindowElement.id === 'password' && document.getElementById('password').value !== '' && document.getElementById('user').value === '') {
+      setWindowElementFocus(document.getElementById('user'))
+    } else {
+      if (document.getElementById('user').value === '' || document.getElementById('password').value === '') {
+          setLoginMessage('Error', identificationFailureTitle, errorEmptyContent);
+        return true;
+      }     
+      disableButton('buttonOK');
+      submitXmlHttpRequest(loginResult, document.frmIdentificacion, 'DEFAULT', '../secureApp/LoginHandler.html', false, null, null);
+    }
+    return false;
+  }
+
+  function loginResult(paramXMLParticular, XMLHttpRequestObj) {
+     var strText = '';
+     if (getReadyStateHandler(XMLHttpRequestObj, null, false)) {
+       if (XMLHttpRequestObj.responseText) {
+         strText = XMLHttpRequestObj.responseText;
+       }
+       strText = strText.toString();
+       var result = eval('('+strText+')');
+       processResult(result);
+     }
+  }
+
+  function processResult(result){
+    if (result.showMessage) {
+      setLoginMessage(result.messageType, result.messageTitle, result.messageText);
+      document.getElementById('password').value = '';
+    }
+
+    if (!result.showMessage || result.messageType === 'Warning') {
+      var target;
+      try {
+        if (parent.frameMenu) {
+          target = '_parent';
+        } else {
+          target = '_self';
+        }
+      } catch (e) {
+        target = '_self';
+      }
+      submitCommandForm('DEFAULT', false, null, result.target, target, true);
+    } else {
+      enableButton('buttonOK');
+      setWindowElementFocus('password', 'id');
+    }
+  }
+</script>
+<script type="text/javascript">
+  function manageVisualPreferences() {
+    var topLogos = document.getElementById('TopLogos_Container');
+    var bottomLogos = document.getElementById('BottomLogos_Container');
+    if (showSupportLogo && showForgeLogo) {
+      topLogos.className = 'Login_TopLogos_Container_Support_Forge';
+    } else if (showSupportLogo) {
+      topLogos.className = 'Login_TopLogos_Container_Support';
+    } else if (showForgeLogo) {
+      topLogos.className = 'Login_TopLogos_Container_Forge';
+    } else {
+      topLogos.className = 'Login_TopLogos_Container_None';
+    }
+
+    if (showCompanyLogo && urlCompany !== '') {
+      document.getElementById('CompanyLogo_Container').innerHTML = '<a href="' + urlCompany + '" target="_blank" class="Login_Img_Link">' + document.getElementById('CompanyLogo_Container').innerHTML + '</a>';
+    }
+
+    if (showSupportLogo && urlSupport !== '') {
+      document.getElementById('SupportLogo_Container').innerHTML = '<a href="' + urlSupport + '" target="_blank" class="Login_Img_Link">' + document.getElementById('SupportLogo_Container').innerHTML + '</a>';
+    }
+
+    if (showForgeLogo && urlForge !== '') {
+      document.getElementById('ForgeLogo_Container').innerHTML = '<a href="' + urlForge + '" target="_blank" class="Login_Img_Link">' + document.getElementById('ForgeLogo_Container').innerHTML + '</a>';
+    }
+
+    if (showCompanyLogo) {
+      document.getElementById('CompanyLogo_Container').style.display = ''
+    }
+    topLogos.style.display = '';
+    bottomLogos.style.display = '';
+  }
+
+  function maskLoginWindow(errorMsg) {
+    var client = document.getElementById('client');
+    var blocker = document.getElementById('blocker');
+    blocker.innerHTML = '<div class="Login_Home_Logo_Icon" style="position: relative; padding: 50px 0px 0px 0px; margin: 0 auto;"></div><div class="LabelText" style="position: relative; text-align: center; color: red; font-size: 11pt; padding: 10px 0px 0px 0px; width: 608px; margin: 0 auto;">' + errorMsg + '</div>';
+    blocker.style.display = '';
+    client.style.display = 'none';
+  }
+</script>
+<script type="text/javascript">
+  function browserVersionToFloat(versionNum) {
+    while (versionNum.indexOf('.') !== versionNum.lastIndexOf('.')) {
+      versionNum = versionNum.substring(0, versionNum.lastIndexOf('.')) + versionNum.substring(versionNum.lastIndexOf('.')+1, versionNum.length);
+    }
+    versionNum = parseFloat(versionNum, 10);
+    return versionNum;
+  }
+
+  function browserVersionTrim(versionNum) {
+    while ((versionNum.substring(versionNum.length-1, versionNum.length) === '0' && versionNum.indexOf('.') !== -1) || versionNum.substring(versionNum.length-1, versionNum.length) === '.') {
+      versionNum = versionNum.substring(0, versionNum.length-1);
+    }
+    return versionNum;
+  }
+
+  /**
+  * Checks if the browser is a supported one. Just for 2.50
+  */
+  function checkBrowserCompatibility() {
+    var browserName = getBrowserInfo('name');
+    var browserVersion = getBrowserInfo('version');
+    var browserMajorVersion = getBrowserInfo('majorVersion');
+    var isValid = false;
+    if (browserName.toUpperCase().indexOf('FIREFOX') != -1 || browserName.toUpperCase().indexOf('ICEWEASEL') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(validBrowserFirefox)) {
+        isValid = true;
+      }
+    } else if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(validBrowserExplorer)) {
+        isValid = true;
+      }
+    } else if (browserName.toUpperCase().indexOf('GOOGLE CHROME') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(validBrowserChrome)) {
+        isValid = true;
+      }
+    } else if (browserName.toUpperCase().indexOf('APPLE SAFARI') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(validBrowserSafari)) {
+        isValid = true;
+      }
+    }
+    return isValid;
+  }
+
+  /**
+  * Checks if the browser is a recommended one
+  */
+  function checkRecommendedBrowser() {
+    var browserName = getBrowserInfo('name');
+    var browserVersion = getBrowserInfo('version');
+    var browserMajorVersion = getBrowserInfo('majorVersion');
+    var isRecommended = false;
+    if (browserName.toUpperCase().indexOf('FIREFOX') != -1 || browserName.toUpperCase().indexOf('ICEWEASEL') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(recBrowserFirefox)) {
+        isRecommended = true;
+      }
+    } else if (browserName.toUpperCase().indexOf('INTERNET EXPLORER') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(recBrowserExplorer)) {
+        isRecommended = true;
+      }
+    } else if (browserName.toUpperCase().indexOf('GOOGLE CHROME') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(recBrowserChrome)) {
+        isRecommended = true;
+      }
+    } else if (browserName.toUpperCase().indexOf('APPLE SAFARI') != -1) {
+      if (browserVersionToFloat(browserVersion) >= browserVersionToFloat(recBrowserSafari)) {
+        isRecommended = true;
+      }
+    }
+    return isRecommended;
+  }
+
+  function buildValidBrowserMsg() {
+    var displayValidBrowserMsg = validBrowserMsg;
+    displayValidBrowserMsg = displayValidBrowserMsg
+      + '<br>' + ' * Mozilla Firefox ' + browserVersionTrim(validBrowserFirefox) + ' ' + validBrowserMsgOrHigher
+      + '<br>' + ' * Google Chrome ' + browserVersionTrim(validBrowserChrome) + ' ' + validBrowserMsgOrHigher
+      + '<br>' + ' * Microsoft Internet Explorer ' + browserVersionTrim(validBrowserExplorer) + ' ' + validBrowserMsgOrHigher
+      + '<br>' + ' * Apple Safari ' + browserVersionTrim(validBrowserSafari) + ' ' + validBrowserMsgOrHigher;
+    return displayValidBrowserMsg;
+  }
+
+  function buildRecBrowserMsgText() {
+    var displayRecBrowserMsgText = recBrowserMsgText;
+    displayRecBrowserMsgText = displayRecBrowserMsgText.replace('XX', 'Google Chrome ' + browserVersionTrim(recBrowserChrome) + ', Mozilla Firefox ' + browserVersionTrim(recBrowserFirefox) + ', Internet Explorer ' + browserVersionTrim(recBrowserExplorer));
+    displayRecBrowserMsgText = displayRecBrowserMsgText.replace('YY', 'Apple Safari ' + browserVersionTrim(recBrowserSafari) + '');
+    return displayRecBrowserMsgText;
+  }
+</script>
+<script type="text/javascript">
+  function beforeLoadDo() {
+    redirectWhenPopup();
+    redirectWhenInsideMDI();
+    hideMenuFrame();
+  }
+
+  function onLoadDo() {
+    var msgContainer = document.getElementById('errorMsg');
+    var msgContainerTitle = document.getElementById('errorMsgTitle');
+    var msgContainerTitleContainer = document.getElementById('errorMsgTitle_Container');
+    var msgContainerContent = document.getElementById('errorMsgContent');
+
+    if (msgContainerTitle.innerHTML.length === 0) {
+      msgContainerTitleContainer.style.display = 'none';
+    }
+    try { // To avoid in a release upgrade, that a change in code depending on these functions cause revisionControl message not being displayed
+      manageVisualPreferences();
+      addInputChangeCheck(document.getElementById('user'));
+      addInputChangeCheck(document.getElementById('password'));
+      this.windowTables = new Array(
+        new windowTableId('client', 'buttonOK')
+      );
+      setWindowTableParentElement();
+      enableShortcuts('edition');
+      setWindowElementFocus('user', 'id');
+    }
+    catch (e) { }
+
+    if ((!revisionControl('14274')) || (isOpsInstance() != isOpsInstanceCached())) {
+      maskLoginWindow(cacheMsg);
+      setLoginMessage('Warning', '', cacheMsg);
+    }
+
+    if (!checkBrowserCompatibility()) {
+      var displayValidBrowserMsg = buildValidBrowserMsg();
+      setLoginMessage('Warning', '', displayValidBrowserMsg);
+    }
+    if (!checkRecommendedBrowser() && msgContainerTitle.innerHTML.length === 0 && msgContainerContent.innerHTML.length === 0) {
+      var displayRecBrowserMsgText = buildRecBrowserMsgText();
+      setRecommendedBrowserMessage(recBrowserMsgTitle, displayRecBrowserMsgText);
+    }
+    
+    if (expirationMessage){
+      setLoginMessage(expirationMessage.type, expirationMessage.title, expirationMessage.text);
+      if (expirationMessage.disableLogin) {
+          disableButton('buttonOK');
+          document.frmIdentificacion.user.disabled = true;
+          document.frmIdentificacion.password.disabled = true;
+      }
+    }
+  }
+</script>
+<script type="text/javascript">
+  beforeLoadDo();
+</script>
+</head>
+<body onload="onLoadDo();">
+  <div style="display: none; width: 100%; height: 100%; position: absolute; vertical-align: middle; padding: 0px; text-align: center;" id="blocker"></div>
+
+  <div class="Login_Main" id="client">
+
+    <div class="Login_Container">
+
+      <div class="Login_LogForm">
+        <form method="post" action="../secureApp/LoginHandler.html" name="frmIdentificacion" id="frmFormulario" autocomplete="off">
+          <input type="hidden" name="Command" value="" />
+
+          <div class="Login_LogForm_CompanyLogo_Container">
+            <div class="Login_LogForm_CompanyLogo" id="CompanyLogo_Container" style="display: none;"><img class="Login_Logo_Company" src="../../../../../web/images/blank.gif" /></div>
+          </div>
+          <div class="Login_LogForm_Input_Container">
+            <dl>
+              <dt>
+                <label for="user" class="LabelText Login_LabelText">User Name</label>
+              </dt>
+              <dd>
+                <input class="dojoValidateValid Login_TextBox" type="text" maxlength="60" name="user" id="user" />
+              </dd>
+              <dt>
+                <label for="password" class="LabelText Login_LabelText">Password</label>
+              </dt>
+              <dd>
+                <input class="dojoValidateValid Login_TextBox" type="password" maxlength="40" name="password" id="password" />
+              </dd>
+            </dl>
+            <div id="errorMsg" class="LabelText Login_ErrorMsg_Container" style="display:none;">
+              <span id="errorMsgTitle_Container"><span id="errorMsgTitle" class="Login_ErrorMsg_Title">xx</span><br></span><span id="errorMsgContent" class="Login_ErrorMsg_Content">xx</span>
+            </div>
+          </div>
+        </form>
+        <div class="Login_LogForm_Button_Container">
+          <div class="Login_LogForm_Button">
+            <button type="button" 
+              id="buttonOK" 
+              class="ButtonLink" 
+              onclick="buttonOK_click();" 
+              onfocus="buttonEvent('onfocus', this); window.status='Login'; return true;" 
+              onblur="buttonEvent('onblur', this);" 
+              onkeyup="buttonEvent('onkeyup', this);" 
+              onkeydown="buttonEvent('onkeydown', this);" 
+              onkeypress="buttonEvent('onkeypress', this);" 
+              onmouseup="buttonEvent('onmouseup', this);" 
+              onmousedown="buttonEvent('onmousedown', this);" 
+              onmouseover="buttonEvent('onmouseover', this); window.status='Login'; return true;" 
+              onmouseout="buttonEvent('onmouseout', this);">
+              <table class="Button" id="fieldTable">
+                <tr>
+                  <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Login" title="Login" src="../../../../../web/images/blank.gif" border="0" id="fieldButton" /></td>
+                  <td class="Button_text Button_width">Log in</td>
+                  <td class="Button_right"></td>
+                </tr>
+              </table>
+            </button>
+          </div>
+          <div id="sign-in" style="margin-top:12px;">xxxSignIn</div>
+        </div>
+
+      </div>
+
+      <div class="Login_TopLogos_Container_Support_Forge" id="TopLogos_Container" style="display: none;">
+        <div style="height: 1px; width: 1px; font-size: 1"></div>
+        <div class="Login_TopLogos_ForgeLogo_Container">
+          <div class="LabelText Login_LabelText Login_TopLogos_ForgeLogo_Text">Project hosted at:</div>
+          <div class="Login_TopLogos_ForgeLogo_Logo_Container" id="ForgeLogo_Container"><img class="Login_Logo_Forge" src="../../../../../web/images/blank.gif" /></div>
+        </div>
+        <div class="Login_TopLogos_SupportLogo_Container">
+          <div class="LabelText Login_LabelText Login_TopLogos_SupportLogo_Text">For support, contact:</div>
+          <div class="Login_TopLogos_SupportLogo_Logo_Container" id="SupportLogo_Container"><img class="Login_Logo_Support" src="../../../../../web/images/blank.gif" /></div>
+        </div>
+      </div>
+
+      <div class="Login_BottomLogos_Container" id="BottomLogos_Container" style="display: none;">
+        <div class="Login_BottomLogos_Openbravo_Logo_Container" id="OpenbravoLogo_Container"><img class="Login_Logo_Openbravo" src="../../../../../web/images/blank.gif" /></div>
+        <div class="Login_BottomLogos_CopyrightText_Container"><span class="Login_BottomLogos_CopyrightText">&copy; Copyright Openbravo <br />
+        2001-2011</span></div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

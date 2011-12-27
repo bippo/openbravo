@@ -1,0 +1,256 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BPARTNER_TRG">
+    <trigger name="C_BPARTNER_TRG" table="C_BPARTNER" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+  /*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_BPartner_Trg.sql,v 1.4 2002/10/23 03:16:57 jjanke Exp $
+  ***
+  * Title: Business Partner new necord
+  * Description:
+  *    - create default Account records
+  *    - add treenode
+  ************************************************************************/
+
+   TYPE RECORD IS REF CURSOR;
+   Cur_Defaults RECORD;
+   Cur_Defaults2 RECORD;
+
+  v_BP_Acct_ID                varchar2(32);
+  v_C_Receivable_Acct         varchar2(32);
+  v_C_Prepayment_Acct         varchar2(32);
+  v_V_Liability_Acct          varchar2(32);
+  v_V_Liability_Services_Acct varchar2(32);
+  v_V_Prepayment_Acct         varchar2(32);
+  v_E_Expense_Acct            varchar2(32);
+  v_E_Prepayment_Acct         varchar2(32);
+  v_seq_name		              varchar2(32);
+  v_Sequence_No		            varchar2(32);
+  v_C_AcctSchema_ID	          VARCHAR2(32);
+  v_count 					  NUMBER;
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+    --  Default Accounts for all AcctSchema
+	IF (INSERTING) THEN
+        v_C_AcctSchema_ID:=null;
+	FOR Cur_Defaults IN
+	(
+		SELECT AD_IsOrgIncluded(:new.AD_Org_ID, a.AD_Org_ID, :new.AD_Client_ID),
+    a.ad_sequence_bp_id, a.isbpnewaccount, a.acct_length, a.subacct_length, a.createdby, a.updatedby,	a.C_AcctSchema_ID, 
+    d1.ad_client_id, d1.C_Receivable_Acct, d1.C_Prepayment_Acct, d1.V_Liability_Acct,	d1.V_Liability_Services_Acct, 
+    d1.V_Prepayment_Acct, d1.status 
+   	FROM  C_BP_Group_Acct d1, ad_Org_AcctSchema a
+		WHERE d1.C_BP_Group_ID=:new.C_BP_Group_ID
+		AND d1.C_AcctSchema_ID = a.C_AcctSchema_ID
+		AND (AD_IsOrgIncluded(a.AD_Org_ID, :new.AD_Org_ID, :new.AD_Client_ID)<>-1
+		OR AD_IsOrgIncluded(:new.AD_Org_ID, a.AD_Org_ID, :new.AD_Client_ID)<>-1)
+		ORDER BY 1 DESC
+	)
+	LOOP
+	
+
+		/*
+		    Creating new sub account
+		*/
+		--  Customer
+		 select count(*) into v_count from C_BP_Vendor_Acct where c_acctschema_id = Cur_Defaults.C_AcctSchema_ID AND c_bpartner_id = :new.C_BPartner_ID AND ((status IS NULL AND Cur_Defaults.status IS NULL) OR status = Cur_Defaults.status);
+	IF (v_count=0) THEN
+         Ad_Sequence_Next('C_BP_Customer_Acct', Cur_Defaults.C_AcctSchema_ID, v_BP_Acct_ID);
+         IF (Cur_Defaults.IsBPNewAccount='Y') THEN
+		
+              /*
+                Retrieving the sequence NUMBER for sub account.	
+              */
+              SELECT NAME INTO v_seq_name FROM AD_SEQUENCE 
+              WHERE AD_SEQUENCE.AD_SEQUENCE_ID=Cur_Defaults.Ad_Sequence_BP_Id;
+    
+              /*
+                  Retrieving the receivable account NUMBER
+              */
+              AD_Sequence_Doc(v_seq_name, Cur_Defaults.AD_Client_ID, 'Y', v_Sequence_No);
+              c_validcombination_clone(Cur_Defaults.C_Receivable_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_C_Receivable_Acct);
+              
+               /*
+                  Retrieving the prepayment account NUMBER
+               */
+               IF(Cur_Defaults.C_Prepayment_Acct IS NOT NULL) THEN
+               	c_validcombination_clone(Cur_Defaults.C_Prepayment_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_C_Prepayment_Acct);
+               END IF;
+			            
+             /*
+                  Inserting the new account NUMBER
+             */
+              INSERT INTO C_BP_Customer_Acct
+              (C_BP_Customer_Acct_ID,C_BPartner_ID, C_AcctSchema_ID,
+              AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+              C_Receivable_Acct, C_Prepayment_Acct, Status)
+              VALUES
+              (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
+              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              v_C_Receivable_Acct, v_C_Prepayment_Acct, Cur_Defaults.Status);
+         ELSE
+        			/*
+                Creating default account
+              */
+
+              INSERT INTO C_BP_Customer_Acct
+              (C_BP_Customer_Acct_ID,C_BPartner_ID, C_AcctSchema_ID,
+              AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+              C_Receivable_Acct, C_Prepayment_Acct, Status)
+              VALUES
+              (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
+              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              Cur_Defaults.C_Receivable_Acct, Cur_Defaults.C_Prepayment_Acct, Cur_Defaults.Status);
+         END IF;
+			--  Vendor
+              /* 
+                Creating new sub account
+              */
+          		Ad_Sequence_Next('C_BP_Vendor_Acct', Cur_Defaults.C_AcctSchema_ID, v_BP_Acct_ID);
+         IF (Cur_Defaults.IsBPNewAccount='Y') THEN         
+                     
+	        /*
+                Retrieving the liability account NUMBER 
+               */
+              c_validcombination_clone(Cur_Defaults.V_Liability_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_V_Liability_Acct);
+               /*
+                 Retrieving the liability services account NUMBER
+               */ 
+               IF(Cur_Defaults.V_Liability_Services_Acct IS NOT NULL) THEN
+					c_validcombination_clone(Cur_Defaults.V_Liability_Services_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_V_Liability_Services_Acct);
+			   END IF;
+		/*
+                 Retrieving the prepayment account NUMBER
+              */
+              IF(Cur_Defaults.V_Prepayment_Acct IS NOT NULL) THEN
+               c_validcombination_clone(Cur_Defaults.V_Prepayment_Acct, v_Sequence_No, :new.Name, Cur_Defaults.acct_length, Cur_Defaults.subacct_length, v_V_Prepayment_Acct);
+              END IF;
+    		/*
+                 Inserting the new account NUMBER
+               */
+              INSERT INTO C_BP_Vendor_Acct
+              (C_BP_Vendor_Acct_ID, C_BPartner_ID, C_AcctSchema_ID,
+              AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+              V_Liability_Acct, V_Liability_Services_Acct, V_Prepayment_Acct, Status)
+              VALUES
+              (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
+              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              v_V_Liability_Acct, v_V_Liability_Services_Acct, v_V_Prepayment_Acct, Cur_Defaults.Status);
+		     ELSE
+              /*
+                Creating default account
+              */
+			        INSERT INTO C_BP_Vendor_Acct
+              (C_BP_Vendor_Acct_ID, C_BPartner_ID, C_AcctSchema_ID,
+              AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+              V_Liability_Acct, V_Liability_Services_Acct, V_Prepayment_Acct, Status)
+              VALUES
+              (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
+              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              Cur_Defaults.V_Liability_Acct, Cur_Defaults.V_Liability_Services_Acct, Cur_Defaults.V_Prepayment_Acct, Cur_Defaults.Status);
+         END IF;
+              
+  END IF;
+  END LOOP;
+-- Employee
+  v_C_AcctSchema_ID:=null;
+  v_count:=0;
+              FOR Cur_Defaults2 IN (
+              SELECT AD_IsOrgIncluded(:new.AD_Org_ID, oa.AD_Org_ID, :new.AD_Org_ID),
+              oa.ad_sequence_bp_id, oa.isbpnewaccount, oa.acct_length, oa.subacct_length, oa.createdby, oa.updatedby,
+              d2.E_Expense_Acct, d2.E_Prepayment_Acct, d2.AD_Client_ID, d2.C_AcctSchema_ID
+              FROM C_AcctSchema_Default d2, AD_Org_AcctSchema oa 
+              WHERE d2.C_AcctSchema_ID = oa.C_AcctSchema_ID
+              AND oA.AD_Client_ID = d2.AD_Client_ID
+              AND (AD_IsOrgIncluded(oa.AD_Org_ID, :new.AD_Org_ID, :new.AD_Org_ID)<>-1
+              OR AD_IsOrgIncluded(:new.AD_Org_ID, oa.AD_Org_ID, :new.AD_Org_ID)<>-1)
+              ORDER BY 1 DESC			
+	) 
+  LOOP
+	
+	   /*
+	    Employee
+	   */
+			 /*
+        Creating new sub account
+       */
+       select count(*) into v_count from C_BP_Employee_Acct where c_acctschema_id = Cur_Defaults2.C_AcctSchema_ID AND c_bpartner_id = :new.C_BPartner_ID;
+		 IF (v_count=0) THEN
+         IF (Cur_Defaults2.IsBPNewAccount='Y') THEN
+         
+             /*
+                Retrieving the Expense account NUMBER
+             */
+             c_validcombination_clone(Cur_Defaults2.E_Expense_Acct, v_Sequence_No, :new.Name, Cur_Defaults2.acct_length, Cur_Defaults2.subacct_length, v_E_Expense_Acct);
+             
+             /*
+                 Retrieving the Prepayment account NUMBER
+             */
+             c_validcombination_clone(Cur_Defaults2.E_Prepayment_Acct, v_Sequence_No, :new.Name, Cur_Defaults2.acct_length, Cur_Defaults2.subacct_length, v_E_Prepayment_Acct);
+
+	      /*
+                 Inserting the new account NUMBER 
+             */
+	 		
+              INSERT INTO C_BP_Employee_Acct
+                (C_BP_Employee_Acct_ID, C_BPartner_ID, C_AcctSchema_ID,
+                AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+                E_Expense_Acct, E_Prepayment_Acct)
+               VALUES
+                (get_uuid(), :new.C_BPartner_ID, Cur_Defaults2.C_AcctSchema_ID,
+                :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+                v_E_Expense_Acct, v_E_Prepayment_Acct);
+            ELSE
+                INSERT INTO C_BP_Employee_Acct
+                (C_BP_Employee_Acct_ID, C_BPartner_ID, C_AcctSchema_ID,
+                AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy, Updated, UpdatedBy,
+                E_Expense_Acct, E_Prepayment_Acct)
+               VALUES
+                (get_uuid(), :new.C_BPartner_ID, Cur_Defaults2.C_AcctSchema_ID,
+                :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+                Cur_Defaults2.E_Expense_Acct, Cur_Defaults2.E_Prepayment_Acct);
+            
+            END IF;
+             v_C_AcctSchema_ID:=Cur_Defaults2.C_AcctSchema_ID;
+      END IF;
+    
+     END LOOP;
+
+  ELSIF (UPDATING) THEN
+     UPDATE C_BP_CUSTOMER_ACCT SET AD_ORG_ID = :new.AD_Org_ID
+     WHERE C_BPARTNER_ID = :new.C_BPartner_ID;
+     UPDATE C_BP_VENDOR_ACCT SET AD_ORG_ID = :new.AD_Org_ID
+     WHERE C_BPARTNER_ID = :new.C_BPartner_ID;
+     UPDATE C_BP_EMPLOYEE_ACCT SET AD_ORG_ID = :new.AD_Org_ID
+     WHERE C_BPARTNER_ID = :new.C_BPartner_ID;
+  END IF;
+EXCEPTION
+ WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20004, 'C_BPartner InsertTrigger Error: No ClientInfo or parent TreeNode');
+
+END C_BPARTNER_TRG
+]]></body>
+    </trigger>
+  </database>

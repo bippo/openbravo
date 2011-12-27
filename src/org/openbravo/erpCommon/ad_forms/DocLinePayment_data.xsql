@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="DocLinePaymentData" package="org.openbravo.erpCommon.ad_forms">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT  DP.ISMANUAL, DP.ISRECEIPT,DP.AD_ORG_ID, DP.C_BPARTNER_ID, DP.DESCRIPTION, DP.C_DEBT_PAYMENT_ID,
+      DP.AMOUNT, DP.WRITEOFFAMT, DP.ISPAID, DP.C_SETTLEMENT_CANCEL_ID, DP.C_SETTLEMENT_GENERATE_ID, DP.C_PROJECT_ID,
+      '' AS DEBIT_ACCT, '' AS CREDIT_ACCT, '' AS C_GLITEM_ID, ISDIRECTPOSTING, DP.WithHoldingAmount,DP.C_INVOICE_ID,
+      CASE WHEN (DP.C_SETTLEMENT_CANCEL_ID = ST.C_SETTLEMENT_ID AND (DP.ISPAID = 'Y' or amount = writeoffamt)) THEN C_WITHHOLDING_ID ELSE NULL END AS C_WITHHOLDING_ID,
+			TRUNC(COALESCE((SELECT O.DATEACCT
+				          FROM C_ORDER O
+								WHERE DP.C_ORDER_ID = O.C_ORDER_ID),
+							 (SELECT I.DATEACCT
+							   FROM C_INVOICE I
+								WHERE DP.C_INVOICE_ID = I.C_INVOICE_ID),
+							(SELECT ST2.DATEACCT
+							 FROM C_SETTLEMENT ST2
+							 WHERE DP.C_SETTLEMENT_GENERATE_ID = ST2.C_SETTLEMENT_ID))) AS CONVERSIONDATE, DP.C_CURRENCY_ID ,
+      C_BANKACCOUNT_ID, C_CASHBOOK_ID, C_BANKSTATEMENTLINE_ID, C_CASHLINE_ID
+      FROM C_DEBT_PAYMENT DP, C_SETTLEMENT ST
+      WHERE ST.C_SETTLEMENT_ID = ?
+      AND (DP.C_SETTLEMENT_CANCEL_ID = ST.C_SETTLEMENT_ID
+      OR DP.C_SETTLEMENT_GENERATE_ID = ST.C_SETTLEMENT_ID)
+      AND (ST.SETTLEMENTTYPE <> 'I' OR DP.ISDIRECTPOSTING = 'Y')
+      ORDER BY C_SETTLEMENT_CANCEL_ID
+     ]]>
+     </Sql>
+     <Parameter name="C_SETTLEMENT_ID"/>
+   </SqlMethod>
+  <SqlMethod name="selectManualAcct" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT C_GLITEM_ACCT.GLITEM_CREDIT_ACCT AS CREDIT_ACCT, C_GLITEM_ACCT.GLITEM_DEBIT_ACCT AS DEBIT_ACCT
+      FROM C_DEBT_PAYMENT, C_GLITEM_ACCT
+      WHERE C_DEBT_PAYMENT.C_GLITEM_ID = C_GLITEM_ACCT.C_GLITEM_ID
+      AND C_GLITEM_ACCT.C_ACCTSCHEMA_ID = ?
+      AND C_DEBT_PAYMENT.C_SETTLEMENT_GENERATE_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_ACCTSCHEMA_ID"/>
+     <Parameter name="C_SETTLEMENT_ID"/>
+   </SqlMethod>
+  <SqlMethod name="getDPStatus" type="preparedStatement" return="String">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT DP.STATUS_INITIAL AS DPSTATUS
+         FROM C_DEBT_PAYMENT DP
+        WHERE C_SETTLEMENT_GENERATE_ID = ?
+          AND C_DEBT_PAYMENT_ID = ?
+        UNION
+       SELECT DP.STATUS
+         FROM C_DEBT_PAYMENT DP
+        WHERE C_SETTLEMENT_CANCEL_ID = ?
+          AND C_DEBT_PAYMENT_ID = ?
+     ]]>
+     </Sql>
+     <Parameter name="C_SETTLEMENT_ID"/>
+     <Parameter name="C_DP_ID"/>
+     <Parameter name="C_SETTLEMENT_ID"/>
+     <Parameter name="C_DP_ID"/>
+   </SqlMethod>
+  </SqlClass>

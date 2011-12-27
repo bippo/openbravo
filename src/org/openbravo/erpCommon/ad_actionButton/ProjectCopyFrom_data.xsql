@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ProjectCopyFromData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT P.C_PHASE_ID, P.C_PROJECTPHASE_ID, P.NAME, P.SEQNO, P.DESCRIPTION, P.HELP,
+	        P.M_PRODUCT_ID, P.QTY, '' as C_TASK_ID, '' as id,
+	        '' as C_PROJECTLINE_ID, '' as LINE, '' as PLANNEDQTY, '' as M_PRODUCT_CATEGORY_ID,
+	        '' as PRODUCT_DESCRIPTION, '' as PRODUCT_NAME, '' as PRODUCT_VALUE 
+        FROM C_PROJECTPHASE P 
+		WHERE P.C_PROJECT_ID = ?
+        ORDER BY P.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="c_projecttype_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectServ" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT PL.C_PROJECTLINE_ID, PL.LINE, PL.DESCRIPTION,
+        	PL.PLANNEDQTY, PL.M_PRODUCT_ID, PL.M_PRODUCT_CATEGORY_ID,
+        	PL.PRODUCT_DESCRIPTION, PL.PRODUCT_NAME, PL.PRODUCT_VALUE 
+        FROM C_PROJECTLINE PL
+        WHERE PL.C_PROJECT_ID = ?
+        ORDER BY PL.LINE
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectProjectType" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>     
+      <![CDATA[
+	SELECT C_PROJECTTYPE_ID
+	FROM C_PROJECT
+	WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+   <SqlMethod name="selectProjCategory" type="preparedStatement" return="String" default="">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>     
+      <![CDATA[
+	SELECT PROJECTCATEGORY
+	FROM C_PROJECT
+	WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+  </SqlMethod>
+  <SqlMethod name="hasPhase" type="preparedStatement" return="boolean">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT COUNT(C_PROJECTPHASE_ID) AS TOTAL 
+        FROM C_PROJECTPHASE
+        WHERE C_PROJECT_ID = ?
+        AND C_PHASE_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+    <Parameter name="c_phase_id"/>
+  </SqlMethod>
+  <SqlMethod name="selectTask" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT T.C_TASK_ID, T.SEQNO, T.NAME, T.DESCRIPTION, T.HELP,
+        T.M_PRODUCT_ID, T.QTY
+        FROM C_PROJECTTASK T
+        WHERE T.C_PROJECTPHASE_ID = ?
+        ORDER BY T.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="c_projectphase_id"/>
+  </SqlMethod>
+  <SqlMethod name="insertProjectPhase" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_PROJECTPHASE 
+          (C_PROJECT_ID, AD_CLIENT_ID, AD_ORG_ID, 
+           CREATED, CREATEDBY, UPDATED, UPDATEDBY, 
+           DESCRIPTION, M_PRODUCT_ID, C_PHASE_ID, 
+           C_PROJECTPHASE_ID, HELP, NAME, 
+           QTY, SEQNO) 
+        VALUES 
+          (?,?,?,
+           now(),?,now(),?,
+           ?,?,?,
+           ?,?,?,
+           TO_NUMBER(?),TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="c_project_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="description"/>
+    <Parameter name="m_product_id"/>
+    <Parameter name="c_phase_id"/>
+    <Parameter name="c_projectphase_id"/>
+    <Parameter name="help"/>
+    <Parameter name="name"/>
+    <Parameter name="qty"/>
+    <Parameter name="seqno"/>
+  </SqlMethod>
+  <SqlMethod name="insertProjectTask" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_PROJECTTASK 
+          (C_PROJECTTASK_ID, C_TASK_ID, AD_CLIENT_ID, AD_ORG_ID, 
+           CREATED, CREATEDBY, UPDATED, UPDATEDBY, 
+           SEQNO, NAME, DESCRIPTION, 
+           HELP, M_PRODUCT_ID, C_PROJECTPHASE_ID, QTY) 
+        VALUES 
+          (?,?,?,?,
+           now(),?,now(),?,
+           TO_NUMBER(?),?,?,
+           ?,?,?,TO_NUMBER(?))
+      ]]>
+    </Sql>
+    <Parameter name="c_projecttask_id"/>
+    <Parameter name="c_task_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="seqno"/>
+    <Parameter name="name"/>
+    <Parameter name="description"/>
+    <Parameter name="help"/>
+    <Parameter name="m_product_id"/>
+    <Parameter name="c_projectphase_id"/>
+    <Parameter name="qty"/>
+  </SqlMethod>
+  <SqlMethod name="insertProjectLine" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        INSERT INTO C_PROJECTLINE (C_PROJECTLINE_ID, C_PROJECT_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, 
+	        UPDATED, UPDATEDBY, LINE, DESCRIPTION, PLANNEDQTY, M_PRODUCT_ID, M_PRODUCT_CATEGORY_ID, 
+	        PRODUCT_DESCRIPTION, PRODUCT_NAME, PRODUCT_VALUE) 
+        VALUES (?,?,?,?,now(),?,
+        	now(),?,TO_NUMBER(?),?,TO_NUMBER(?),?,?,
+        	?,?,?)
+      ]]>
+    </Sql>
+    <Parameter name="c_projectline_id"/>
+    <Parameter name="c_project_id"/>
+    <Parameter name="ad_client_id"/>
+    <Parameter name="ad_org_id"/>
+    <Parameter name="user"/>
+    <Parameter name="user"/>
+    <Parameter name="line"/>
+    <Parameter name="description"/>
+    <Parameter name="planned_qty"/>
+    <Parameter name="m_product_id"/>
+    <Parameter name="m_product_category_id"/>
+    <Parameter name="product_description"/>
+    <Parameter name="product_name"/>
+    <Parameter name="product_value"/>
+  </SqlMethod>
+  <SqlMethod name="selectProjectCategory" type="preparedStatement" return="string">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT PROJECTCATEGORY FROM C_PROJECT
+        WHERE C_PROJECT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="cprojectid"/>
+  </SqlMethod>
+  <SqlMethod name="selectC_Project_ID" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT C_Project.C_Project_ID as id, (C_Project.Value || ' - ' || C_Project.Name) as name FROM C_Project
+      WHERE C_Project.AD_Org_ID IN('1') AND C_Project.AD_Client_ID IN('1') AND C_Project.isActive = 'Y' 
+      AND C_Project.C_Project_ID NOT IN (SELECT C_Project_ID FROM c_project WHERE c_project_ID = ?)
+      AND C_Project.projectcategory IN (SELECT projectcategory FROM c_project WHERE c_project_ID = ?)
+      ORDER BY name
+    ]]></Sql>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="C_Project.AD_Org_ID IN(" text="'1'"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="C_Project.AD_Client_ID IN(" text="'1'"/>
+    <Parameter name="c_project_id"/>
+    <Parameter name="cprojectid"/>
+  </SqlMethod>
+</SqlClass>

@@ -1,0 +1,627 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_LANGUAGE_CREATE">
+    <function name="AD_LANGUAGE_CREATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: AD_Language_Create.sql,v 1.10 2003/08/07 05:43:38 jjanke Exp $
+  ***
+  * Title: Create missing Language Records
+  * Description:
+  *  SELECT TableName FROM AD_Table WHERE TableName LIKE '%Trl' ORDER BY 1
+  *
+  *  See also copy_translation
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+  v_Record_ID VARCHAR2(32);
+  v_AD_User_ID VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    --
+    v_Languages NUMBER:=0;
+    v_Created NUMBER:=0;
+    v_rowcount NUMBER;
+    v_count NUMBER;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, i.AD_User_ID, p.ParameterName, p.P_String, p.P_Number, p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_AD_User_ID:=Cur_Parameter.AD_User_ID;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    ----------------------------------------------------------------------
+   
+    SELECT COUNT(*)
+    INTO v_Languages
+    FROM AD_Language
+    WHERE(IsActive='N' OR IsSystemLanguage='N');
+    DBMS_OUTPUT.PUT_LINE('Number of inactive Languages=' || v_Languages) ;
+    SELECT COUNT(*)
+    INTO v_Languages
+    FROM AD_Language
+    WHERE IsActive='Y'  AND IsSystemLanguage='Y';
+    DBMS_OUTPUT.PUT_LINE('Number of active Languages=' || v_Languages) ;
+    
+    -- Element
+    INSERT
+    INTO AD_Element_Trl
+      (
+        AD_Element_Trl_ID,AD_Element_ID, AD_Language, Name, PrintName,
+        Description, Help, PO_Name, PO_PrintName,
+        PO_Description, PO_Help, IsTranslated, Createdby,
+        UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Element_ID, AD_Language.AD_Language, AD_Element.Name, AD_Element.PrintName, 
+          AD_Element.Description, AD_Element.Help, AD_Element.PO_Name, AD_Element.PO_PrintName, 
+          AD_Element.PO_Description, AD_Element.PO_Help, 'N', '0', 
+          '0','0', '0'
+    FROM AD_Element, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+      AND AD_Element.AD_Module_ID = M.AD_Module_ID
+      AND AD_Language.AD_Language != M.AD_Language
+      AND AD_Language.IsSystemLanguage='Y'
+      AND NOT EXISTS (SELECT 1 FROM AD_ELEMENT_TRL
+                       WHERE AD_ELEMENT_ID = AD_Element.AD_Element_ID 
+                         AND AD_LANGUAGE = AD_Language.AD_Language);
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Element ' || v_rowcount) ;
+    -- FieldGroup
+    INSERT
+    INTO AD_FieldGroup_Trl
+      (
+        AD_FieldGroup_Trl_ID, AD_FieldGroup_ID, AD_Language, Name, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_FieldGroup_ID, AD_Language.AD_Language, AD_FieldGroup.Name, 'N', '0', '0', '0', '0'
+    FROM AD_FieldGroup, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+      AND AD_Language.IsSystemLanguage='Y'  
+      AND M.AD_MODULE_ID = AD_FieldGroup.AD_MODULE_ID
+      AND M.AD_LANGUAGE != AD_Language.AD_Language
+      AND NOT EXISTS (SELECT 1 FROM AD_FieldGroup_TRL
+                 WHERE AD_FieldGroup_ID = AD_FieldGroup.AD_FieldGroup_ID 
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_FieldGroup ' || v_rowcount) ;
+    -- Field
+    -- First field_trls are created from the element_trls
+    INSERT
+    INTO AD_Field_Trl
+      (
+        AD_Field_Trl_ID, AD_Field_ID, AD_Language, Name, Description, Help, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Field_ID, AD_Language.AD_Language, trl.Name, trl.Description, trl.Help, 'N', '0', '0', '0','0'
+    FROM AD_Field, AD_Language, AD_Module M, ad_column c
+    left join ad_element_trl trl
+    on trl.ad_element_id=c.ad_element_id
+    WHERE AD_Language.IsActive='Y'  
+    and AD_Field.iscentrallymaintained='Y'
+    AND AD_Field.AD_Module_ID = M.AD_Module_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND AD_Language.IsSystemLanguage='Y' 
+    and c.ad_column_id=AD_Field.ad_column_id
+    and trl.ad_language=AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Field_TRL
+                 WHERE AD_Field_ID = AD_Field.AD_Field_ID 
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+    -- If there weren't element_trls, field_trls are created from elements
+    INSERT
+    INTO AD_Field_Trl
+      (
+        AD_Field_Trl_ID, AD_Field_ID, AD_Language, Name, Description, Help, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Field_ID, AD_Language.AD_Language, e.Name, e.Description, e.Help, 'N', '0', '0', '0','0'
+    FROM AD_Field, AD_Language, AD_Module M, ad_column c,ad_element e, ad_module modEl
+    WHERE AD_Language.IsActive='Y'  
+    and AD_Field.iscentrallymaintained='Y'
+    AND AD_Field.AD_Module_ID = M.AD_Module_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND AD_Language.IsSystemLanguage='Y' 
+    and c.ad_element_id=e.ad_element_id 
+    and c.ad_column_id=AD_Field.ad_column_id
+    and modEl.ad_module_id=e.ad_module_id
+    and modEl.ad_language!=m.ad_language
+    AND NOT EXISTS (SELECT 1 FROM AD_Field_TRL
+                 WHERE AD_Field_ID = AD_Field.AD_Field_ID 
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+    -- If there were no elements, or element_trls, data is copied from the ad_field itself
+    INSERT
+    INTO AD_Field_Trl
+      (
+        AD_Field_Trl_ID, AD_Field_ID, AD_Language, Name, Description, Help, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Field_ID, AD_Language.AD_Language, AD_Field.Name, AD_Field.Description, AD_Field.Help, 'N', '0', '0', '0','0'
+    FROM AD_Field, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Field.AD_Module_ID = M.AD_Module_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND AD_Language.IsSystemLanguage='Y' 
+    AND NOT EXISTS (SELECT 1 FROM AD_Field_TRL
+                 WHERE AD_Field_ID = AD_Field.AD_Field_ID 
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+      
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Field ' || v_rowcount) ;
+    -- Form
+    INSERT
+    INTO AD_Form_Trl
+      (
+        AD_Form_Trl_ID, AD_Form_ID, AD_Language, Name, Description,
+        Help, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Form_ID, AD_Language.AD_Language, AD_Form.Name, AD_Form.Description, AD_Form.Help, 'N', '0', '0', '0', '0'
+    FROM AD_Form, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND M.AD_MODULE_ID = AD_Form.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM AD_Form_TRL
+                 WHERE AD_Form_ID = AD_Form.AD_Form_ID 
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Form ' || v_rowcount) ;
+    -- Menu
+    INSERT
+    INTO AD_Menu_Trl
+      (
+        AD_Menu_Trl_ID, AD_Menu_ID, AD_Language, Name, Description,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Menu_ID, AD_Language.AD_Language, AD_Menu.Name, AD_Menu.Description, 'N', '0', '0', '0', '0'
+    FROM AD_Menu, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND AD_MENU.AD_MODULE_ID = M.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Menu_TRL
+                 WHERE AD_Menu_ID = AD_Menu.AD_Menu_id 
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Menu ' || v_rowcount) ;
+    -- Message
+    INSERT
+    INTO AD_Message_Trl
+      (
+        ad_message_trl_id, AD_Message_ID, AD_Language, MsgText, MsgTip, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Message_ID, AD_Language.AD_Language, MsgText, MsgTip, 'N', '0', '0', '0', '0'
+    FROM AD_Message, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND M.AD_MODULE_ID = AD_Message.AD_MODULE_ID
+    AND NOT EXISTS (SELECT 1 FROM AD_Message_trl
+                 WHERE AD_Message_ID = AD_Message.AD_Message_id
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Message ' || v_rowcount) ;
+   
+    -- Process
+    INSERT
+    INTO AD_Process_Trl
+      (
+        AD_Process_Trl_ID, AD_Process_ID, AD_Language, Name, Description,
+        Help, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Process_ID, AD_Language.AD_Language, AD_Process.Name, AD_Process.Description, AD_Process.Help, 'N', '0', '0', '0', '0'
+    FROM AD_Process, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND M.AD_MODULE_ID = AD_Process.AD_MODULE_ID
+    AND M.AD_LANGUAGE != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Process_trl
+                 WHERE AD_Process_ID = AD_Process.AD_Process_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language);
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Process ' || v_rowcount) ;
+    -- Process_Para
+    INSERT
+    INTO AD_Process_Para_Trl
+      (
+        AD_Process_Para_Trl_ID, AD_Process_Para_ID, AD_Language, Name, Description,
+        Help, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Process_Para_ID, AD_Language.AD_Language, AD_Process_Para.Name, AD_Process_Para.Description, AD_Process_Para.Help, 'N', '0', '0', '0', '0'
+    FROM AD_Process_Para, AD_Language, AD_MODULE M, AD_PROCESS P
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND P.AD_PROCESS_ID = AD_Process_Para.AD_PROCESS_ID
+    AND M.AD_MODULE_ID = P.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Process_Para_Trl
+                 WHERE AD_Process_Para_id = AD_Process_Para.AD_Process_Para_id
+                   AND AD_LANGUAGE = AD_Language.AD_Language);  
+      
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Process_Para ' || v_rowcount) ;
+    -- Reference
+    INSERT
+    INTO AD_Reference_Trl
+      (
+        AD_Reference_Trl_ID, AD_Reference_ID, AD_Language, Name, Description,
+        Help, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Reference_ID, AD_Language.AD_Language, AD_Reference.Name, AD_Reference.Description, AD_Reference.Help, 'N', '0', '0', '0', '0'
+    FROM AD_Reference, AD_Language, AD_MODULE M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND M.AD_MODULE_ID = AD_Reference.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Reference_TRL
+                 WHERE AD_Reference_ID = AD_Reference.AD_Reference_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language);  
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Reference ' || v_rowcount) ;
+    -- Ref_List
+    INSERT
+    INTO AD_Ref_List_Trl
+      (
+        AD_Ref_List_Trl_ID, AD_Ref_List_ID, AD_Language, Name, Description,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Ref_List_ID, AD_Language.AD_Language, AD_Ref_List.Name, AD_Ref_List.Description, 'N', '0', '0', '0', '0'
+    FROM AD_Ref_List, AD_Language, AD_MODULE M, AD_REFERENCE R
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND R.AD_REFERENCE_ID = AD_Ref_List.AD_REFERENCE_ID
+    AND R.AD_MODULE_ID = M.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Ref_List_TRL
+                 WHERE AD_Ref_List_ID = AD_Ref_List.AD_Ref_List_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language);  
+                   
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Ref_List ' || v_rowcount) ;
+    INSERT
+    INTO AD_Tab_Trl
+      (
+        AD_Tab_Trl_ID, AD_Tab_ID, AD_Language, Name, Description,
+        Help, filterName,
+        IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Tab_ID, AD_Language.AD_Language, AD_Tab.Name, AD_Tab.Description, 
+           AD_Tab.Help, filterName, 'N', '0', '0', '0', '0'
+    FROM AD_Tab, AD_Language, AD_MODULE M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    AND M.AD_MODULE_ID = AD_Tab.AD_MODULE_ID
+    AND M.AD_Language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Tab_TRL
+                 WHERE AD_Tab_ID = AD_Tab.AD_Tab_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language);  
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Tab ' || v_rowcount) ;
+    
+    INSERT
+    INTO AD_Window_Trl
+      (
+        AD_Window_Trl_ID, AD_Window_ID, AD_Language, Name, Description, Help, IsTranslated, Createdby, UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Window_ID, AD_Language.AD_Language, AD_Window.Name, AD_Window.Description, AD_Window.Help, 'N', '0', '0', '0', '0'
+    FROM AD_Window, AD_Language, AD_Module M
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    and m.ad_module_id = AD_Window.ad_module_id
+    AND M.AD_Language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_Window_TRL
+                 WHERE AD_Window_ID = AD_Window.AD_Window_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Window ' || v_rowcount) ;
+    
+    
+    --No module
+    INSERT
+    INTO AD_Month_Trl
+      (
+        AD_Month_Trl_ID, AD_Month_ID, AD_Language, Name,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), AD_Month_ID, AD_Language.AD_Language, AD_Month.Name, 'N', '0', '0', AD_Month.AD_Client_ID, AD_Month.AD_Org_ID
+    FROM AD_Month, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+     AND NOT EXISTS (SELECT 1 FROM AD_Month_TRL
+                 WHERE AD_Month_ID = AD_Month.AD_Month_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_Month ' || v_rowcount) ;
+    
+    --no module
+    INSERT
+    INTO C_Country_Trl
+      (
+        C_Country_Trl_ID, C_Country_ID, AD_Language, Name, Description,
+        RegionName, DisplaySequence, IsTranslated, Createdby,
+        UpdatedBy, AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), C_Country_ID, AD_Language.AD_Language, C_Country.Name, C_Country.Description, C_Country.RegionName, C_Country.DisplaySequence, 'N', '0', '0', C_Country.AD_Client_ID, C_Country.AD_Org_ID
+    FROM C_Country, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM C_Country_TRL
+                 WHERE C_Country_ID = C_Country.C_Country_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+                   
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_Country ' || v_rowcount) ;
+    
+    --no module
+    INSERT
+    INTO C_Currency_Trl
+      (
+        C_Currency_Trl_ID, C_Currency_ID, AD_Language, CurSymbol, Description,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), C_Currency_ID, AD_Language.AD_Language, C_Currency.CurSymbol, C_Currency.Description, 'N', '0', '0', C_Currency.AD_Client_ID, C_Currency.AD_Org_ID
+    FROM C_Currency, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM C_Currency_TRL
+                 WHERE C_Currency_ID = C_Currency.C_Currency_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_Currency ' || v_rowcount) ;
+    -- Commented by cromero 19102006 COMMIT;
+    ---------------------------------------------------------------------------
+    
+    --no module
+    INSERT
+    INTO C_DocType_Trl
+      (
+        C_DocType_Trl_ID, C_DocType_ID, AD_Language, Name, PrintName,
+        DocumentNote, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), C_DocType_ID, AD_Language, C_DocType.Name, C_DocType.PrintName, C_DocType.DocumentNote, 'N', '0', '0', C_DocType.AD_Client_ID, C_DocType.AD_Org_ID
+    FROM C_DocType, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+     AND NOT EXISTS (SELECT 1 FROM C_DocType_TRL
+                 WHERE C_DocType_ID = C_DocType.C_DocType_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_DocType ' || v_rowcount) ;
+    
+    INSERT
+    INTO C_ElementValue_Trl
+      (
+        C_ElementValue_Trl_ID, C_ElementValue_ID, AD_Language, Name, Description,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), C_ElementValue_ID, AD_Language, C_ElementValue.Name, C_ElementValue.Description, 'N', '0', '0', C_ElementValue.AD_Client_ID, C_ElementValue.AD_Org_ID
+    FROM C_ElementValue, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+     AND NOT EXISTS (SELECT 1 FROM C_ElementValue_TRL
+                 WHERE C_ElementValue_ID = C_ElementValue.C_ElementValue_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_ElementValue ' || v_rowcount) ;
+    INSERT
+    INTO C_Greeting_Trl
+      (
+        C_Greeting_Trl_ID, C_Greeting_ID, AD_Language, Name, Greeting,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), C_Greeting_ID, AD_Language, C_Greeting.Name, C_Greeting.Greeting, 'N', '0', '0', C_Greeting.AD_Client_ID, C_Greeting.AD_Org_ID
+    FROM C_Greeting, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM C_Greeting_TRL
+                 WHERE C_Greeting_ID = C_Greeting.C_Greeting_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_Greeting ' || v_rowcount) ;
+    INSERT
+    INTO C_PaymentTerm_Trl
+      (
+        C_PaymentTerm_Trl_ID, C_PaymentTerm_ID, AD_Language, Name, Description,
+        DocumentNote, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), C_PaymentTerm_ID, AD_Language, C_PaymentTerm.Name, C_PaymentTerm.Description, C_PaymentTerm.DocumentNote, 'N', '0', '0', C_PaymentTerm.AD_Client_ID, C_PaymentTerm.AD_Org_ID
+    FROM C_PaymentTerm, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM C_PaymentTerm_TRL
+                 WHERE C_PaymentTerm_ID = C_PaymentTerm.C_PaymentTerm_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+    
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_PaymentTerm ' || v_rowcount) ;
+    INSERT
+    INTO C_TaxCategory_Trl
+      (
+        C_TaxCategory_Trl_ID, C_TaxCategory_ID, AD_Language, Name, Description,
+        IsTranslated, Createdby, UpdatedBy, AD_Client_ID,
+        AD_Org_ID
+      )
+    SELECT get_uuid(), C_TaxCategory_ID, AD_Language, C_TaxCategory.Name, C_TaxCategory.Description, 'N', '0', '0', C_TaxCategory.AD_Client_ID, C_TaxCategory.AD_Org_ID
+    FROM C_TaxCategory, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+     AND NOT EXISTS (SELECT 1 FROM C_TaxCategory_TRL
+                 WHERE C_TaxCategory_ID = C_TaxCategory.C_TaxCategory_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+                   
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_TaxCategory ' || v_rowcount) ;
+    INSERT
+    INTO C_UOM_Trl
+      (
+        C_UOM_Trl_ID, C_UOM_ID, AD_Language, Name, Description,
+        UOMSymbol, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), C_UOM_ID, AD_Language, C_UOM.Name, C_UOM.Description, C_UOM.UOMSymbol, 'N', '0', '0', C_UOM.AD_Client_ID, C_UOM.AD_Org_ID
+    FROM C_UOM, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM C_UOM_TRL
+                 WHERE C_UOM_ID = C_UOM.C_UOM_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_UOM ' || v_rowcount) ;
+    INSERT
+    INTO C_Tax_Trl
+      (
+        C_Tax_Trl_ID, C_Tax_ID, AD_Language, Name, Description,
+        TaxIndicator, IsTranslated, Createdby, UpdatedBy,
+        AD_Client_ID, AD_Org_ID
+      )
+    SELECT get_uuid(), C_Tax_ID, AD_Language, C_Tax.Name, C_Tax.Description, C_Tax.TaxIndicator, 'N', '0', '0', C_Tax.AD_Client_ID, C_Tax.AD_Org_ID
+    FROM C_Tax, AD_Language
+    WHERE AD_Language.IsActive='Y'  AND AD_Language.IsSystemLanguage='Y'  
+    AND NOT EXISTS (SELECT 1 FROM C_Tax_TRL
+                 WHERE C_Tax_ID = C_Tax.C_Tax_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- C_Tax ' || v_rowcount) ;
+     ----------------------------------------------------------------------
+    INSERT
+    INTO AD_TextInterfaces_Trl
+      (
+        AD_TextInterfaces_Trl_ID, AD_TextInterfaces_ID, AD_Language, Text, IsTranslated,
+        Createdby, UpdatedBy, Created, Updated,
+        AD_Client_ID, AD_Org_ID, IsActive
+      )
+    SELECT get_uuid(), AD_TextInterfaces_ID, AD_Language.AD_Language, AD_TextInterfaces.Text, 'N', '0', '0', now(), now(), AD_TextInterfaces.AD_Client_ID, AD_TextInterfaces.AD_Org_ID, 'Y'
+    FROM AD_TextInterfaces, AD_Language, aD_module m
+    WHERE AD_Language.IsActive='Y'  
+    AND AD_Language.IsSystemLanguage='Y'  
+    and m.ad_module_id = AD_TextInterfaces.AD_MODULE_ID
+    and m.ad_language != AD_Language.AD_Language
+    AND NOT EXISTS (SELECT 1 FROM AD_TextInterfaces_TRL
+                 WHERE AD_TextInterfaces_ID = AD_TextInterfaces.AD_TextInterfaces_ID
+                   AND AD_LANGUAGE = AD_Language.AD_Language); 
+
+    v_rowcount:=SQL%ROWCOUNT;
+    v_Created:=v_Created + v_rowcount;
+    DBMS_OUTPUT.PUT_LINE('- AD_TextInterfaces ' || v_rowcount) ;
+
+    -- Call extension points
+    SELECT count(*) INTO v_count
+    FROM DUAL
+    WHERE EXISTS (SELECT 1 FROM AD_EP_PROCEDURES WHERE AD_EXTENSION_POINTS_ID= 'C485210A6F754FE0A6E32FA24B3B243C');
+    IF (v_count=1) THEN 
+	DECLARE
+	  v_ep_instance VARCHAR(32);
+	  v_extension_point_id VARCHAR(32) := 'C485210A6F754FE0A6E32FA24B3B243C';
+	BEGIN
+	  v_ep_instance := get_uuid();	 
+	  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'p_PInstance_ID', p_PInstance_ID, NULL, NULL, NULL, NULL, NULL, NULL);	  
+	  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User', v_AD_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	  AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message', NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result', NULL, NULL, v_result, NULL, NULL, NULL, NULL);
+	  AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+
+	  SELECT p_number INTO v_Result
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	      AND parametername = 'Result';
+	  
+	  SELECT p_text INTO v_Message
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	      AND parametername = 'Message';
+	 
+	  DELETE FROM ad_ep_instance_para WHERE ad_ep_instance_id = v_ep_instance;
+	END;
+
+    END IF; 
+
+    -- Summary info
+    v_Message:='@Created@ = ' || v_Created;
+    -- Commented by cromero 19102006 COMMIT;
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+-- Commented by cromero 19102006 RETURN;
+END AD_LANGUAGE_CREATE
+]]></body>
+    </function>
+  </database>

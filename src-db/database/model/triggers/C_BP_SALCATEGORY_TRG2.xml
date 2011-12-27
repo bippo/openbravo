@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_BP_SALCATEGORY_TRG2">
+    <trigger name="C_BP_SALCATEGORY_TRG2" table="C_BP_SALCATEGORY" fires="after" insert="true" update="true" delete="true" foreach="statement">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_count NUMBER;
+  v_dateFrom DATE;
+  v_cBPSalCategory varchar2(32);
+
+  TYPE RECORD IS REF CURSOR;
+  Cur_Employees RECORD;
+
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+
+  IF (UPDATING OR INSERTING OR DELETING)  THEN
+
+    FOR Cur_Employees IN (SELECT C_BPARTNER_ID
+                          FROM C_BPARTNER
+                          WHERE ISEMPLOYEE = 'Y') LOOP
+
+    SELECT MAX(DATEFROM)
+    INTO v_dateFrom
+    FROM C_BP_SALCATEGORY
+    WHERE C_BP_SALCATEGORY.C_BPARTNER_ID = Cur_Employees.C_BPARTNER_ID;
+
+    v_cBPSalCategory := null;
+
+    SELECT COUNT(*) INTO v_count
+    FROM C_BP_SALCATEGORY
+    WHERE C_BP_SALCATEGORY.C_BPARTNER_ID = Cur_Employees.C_BPARTNER_ID
+    AND DATEFROM = v_dateFrom;
+
+    IF (v_count<>0) THEN
+
+      SELECT C_SALARY_CATEGORY_ID INTO v_cBPSalCategory
+      FROM C_BP_SALCATEGORY
+      WHERE C_BP_SALCATEGORY.C_BPARTNER_ID = Cur_Employees.C_BPARTNER_ID
+      AND DATEFROM = v_dateFrom;
+
+    END IF;
+
+    UPDATE C_BPARTNER SET
+    C_SALARY_CATEGORY_ID = v_cBPSalCategory
+    WHERE C_BPARTNER.C_BPARTNER_ID = Cur_Employees.C_BPARTNER_ID;
+
+    END LOOP;
+  END IF;
+
+
+END C_BP_SALCATEGORY_TRG2
+]]></body>
+    </trigger>
+  </database>

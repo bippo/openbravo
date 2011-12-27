@@ -1,0 +1,62 @@
+<HTML>
+<HEAD>
+<SCRIPT>var isomorphicDir="../isomorphic/";</SCRIPT>
+<SCRIPT SRC=../isomorphic/system/development/ISC_Core.js></SCRIPT>
+<SCRIPT SRC=../isomorphic/system/development/ISC_Foundation.js></SCRIPT>
+<SCRIPT SRC=../isomorphic/system/development/ISC_Containers.js></SCRIPT>
+<SCRIPT SRC=../isomorphic/system/development/ISC_Grids.js></SCRIPT>
+<SCRIPT SRC=../isomorphic/system/development/ISC_Forms.js></SCRIPT>
+<SCRIPT SRC=../isomorphic/system/development/ISC_DataBinding.js></SCRIPT>
+<SCRIPT SRC=../isomorphic/skins/Enterprise/load_skin.js></SCRIPT>
+</HEAD>
+<BODY>
+<SCRIPT>
+
+isc.XJSONDataSource.create({
+    ID:"yahooImageSearch",
+    dataURL:"http://api.search.yahoo.com/ImageSearchService/V1/imageSearch?appid=YahooDemo&output=json",
+    recordXPath : "/ResultSet/Result",
+    fields:[
+        { name : "Thumbnail", valueXPath:"Thumbnail/Url", type:"image", 
+          imageWidth:"imageWidth", imageHeight:"imageHeight",
+          width:150 },
+        { name : "imageWidth", valueXPath:"Thumbnail/Width", type:"integer",
+          hidden:true },
+        { name : "imageHeight", valueXPath:"Thumbnail/Height", type:"integer",
+          hidden:true },
+        { name : "Title" },
+        { name : "Summary" },
+        { name : "FullImage", title:"Full Image", type:"link", valueXPath:"Url", target:"_blank" }
+    ]
+});
+
+isc.SearchForm.create({
+    ID:"searchForm",
+    left:100,
+    top:40,
+    numCols:3,
+    items : [
+        { name:"query", title:"Query", type:"text", defaultValue:"snowboarding" },
+        { type:"button", title:"Search", click:"fetch()", startRow:false }
+    ]
+});
+
+isc.ListGrid.create({
+    ID:"imageGrid",
+    left:20, top:80,
+    width:"80%",
+    height:500,
+    wrapCells:true,
+    fixedRecordHeights:false,
+    showAllRecords:true,
+    alternateRecordStyles:true,
+    dataSource:"yahooImageSearch"
+});
+
+function fetch() {
+    imageGrid.fetchData(searchForm.getValuesAsCriteria());
+}
+fetch();
+</SCRIPT>
+</BODY>
+</HTML>

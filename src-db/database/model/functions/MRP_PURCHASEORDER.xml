@@ -1,0 +1,288 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_PURCHASEORDER">
+    <function name="MRP_PURCHASEORDER" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2007 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:= 1;
+  v_Record_ID VARCHAR2(32);
+  v_User_ID VARCHAR2(32):='0';
+  v_Client_ID VARCHAR2(32);
+  v_Org_ID VARCHAR2(32);
+
+
+  v_COrder_ID VARCHAR2(32);
+  v_COrderLine_ID VARCHAR2(32);
+  v_DocumentNo NVARCHAR2(60);
+  v_created BOOLEAN := FALSE;
+  FINISH_PROCESS BOOLEAN DEFAULT FALSE;
+
+  v_M_Warehouse_ID VARCHAR2(32);
+  v_Description nvarchar2(255);
+  v_DateDoc DATE;
+  v_PriceList NUMBER;
+  v_PriceActual NUMBER;
+  v_PriceLimit NUMBER;
+  LastCBPartner_ID VARCHAR2(32);
+  v_Line NUMBER;
+  v_CDocTypeID varchar2(32);
+  v_BPartner_Location_ID VARCHAR2(32);
+  v_BillTo_ID VARCHAR2(32);
+  v_PriceListVersion NUMBER;
+  v_PriceStd NUMBER;
+  v_TaxId varchar2(32);
+  v_ProductName NVARCHAR2(90);
+  v_IsAPRMinstalled NUMBER;
+  v_DefaultPaymentRule VARCHAR2(60):=null;
+
+  v_Count NUMBER;
+
+
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    Cur_workproposal RECORD;
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID, i.AD_User_ID, i.AD_Client_ID, i.AD_Org_ID,
+        p.ParameterName, p.P_String, p.P_Number, p.P_Date
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+      v_Client_ID := Cur_Parameter.AD_Client_ID;
+      IF(Cur_Parameter.ParameterName='M_Warehouse_ID') THEN
+        v_M_Warehouse_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  M_Warehouse_ID=' || v_M_Warehouse_ID);
+      END IF;
+    END LOOP; -- Get Parameter
+
+    SELECT COALESCE(TO_CHAR(DESCRIPTION), ' '), DateDoc, AD_Org_ID
+      INTO v_Description, v_DateDoc, v_Org_ID
+     FROM MRP_RUN_PURCHASE
+     WHERE MRP_RUN_PURCHASE_ID = v_Record_ID;
+
+    FOR Cur_workproposal IN (
+      SELECT rp.*, bp.PO_PRICELIST_ID, pl.C_Currency_ID,
+             BP.PAYMENTRULEPO as paymentrule, BP.PO_PAYMENTTERM_ID AS C_PAYMENTTERM_ID,
+             bp.DeliveryViaRule, p.C_UOM_ID, bp.po_paymentmethod_id
+      FROM MRP_RUN_PURCHASELINE rp,
+           C_BPartner bp,
+           M_PriceList pl,
+           M_Product p
+      WHERE rp.MRP_RUN_PURCHASE_ID = v_Record_ID
+        AND INOUTTRXTYPE = 'PP'
+        AND rp.C_OrderLine_ID IS NULL
+        AND rp.C_Bpartner_ID = bp.C_BPartner_ID
+        AND pl.M_PriceList_ID = bp.PO_PRICELIST_ID
+        AND rp.isactive='Y'
+        AND p.M_Product_ID = rp.M_Product_ID
+      ORDER BY rp.C_BPartner_ID, rp.PLANNEDDATE
+      ) LOOP
+      v_ResultStr:='Create Purchase Order';
+
+      if (v_COrder_Id is null) or (Cur_workproposal.C_BPartner_ID!=LastCBPartner_ID) then --new header
+        v_Line := 0;
+        Ad_Sequence_Next('C_Order', v_Client_ID, v_COrder_ID);
+        v_DocumentNo := NULL;
+        v_CDocTypeID := AD_Get_DocType(v_Client_ID, v_Org_ID,'POO',NULL);
+        AD_Sequence_DocType(v_CDocTypeID, v_Client_ID, 'Y', v_DocumentNo) ;
+        IF(v_DocumentNo IS NULL) THEN
+          AD_Sequence_Doc('DocumentNo_C_Order', v_Client_ID, 'Y', v_DocumentNo) ;
+        END IF;
+
+
+        SELECT MIN(C_BPARTNER_LOCATION_ID)
+        INTO v_BPartner_Location_ID
+        FROM C_BPARTNER_LOCATION
+        WHERE ISACTIVE='Y'
+          AND ISSHIPTO='Y'
+          AND C_BPARTNER_ID=Cur_workproposal.C_BPARTNER_ID;
+
+        SELECT MIN(C_BPARTNER_LOCATION_ID)
+        INTO v_BillTo_ID
+        FROM C_BPARTNER_LOCATION
+        WHERE ISACTIVE='Y'
+          AND ISBILLTO='Y'
+          AND C_BPARTNER_ID=Cur_workproposal.C_BPARTNER_ID;
+
+        SELECT COUNT(1) INTO v_IsAPRMinstalled
+        FROM ad_preference
+        WHERE property = 'FinancialManagement' AND ad_module_id <> '0';
+        IF (v_IsAPRMinstalled > 0) THEN
+          v_DefaultPaymentRule := 'P';
+        END IF;
+
+        INSERT INTO C_Order
+          (C_ORDER_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+           CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+           ISSOTRX, DOCUMENTNO, DOCSTATUS, DOCACTION, PROCESSING,
+           C_DOCTYPE_ID,C_DOCTYPETARGET_ID, DESCRIPTION,
+           DATEORDERED, DATEACCT, C_BPARTNER_ID, BILLTO_ID,
+           C_BPARTNER_LOCATION_ID, C_CURRENCY_ID, PAYMENTRULE, C_PAYMENTTERM_ID,
+           INVOICERULE, DELIVERYRULE, FREIGHTCOSTRULE, DELIVERYVIARULE,
+           PRIORITYRULE, TOTALLINES, GRANDTOTAL,
+           M_WAREHOUSE_ID, M_PRICELIST_ID, ISTAXINCLUDED, DATEPROMISED,
+           FIN_PAYMENTMETHOD_ID)
+        VALUES
+         (v_COrder_ID, v_Client_ID, v_Org_ID,'Y',
+         now(), v_User_ID, now(), v_User_ID,
+         'N', v_DocumentNo,  'DR', 'CO','N',
+          v_CDocTypeID, v_CDocTypeID, v_Description,
+          v_DateDoc,v_DateDoc, Cur_workproposal.C_BPartner_ID,v_BillTo_ID,
+          v_BPartner_Location_ID, Cur_workproposal.C_Currency_ID, COALESCE(Cur_workproposal.paymentrule, v_DefaultPaymentRule), Cur_workproposal.C_PAYMENTTERM_ID,
+          'D', 'A', 'I',COALESCE(Cur_workproposal.DeliveryViaRule,'D'),
+          '5',0,0,
+          v_M_Warehouse_ID, Cur_workproposal.PO_PRICELIST_ID, 'N', v_DateDoc,
+          cur_workproposal.po_paymentmethod_id
+          );
+      end if; --header
+      LastCBPartner_ID := Cur_workproposal.C_BPartner_ID;
+
+      v_Line := v_Line + 10;
+      Ad_Sequence_Next('C_OrderLine', v_Client_ID, v_COrderLine_ID);
+
+      v_ResultStr:='Get order line data';
+      SELECT count(*) INTO v_Count
+      FROM M_ProductPrice
+       WHERE M_Product_ID = Cur_workproposal.M_Product_ID
+         AND M_PRICELIST_VERSION_ID = (SELECT min(plv.M_PriceList_Version_ID) as M_PriceList_Version_ID
+        FROM M_PriceList_Version plv
+        WHERE plv.M_PriceList_ID = Cur_workproposal.PO_PRICELIST_ID
+        AND plv.IsActive= 'Y'
+        AND plv.ValidFrom <= v_DateDoc
+        AND plv.AD_Client_ID =v_Client_ID
+        AND ValidFrom = (SELECT max(ValidFrom)
+                          FROM M_PriceList pl, M_PriceList_Version plv
+                          WHERE pl.M_PriceList_ID=plv.M_PriceList_ID
+                          AND plv.IsActive= 'Y'
+                          AND pl.M_PriceList_ID = Cur_workproposal.PO_PRICELIST_ID
+                          AND plv.ValidFrom <= v_DateDoc
+                          AND plv.AD_Client_ID =v_Client_ID));
+
+      IF (v_count > 0) THEN
+        SELECT PriceList, PriceStd,
+               M_Get_Offers_Price(v_DateDoc,Cur_workproposal.C_BPartner_ID,Cur_workproposal.M_Product_ID,PriceStd,Cur_workproposal.QTY, Cur_workproposal.PO_PRICELIST_ID),
+               PriceLimit
+          INTO v_PriceList, v_PriceStd, v_PriceActual, v_PriceLimit
+        FROM M_ProductPrice
+        WHERE M_Product_ID = Cur_workproposal.M_Product_ID
+          AND M_PRICELIST_VERSION_ID = (
+                SELECT min(plv.M_PriceList_Version_ID) as M_PriceList_Version_ID
+                FROM M_PriceList_Version plv
+                WHERE plv.M_PriceList_ID = Cur_workproposal.PO_PRICELIST_ID
+                  AND plv.IsActive= 'Y'
+                  AND plv.ValidFrom <= v_DateDoc
+                  AND plv.AD_Client_ID =v_Client_ID
+                  AND ValidFrom = (SELECT max(ValidFrom)
+                                  FROM M_PriceList pl, M_PriceList_Version plv
+                                  WHERE pl.M_PriceList_ID=plv.M_PriceList_ID
+                                    AND plv.IsActive= 'Y'
+                                    AND pl.M_PriceList_ID = Cur_workproposal.PO_PRICELIST_ID
+                                    AND plv.ValidFrom <= v_DateDoc
+                                    AND plv.AD_Client_ID =v_Client_ID));
+      ELSE
+        SELECT NAME INTO v_ProductName
+        FROM M_PRODUCT
+        WHERE M_PRODUCT_ID = Cur_workproposal.M_Product_ID;
+        v_Result := 0;
+        v_Message := '@PriceNotFound@ ' || v_ProductName;
+        RAISE_APPLICATION_ERROR(-20000, v_Message);
+      END IF;
+
+      v_TaxID := C_GetTax(Cur_workproposal.M_Product_ID, v_DateDoc, v_Org_ID, v_M_Warehouse_ID, v_BillTo_ID, v_BPartner_Location_ID, null, 'N');
+
+      v_ResultStr:='Insert order line';
+      INSERT INTO C_OrderLine
+        (C_ORDERLINE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+         CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+         C_ORDER_ID, LINE, C_BPARTNER_ID, C_BPARTNER_LOCATION_ID,
+         DATEORDERED, DATEPROMISED, DESCRIPTION, M_PRODUCT_ID,
+         M_WAREHOUSE_ID, C_UOM_ID, QTYORDERED, C_CURRENCY_ID,
+         PRICELIST, PRICEACTUAL, PRICELIMIT,
+         PRICESTD, LINENETAMT, DISCOUNT,
+         C_TAX_ID)
+     VALUES
+      (v_COrderLine_ID,v_Client_ID, v_Org_ID,'Y',
+       now(), v_User_ID, now(), v_User_ID,
+       v_COrder_ID, v_Line, Cur_workproposal.C_BPartner_ID, v_BPartner_Location_ID,
+       Cur_workproposal.PLANNEDORDERDATE, Cur_workproposal.PLANNEDDATE, v_Description, Cur_workproposal.M_Product_ID,
+       v_M_Warehouse_ID, Cur_workproposal.C_UOM_ID, Cur_workproposal.QTY, Cur_workproposal.C_Currency_ID,
+       v_PriceList, v_PriceActual, v_PriceLimit,
+       v_PriceStd, v_PriceActual*Cur_workproposal.QTY,(((v_PriceList-v_PriceStd) / v_PriceList) * 100),
+       v_TaxID
+      );
+
+      UPDATE MRP_RUN_PURCHASELINE
+        SET C_OrderLine_ID = v_COrderLine_ID
+      WHERE MRP_RUN_PURCHASELINE_ID = Cur_workproposal.MRP_RUN_PURCHASELINE_ID;
+
+
+
+    END LOOP;
+  v_ResultStr :='Set requisition lines as planned';
+  UPDATE M_RequisitionLine
+  SET REQSTATUS = 'P'
+  WHERE M_RequisitionLine_ID IN (SELECT M_RequisitionLine_ID
+                                 FROM MRP_RUN_PURCHASELINE
+                                 WHERE MRP_RUN_PURCHASE_ID = v_Record_ID
+                                   AND INOUTTRXTYPE = 'MF');
+
+  UPDATE M_Requisition
+  SET DocStatus = 'CL'
+  WHERE M_Requisition_ID IN (SELECT M_Requisition_ID
+                            FROM M_RequisitionLine
+                            WHERE M_RequisitionLine_ID IN (SELECT M_RequisitionLine_ID
+                                                          FROM MRP_RUN_PURCHASELINE
+                                                          WHERE MRP_RUN_PURCHASE_ID = v_Record_ID
+                                                            AND INOUTTRXTYPE = 'MF'))
+    AND NOT EXISTS (SELECT 1
+                    FROM M_RequisitionLine rl
+                    WHERE rl.REQSTATUS = 'O'
+                      AND rl.M_Requisition_ID = M_Requisition.M_Requisition_ID);
+  END;--BODY
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+  END IF;
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MRP_PURCHASEORDER exception: ' || v_ResultStr) ;
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+--  RETURN;
+END MRP_PURCHASEORDER
+]]></body>
+    </function>
+  </database>

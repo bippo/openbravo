@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+<SqlClass name="SubreportOfferProductData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+        SELECT M_OFFER_ID, M_PRODUCT_ID, M_PRODUCT_NAME,
+        AD_CLIENT_ID, AD_ORG_ID
+        FROM (SELECT M_OFFER.M_OFFER_ID, M_PRODUCT.M_PRODUCT_ID,
+              M_PRODUCT.NAME AS M_PRODUCT_NAME,
+              M_PRODUCT.AD_CLIENT_ID, M_PRODUCT.AD_ORG_ID
+              FROM M_OFFER, M_OFFER_PRODUCT, M_PRODUCT
+              WHERE M_OFFER_PRODUCT.M_OFFER_ID = M_OFFER.M_OFFER_ID
+              AND M_OFFER.PRODUCT_SELECTION = 'N'
+              AND M_OFFER_PRODUCT.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+              UNION
+              SELECT M_OFFER.M_OFFER_ID, M_PRODUCT.M_PRODUCT_ID,
+              M_PRODUCT.NAME AS M_PRODUCT_NAME,
+              M_PRODUCT.AD_CLIENT_ID, M_PRODUCT.AD_ORG_ID
+              FROM M_OFFER, M_PRODUCT
+              WHERE M_OFFER.PRODUCT_SELECTION = 'Y'
+              AND M_PRODUCT.M_PRODUCT_ID NOT IN (SELECT M_PRODUCT_ID FROM M_OFFER_PRODUCT WHERE M_OFFER_ID = M_OFFER.M_OFFER_ID)) A
+        WHERE A.AD_CLIENT_ID IN ('1')
+        AND A.AD_ORG_ID IN ('1')
+        AND M_OFFER_ID = ?
+        ORDER BY M_PRODUCT_NAME
+      ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="A.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adUserOrg" type="replace" optional="true" after="A.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="offer"/>
+  </SqlMethod>
+</SqlClass>

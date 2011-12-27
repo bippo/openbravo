@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_RUN_EXPLODE">
+    <function name="MRP_RUN_EXPLODE" type="NULL">
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_client_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_run_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planner_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_timehorizon" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planningdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_securitymargin" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+
+  v_Count NUMBER;
+  v_NewCount NUMBER;
+  v_New CHAR := 'N';
+  v_Aux_ID VARCHAR2(32);
+  v_lastProductID VARCHAR2(32);
+  v_qty NUMBER;
+
+  FINISH_PROCESS BOOLEAN DEFAULT FALSE;
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Run_Lines RECORD;
+  Cur_Dependants RECORD;
+  Cur_Parents RECORD;
+BEGIN
+  BEGIN --BODY
+
+    v_ResultStr := 'Production mrp';
+    SELECT count(*) INTO v_Count
+    FROM MRP_RUN_PRODUCTIONLINE
+    WHERE MRP_RUN_PRODUCTION_ID = p_Run_ID
+      AND isexploded = 'N';
+
+    WHILE (v_Count <> 0) LOOP
+      v_New := 'N';
+      v_lastProductID := '-1'; -- non-existant value
+      FOR Cur_Run_Lines IN (
+        SELECT MRP_RUN_PRODUCTIONLINE.MRP_RUN_PRODUCTIONLINE_ID AS MRP_RUN_LINE_ID, InOutTrxType,
+               MRP_RUN_PRODUCTIONLINE.QTY, MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID, M_PRODUCT.ISPURCHASED,
+               M_PRODUCT.MA_PROCESSPLAN_ID, MRP_RUN_PRODUCTIONLINE.PLANNEDDATE,
+               MRP_RUN_PRODUCTIONLINE.PLANNEDORDERDATE,
+               COALESCE(M_PRODUCT_ORG.CAPACITY, M_PRODUCT.CAPACITY) AS CAPACITY,
+               COALESCE(M_PRODUCT_ORG.DELAYMIN, M_PRODUCT.DELAYMIN, 0) AS DELAYMIN
+        FROM MRP_RUN_PRODUCTIONLINE,
+             M_PRODUCT LEFT JOIN M_PRODUCT_ORG ON M_PRODUCT.M_PRODUCT_ID = M_PRODUCT_ORG.M_PRODUCT_ID
+                                              AND M_PRODUCT_ORG.AD_ORG_ID = p_Org_ID
+        WHERE MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+          AND isexploded = 'N'
+          AND MRP_RUN_PRODUCTION_ID = p_Run_ID
+        ORDER BY M_PRODUCT_ID
+      ) LOOP
+        IF (Cur_Run_Lines.Qty < 0) THEN
+          v_New := 'Y';
+          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run_ID, Cur_Run_Lines.M_Product_ID, -1*Cur_Run_Lines.Qty, -1*Cur_Run_Lines.Qty, Cur_Run_Lines.MRP_RUN_Line_ID, (CASE Cur_Run_Lines.ispurchased WHEN 'Y' THEN 'MP' ELSE 'WP' END), 'N', NULL, NULL, NULL, NULL, Cur_Run_Lines.MA_Processplan_ID, Cur_Run_Lines.planneddate - p_SecurityMargin, (CASE Cur_Run_Lines.ispurchased WHEN 'Y' THEN (Cur_Run_Lines.planneddate - p_SecurityMargin) ELSE Cur_Run_Lines.planneddate - p_SecurityMargin - (CASE Cur_Run_Lines.DELAYMIN > (CASE WHEN Cur_Run_Lines.CAPACITY IS NULL THEN 0 ELSE CEIL(Cur_Run_Lines.Qty/Cur_Run_Lines.CAPACITY) END) WHEN true THEN Cur_Run_Lines.DELAYMIN ELSE (CASE WHEN Cur_Run_Lines.CAPACITY IS NULL THEN 0 ELSE CEIL(Cur_Run_Lines.Qty/Cur_Run_Lines.CAPACITY) END) END) END), 'Y', (CASE WHEN Cur_Run_Lines.ispurchased = 'Y' THEN 'Y' ELSE 'N' END), NULL, v_Aux_ID);
+        ELSE
+          v_ResultStr := 'Explode dependant products';
+          FOR Cur_Dependants IN (SELECT MA_PROCESSPLAN_TOTALIZED.DEPENDANTPRODUCT, DEPQTY/PROQTY AS qty,
+                                        M_PRODUCT.ISPURCHASED
+                                 FROM MA_PROCESSPLAN_TOTALIZED, M_PRODUCT
+                                 WHERE PRODUCED = Cur_Run_Lines.M_Product_ID
+                                   AND MA_PROCESSPLAN_TOTALIZED.DEPENDANTPRODUCT = M_PRODUCT.M_PRODUCT_ID) LOOP
+            MRP_RUN_INITIALIZE(p_User_ID, p_Org_ID, p_Client_ID, p_Run_ID, p_Planner_ID, Cur_Dependants.DependantProduct,
+                       NULL, NULL, NULL, NULL, p_TimeHorizon,
+                       p_PlanningDate, 'Y');
+            v_New := 'Y';
+            v_qty := ROUND((Cur_Run_Lines.Qty*Cur_Dependants.qty)+0.0005,3);
+            Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run_ID, Cur_Dependants.DependantProduct, v_qty, v_qty, Cur_Run_Lines.MRP_RUN_Line_ID, 'WP', 'N', NULL, NULL, NULL, NULL, NULL, (CASE WHEN Cur_Dependants.qty > 0 THEN Cur_Run_Lines.planneddate ELSE Cur_Run_Lines.plannedorderdate END), Cur_Run_Lines.plannedorderdate, 'Y', (CASE WHEN Cur_Dependants.qty < 0 THEN 'N' ELSE 'Y' END), NULL, v_Aux_ID);
+          END LOOP;
+        END IF;
+
+        -- skip processing if product did not change from last row
+        if (v_lastProductID <> Cur_Run_Lines.M_PRODUCT_ID) THEN
+
+          v_ResultStr := 'Other dependant products';
+          FOR Cur_Parents IN (SELECT pt.PRODUCED
+                              FROM MA_PROCESSPLAN_TOTALIZED pt
+                              WHERE pt.DEPENDANTPRODUCT = Cur_Run_Lines.M_Product_ID) LOOP
+            MRP_RUN_INITIALIZE(p_User_ID, p_Org_ID, p_Client_ID, p_Run_ID, p_Planner_ID, Cur_Parents.Produced,
+                       NULL, NULL, NULL, NULL, p_TimeHorizon,
+                       p_PlanningDate, 'Y');
+          END LOOP;
+        END IF; -- same product
+
+        UPDATE MRP_RUN_PRODUCTIONLINE
+        SET isexploded = 'Y'
+        WHERE MRP_RUN_PRODUCTIONLINE_ID = Cur_Run_Lines.MRP_RUN_Line_ID;
+
+        -- remember last product id to skip duplicate processing
+        v_lastProductID := Cur_Run_Lines.M_PRODUCT_ID;
+
+      END LOOP;
+/*
+      Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_parentRun_ID, p_Product_ID, p_Qty, p_NeededQty, Parent_ID, p_InOutTrxType, p_Fixed, p_OrderLine_ID, p_WorkRequirement_ID, p_SalesForecastLine_ID, p_RequisitionLine_ID, p_ProcessPlan_ID, p_PlannedDate, p_PlannedOrderDate, p_Production, p_IsExploded, p_Line_ID)
+*/
+      --Check remaining not exploded lines.
+      SELECT count(*) INTO v_NewCount
+      FROM MRP_RUN_PRODUCTIONLINE
+      WHERE MRP_RUN_PRODUCTION_ID = p_Run_ID
+        AND isexploded = 'N';
+
+      IF (v_Count = v_NewCount AND v_New = 'N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@CircularManufacturing@');
+      END IF;
+      v_Count := v_NewCount;
+    END LOOP;
+
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MRP_RUN_EXPLODE exception: ' || v_ResultStr);
+  RAISE;
+--  RETURN;
+END MRP_RUN_EXPLODE
+]]></body>
+    </function>
+  </database>

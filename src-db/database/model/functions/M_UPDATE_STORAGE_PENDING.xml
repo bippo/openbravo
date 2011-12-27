@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_UPDATE_STORAGE_PENDING">
+    <function name="M_UPDATE_STORAGE_PENDING" type="NULL">
+      <parameter name="p_client" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_warehouse" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_attributesetinstance" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_uom" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product_uom" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qtyreserved" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qtyorderreserved" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qtyordered" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qtyorderordered" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_cuenta NUMBER;
+  v_qtyorderreserved NUMBER;
+  v_qtyorderordered NUMBER;
+  v_Storage_ID VARCHAR2(32);
+BEGIN
+  v_qtyorderreserved:=p_qtyorderreserved;
+  v_qtyorderordered:=p_qtyorderordered;
+  SELECT COUNT(*)
+  INTO v_cuenta
+  FROM M_STORAGE_PENDING
+  WHERE M_PRODUCT_ID=p_product
+    AND M_WAREHOUSE_ID=p_warehouse
+    AND COALESCE(M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_attributesetinstance, '0')
+    AND C_UOM_ID=p_uom
+    AND COALESCE(M_PRODUCT_UOM_ID, '-1')=COALESCE(p_product_uom, '-1') ;
+  IF(p_product_uom IS NOT NULL) THEN
+    IF(v_qtyorderreserved IS NULL) THEN
+      v_qtyorderreserved:=0;
+    END IF;
+    IF(v_qtyorderordered IS NULL) THEN
+      v_qtyorderordered:=0;
+    END IF;
+  END IF;
+  IF(v_cuenta=0) THEN
+    Ad_Sequence_Next('M_Storage_Pending', p_client, v_Storage_ID) ;
+
+    INSERT
+    INTO M_STORAGE_PENDING
+      (
+        M_STORAGE_PENDING_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+        CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+        M_PRODUCT_ID, M_WAREHOUSE_ID, M_ATTRIBUTESETINSTANCE_ID, C_UOM_ID,
+        M_PRODUCT_UOM_ID, QTYRESERVED, QTYORDERRESERVED, QTYORDERED,
+        QTYORDERORDERED
+      )
+      VALUES
+      (
+        v_Storage_ID, p_client, p_org, 'Y',
+        now(), p_user, now(), p_user,
+        p_product, p_warehouse, COALESCE(p_attributesetinstance, '0'), p_uom,
+        p_product_uom, COALESCE(p_qtyreserved, 0), v_qtyorderreserved, COALESCE(p_qtyordered, 0),
+        v_qtyorderordered
+      )
+      ;
+  ELSE
+    UPDATE M_STORAGE_PENDING
+      SET QTYRESERVED=QTYRESERVED + COALESCE(p_qtyreserved, 0),
+      QTYORDERRESERVED=QTYORDERRESERVED + v_qtyorderreserved,
+      QTYORDERED=QTYORDERED + COALESCE(p_qtyordered, 0),
+      QTYORDERORDERED=QTYORDERORDERED + v_qtyorderordered,
+      AD_CLIENT_ID=p_client,
+      AD_ORG_ID=p_org,
+      UPDATED=now(),
+      UPDATEDBY=p_user
+    WHERE M_PRODUCT_ID=p_product
+      AND M_WAREHOUSE_ID=p_warehouse
+      AND COALESCE(M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_attributesetinstance, '0')
+      AND C_UOM_ID=p_uom
+      AND COALESCE(M_PRODUCT_UOM_ID, '-1')=COALESCE(p_product_uom, '-1') ;
+  END IF;
+END M_UPDATE_STORAGE_PENDING
+]]></body>
+    </function>
+  </database>

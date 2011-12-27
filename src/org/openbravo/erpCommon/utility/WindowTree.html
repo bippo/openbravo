@@ -1,0 +1,559 @@
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Menu</title>
+<link rel="shortcut icon" href="../../../../../web/images/favicon.ico" type="image/x-icon" />
+<link rel="stylesheet" type="text/css" href="../../../../../web/skins/Default/Openbravo_ERP_250.css" id="paramCSS"></link>
+<script language="JavaScript" type="text/javascript" id="paramDirectory">
+var baseDirectory = "../../../../../web/";
+</script>
+<script language="JavaScript" src="../utility/DynamicJS.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" id="paramLanguage">
+  defaultLang = "en_US";
+</script>
+<script language="JavaScript" src="../../../../../web/js/shortcuts.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/utils.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/messages.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/windowKeyboard.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/ajax.js" type="text/javascript"></script>
+<script language="JavaScript" src="../../../../../web/js/default/MessageBox.js" type="text/javascript"></script>
+<script language="JavaScript" type="text/javascript" src="../../../../../web/js/DHTMLgoodies/context-menu.js"></script>
+<script language="JavaScript" type="text/javascript" src="../../../../../web/js/DHTMLgoodies/drag-drop-folder-tree.js"></script>
+<script language="JavaScript" type="text/javascript" id="paramKeyField">
+function getKeyField() {
+    return document.frmMain.inpKey;
+}
+</script>
+  <script language="JavaScript" type="text/javascript">
+    function dblClickItem(nodeID) {
+      var layoutMDI = getFrame('LayoutMDI');
+      if (layoutMDI) {
+        layoutMDI.OB.Utilities.openDirectTab(document.frmMain.inpTabId.value, nodeID);
+      } else {
+        top.opener.submitCommandForm("EDIT", false, null, document.forms[0].myAction.value + "?Command=EDIT&" + getKeyField().name + "=" + nodeID, '_self');
+      }
+      return true;
+    }
+  </script>
+  <script language="JavaScript" type="text/javascript">
+    function idReplace(id) {
+      var output = id.substring(id.lastIndexOf("__")+2);
+      return output;
+    }
+
+    function submitDraggingInfo(strTop, strLink, strChild) {
+      document.frmMain.inpTop.value = idReplace(strTop);
+      document.frmMain.inpLink.value = idReplace(strLink);
+      document.frmMain.inpChild.value = strChild;
+      try {
+        var paramXMLReq = null;
+        return submitXmlHttpRequest(callback, frmMain, "ASSIGN", "WindowTree.html", false, null, paramXMLReq);
+      }
+      catch (e) {
+        initialize_MessageBox('messageBoxID');
+        setValues_MessageBox('messageBoxID','ERROR','ERROR',e);
+      }
+    }
+
+    function callback(paramXMLParticular, XMLHttpRequestObj) {
+      var strText = "";
+      if (getReadyStateHandler(XMLHttpRequestObj,null,false)) {
+        try {
+          if (XMLHttpRequestObj.responseText) strText = XMLHttpRequestObj.responseText;
+        } catch (e) {
+          initialize_MessageBox('messageBoxID');
+          setValues_MessageBox('messageBoxID','ERROR','ERROR',e);
+        }
+        if (strText == "") {
+          showJSMessage(22);
+        } else {
+          //Expecting msg in JSON format
+          var msg = eval("("+strText+")");;
+          initialize_MessageBox('messageBoxID');
+          setValues_MessageBox('messageBoxID',msg.OBError.type, msg.OBError.title, msg.OBError.message);
+        }
+      }
+      return true;
+    }
+
+     function showInfo() { 
+       showJSMessage(21);
+     }
+  </script>
+  <script language="javascript">
+    var isScrollable = false;
+    var isScrolling = false;
+    var scrollDir = '';
+    var showingInfoKey = '';
+    function enableScroll(status) {
+      isScrollable = status;
+      if (isScrollable == true) {
+        if (showingInfoKey == true) {
+          showInfo();
+          showingInfoKey = false;
+        }
+      } else {
+        showingInfoKey = true;
+      }
+    }
+    function setScroll(status) {
+      if(isScrollable == true) {
+        isScrolling = status;
+      } else {
+        isScrolling = false;
+      }
+    }
+    function scrollTree(direction) {
+      scrollDir = direction;
+      if(isScrolling == true) {
+        if (scrollDir == 'up') {
+          setTimeout("UpScroll()",5);
+        } else if (scrollDir == 'down') {
+          setTimeout("DownScroll()",5);
+        }
+      }
+    }
+    function UpScroll() {
+      if(document.getElementById('openbravo_tree').scrollTop >= 0) {
+        document.getElementById('openbravo_tree').scrollTop -= 3;
+        scrollTree('up');
+      }
+    }
+    function DownScroll() {
+      if(document.getElementById('openbravo_tree').scrollTop <= document.getElementById('openbravo_tree').scrollHeight) {
+        document.getElementById('openbravo_tree').scrollTop += 3;
+        scrollTree('down');
+      }
+    }
+
+    function LockTree() {
+      treeObj.lockTree();
+      document.getElementById('lockbutton').style.display = "none";
+      document.getElementById('unlockbutton').style.display = "";
+      initialize_MessageBox('messageBoxID');
+      setValues_MessageBox('messageBoxID','INFO','INFO','Press "Unlock Tree" button if you want to start drag and drop the tree');
+    }
+
+    function UnlockTree() {
+      treeObj.unlockTree();
+      document.getElementById('unlockbutton').style.display = "none";
+      document.getElementById('lockbutton').style.display = "";
+      showInfo();
+    }
+
+    function resizeMessageBoxContainer() {
+      var MessageBoxContainer = document.getElementById("tdMessageBoxContainer");
+      MessageBoxContainer.style.height = (MessageBoxContainer?MessageBoxContainer.clientHeight:0) + 1;
+    }
+
+  </script>
+  <script language="javascript">
+    function resizeMenuArea() {
+      var topAreaContainer = document.getElementById("topArea");
+      var bottomAreaContainer = document.getElementById("bottomArea");
+      var menuAreaContainer = document.getElementById("openbravo_tree");
+      var windowHeight = document.getElementsByTagName("BODY")[0].clientHeight;
+      menuAreaContainer.style.height = windowHeight - topAreaContainer.clientHeight - bottomAreaContainer.clientHeight;
+    }
+  </script>
+<script language="JavaScript" type="text/javascript">
+  
+  function onLoadDo(){
+    this.windowTables = new Array(
+      new windowTableId('client_button')
+    );
+    setWindowTableParentElement();
+    enableShortcuts('popup');
+    setBrowserAutoComplete(false);
+
+    try {
+      onloadFunctions();
+    } catch (e) {}
+    resizeMessageBoxContainer(); 
+    resizeMenuArea();
+
+    setWindowElementFocus('firstElement');
+    
+    return true;
+
+  }
+
+  function onResizeDo(){
+    resizeMenuArea();
+  }
+  
+  function closeThis(){
+    closePage();
+  }
+</script>  
+</head>
+
+<body leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" class="Menu" onload="onLoadDo();" onresize="onResizeDo();">
+
+<div class="Popup_ContentPane_CircleLogo">
+  <div class="Popup_WindowLogo">
+    <img class="Popup_WindowLogo_Icon Popup_WindowLogo_Icon_organizeMenu" src="../../../../../web/images/blank.gif" border=0/>
+  </div>
+</div>
+
+<div onmouseover="setScroll(true); scrollTree('up');" onmouseout="setScroll(false);">
+  <table cellspacing="0" cellpadding="0" width="100%" id="topArea">
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_NavBar">
+          <tr class="Popup_NavBar_bg"><td></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+            <td class="Popup_NavBar_bg_logo_left"></td>
+            <td class="Popup_NavBar_bg_logo" width="1" onclick="openNewBrowser('http://www.openbravo.com', 'Openbravo');return false;"><img src="../../../../../web/images/blank.gif" alt="Openbravo" title="Openbravo" border="0" id="openbravoLogo" class="Popup_NavBar_logo" /></td>
+            <td class="Popup_NavBar_bg_logo_right"></td>
+            <td class="Popup_NavBar_Popup_title_cell"><span id="paramDescription">xxProcess window</span></td>
+            <td class="Popup_NavBar_separator_cell"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td id="tdMessageBoxContainer">
+
+        <table cellpadding="0" cellspacing="0" id="messageBoxID" class="MessageBoxyy">
+          <tbody>
+          <tr class="MessageBox_TopMargin">
+            <td class="MessageBox_LeftMargin"></td>
+            <td></td>
+            <td class="MessageBox_RightMargin"></td>
+          </tr>
+          <tr>
+            <td class="MessageBox_LeftMargin"></td>
+            <td>
+
+              <table cellpadding="0" cellspacing="0" class="MessageBox_Container">
+                <tbody>
+                <tr>
+                  <td class="MessageBox_LeftTrans">
+                    <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                      <tbody>
+                      <tr>
+                        <td class="MessageBox_TopLeft"></td>
+                      </tr>
+                      <tr>
+                        <td class="MessageBox_Left"></td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                  <td class="MessageBox_bg">
+
+                    <table class="MessageBox_Top">
+                    <tbody>
+                      <tr>
+                        <td>
+                          <span>
+                          <table cellpadding="0" cellspacing="0" class="MessageBox_Body_ContentCell">
+                            <tbody>
+                            <tr>
+                              <td class="MessageBox_Icon_ContentCell">
+                                <div class="MessageBox_Icon"></div>
+                              </td>
+                              <td style="vertical-align: top;" id="messageBoxIDContent">
+                                <span>
+                                  <div class="MessageBox_TextTitle" id="messageBoxIDTitle">
+                                    xxInfo: AccessTableWithNoView
+                                  </div>
+                                  <div class="MessageBox_TextDescription" id="messageBoxIDMessage">
+                                    xxThe current information is empty.
+                                  </div>
+                                  <div class="MessageBox_TextSeparator"></div>
+                                </span>
+                              </td>
+                            </tr>
+                            </tbody>
+                          </table>
+                          </span>
+                        </td>
+                      </tr>
+                      </tbody>
+                    </table>
+
+                  </td>
+                  <td class="MessageBox_RightTrans">
+                    <table style="width: 100%; height: 100%" cellpadding="0" cellspacing="0">
+                      <tbody>
+                      <tr>
+                        <td class="MessageBox_TopRight"></td>
+                      </tr>
+                      <tr>
+                        <td class="MessageBox_Right"></td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td rowspan="2" class="MessageBox_BottomLeft">
+                  </td>
+                  <td class="MessageBox_BottomTrans MessageBox_bg">
+                  </td>
+                  <td rowspan="2" class="MessageBox_BottomRight">
+                  </td>
+                </tr>
+                <tr>
+                  <td class="MessageBox_Bottom">
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+
+            </td>
+            <td class="MessageBox_RightMargin"></td>
+          </tr>
+          <tr class="MessageBox_BottomMargin">
+            <td class="MessageBox_LeftMargin"></td>
+            <td></td>
+            <td class="MessageBox_RightMargin"></td>
+          </tr>
+          </tbody>
+        </table>
+
+
+      </td>
+    </tr>
+  </table>
+</div>
+
+<table cellspacing="0" cellpadding="0" width="100%">
+
+  <tr>
+    <td>
+
+
+
+          <div style="width: 100%; overflow: auto;" id="openbravo_tree">
+            <div id="paramMenu"> 
+
+            </div>
+          </div>
+
+
+
+    </td>
+  </tr>
+</table>
+
+<script language="JavaScript" type="text/javascript">
+  treeObj = new JSDragDropTree();
+  treeObj.setTreeId('openbravo_tree');
+  treeObj.setMaximumDepth(10);
+  treeObj.setMessageMaximumDepthReached('Maximum depth reached');
+  treeObj.setImageFolder('../web/images/');
+  treeObj.initTree();
+  treeObj.expandAll();
+  treeObj.collapseAll();
+  treeObj.expandNode(0);
+</script>
+
+<div onmouseover="setScroll(true); scrollTree('down');" onmouseout="setScroll(false);">
+  <table cellspacing="0" cellpadding="0" width="100%" id="bottomArea">
+
+    <tr>
+      <td>
+        <table cellspacing="0" cellpadding="0" class="Popup_ContentPane_SeparatorBar">
+          <tr>
+            <td class="Popup_SeparatorBar_bg"></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div class="Popup_ContentPane_Client" style="overflow: auto;" id="client_button">
+          <table cellspacing="0" cellpadding="0" class="Popup_Client_TablePopup">
+
+            <tr>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+              <td class="TableEdition_OneCell_width"></td>
+            </tr>
+
+            <tr>
+
+              <td class="Button_LeftAlign_ContentCell">
+
+                  <div id="unlockbutton" style="display: none;">
+                    <button type="button" 
+                      class="ButtonLink" 
+                      onclick="UnlockTree();" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Unlock Tree'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Unlock Tree'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_unlock" alt="Unlock Tree" title="Unlock Tree" src="../../../../../web/images/blank.gif" border="0" id="buttonOk" /></td>
+                          <td class="Button_text">Unlock Tree</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                  </div>
+
+                  <div id="lockbutton" style="display: none;">
+                    <button type="button" 
+                      class="ButtonLink" 
+                      onclick="LockTree();" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Lock Tree'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Lock Tree'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_lock" alt="Lock Tree" title="Lock Tree" src="../../../../../web/images/blank.gif" border="0" id="buttonOk" /></td>
+                          <td class="Button_text">Lock Tree</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                  </div>
+
+              </td>
+
+              <td class="Button_RightAlign_ContentCell">
+
+                  <div>
+                    <button type="button" 
+                      class="ButtonLink" 
+                      onclick="treeObj.expandAll();" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Expand all'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Expand all'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_expand" alt="Expand all" title="Expand all" src="../../../../../web/images/blank.gif" border="0" id="buttonOk" /></td>
+                          <td class="Button_text">Expand all</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                  </div>
+
+              </td>
+              <td class="Button_LeftAlign_ContentCell">
+
+                  <div>
+                    <button type="button" 
+                      class="ButtonLink" 
+                      onclick="treeObj.collapseAll(); treeObj.expandNode(0);" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Collapse all'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Collapse all'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_contract" alt="Collapse all" title="Collapse all" src="../../../../../web/images/blank.gif" border="0" id="buttonOk" /></td>
+                          <td class="Button_text">Collapse all</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                  </div>
+
+              </td>
+
+              <td class="Button_RightAlign_ContentCell">
+
+                  <div>
+                    <button type="button" 
+                      class="ButtonLink" 
+                      onclick="closeThis();" 
+                      onfocus="buttonEvent('onfocus', this); window.status='Close'; return true;" 
+                      onblur="buttonEvent('onblur', this);" 
+                      onkeyup="buttonEvent('onkeyup', this);" 
+                      onkeydown="buttonEvent('onkeydown', this);" 
+                      onkeypress="buttonEvent('onkeypress', this);" 
+                      onmouseup="buttonEvent('onmouseup', this);" 
+                      onmousedown="buttonEvent('onmousedown', this);" 
+                      onmouseover="buttonEvent('onmouseover', this); window.status='Close'; return true;" 
+                      onmouseout="buttonEvent('onmouseout', this);">
+                      <table class="Button">
+                        <tr>
+                          <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Close" title="Close" src="../../../../../web/images/blank.gif" border="0" id="buttonOk" /></td>
+                          <td class="Button_text Button_width">Close</td>
+                          <td class="Button_right"></td>
+                        </tr>
+                      </table>
+                    </button>
+                  </div>
+
+              </td>
+
+
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+  <form name="frmMain" action="WindowTree.html" method="post">
+    <input type="hidden" name="myAction" value="" id="fieldPage">
+    <input type="hidden" name="Command">
+    <input type="hidden" name="inpparentId">
+    <input type="hidden" name="inpKey" id="fieldKeyField">
+    <input type="hidden" name="inpTabId" value="" id="fieldTabID">
+    <input type="hidden" name="inptreeId" value="" id="fieldTreeID">
+    <input type="hidden" name="inpTop">
+    <input type="hidden" name="inpLink">
+    <input type="hidden" name="inpChild">
+  </form>
+
+</body>
+</html>

@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_MESSAGE_GET2">
+    <function name="AD_MESSAGE_GET2" type="NVARCHAR">
+      <parameter name="p_value" type="NVARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_ad_language" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_RetValue AD_Message.MsgText%TYPE;
+BEGIN
+BEGIN
+  IF p_AD_Language = 'en_US' THEN
+    SELECT AD_MESSAGE.MSGTEXT
+      INTO v_RetValue
+      FROM AD_MESSAGE
+     WHERE AD_MESSAGE.VALUE = p_Value;
+  ELSE
+    SELECT AD_MESSAGE_TRL.MSGTEXT
+      INTO v_RetValue
+      FROM AD_MESSAGE, AD_MESSAGE_TRL
+     WHERE AD_MESSAGE.AD_MESSAGE_ID = AD_MESSAGE_TRL.AD_MESSAGE_ID
+       AND AD_MESSAGE_TRL.AD_LANGUAGE = p_AD_Language
+       AND AD_MESSAGE.VALUE = p_Value;
+  END IF;
+
+  /*POSTGRESQL>
+  IF (NOT FOUND) THEN
+  RETURN <' || p_Value || '>';
+  END IF;
+  <POSTGRESQL*/
+  /*ORACLE>*/
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN p_Value;
+END;
+--
+RETURN v_RetValue;
+END AD_MESSAGE_GET2
+]]></body>
+    </function>
+  </database>

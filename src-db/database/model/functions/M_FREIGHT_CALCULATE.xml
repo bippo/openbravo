@@ -1,0 +1,395 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_FREIGHT_CALCULATE">
+    <function name="M_FREIGHT_CALCULATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  --  Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_Result NUMBER:=1; --  Success
+  v_Cheaper CHAR(1) ;
+  v_Calc_Qty CHAR(1) ;
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --  Record Info
+    v_Client_ID VARCHAR2(32);
+    v_Org_ID VARCHAR2(32);
+    v_User_ID VARCHAR2(32);
+    v_Shipper_ID VARCHAR2(32);
+    v_FreightCategory_ID VARCHAR2(32);
+    v_From_ID VARCHAR2(32);
+    v_To_ID VARCHAR2(32);
+    v_Date DATE;
+    v_Qty NUMBER;
+    v_IsSOTrx CHAR(1) ;
+    v_Amt NUMBER;
+    v_Currency_ID VARCHAR2(32);
+    v_Freight_Currency_ID VARCHAR2(32);
+    v_RoundLine CHAR(1) ;
+    v_RoundTotal CHAR(1) ;
+    v_FreightUnit VARCHAR2(60) ;
+    v_count NUMBER;
+    v_From_Region_ID VARCHAR2(32);
+    v_TO_Region_ID VARCHAR2(32);
+    v_QtyFrom NUMBER;
+    v_QtyTo NUMBER;
+  BEGIN
+    --  Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        i.AD_User_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date,
+        p.AD_Org_ID,
+        p.AD_Client_ID
+      FROM AD_PInstance i
+      LEFT JOIN AD_PInstance_Para p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      v_User_ID:=Cur_Parameter.AD_User_ID;
+      v_Org_ID:=Cur_Parameter.AD_Org_ID;
+      v_Client_ID:=Cur_Parameter.AD_Client_ID;
+      IF(Cur_Parameter.ParameterName='cheaper') THEN
+        v_Cheaper:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  Cheaper=' || v_Cheaper) ;
+      ELSIF(Cur_Parameter.ParameterName='calc_qty') THEN
+        v_Calc_Qty:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  Calc_qty=' || v_Calc_Qty) ;
+      END IF;
+    END LOOP; --  Get Parameter
+
+    IF (v_Calc_Qty='N' AND v_Cheaper='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NoFreightParam@');
+    END IF;
+
+    DBMS_OUTPUT.PUT_LINE('  v_Record_ID=' || v_Record_ID) ;
+    v_ResultStr:='Select variables';
+    SELECT M_Shipper_ID,
+      M_FreightCategory_ID,
+      MovementDate,
+      nopackages,
+      IsSOTrx,
+      Freight_Currency_ID
+    INTO v_Shipper_ID,
+      v_FreightCategory_ID,
+      v_Date,
+      v_Qty,
+      v_IsSOTrx,
+      v_Freight_Currency_ID
+    FROM M_InOut
+    WHERE M_InOut_ID=v_Record_ID;
+
+    IF (v_FreightCategory_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NoFreightCatSelected@');
+    END IF;
+
+    v_ResultStr:='Set to and from region';
+    IF(v_IsSOTrx='Y') THEN
+      SELECT COALESCE(dl.C_REGION_ID, l.C_REGION_ID),
+        wl.C_REGION_ID
+      INTO v_To_ID,
+        v_From_ID
+      FROM M_InOut i
+      LEFT JOIN C_BPartner_Location dbl
+        ON dbl.C_BPARTNER_LOCATION_ID=i.DELIVERY_LOCATION_ID
+      LEFT JOIN C_location dl
+        ON dbl.C_LOCATION_ID=dl.C_LOCATION_ID,
+        C_BPartner_Location bl,
+        C_location l,
+        M_Warehouse w,
+        C_Location wl
+      WHERE i.C_BPARTNER_LOCATION_ID=bl.C_BPARTNER_LOCATION_ID
+        AND bl.C_LOCATION_ID=l.C_LOCATION_ID
+        AND i.M_WAREHOUSE_ID=w.M_WAREHOUSE_ID
+        AND w.C_LOCATION_ID=wl.C_LOCATION_ID
+        AND i.M_InOut_ID=v_Record_ID;
+
+      IF (v_To_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NoBPRegion@');
+      END IF;
+      IF (v_From_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NoWarehouseRegion@');
+      END IF;
+
+    ELSE
+      SELECT COALESCE(dl.C_REGION_ID, l.C_REGION_ID),
+        wl.C_REGION_ID
+      INTO v_From_ID,
+        v_To_ID
+      FROM M_InOut i
+      LEFT JOIN C_BPartner_Location dbl
+        ON dbl.C_BPARTNER_LOCATION_ID=i.DELIVERY_LOCATION_ID
+      LEFT JOIN C_location dl
+        ON dbl.C_LOCATION_ID=dl.C_LOCATION_ID,
+        C_BPartner_Location bl,
+        C_location l,
+        M_Warehouse w,
+        C_Location wl
+      WHERE i.C_BPARTNER_LOCATION_ID=bl.C_BPARTNER_LOCATION_ID
+        AND bl.C_LOCATION_ID=l.C_LOCATION_ID
+        AND i.M_WAREHOUSE_ID=w.M_WAREHOUSE_ID
+        AND w.C_LOCATION_ID=wl.C_LOCATION_ID
+        AND i.M_InOut_ID=v_Record_ID;
+
+      IF (v_To_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NoWarehouseRegion@');
+      END IF;
+      IF (v_From_ID IS NULL) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NoBPRegion@');
+      END IF;
+    END IF;
+    SELECT TOTAL_ROUND,
+      LINE_ROUND,
+      FREIGHT_UNIT
+    INTO v_RoundTotal,
+      v_RoundLine,
+      v_FreightUnit
+    FROM M_FreightCategory
+    WHERE M_FreightCategory_ID=v_FreightCategory_ID;
+
+    IF v_RoundTotal IS NULL OR v_RoundLine IS NULL OR v_FreightUnit IS NULL THEN
+      RAISE_APPLICATION_ERROR(-20000, '@NoFreightCatRounding@');
+    END IF;
+
+    SELECT COUNT(*)
+    INTO v_Count
+    FROM M_InOutLine l,
+      M_Product p
+    WHERE l.M_Product_ID=p.M_Product_ID
+      AND M_InOut_ID=v_Record_ID;
+    IF (v_count=0) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@FreightNoLines@');
+    END IF;
+
+    v_ResultStr:='Calculate freight quantity';
+    IF(v_Calc_Qty='Y') THEN
+
+      IF v_FreightUnit='P' THEN
+        SELECT COUNT(*)
+        INTO v_count
+        FROM M_InOutLine l,
+          M_Product p
+        WHERE l.M_Product_ID=p.M_Product_ID
+          AND M_InOut_ID=v_Record_ID
+          AND (p.unitsperpallet IS NULL OR p.unitsperpallet = 0);
+        IF (v_count>0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightNoUnitsPerPallet@');
+        END IF;
+      END IF;
+
+      SELECT
+        CASE v_RoundLine WHEN 'N' THEN
+          CASE v_RoundTotal WHEN 'N' THEN sum(QTY) WHEN 'I' THEN trunc(sum(QTY)) WHEN 'U' THEN CEIL(sum(QTY)) WHEN 'R' THEN ROUND(sum(QTY), 0)
+          END WHEN 'I' THEN
+          CASE v_RoundTotal WHEN 'N' THEN sum(TRUNC(QTY, 0)) WHEN 'I' THEN trunc(sum(TRUNC(QTY))) WHEN 'U' THEN CEIL(sum(TRUNC(QTY))) WHEN 'R' THEN ROUND(sum(TRUNC(QTY)), 0)
+          END WHEN 'U' THEN
+          CASE v_RoundTotal WHEN 'N' THEN sum(CEIL(QTY)) WHEN 'I' THEN trunc(sum(CEIL(QTY))) WHEN 'U' THEN CEIL(sum(CEIL(QTY))) WHEN 'R' THEN ROUND(sum(CEIL(QTY)), 0)
+          END WHEN 'R' THEN
+          CASE v_RoundTotal WHEN 'N' THEN sum(ROUND(QTY, 0)) WHEN 'I' THEN trunc(sum(ROUND(QTY, 0))) WHEN 'U' THEN CEIL(sum(ROUND(QTY, 0))) WHEN 'R' THEN ROUND(sum(ROUND(QTY, 0)), 0)
+          END
+        END
+      INTO v_Qty
+      FROM
+        (SELECT
+          CASE v_FreightUnit WHEN 'U' THEN l.MOVEMENTQTY  WHEN 'P' THEN l.MOVEMENTQTY/p.UNITSPERPALLET
+          END AS QTY
+        FROM M_InOutLine l,
+          M_Product p
+        WHERE l.M_Product_ID=p.M_Product_ID
+          AND M_InOut_ID=v_Record_ID
+        )
+        A;
+      UPDATE M_InOut  SET NoPackages=v_Qty  WHERE M_InOut_ID=v_Record_ID;
+    END IF;
+  BEGIN
+
+    IF(v_Cheaper='Y') THEN
+      v_ResultStr:='Calculate cheaper amount';
+      DECLARE
+        Cur_M_FreightSelect RECORD;
+      BEGIN
+
+        SELECT COUNT(*)
+        INTO v_Count
+        FROM M_Freight
+        WHERE M_FreightCategory_ID=v_FreightCategory_ID
+          AND ValidFrom<v_date
+          AND (v_Freight_Currency_ID IS NULL OR C_Currency_ID=v_Freight_Currency_ID);
+        IF (v_count=0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightNotDefined@');
+        END IF;
+
+        FOR Cur_M_FreightSelect IN
+          (SELECT f.M_Shipper_ID, f.C_Currency_ID,
+            CASE isprice WHEN 'Y' THEN freightamt*v_Qty ELSE freightamt
+            END as amount
+          FROM M_Freight f,
+            (SELECT M_Shipper_ID,
+              MAX(validFrom) AS validFrom
+            FROM M_Freight
+            WHERE M_FreightCategory_ID=v_FreightCategory_ID
+              AND C_Region_ID=v_From_ID
+              AND TO_Region_ID=v_To_ID
+              AND QtyFrom<=v_Qty
+              AND QtyTo>v_Qty
+              AND ValidFrom<v_date
+              AND (v_Freight_Currency_ID IS NULL OR C_Currency_ID=v_Freight_Currency_ID)
+            GROUP BY M_Shipper_ID
+            )
+            af
+          WHERE f.M_FreightCategory_ID=v_FreightCategory_ID
+            AND f.M_Shipper_ID=af.M_Shipper_ID
+            AND f.VALIDFROM=af.validFrom
+            AND f.C_Region_ID=v_From_ID
+            AND f.TO_Region_ID=v_To_ID
+            AND f.QtyFrom<=v_Qty
+            AND f.QtyTo>v_Qty
+          ORDER BY amount
+          )
+        LOOP
+          v_Shipper_ID:=Cur_M_FreightSelect.M_Shipper_ID;
+          v_Amt:=Cur_M_FreightSelect.amount;
+          v_Currency_ID:=Cur_M_FreightSelect.C_Currency_ID;
+          EXIT;
+        END LOOP;
+        IF v_Amt IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightNotConfigured@');
+        END IF;
+      END;
+    ELSE
+      v_ResultStr:='Calculate amount';
+      DECLARE
+        Cur_M_FreightSelect RECORD;
+      BEGIN
+
+        IF (v_Shipper_ID IS NULL) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NoShipperSelected@');
+        END IF;
+
+        SELECT COUNT(*)
+        INTO v_Count
+        FROM M_Freight
+        WHERE M_FreightCategory_ID=v_FreightCategory_ID
+          AND ValidFrom<v_date
+          AND M_Shipper_ID=v_Shipper_ID
+          AND (v_Freight_Currency_ID IS NULL OR C_Currency_ID=v_Freight_Currency_ID);
+        IF (v_count=0) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightNotDefined@');
+        END IF;
+
+        SELECT C_Region_ID, TO_Region_ID, QtyFrom, QtyTo
+        INTO v_From_Region_ID, v_TO_Region_ID, v_QtyFrom, v_QtyTo
+        FROM M_Freight
+        WHERE M_FreightCategory_ID=v_FreightCategory_ID
+          AND ValidFrom<v_date
+          AND M_Shipper_ID=v_Shipper_ID
+          AND (v_Freight_Currency_ID IS NULL OR C_Currency_ID=v_Freight_Currency_ID)
+          AND validFrom = (SELECT max(validFrom)
+                           FROM M_Freight
+                           WHERE M_FreightCategory_ID=v_FreightCategory_ID
+                           AND ValidFrom<v_date
+                           AND M_Shipper_ID=v_Shipper_ID
+                           AND (v_Freight_Currency_ID IS NULL OR C_Currency_ID=v_Freight_Currency_ID));
+
+        IF v_From_Region_ID IS NULL OR v_TO_Region_ID IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NoFreightRegion@');
+        END IF;
+
+        IF v_QtyFrom IS NULL OR v_QtyTo IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightMinMaxQuantity@');
+        END IF;
+
+        IF v_Qty<v_QtyFrom THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightMinQuantity@');
+        END IF;
+
+        IF v_Qty>v_QtyTo THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightMaxQuantity@');
+        END IF;
+
+        FOR Cur_M_FreightSelect IN
+          (SELECT M_Shipper_ID, C_Currency_ID,
+            CASE isprice WHEN 'Y' THEN freightamt*v_Qty ELSE freightamt
+            END as amount
+          FROM M_Freight
+          WHERE M_FreightCategory_ID=v_FreightCategory_ID
+            AND C_Region_ID=v_From_ID
+            AND TO_Region_ID=v_To_ID
+            AND QtyFrom<=v_Qty
+            AND QtyTo>v_Qty
+            AND ValidFrom<v_date
+            AND M_Shipper_ID=v_Shipper_ID
+            AND (v_Freight_Currency_ID IS NULL OR C_Currency_ID=v_Freight_Currency_ID)
+          ORDER BY ValidFrom DESC
+          )
+        LOOP
+          v_Shipper_ID:=Cur_M_FreightSelect.M_Shipper_ID;
+          v_Amt:=Cur_M_FreightSelect.amount;
+          v_Currency_ID:=Cur_M_FreightSelect.C_Currency_ID;
+          EXIT;
+        END LOOP;
+
+        IF v_Amt IS NULL THEN
+          RAISE_APPLICATION_ERROR(-20000, '@FreightNotFound@');
+        END IF;
+      END;
+    END IF;
+  EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    v_Result:=0;
+    v_Message:='@NotFreight@';
+  END;
+  v_ResultStr:='Update qty, shipper';
+  IF(v_Qty IS NOT NULL AND v_Amt IS NOT NULL) THEN
+    UPDATE M_InOut
+      SET NoPackages=v_Qty,
+      M_Shipper_ID=v_Shipper_ID,
+      FreightAmt=v_Amt,
+      Freight_Currency_ID=v_Currency_ID
+    WHERE M_InOut_ID=v_Record_ID;
+  ELSE
+    v_Result:=0;
+    v_Message:='@NotFreight@';
+  END IF;
+  --<<FINISH_PROCESS>>
+  --  Update AD_PInstance
+  DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished - ' || v_Message) ;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, v_User_ID, 'N', v_Result, v_Message) ;
+  RETURN;
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END M_FREIGHT_CALCULATE
+]]></body>
+    </function>
+  </database>

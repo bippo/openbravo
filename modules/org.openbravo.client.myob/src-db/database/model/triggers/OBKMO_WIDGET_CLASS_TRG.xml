@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER OBKMO_WIDGET_CLASS_TRG">
+    <trigger name="OBKMO_WIDGET_CLASS_TRG" table="OBKMO_WIDGET_CLASS" fires="after" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010-2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_count NUMBER;
+  v_insertonupdate BOOLEAN := false;
+BEGIN
+
+  IF (UPDATING) THEN
+    IF (:old.widget_superclass_id is not null AND :old.widget_superclass_id != :new.widget_superclass_id) THEN
+      v_insertonupdate := true;
+      SELECT count(1) INTO v_count
+      FROM obkmo_widget_instance
+      WHERE obkmo_widget_class_id = :new.obkmo_widget_class_id;
+      IF (v_count = 0) THEN
+        DELETE FROM obuiapp_parameter
+        WHERE em_obkmo_widget_class_id = :old.obkmo_widget_class_id
+          AND name IN (SELECT name FROM obuiapp_parameter para
+                       WHERE para.em_obkmo_widget_class_id = :old.widget_superclass_id);
+      END IF;
+    END IF;
+  END IF;
+
+  IF (INSERTING OR v_insertonupdate) THEN
+    INSERT INTO obuiapp_parameter
+    (obuiapp_parameter_id, ad_client_id, ad_org_id, isactive,
+     created, createdby, updated, updatedby,
+     ad_module_id, em_obkmo_widget_class_id,
+     name, description, help,
+     seqno, ad_reference_id, ad_reference_value_id,
+     ad_element_id, columnname, iscentrallymaintained,
+     fieldlength, ismandatory, defaultvalue,
+     isfixed, fixedvalue
+    ) SELECT get_uuid(), ad_client_id, ad_org_id, isactive,
+       now(), :new.updatedby, now(), :new.updatedby,
+       :new.ad_module_id, :new.obkmo_widget_class_id,
+       name, description, help,
+       seqno, ad_reference_id, ad_reference_value_id,
+       ad_element_id, columnname, iscentrallymaintained,
+       fieldlength, ismandatory, defaultvalue,
+       isfixed, fixedvalue
+     FROM obuiapp_parameter
+     WHERE em_obkmo_widget_class_id = :new.widget_superclass_id
+       AND isactive = 'Y';
+  END IF;
+  
+ /*
+  * Manage translations
+  */
+
+  IF INSERTING THEN 
+    INSERT INTO OBKMO_Widget_Class_Trl
+             (OBKMO_WIDGET_CLASS_TRL_ID , OBKMO_WIDGET_CLASS_ID, AD_LANGUAGE,
+              AD_CLIENT_ID              , AD_ORG_ID            , ISACTIVE   ,
+              CREATED                   , CREATEDBY            , UPDATED    ,
+              UPDATEDBY                 , TITLE                , DESCRIPTION,
+              ISTRANSLATED)
+      SELECT get_uuid()                , :new.OBKMO_WIDGET_CLASS_ID, l.AD_LANGUAGE,
+             :new.AD_CLIENT_ID         , :new.AD_ORG_ID       , :new.ISACTIVE,
+             now()                     , :new.CreatedBy       , now()        ,
+             :new.UpdatedBy            , :new.TITLE           , :new.DESCRIPTION,
+             'N'
+      FROM AD_Language l, AD_Module m
+      WHERE l.isActive = 'Y'
+        AND l.IsSystemLanguage='Y'
+        AND m.AD_Module_ID = :new.AD_Module_ID
+        AND M.AD_Language != l.AD_Language;
+        
+     INSERT INTO OBKMO_Widget_Class_Access
+      (
+        OBKMO_Widget_Class_Access_ID, OBKMO_Widget_Class_ID, AD_Role_ID, AD_Client_ID,
+        AD_Org_ID, IsActive, Created,
+        CreatedBy, Updated, UpdatedBy
+      )
+      SELECT get_uuid(), :new.OBKMO_Widget_Class_ID, R.AD_ROLE_ID, R.AD_CLIENT_ID,
+        R.AD_ORG_ID, 'Y', now(),
+        '0', now(), '0'
+      FROM AD_ROLE R
+      WHERE R.ISMANUAL = 'N'
+        AND (
+          (R.USERLEVEL = 'S' AND :new.ACCESSLEVEL IN ('4','7','6'))
+          OR
+          (R.USERLEVEL IN (' CO', ' C') AND :new.ACCESSLEVEL IN ('7','6','3','1'))
+          OR
+          (R.USERLEVEL = '  O' AND :new.ACCESSLEVEL IN ('3','1','7'))
+        );
+    END IF;
+
+  IF UPDATING THEN
+    IF coalesce(:new.title,'.') != coalesce(:old.title,'.')
+       or coalesce(:new.description, '.') != coalesce(:old.description, '.') THEN
+      UPDATE OBKMO_Widget_Class_Trl
+      SET IsTranslated='N',
+          Updated=now()
+      WHERE OBKMO_Widget_Class_ID=:new.OBKMO_Widget_Class_ID;
+    END IF;
+  END IF;
+
+END OBKMO_WIDGET_CLASS_TRG
+]]></body>
+    </trigger>
+  </database>

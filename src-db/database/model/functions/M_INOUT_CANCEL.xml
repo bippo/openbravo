@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_INOUT_CANCEL">
+    <function name="M_INOUT_CANCEL" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_order_id" type="VARCHAR" mode="in">
+        <default><![CDATA[NULL]]></default>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_InOut_Cancel.sql,v 1.2 2002/08/13 05:27:36 jjanke Exp $
+  ***
+  * Title:   Cancel Delivery of Order by reversing it
+  * Description:
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_Count NUMBER:=0;
+  v_PostResult NUMBER;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    --
+    Cur_InOut RECORD;
+    v_AD_Client_ID VARCHAR2(32);
+    
+  BEGIN
+    --  Update AD_PInstance
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,
+          i.AD_User_ID,
+          p.ParameterName,
+          p.P_String,
+          p.P_Number,
+          p.P_Date
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    ELSE
+      v_Record_ID:=p_Order_ID;
+      SELECT count(*), updatedby
+        INTO v_Count,v_User
+        FROM C_ORDER
+        WHERE C_ORDER_ID=v_Record_ID
+        GROUP BY updatedby;
+    END IF;
+  BEGIN --BODY
+    -- For all Deliveries of Order
+    FOR Cur_InOut IN
+      (SELECT *
+      FROM M_InOut
+      WHERE C_Order_ID=v_Record_ID
+        AND DocStatus<>'RE' -- Not the existing reversal trx
+        FOR UPDATE
+      )
+    LOOP
+      DBMS_OUTPUT.PUT_LINE('Cancel Shipment ' || Cur_InOut.DocumentNo || ', ID=' || Cur_InOut.M_InOut_ID) ;
+      -- Cancel Order
+      UPDATE M_InOut
+        SET DocAction='RC', -- Reverse Correction
+        Processed='N',
+        Updated=now()
+      WHERE M_InOut_ID=Cur_InOut.M_InOut_ID;
+
+        v_PostResult := NULL;
+
+        --M_Inout_Cancel - Calling Post Process
+        --Extension point at the end of the M_Inout_Cancel. It has 4 available parameters Record_ID, DocAction, User and Result
+        SELECT count(*) INTO v_Count
+        FROM DUAL
+        where exists (select 1 from ad_ep_procedures where ad_extension_points_id = '1117A5F3D17F4B7E85B41838C9F31DE4');
+        IF (v_Count=1) THEN
+          DECLARE
+            v_ep_instance VARCHAR2(32);
+            v_extension_point_id VARCHAR2(32) := '1117A5F3D17F4B7E85B41838C9F31DE4';
+          BEGIN
+            v_ep_instance := get_uuid();
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+              Cur_InOut.M_InOut_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction',
+              'RC', NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+              v_User, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+              NULL, NULL, v_PostResult, NULL, NULL, NULL, NULL);
+            AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+            SELECT p_number INTO v_PostResult
+            FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance
+              AND parametername LIKE 'Result';
+
+            DELETE FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance;
+          END;
+        END IF;
+
+        IF (v_PostResult IS NULL) THEN
+            M_INOUT_POST(NULL, Cur_InOut.M_InOut_ID) ;
+        END IF;
+    END LOOP;
+    --<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END M_INOUT_CANCEL
+]]></body>
+    </function>
+  </database>

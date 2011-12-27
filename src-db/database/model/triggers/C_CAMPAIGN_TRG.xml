@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_CAMPAIGN_TRG">
+    <trigger name="C_CAMPAIGN_TRG" table="C_CAMPAIGN" fires="before" insert="true" update="false" delete="true" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+    
+  v_xTree_ID    VARCHAR2(32);
+  v_xParent_ID  VARCHAR2(32);
+  v_count       NUMBER;
+  
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  IF(INSERTING) THEN
+    --  Create TreeNode --
+    --  get AD_Tree_ID + ParentID
+    SELECT c.AD_Tree_Campaign_ID,
+      n.Node_ID
+    INTO v_xTree_ID,
+      v_xParent_ID
+    FROM AD_ClientInfo c,
+      AD_TreeNode n
+    WHERE c.AD_Tree_Campaign_ID=n.AD_Tree_ID
+      AND n.Parent_ID IS NULL
+      AND c.AD_Client_ID=:new.AD_Client_ID;
+    -- DBMS_OUTPUT.PUT_LINE('Tree='||v_xTree_ID||'  Node='||:new.AD_Org_ID||'  Parent='||v_xParent_ID);
+    --  Insert into TreeNode
+    INSERT
+    INTO AD_TreeNode
+      (
+        ad_treeNode_Id, AD_Client_ID, AD_Org_ID, IsActive,
+        Created, CreatedBy, Updated,
+        UpdatedBy, AD_Tree_ID, Node_ID,
+        Parent_ID, SeqNo
+      )
+      VALUES
+      (
+        get_uuid(), :new.AD_Client_ID, :new.AD_Org_ID, :new.IsActive,
+        :new.Created, :new.CreatedBy, :new.Updated,
+        :new.UpdatedBy, v_xTree_ID, :new.C_Campaign_ID,
+        v_xParent_ID,(
+        CASE :new.IsSummary
+          WHEN 'Y'
+          THEN 100
+          ELSE 999
+        END
+        )
+      );
+        
+  ELSIF(DELETING) THEN
+    --  Delete TreeNode --
+    --  get AD_Tree_ID
+    SELECT c.AD_Tree_Campaign_ID
+    INTO v_xTree_ID
+    FROM AD_ClientInfo c
+    WHERE c.AD_Client_ID=:old.AD_Client_ID;
+    select COUNT(*) INTO v_count from AD_TREENODE where parent_id=:old.C_CAMPAIGN_ID
+  	and AD_TREE_ID=v_xTree_ID;
+    IF(v_count>0) THEN
+    	RAISE_APPLICATION_ERROR(-20000, '@ChildOrgCheck@') ;
+    END IF;
+    DELETE
+    FROM AD_TREENODE
+    WHERE AD_CLIENT_ID=:old.AD_Client_ID
+      AND AD_Tree_ID=v_xTree_ID
+      AND Node_ID=:old.C_Campaign_ID;     
+  END IF;
+  -- Deleting
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+  RAISE_APPLICATION_ERROR(-20000, '@20014@');
+END C_CAMPAIGN_TRG
+]]></body>
+    </trigger>
+  </database>

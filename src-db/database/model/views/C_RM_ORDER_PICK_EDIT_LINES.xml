@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+  <database name="VIEW C_RM_ORDER_PICK_EDIT_LINES">
+    <view name="C_RM_ORDER_PICK_EDIT_LINES"><![CDATA[SELECT get_uuid() AS c_rm_order_pick_edit_lines_id, il.ad_client_id, COALESCE(rol.ad_org_id, il.ad_org_id) AS ad_org_id, COALESCE(rol.isactive, il.isactive) AS isactive, COALESCE(rol.createdby, il.createdby) AS createdby, COALESCE(rol.updatedby, il.updatedby) AS updatedby, COALESCE(rol.created, il.created) AS created, COALESCE(rol.updated, il.updated) AS updated, 
+CASE
+WHEN rol.c_orderline_id IS NOT NULL THEN 'Y'
+ELSE 'N'
+END AS ob_selected, il.m_inoutline_id, rol.c_order_id AS returnorderid, i.documentno AS inoutno, i.movementdate, il.m_product_id, il.m_attributesetinstance_id, il.movementqty, il.c_uom_id, (-1) * rol.qtyordered AS returned, COALESCE(rol.priceactual, ol.priceactual) AS priceactual, rol.c_return_reason_id, o.documentno AS orderno, i.issotrx, (-1) * retol.returnedqty AS returnedqty
+FROM m_inoutline il
+JOIN m_inout i ON il.m_inout_id = i.m_inout_id AND i.processed = 'Y' AND i.docstatus <> 'VO'
+JOIN c_doctype dt ON i.c_doctype_id = dt.c_doctype_id AND dt.isreturn = 'N'
+LEFT JOIN c_orderline ol ON il.c_orderline_id = ol.c_orderline_id
+LEFT JOIN c_order o ON ol.c_order_id = o.c_order_id
+LEFT JOIN (SELECT ol2.c_orderline_id, ol2.ad_client_id, ol2.ad_org_id, ol2.isactive, ol2.created, ol2.createdby, ol2.updated, ol2.updatedby, ol2.c_order_id, ol2.line, ol2.c_bpartner_id, ol2.c_bpartner_location_id, ol2.dateordered, ol2.datepromised, ol2.datedelivered, ol2.dateinvoiced, ol2.description, ol2.m_product_id, ol2.m_warehouse_id, ol2.directship, ol2.c_uom_id, ol2.qtyordered, ol2.qtyreserved, ol2.qtydelivered, ol2.qtyinvoiced, ol2.m_shipper_id, ol2.c_currency_id, ol2.pricelist, ol2.priceactual, ol2.pricelimit, ol2.linenetamt, ol2.discount, ol2.freightamt, ol2.c_charge_id, ol2.chargeamt, ol2.c_tax_id, ol2.s_resourceassignment_id, ol2.ref_orderline_id, ol2.m_attributesetinstance_id, ol2.isdescription, ol2.quantityorder, ol2.m_product_uom_id, ol2.m_offer_id, ol2.pricestd, ol2.cancelpricead, ol2.c_order_discount_id, ol2.iseditlinenetamt, ol2.taxbaseamt, ol2.c_return_reason_id, ol2.m_inoutline_id
+FROM c_orderline ol2
+JOIN c_order o2 ON ol2.c_order_id = o2.c_order_id AND o2.processed = 'N') rol ON rol.m_inoutline_id = il.m_inoutline_id
+LEFT JOIN (SELECT sum(ol3.qtyordered) AS returnedqty, ol3.m_inoutline_id
+FROM c_orderline ol3
+JOIN c_order o3 ON ol3.c_order_id = o3.c_order_id AND o3.processed = 'Y' AND o3.docstatus <> 'VO'
+WHERE ol3.m_inoutline_id IS NOT NULL
+GROUP BY ol3.m_inoutline_id) retol ON retol.m_inoutline_id = il.m_inoutline_id
+LEFT JOIN c_order ro ON ro.c_order_id = rol.c_order_id
+WHERE (COALESCE(retol.returnedqty, 0) + il.movementqty) <> 0 AND ol.c_order_discount_id IS NULL]]></view>
+  </database>

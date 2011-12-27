@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER C_CONVERSION_RATE_TRG">
+    <trigger name="C_CONVERSION_RATE_TRG" table="C_CONVERSION_RATE" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+    /*************************************************************************
+    * The contents of this file are subject to the Compiere Public
+    * License 1.1 ("License"); You may not use this file except in
+    * compliance with the License. You may obtain a copy of the License in
+    * the legal folder of your Openbravo installation.
+    * Software distributed under the License is distributed on an
+    * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+    * implied. See the License for the specific language governing rights
+    * and limitations under the License.
+    * The Original Code is  Compiere  ERP &  Business Solution
+    * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+    * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+    * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+    * All Rights Reserved.
+    * Contributor(s): Openbravo SLU
+    * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+    *
+    * Specifically, this derivative work is based upon the following Compiere
+    * file and version.
+    *************************************************************************
+    * $Id: C_Conversion_Rate_Trg.sql,v 1.3 2002/10/08 13:25:46 jjanke Exp $
+    ***
+    * Title: Set ToDate
+    * Description:
+    * If there is no valid ToDate set it to arbitrary end date
+    ************************************************************************/
+      v_Count NUMBER;
+      
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  --RAISE_APPLICATION_ERROR (-20506, 'Cannot modify used rate');
+  IF(:new.ValidTo IS NULL) THEN
+    -- If there is no end date, set it to X
+      :new.ValidTo:=TO_DATE('31-12-9999', 'DD-MM-YYYY') ;
+  END IF;
+  --Check for invalid dates
+  IF :new.ValidTo < :new.ValidFrom THEN
+    RAISE_APPLICATION_ERROR(-20505, 'Date To is lower than Date From');
+  END IF;
+
+  IF UPDATING THEN
+     --Check for changes of used rates
+    /*select count(*)
+      into v_Count
+      from c_bankstatement     b,
+          c_bankstatementline bs,
+          c_debt_payment      p
+     where bs.c_debt_payment_id = p.c_debt_payment_id
+       and b.c_bankstatement_id = bs.c_bankstatement_id
+       and p.C_currency_id  = :old.C_Currency_ID
+      and bs.C_currency_id = :old.C_Currency_ID_TO
+      and b.StatementDate between :old.ValidFrom and :old.ValidTo
+      and ((not (b.StatementDate between :new.ValidFrom and :new.ValidTo))
+          or (:new.C_Currency_ID    != :old.C_Currency_ID)
+        or (:new.C_Currency_ID_To != :old.C_Currency_ID_To)
+        or (:new.MultiplyRate     != :old.MultiplyRate)
+      )
+      and processed ='Y';*/
+
+    select count(*)
+    into v_count
+     from fact_acct    f,
+         c_acctschema s
+    where f.c_acctschema_id = s.c_acctschema_id
+      and f.c_currency_id = :old.C_Currency_ID
+     and s.c_currency_id = :old.C_Currency_ID_TO
+     and f.dateacct between :old.ValidFrom and :old.ValidTo
+     and ((not (f.dateacct between :new.ValidFrom and :new.ValidTo))
+          or (:new.C_Currency_ID    != :old.C_Currency_ID)
+        or (:new.C_Currency_ID_To != :old.C_Currency_ID_To)
+        or (:new.MultiplyRate     != :old.MultiplyRate)
+      );
+
+    IF v_count>0 THEN
+      RAISE_APPLICATION_ERROR(-20506, 'Cannot modify used rate');
+    END IF;
+  END IF;
+  IF DELETING THEN
+    /*select count(*)
+      into v_Count
+      from c_bankstatement     b,
+          c_bankstatementline bs,
+          c_debt_payment      p
+     where bs.c_debt_payment_id = p.c_debt_payment_id
+       and b.c_bankstatement_id = bs.c_bankstatement_id
+       and p.C_currency_id  = :old.C_Currency_ID
+      and bs.C_currency_id = :old.C_Currency_ID_TO
+      and b.StatementDate between :old.ValidFrom and :old.ValidTo
+      and processed ='Y';*/
+   select count(*)
+    into v_count
+     from fact_acct    f,
+         c_acctschema s
+    where f.c_acctschema_id = s.c_acctschema_id
+      and f.c_currency_id = :old.C_Currency_ID
+     and s.c_currency_id = :old.C_Currency_ID_TO
+     and f.dateacct between :old.ValidFrom and :old.ValidTo;
+    IF v_count>0 THEN
+      RAISE_APPLICATION_ERROR(-20506, 'Cannot modify used rate');
+    END IF;
+  END IF;
+
+END C_CONVERSION_RATE_TRG
+]]></body>
+    </trigger>
+  </database>

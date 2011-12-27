@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="DropRegFactAcctData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT DISTINCT AD_ORG_CLOSING.AD_ORG_ID AS ID, AD_COLUMN_IDENTIFIER('AD_ORG', AD_ORG_CLOSING.AD_ORG_ID, ?) AS NAME,
+		'' AS REG_FACT_ACCT_GROUP_ID, '' AS CLOSE_FACT_ACCT_GROUP_ID, '' AS DIVIDEUP_FACT_ACCT_GROUP_ID,
+		'' AS OPEN_FACT_ACCT_GROUP_ID, '' AS AD_ORG_CLOSING_ID
+        FROM AD_ORG_CLOSING
+        WHERE C_YEAR_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adlanguage"/>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+  <SqlMethod name="updatePeriodsOpen" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE C_PERIODCONTROL
+        SET PERIODSTATUS = 'O', UPDATED = now(), UPDATEDBY = ?
+        WHERE PeriodStatus <> 'P'
+        AND C_PERIOD_ID IN (SELECT C_PERIOD_ID
+                FROM C_PERIOD
+                WHERE C_YEAR_ID = ?)
+        AND AD_ORG_ID = ?
+        ]]>
+    </Sql>
+    <Parameter name="user"/>
+    <Parameter name="cYearId"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+  <SqlMethod name="selectFactAcctGroupId" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT REG_FACT_ACCT_GROUP_ID, CLOSE_FACT_ACCT_GROUP_ID, DIVIDEUP_FACT_ACCT_GROUP_ID, OPEN_FACT_ACCT_GROUP_ID, AD_ORG_CLOSING_ID
+        FROM AD_ORG_CLOSING
+        WHERE AD_ORG_ID = ?
+        AND C_YEAR_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adOrgId"/>
+    <Parameter name="cYearId"/>
+  </SqlMethod>
+  <SqlMethod name="deleteOrgClosing" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+	  DELETE FROM AD_ORG_CLOSING WHERE AD_ORG_CLOSING_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adOrgClosingId"/>
+  </SqlMethod>
+  <SqlMethod name="deleteFactAcctClose" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+	  DELETE FROM FACT_ACCT
+	  WHERE FACT_ACCT_GROUP_ID IN (?, ?, ?, ?)
+  	  AND AD_ISORGINCLUDED(FACT_ACCT.AD_ORG_ID, ?, FACT_ACCT.AD_CLIENT_ID)<>-1
+      ]]>
+    </Sql>
+    <Parameter name="fact_acct_group_id"/>
+    <Parameter name="open_acct_group_id"/>
+    <Parameter name="divideup_fact_acct_group_id"/>
+    <Parameter name="reg_fact_acct_group_id"/>
+    <Parameter name="adOrgId"/>
+  </SqlMethod>
+</SqlClass>

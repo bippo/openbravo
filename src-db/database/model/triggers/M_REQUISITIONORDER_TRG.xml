@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER M_REQUISITIONORDER_TRG">
+    <trigger name="M_REQUISITIONORDER_TRG" table="M_REQUISITIONORDER" fires="before" insert="true" update="true" delete="true" foreach="row">
+      <body><![CDATA[
+
+    /*************************************************************************
+    * The contents of this file are subject to the Openbravo  Public  License
+    * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+    * Version 1.1  with a permitted attribution clause; you may not  use this
+    * file except in compliance with the License. You  may  obtain  a copy of
+    * the License at http://www.openbravo.com/legal/license.html
+    * Software distributed under the License  is  distributed  on  an "AS IS"
+    * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+    * License for the specific  language  governing  rights  and  limitations
+    * under the License.
+    * The Original Code is Openbravo ERP.
+    * The Initial Developer of the Original Code is Openbravo SLU
+    * All portions are Copyright (C) 2008-2009 Openbravo SLU
+    * All Rights Reserved.
+    * Contributor(s):  ______________________________________.
+    ************************************************************************/
+    v_DocStatus VARCHAR(60);
+    v_ReqStatus VARCHAR(60);
+    v_Count     NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+
+IF INSERTING THEN
+  SELECT DocStatus INTO v_DocStatus
+  FROM M_Requisition, M_RequisitionLine
+  WHERE M_REquisitionLine_ID = :new.M_RequisitionLine_ID
+    AND M_Requisition.M_Requisition_ID = M_RequisitionLine.M_Requisition_ID;
+ELSE
+  SELECT DocStatus INTO v_DocStatus
+  FROM M_Requisition, M_RequisitionLine
+  WHERE M_REquisitionLine_ID = :old.M_RequisitionLine_ID
+    AND M_Requisition.M_Requisition_ID = M_RequisitionLine.M_Requisition_ID;
+END IF;
+
+IF (INSERTING OR UPDATING) THEN
+  SELECT COUNT(*) INTO v_Count
+  FROM M_REQUISITIONLINE A, C_ORDERLINE B
+  WHERE A.M_REQUISITIONLINE_ID = :new.M_REQUISITIONLINE_ID
+    AND B.C_ORDERLINE_ID = :new.C_ORDERLINE_ID
+    AND A.M_PRODUCT_ID = B.M_PRODUCT_ID;
+  IF (v_Count = 0) THEN
+    RAISE_APPLICATION_ERROR(-20524, 'Different products');
+  END IF;
+END IF;
+
+IF ((v_DocStatus <> 'CO') OR (v_ReqStatus <> 'O')) THEN
+  RAISE_APPLICATION_ERROR(-20501, 'Document processed/posted');
+END IF;
+
+IF (UPDATING OR DELETING) THEN
+  UPDATE M_REQUISITIONLINE
+  SET ORDEREDQTY = COALESCE(ORDEREDQTY,0) - :OLD.QTY
+  WHERE M_REQUISITIONLINE_ID = :OLD.M_REQUISITIONLINE_ID;
+END IF;
+IF (INSERTING OR UPDATING) THEN
+  UPDATE M_REQUISITIONLINE
+  SET ORDEREDQTY = COALESCE(ORDEREDQTY,0) + :NEW.QTY
+  WHERE M_REQUISITIONLINE_ID = :NEW.M_REQUISITIONLINE_ID;
+END IF;
+END M_REQUISITIONORDER_TRG
+]]></body>
+    </trigger>
+  </database>

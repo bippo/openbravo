@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="TableSQLQueryData" package="org.openbravo.erpCommon.utility">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="selectStructure" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT c.ColumnName, c.AD_Reference_ID, c.AD_Reference_Value_ID, c.AD_Val_Rule_ID, 
+       c.FieldLength, c.DefaultValue, c.IsKey, c.IsParent, c.IsMandatory, c.IsUpdateable, 
+       c.ReadOnlyLogic, c.IsIdentifier, c.SeqNo, c.IsTranslated, c.IsEncrypted, c.VFormat, 
+       c.ValueMin, c.ValueMax, c.IsSelectionColumn, c.AD_Process_ID, c.IsSessionAttr, 
+       c.IsSecondaryKey, c.IsDesencryptable, c.AD_CallOut_ID, COALESCE(f_trl.Name, f.Name) AS Name, 
+       f.AD_FieldGroup_ID, f.IsDisplayed, f.DisplayLogic, f.DisplayLength, f.IsReadOnly, 
+       f.SortNo, f.IsSameLine, f.IsFieldOnly, f.ShowInRelation, 
+       c.AD_Table_ID, t.TabLevel, t.HasTree, t.WhereClause, t.OrderByClause, 
+       t.AD_ColumnSortOrder_ID, t.AD_ColumnSortYESNO_ID, t.IsSortTab, 
+       (CASE WHEN UIPATTERN='RO' THEN 'Y' ELSE 'N' END) AS IsTabReadOnly, 
+       t.FilterClause, t.EditReference, w.WindowType, w.IsSOTrx, w.name AS Window_Name, 
+       '' AS Window_Name_Trl, t.name AS Tab_Name, '' AS Tab_Name_Trl, t.AD_Window_ID, '' AS TableName, 
+       REPLACE(replace(REPLACE(REPLACE(REPLACE(REPLACE(c.columnname, 'C_Settlement_Generate_ID', 'C_Settlement_ID'), 'Ref_OrderLine_ID', 'C_OrderLine_ID'), 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname_Search
+       FROM AD_Tab t, AD_Window w, AD_Column c left join AD_Field f on c.AD_Column_ID = f.AD_Column_ID 
+                                  AND f.IsActive = 'Y' 
+                                  AND f.AD_Tab_ID = ? 
+                                  left join AD_Field_Trl f_trl on f.AD_Field_ID = f_trl.AD_Field_ID 
+                                  AND f_trl.AD_Language = ?
+       WHERE t.AD_Table_ID = c.AD_Table_ID 
+       AND t.AD_Window_ID = w.AD_Window_ID
+       AND t.AD_Tab_ID = ? 
+       AND c.IsActive = 'Y' 
+       ORDER BY f.SeqNo, c.SeqNo
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectKeyMapStructure" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT t.name as tab_name, w.name as window_name
+         FROM AD_Tab t, AD_Window w
+        WHERE t.AD_Window_ID = w.AD_Window_ID
+          AND t.AD_Tab_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectRelationStructure" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[
+        SELECT c.ColumnName, c.AD_Reference_ID, c.AD_Reference_Value_ID, c.AD_Val_Rule_ID,
+        c.FieldLength, c.DefaultValue, c.IsKey, c.IsParent, c.IsMandatory, c.IsUpdateable,
+        c.ReadOnlyLogic, c.IsIdentifier, c.SeqNo, c.IsTranslated, c.IsEncrypted, c.VFormat,
+        c.ValueMin, c.ValueMax, c.IsSelectionColumn, c.AD_Process_ID, c.IsSessionAttr,
+        c.IsSecondaryKey, c.IsDesencryptable, c.AD_CallOut_ID, COALESCE(f_trl.Name, f.Name) AS Name,
+        f.AD_FieldGroup_ID, f.IsDisplayed, f.DisplayLogic, f.DisplayLength, f.IsReadOnly,
+        f.SortNo, f.IsSameLine, f.IsFieldOnly, f.ShowInRelation,
+        c.AD_Table_ID, t.TabLevel, t.HasTree, t.WhereClause, t.OrderByClause,
+        t.AD_ColumnSortOrder_ID, t.AD_ColumnSortYESNO_ID, t.IsSortTab, (CASE WHEN UIPATTERN='RO' THEN 'Y' ELSE 'N' END) AS IsTabReadOnly,
+        t.FilterClause, t.EditReference,
+        '' AS WindowType, '' AS IsSOTrx, ''AS Window_Name,
+        '' AS Window_Name_Trl, t.name AS Tab_Name, '' AS Tab_Name_Trl, t.AD_Window_ID, '' AS TableName,
+        REPLACE(replace(REPLACE(REPLACE(REPLACE(REPLACE(c.columnname, 'C_Settlement_Generate_ID', 'C_Settlement_ID'), 'Ref_OrderLine_ID', 'C_OrderLine_ID'), 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname_Search
+        FROM AD_Tab t
+             inner join AD_Column c on t.AD_Table_ID = c.AD_Table_ID
+             left join AD_Field f on c.AD_Column_ID = f.AD_Column_ID AND f.IsActive = 'Y' AND f.AD_Tab_ID = t.AD_Tab_ID
+             left join AD_Field_Trl f_trl on f.AD_Field_ID = f_trl.AD_Field_ID AND f_trl.AD_Language = ?
+        WHERE t.AD_Tab_ID = ?
+        AND c.IsActive = 'Y'
+        AND (c.IsKey = 'Y' or c.IsSecondaryKey = 'Y' or c.IsSelectionColumn = 'Y' or (f.IsDisplayed='Y' and f.ShowInRelation='Y' and c.IsEncrypted='N'))
+        ORDER BY f.Grid_SeqNo, f.SeqNo, c.SeqNo
+       ]]>
+     </Sql>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adTabId"/>
+   </SqlMethod>
+   
+   <SqlMethod name="selectRelationStructureAudit" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[
+        SELECT c.ColumnName, c.ad_Reference_id, c.AD_Reference_Value_ID, c.AD_Val_Rule_ID,
+        c.FieldLength, c.DefaultValue, c.IsKey, c.IsParent, c.IsMandatory, c.IsUpdateable,
+        c.ReadOnlyLogic, c.IsIdentifier, c.SeqNo, c.IsTranslated, c.IsEncrypted, c.VFormat,
+        c.ValueMin, c.ValueMax, c.IsSelectionColumn, c.AD_Process_ID, c.IsSessionAttr,
+        c.IsSecondaryKey, c.IsDesencryptable, c.AD_CallOut_ID, COALESCE(f_trl.Name, f.Name, c.Name) AS Name,
+        f.AD_FieldGroup_ID, 'Y' as IsDisplayed, f.DisplayLogic, 22 as DisplayLength, f.IsReadOnly,
+        f.SortNo, f.IsSameLine, f.IsFieldOnly, 'Y' as ShowInRelation,
+        c.AD_Table_ID, t.TabLevel, t.HasTree, t.WhereClause, t.OrderByClause,
+        t.AD_ColumnSortOrder_ID, t.AD_ColumnSortYESNO_ID, t.IsSortTab, (CASE WHEN UIPATTERN='RO' THEN 'Y' ELSE 'N' END) AS IsTabReadOnly,
+        t.FilterClause, t.EditReference,
+        '' AS WindowType, '' AS IsSOTrx, ''AS Window_Name,
+        '' AS Window_Name_Trl, t.name AS Tab_Name, '' AS Tab_Name_Trl, t.AD_Window_ID, '' AS TableName,
+        REPLACE(replace(REPLACE(REPLACE(REPLACE(REPLACE(c.columnname, 'C_Settlement_Generate_ID', 'C_Settlement_ID'), 'Ref_OrderLine_ID', 'C_OrderLine_ID'), 'Substitute_ID', 'M_Product_ID'), 'C_Settlement_Cancel_ID', 'C_Settlement_ID'), 'BOM_ID', '_ID'), 'M_LocatorTo_ID', 'M_Locator_ID') as columnname_Search
+        FROM AD_Tab t
+             inner join AD_Column c on t.AD_Table_ID = c.AD_Table_ID
+             left join AD_Field f on c.AD_Column_ID = f.AD_Column_ID AND f.IsActive = 'Y' AND f.AD_Tab_ID = t.AD_Tab_ID
+             left join AD_Field_Trl f_trl on f.AD_Field_ID = f_trl.AD_Field_ID AND f_trl.AD_Language = ?
+        WHERE t.AD_Tab_ID = ?
+        AND c.IsActive = 'Y'
+        AND upper(c.columnname) in ('UPDATED','UPDATEDBY','CREATED','CREATEDBY')
+        ORDER BY (case when upper(columnname)='CREATED' then 10000 
+                   when upper(columnname)='CREATEDBY' then 10001
+                   when upper(columnname)='UPDATED' then 10002
+                   else 10003
+                  end)
+       ]]>
+     </Sql>
+     <Parameter name="adLanguage"/>
+     <Parameter name="adTabId"/>
+   </SqlMethod>
+  
+  <SqlMethod name="selectWindowDefinition" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT t.AD_Table_ID, t.TabLevel, (CASE WHEN UIPATTERN='RO' THEN 'Y' ELSE 'N' END) AS IsReadOnly, t.HasTree, t.WhereClause, t.OrderByClause, t.AD_Process_ID, 
+       t.AD_ColumnSortOrder_ID, t.AD_ColumnSortYESNO_ID, t.IsSortTab, t.FilterClause, t.EditReference, 
+       w.WindowType, w.IsSOTrx, w.Name AS Window_Name, COALESCE(w_trl.Name, w.Name) AS Window_Name_Trl, 
+       t.Name AS Tab_Name, COALESCE(t_trl.Name, t.Name) AS Tab_Name_Trl, w.AD_Window_ID, 
+       tb.TableName 
+       FROM AD_Tab t left join AD_Tab_TRL t_trl on t.AD_Tab_ID = t_trl.AD_Tab_ID 
+                     AND t_trl.AD_Language = ?, 
+            AD_Window w left join AD_Window_TRL w_trl on w.AD_Window_ID = w_trl.AD_Window_ID 
+                        AND w_trl.AD_Language = ?, 
+            AD_Table tb 
+       WHERE t.AD_Window_ID = w.AD_Window_ID 
+       AND t.AD_Tab_ID = ? 
+       AND t.AD_Table_ID = tb.AD_Table_ID 
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="selectOrderByFields" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+       SELECT c.ColumnName
+       FROM AD_Tab t, AD_Field f, AD_Column c
+       WHERE t.AD_Tab_ID = f.AD_Tab_ID 
+       AND f.AD_Column_ID = c.AD_Column_ID 
+       AND t.AD_Tab_ID = ? 
+       AND c.IsActive = 'Y'
+       AND f.IsActive = 'Y'
+       AND f.SortNo IS NOT NULL
+       ORDER BY f.SortNo
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="columnNameKey" type="preparedStatement" return="String" default="">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ColumnName
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+        AND ad_tab_id = ? 
+        AND ad_Field.isActive = 'Y' 
+        AND ad_Column.isActive = 'Y' 
+        AND isKey='Y'
+      ]]></Sql>
+      <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="parentsColumnName" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ColumnName, AD_REFERENCE_id, ad_reference_value_id
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+        AND ad_tab_id = ? 
+        AND isParent='Y' 
+        AND EXISTS (SELECT 1 FROM AD_COLUMN c, AD_FIELD f WHERE c.ad_column_id = f.ad_column_id AND (c.iskey='Y' OR c.isSecondaryKey = 'Y')
+                    AND ad_tab_id=(SELECT max(t1.ad_tab_id)
+                        FROM ad_tab t1, ad_tab t2
+                        WHERE t1.ad_window_id = t2.ad_window_id
+                        AND t2.ad_tab_id = AD_FIELD.AD_Tab_ID
+                        AND t1.tablevel = (t2.tablevel -1)
+                        AND t1.seqno =(SELECT max(t3.seqno)
+                        FROM ad_tab t3
+                        WHERE t3.ad_window_id = t2.ad_window_id
+                        AND t3.tablevel = (t2.tablevel -1)
+                        AND t3.seqno < t2.seqno))
+                        AND (UPPER(c.columnname) = UPPER(AD_COLUMN.columnname)
+                            OR (UPPER(AD_COLUMN.columnname) LIKE 'EM_%'
+                                AND UPPER(SUBSTR(AD_COLUMN.columnname,4))=UPPER(c.columnname))))
+      ]]></Sql>
+      <Parameter name="tab"/>
+  </SqlMethod>
+  <SqlMethod name="parentsColumnNameKey" type="preparedStatement" return="multiple">
+      <SqlMethodComment>Name of the columns parent of the tab</SqlMethodComment>
+      <Sql><![CDATA[
+        SELECT ColumnName, AD_REFERENCE_id, ad_reference_value_id
+        FROM AD_FIELD, AD_COLUMN 
+        WHERE AD_FIELD.ad_column_id = AD_COLUMN.ad_column_id 
+        AND ad_tab_id = ? 
+        AND isKey='Y' 
+        AND EXISTS(SELECT 1 FROM AD_Tab t1, ad_tab t2 
+                        WHERE t1.ad_window_id = t2.ad_window_id
+                        AND t2.ad_tab_id = AD_FIELD.AD_Tab_ID 
+                        AND t1.tablevel = (t2.tablevel -1)
+                        AND t1.seqno < t2.seqno
+                        AND t1.ad_table_id = t2.ad_table_id)                        
+      ]]></Sql>
+      <Parameter name="tab"/>
+  </SqlMethod>
+</SqlClass>

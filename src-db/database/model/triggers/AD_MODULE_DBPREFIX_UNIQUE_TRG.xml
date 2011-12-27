@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER AD_MODULE_DBPREFIX_UNIQUE_TRG">
+    <trigger name="AD_MODULE_DBPREFIX_UNIQUE_TRG" table="AD_MODULE_DBPREFIX" fires="after" insert="true" update="false" delete="false" foreach="statement">
+      <body><![CDATA[
+
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2010 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  
+  numWrongModules NUMBER;
+    
+BEGIN
+    
+    IF AD_isTriggerEnabled()='N' THEN RETURN;
+    END IF;
+
+
+  select count(*) 
+    into numWrongModules 
+    from (select 1 
+            from ad_module_dbprefix d
+           where ad_module_id<>'0' 
+             and not exists (select 1 
+                               from ad_module_merge m
+                              where m.ad_module_id = d.ad_module_id)
+           group by ad_module_id having count(*)>1) f;
+
+
+
+  IF (INSERTING) THEN
+    IF (numWrongModules>0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@NotUniqueDBPrefix@');
+    END IF;
+  END IF;
+
+END AD_MODULE_DBPREFIX_UNIQUE_TRG
+]]></body>
+    </trigger>
+  </database>

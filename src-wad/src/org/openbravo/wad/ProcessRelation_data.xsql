@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+<SqlClass name="ProcessRelationData" package="org.openbravo.wad">
+  <SqlMethod name="selectParameters" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select app.AD_PROCESS_ID AS ID, COALESCE(appt.name, app.name) AS NAME, app.COLUMNNAME, app.AD_REFERENCE_ID, app.AD_REFERENCE_ID AS reference, 
+      app.AD_REFERENCE_VALUE_ID, app.AD_REFERENCE_VALUE_ID AS referenceValue, app.AD_VAL_RULE_ID, art.WHERECLAUSE, avr.CODE, 
+      app.FIELDLENGTH, app.FIELDLENGTH AS DISPLAYSIZE, app.ISMANDATORY AS required, app.DEFAULTVALUE, app.SEQNO, 'Y' as isdisplayed, 
+      '' as xmltext, '' as xml_Format, '' as htmltext, 'N' AS IsSameLine, 'Y' AS IsUpdateable, 'N' AS IsParent, '' AS AD_Process_ID, 
+      (CASE WHEN (app.AD_REFERENCE_ID<>'30' OR app.AD_REFERENCE_VALUE_ID IS NULL) THEN REPLACE(REPLACE(REPLACE(e.name, 'Substitute', 'Product'), 'BOM', ''), 'M_LocatorTo_ID', 'M_Locator_ID') ELSE (SELECT NAME FROM AD_REFERENCE WHERE AD_REFERENCE.AD_REFERENCE_ID=app.AD_REFERENCE_VALUE_ID) END) as searchName, 
+      r.name as reference_name, rt.name as reference_Name_Trl, 'Y' AS istranslated, '' AS ISJASPER, '' AS AD_CallOut_ID, 
+      '' AS CallOutName, '' AS ClassName_CallOut, '' AS Mapping_CallOut, 'N' AS IsReadOnly, '' AS DisplayLogic, 
+      'N' AS IsEncrypted, '' AS FieldGroup, app.AD_Process_ID AS tabid, app.valuemax, app.valuemin, 
+      '' AS Java_Class_Name, 'N' AS IsColumnEncrypted, 'Y' AS IsDesencryptable
+      from ad_process_para app left join ad_ref_table art on app.AD_REFERENCE_VALUE_ID = art.AD_REFERENCE_ID
+                               left join ad_element e on app.ad_element_id = e.ad_element_id
+                               left join AD_PROCESS_PARA_TRL appt on app.AD_PROCESS_PARA_ID = appt.AD_PROCESS_PARA_ID 
+                                                                 AND appt.AD_LANGUAGE  = ?
+                               left join ad_val_rule avr on app.AD_VAL_RULE_ID = avr.AD_VAL_RULE_ID, 
+          ad_reference r left join ad_reference_trl rt on r.ad_reference_id = rt.ad_reference_id 
+                                                      and rt.ad_language = ?
+      where app.AD_PROCESS_ID = ? 
+      and app.ad_reference_id = r.ad_reference_id  
+      and app.ISACTIVE = 'Y' 
+      ORDER BY app.SEQNO
+      ]]>
+    </Sql>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adLanguage"/>
+    <Parameter name="adProcessId"/>
+  </SqlMethod>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT AD_PROCESS_ID, PROCEDURENAME AS NAME, ISJASPER 
+      FROM AD_PROCESS 
+      WHERE ISACTIVE = 'Y' 
+      AND (PROCEDURENAME IS NOT NULL 
+      OR ISJASPER = 'Y')
+      ORDER BY AD_PROCESS_ID
+      ]]>
+    </Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="generateActionButton" type="preparedStatement" return="boolean" default="false">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT (CASE WHEN COUNT(*)=0 THEN 0 ELSE 1 END) AS AD_PROCESS_ID
+      FROM AD_PROCESS P, AD_SYSTEM_INFO SI
+      WHERE P.ISACTIVE = 'Y' 
+      AND (PROCEDURENAME IS NOT NULL 
+           OR ISJASPER = 'Y')
+      AND P.UPDATED > SI.LAST_BUILD
+      ORDER BY AD_PROCESS_ID
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="selectXSQL" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select app.columnname as name, 
+            (CASE WHEN (app.ad_reference_id<>'30' OR app.ad_reference_value_id is null) 
+              THEN app.columnname 
+              ELSE c.columnname END) as searchName, '' as WHERECLAUSE, app.AD_REFERENCE_ID, ad_column.istranslated 
+      from ad_process_para app left join ad_ref_search r on app.ad_reference_value_id = r.ad_reference_id
+                               left join ad_column c on r.ad_column_id = c.ad_column_id, 
+      ad_field, ad_column 
+      where ad_field.ad_column_id = ad_column.ad_column_id 
+      and ad_column.ad_process_id = app.ad_process_id 
+      and app.ISACTIVE = 'Y' 
+      and app.AD_REFERENCE_ID IN ('30', '31', '35', '25') 
+      and ad_field.ad_tab_id = ? 
+      GROUP BY app.columnname, (CASE WHEN (app.ad_reference_id<>'30' OR app.ad_reference_value_id is null) 
+              THEN app.columnname 
+              ELSE c.columnname END), app.AD_REFERENCE_ID, ad_column.istranslated
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  <SqlMethod name="selectXSQLParams" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select c.ad_process_id, p.columnname, p.DEFAULTVALUE, '' as WHERECLAUSE, '' as reference, c.istranslated 
+      from ad_column c, ad_field f, ad_process_para p 
+      where c.AD_COLUMN_ID = f.AD_COLUMN_ID 
+      and c.AD_PROCESS_ID = p.AD_PROCESS_ID  
+      and p.DEFAULTVALUE LIKE '@SQL=%'
+      and f.AD_TAB_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="adTabId"/>
+  </SqlMethod>
+  
+  <SqlMethod name="selectXSQLGenericsParams" type="preparedStatement" return="multiple">
+    <SqlMethodComment>The table references in dictionary</SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      select p.ad_process_id, p.columnname, p.DEFAULTVALUE, '' as WHERECLAUSE, '' as reference 
+      from ad_process_para p, ad_process pr 
+      where p.DEFAULTVALUE LIKE '@SQL=%'
+      and pr.isactive='Y' 
+      and pr.UIPattern = 'S'
+      and p.ad_process_id = pr.ad_process_id
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

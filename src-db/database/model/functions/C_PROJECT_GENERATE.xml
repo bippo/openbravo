@@ -1,0 +1,258 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_PROJECT_GENERATE">
+    <function name="C_PROJECT_GENERATE" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2008 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: C_Project_Generate.sql,v 1.4 2003/05/26 22:31:16 jjanke Exp $
+  ***
+  * Title: Generate Standard Order from Project
+  * Description:
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    -- Parameter Variables
+    v_M_Warehouse_ID VARCHAR2(32);
+    --
+    v_DocumentNo VARCHAR2(40) ;
+    --
+    FINISH_PROCESS BOOLEAN:=FALSE;
+  BEGIN
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+    v_ResultStr:='PInstanceNotFound';
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+  BEGIN --BODY
+    -- Get Parameters
+    v_ResultStr:='ReadingParameters';
+    FOR Cur_Parameter IN
+      (SELECT i.Record_ID,
+        p.ParameterName,
+        p.P_String,
+        p.P_Number,
+        p.P_Date
+      FROM AD_PINSTANCE i
+      LEFT JOIN AD_PINSTANCE_PARA p
+        ON i.AD_PInstance_ID=p.AD_PInstance_ID
+      WHERE i.AD_PInstance_ID=p_PInstance_ID
+      ORDER BY p.SeqNo
+      )
+    LOOP
+      v_Record_ID:=Cur_Parameter.Record_ID;
+      IF(Cur_Parameter.ParameterName='M_Warehouse_ID') THEN
+        v_M_Warehouse_ID:=Cur_Parameter.P_String;
+        DBMS_OUTPUT.PUT_LINE('  M_Warehouse_ID=' || v_M_Warehouse_ID) ;
+      ELSE
+        DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
+      END IF;
+    END LOOP; -- Get Parameter
+    DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    DECLARE
+    TYPE RECORD IS REF CURSOR;
+      CUR_Project RECORD;
+      CUR_PLines RECORD;
+      v_C_Order_ID VARCHAR2(32) ;
+      v_C_DocType_ID VARCHAR2(32) ;
+      v_NextNo VARCHAR2(32) ;
+      v_M_PriceList_ID VARCHAR2(32) ;
+      v_C_PaymentTerm_ID VARCHAR2(32) ;
+      --
+      v_Line VARCHAR2(32) ;
+      v_PriceList NUMBER;
+      v_PriceLimit NUMBER;
+      v_C_UOM_ID VARCHAR2(32) ;
+      v_C_Tax_ID VARCHAR2(32) ;
+      v_Discount NUMBER;
+      v_PriceStd NUMBER;
+      v_FIN_PaymentMethod_ID C_ORDER.FIN_PAYMENTMETHOD_ID%TYPE;
+    BEGIN
+      FOR CUR_Project IN
+        (SELECT *  FROM C_PROJECT  WHERE C_Project_ID=v_Record_ID)
+      LOOP
+        v_ResultStr:='NullTest';
+	IF CUR_Project.C_BPARTNER_ID IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@NoprojectBusinesspartner@');
+            /* Eliminado a peticion de Huesker
+            ELSIF Cur_SO.AD_USER_ID IS NULL THEN
+            v_Message := 'ContactNotFound';
+            v_Result := 0;
+            FINISH_PROCESS := true;
+            EXIT; */
+          ELSIF CUR_Project.C_BPARTNER_LOCATION_ID IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @ShiptoNotdefined@');
+          ELSIF CUR_Project.C_PAYMENTTERM_ID IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@ThebusinessPartner@'||' '||' @PaymenttermNotdefined@');
+          ELSIF CUR_Project.C_CURRENCY_ID IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@ProjectCurrencyNotFound@');
+		  ELSIF CUR_Project.AD_User_ID IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@ProjectNotcontact@');
+		  ELSIF CUR_Project.DateContract IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20000, '@Projectnotcontractdate@');
+        END IF;
+        v_ResultStr:='NoDocType';
+        v_C_DocType_ID:=Ad_Get_Doctype(CUR_Project.AD_Client_ID, CUR_Project.AD_Org_ID, 'SOO', 'SO') ;
+        --
+        SELECT FIN_PAYMENTMETHOD_ID INTO v_FIN_PaymentMethod_ID
+        FROM C_BPARTNER WHERE C_BPARTNER_ID = CUR_Project.C_BPARTNER_ID;
+        v_ResultStr:='NoPriceList';
+        SELECT M_PriceList_ID
+        INTO v_M_PriceList_ID
+        FROM M_PRICELIST_VERSION
+        WHERE M_PriceList_Version_ID=CUR_Project.M_PriceList_Version_ID;
+        --
+        Ad_Sequence_Doctype(v_C_DocType_ID, CUR_Project.AD_Client_ID, 'Y', v_DocumentNo) ;
+        IF(v_DocumentNo IS NULL) THEN
+          Ad_Sequence_Doc('DocumentNo_C_Order', CUR_Project.AD_Client_ID, 'Y', v_DocumentNo) ;
+        END IF;
+        Ad_Sequence_Next('C_Order', CUR_Project.AD_Client_ID, v_C_Order_ID) ;
+        v_ResultStr:='InsertingHeader';
+        INSERT
+        INTO C_ORDER
+          (
+            C_Order_ID, DocumentNo, AD_Client_ID, AD_Org_ID,
+            IsActive, Created, CreatedBy, Updated,
+            UpdatedBy, IsSOTrx, DocStatus, DocAction,
+            Processed, C_DocType_ID, C_DocTypeTarget_ID, Description,
+            SalesRep_ID, DateOrdered, DateAcct, POReference,
+            C_BPartner_ID, BillTo_ID, C_BPartner_Location_ID, AD_User_ID,
+            C_Currency_ID, C_PaymentTerm_ID, PaymentRule, FIN_PaymentMethod_ID, InvoiceRule,
+            DeliveryRule, DeliveryViaRule, FreightCostRule, PriorityRule,
+            M_Warehouse_ID, M_PriceList_ID, C_Project_ID, C_Campaign_ID
+          )
+          VALUES
+          (
+            v_C_Order_ID, v_DocumentNo, CUR_Project.AD_Client_ID, CUR_Project.AD_Org_ID,
+             'Y', now(), '0', now(),
+            '0', 'Y', 'DR', 'CO',
+             'N', v_C_DocType_ID, v_C_DocType_ID, CUR_Project.Description,
+            CUR_Project.AD_User_ID, CUR_Project.DateContract, CUR_Project.DateContract, CUR_Project.POReference,
+            CUR_Project.C_BPartner_ID, CUR_Project.C_BPartner_Location_ID, CUR_Project.C_BPartner_Location_ID, CUR_Project.AD_User_ID,
+            CUR_Project.C_Currency_ID, CUR_Project.C_PaymentTerm_ID, 'P', v_FIN_PaymentMethod_ID, 'D',
+             'A', 'P', 'I', '5', -- OnCredit, afterDelivery, Availability, Pickup, Included,
+            v_M_Warehouse_ID, v_M_PriceList_ID, CUR_Project.C_Project_ID, CUR_Project.C_Campaign_ID
+          )
+          ;
+        --
+        v_Line:=0;
+        FOR CUR_PLines IN
+          (SELECT *
+          FROM C_PROJECTLINE
+          WHERE C_Project_ID=v_Record_ID
+            AND IsActive='Y'
+          ORDER BY Line
+          )
+        LOOP
+          v_ResultStr:='GettingPrice';
+          SELECT COALESCE(MAX(PriceList), 0),
+            COALESCE(MAX(PriceLimit), 0),
+            COALESCE(MAX(PriceStd), 0)
+          INTO v_PriceList,
+            v_PriceLimit,
+            v_PriceStd
+          FROM M_PRODUCTPRICE
+          WHERE M_Product_ID=CUR_PLines.M_Product_ID
+            AND M_PriceList_Version_ID=CUR_Project.M_PriceList_Version_ID;
+          IF(v_PriceList=0) THEN
+            v_Discount:=0;
+          ELSE
+            v_Discount:=ROUND((v_PriceList-CUR_PLines.PlannedPrice) / v_PriceList*100, 2) ;
+          END IF;
+          -- Get UOM - Tax -- VERY simplified, but should work in most cases
+          v_ResultStr:='NoUOM+Tax';
+          SELECT COALESCE(MAX(C_UOM_ID), '100'),
+            MAX(C_Tax_ID) -- UOM 100=EA
+          INTO v_C_UOM_ID,
+            v_C_Tax_ID
+          FROM M_PRODUCT p,
+            C_TAX t
+          WHERE P.C_TaxCategory_ID=t.C_TaxCategory_ID
+            AND P.M_Product_ID=CUR_PLines.M_Product_ID
+          ORDER BY t.IsDefault DESC;
+          IF(v_C_Tax_ID IS NULL) THEN
+            v_ResultStr:='NoTax';
+            SELECT C_Tax_ID
+            INTO v_C_Tax_ID
+            FROM C_TAX
+            WHERE IsDefault='Y'
+              AND AD_Client_ID=CUR_PLines.AD_Client_ID;
+          END IF;
+          --
+          Ad_Sequence_Next('C_OrderLine', CUR_Project.AD_Client_ID, v_NextNo) ;
+          v_ResultStr:='InsertingLine';
+          v_Line:=v_Line + 10;
+          INSERT
+          INTO C_ORDERLINE
+            (
+              C_OrderLine_ID, C_Order_ID, AD_Client_ID, AD_Org_ID,
+              IsActive, Created, CreatedBy, Updated,
+              UpdatedBy, Line, C_BPartner_ID, C_BPartner_Location_ID,
+              DateOrdered, Description, M_Warehouse_ID, M_Product_ID,
+              DirectShip, C_UOM_ID, C_Currency_ID, QtyOrdered,
+              PriceList, PriceActual, PriceLimit, LineNetAmt,
+              Discount,
+              C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+              QuantityOrder, M_Product_UOM_ID, PriceStd
+            )
+            VALUES
+            (
+              v_NextNo, v_C_Order_ID, CUR_PLines.AD_Client_ID, CUR_PLines.AD_Org_ID,
+               'Y', now(), '0', now(),
+              '0', v_Line, CUR_Project.C_BPartner_ID, CUR_Project.C_BPartner_Location_ID,
+              CUR_Project.DateContract, CUR_PLines.Description, v_M_Warehouse_ID, CUR_PLines.M_Product_ID,
+               'N', v_C_UOM_ID, CUR_Project.C_Currency_ID, CUR_PLines.PlannedQty,
+              v_PriceList,
+     M_Get_Offers_Price(CUR_Project.DateContract, CUR_Project.C_BPartner_ID, CUR_PLines.M_Product_ID, v_PriceStd, CUR_PLines.PlannedQty,v_M_PriceList_ID), v_PriceLimit, ROUND(CUR_PLines.PlannedQty*M_Get_Offers_Price(CUR_Project.DateContract, CUR_Project.C_BPartner_ID, CUR_PLines.M_Product_ID, v_PriceStd, CUR_PLines.PlannedQty,v_M_PriceList_ID), 2),
+              v_Discount,
+              v_C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
+              CUR_PLines.PlannedQty, v_C_UOM_ID, CUR_PLines.PlannedPrice)
+            ;
+        END LOOP; -- ProjectLine
+        v_Message:='OrderCreated ';
+      END LOOP; -- Project
+      --
+    END;
+    IF(NOT FINISH_PROCESS) THEN
+      v_Message:='@InvoiceDocumentno@ = ' || v_DocumentNo;
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    --  Update AD_PInstance
+    DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 1, v_Message) ;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  ROLLBACK;
+  AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  RETURN;
+END C_PROJECT_GENERATE
+]]></body>
+    </function>
+  </database>

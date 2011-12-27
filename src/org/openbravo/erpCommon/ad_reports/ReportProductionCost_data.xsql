@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportProductionCostData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT rp.M_Product_ID AS ID, M_Product.Name, SUM(rp.RealTotalCost)/SUM(rp.ProducedQty) AS RealUnitCost, 
+      SUM(rp.ProducedQty*C_CURRENCY_CONVERT(sp.Cost, ?, ?, TO_DATE(sp.Updated), null, sp.ad_client_id, sp.ad_org_id))/SUM(rp.ProducedQty) AS StandarUnitCost, 
+      rp.M_Product_ID as identifier, ? as levelid, 'datawarehouseclose' as button_class, '' AS ConsumedPerUnit, '' AS CostPerUnit, '' AS ConsumedPerUnitStd, '' AS CostPerUnitStd, to_number(?)*5 as level_blanck, 40-(to_number(?)*5) as level_name, '' as class_name
+      FROM
+          (SELECT pl.M_Product_ID, wrp.MA_Sequence_ID, 
+          SUM(pl.MovementQty*C_CURRENCY_CONVERT(pl.CalcCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id)) AS RealTotalCost, 
+          SUM(pl.MovementQty) AS 
+          ProducedQty
+          FROM M_Production p INNER JOIN M_ProductionPlan pp ON (p.M_Production_ID = pp.M_Production_ID)
+                              INNER JOIN M_ProductionLine pl ON (pp.M_ProductionPlan_ID = pl.M_ProductionPlan_ID)
+                              INNER JOIN MA_WRPhase wrp ON (pp.MA_WRPhase_ID = wrp.MA_WRPhase_ID)
+          WHERE p.IsSOTrx = 'N'
+          AND p.Processed = 'Y'
+          AND pl.ProductionType = '+'
+          AND p.MovementDate >= TO_DATE(?)
+          AND p.MovementDate < TO_DATE(?)
+          AND 1=1
+          GROUP BY pl.M_Product_ID, wrp.MA_Sequence_ID) rp
+          LEFT OUTER JOIN MA_SequenceProduct sp ON (rp.M_Product_ID = sp.M_Product_ID AND rp.MA_Sequence_ID = sp.MA_Sequence_ID), M_Product
+        WHERE rp.M_Product_ID = M_Product.M_Product_ID
+        AND M_Product.IsSold = 'Y'
+        GROUP BY rp.M_Product_ID, M_Product.Name
+        ]]></Sql>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="level"/>
+      <Parameter name="level"/>
+      <Parameter name="level"/>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="dateFrom"/>
+      <Parameter name="dateTo"/>
+      <Parameter name="mProductId" optional="true" after="1=1"> AND pl.M_PRODUCT_ID = ?</Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+    </SqlMethod>
+  <SqlMethod name="selectMaterial" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[ 
+       SELECT pr.ID, pr.Name, pr.ConsumedPerUnit, pr.CostPerUnit, pr.ConsumedPerUnitStd, pr.CostPerUnitStd, pr.ConsumedPerUnit*pr.CostPerUnit as RealUnitCost, pr.ConsumedPerUnitStd*pr.CostPerUnitStd as StandarUnitCost, pr.identifier, pr.level_blanck, pr.level_name, pr.button_class, pr.levelid, AD_Ref_List.name as class_name
+       FROM (
+       SELECT auxSeq.M_Product_ID AS ID, M_Product.Name, 
+        SUM(auxSeq.ComponentCost*auxSeq.ConsumedQty)/SUM(auxSeq.ProducedQty) AS ConsumedPerUnit, 
+        SUM(auxSeq.TotalRealCost)/SUM(auxSeq.ConsumedQty) AS CostPerUnit,
+        SUM(auxSeq.ComponentCost*sp.Quantity)/SUM(sp.Quantity) AS ConsumedPerUnitStd, 
+        MAX(C_CURRENCY_CONVERT(sp.Cost, ?, ?, TO_DATE(sp.Updated), null, sp.ad_client_id, sp.ad_org_id)) AS CostPerUnitStd, 
+            to_char(?)||to_char(auxSeq.M_Product_ID) as identifier, to_char((to_number(?)+1)*5) as level_blanck, to_char(40-((to_number(?)+1)*5)) as level_name, case when M_Product.MA_ProcessPlan_ID is null then '' else 'datawarehouseclose' end as button_class, to_char(to_number(?)+1) as levelid
+        FROM 
+          (SELECT rpn.M_Product_ID, rpp.ComponentCost, SUM(rpn.ConsumedQty) AS ConsumedQty, 
+           SUM(rpp.ProducedQty) AS ProducedQty, SUM(rpn.ConsumedQty*rpn.CalcCost) AS TotalRealCost, rpp.MA_Sequence_ID
+           FROM
+              (SELECT SUM(pl.MovementQty) AS ProducedQty, 
+              MAX(C_CURRENCY_CONVERT(pl.ComponentCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id)) AS ComponentCost, 
+              pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              FROM M_Production p
+                INNER JOIN M_ProductionPlan pp ON (p.M_Production_ID = pp.M_Production_ID)
+                INNER JOIN M_ProductionLine pl ON (pp.M_ProductionPlan_ID = pl.M_ProductionPlan_ID)
+                INNER JOIN MA_WRPhase wrp ON (pp.MA_WRPhase_ID = wrp.MA_WRPhase_ID)
+              WHERE p.IsSOTrx = 'N'
+              AND pl.ProductionType = '+'
+              AND p.Processed = 'Y'
+              AND p.MovementDate >= TO_DATE(?)
+              AND p.MovementDate < TO_DATE(?)
+              AND pl.M_Product_ID = ?
+              GROUP BY pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              HAVING SUM(pl.MovementQty) <> 0) rpp 
+           LEFT OUTER JOIN
+              (SELECT pl.M_Product_ID, SUM(pl.MovementQty) AS ConsumedQty, 
+              SUM(pl.MovementQty*C_CURRENCY_CONVERT(pl.CalcCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id))/SUM(pl.MovementQty) AS CalcCost, 
+              pl.M_ProductionPlan_ID
+              FROM M_ProductionLine pl, M_ProductionPlan pp, M_Production p
+              WHERE pl.ProductionType = '-'
+              AND pl.M_ProductionPlan_ID = pp.M_ProductionPlan_ID  
+			  AND p.M_Production_ID = pp.M_Production_ID
+              GROUP BY pl.M_Product_ID, pl.M_ProductionPlan_ID
+              HAVING SUM(pl.MovementQty) <> 0) rpn 
+           ON (rpp.M_ProductionPlan_ID = rpn.M_ProductionPlan_ID) 
+           GROUP BY rpn.M_Product_ID, rpp.ComponentCost, rpp.MA_Sequence_ID) auxSeq
+        LEFT OUTER JOIN MA_SequenceProduct sp 
+        ON (auxSeq.M_Product_ID = sp.M_Product_ID AND auxSeq.MA_Sequence_ID = sp.MA_Sequence_ID), M_Product
+        WHERE auxSeq.M_Product_ID = M_Product.M_Product_ID
+        GROUP BY auxSeq.M_Product_ID, M_Product.Name, M_Product.MA_ProcessPlan_ID) pr, AD_Ref_List
+        WHERE pr.levelid = AD_Ref_List.value
+        AND Ad_Ref_List.AD_Reference_ID = '800097'
+        ]]></Sql>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="id"/>
+      <Parameter name="level"/>
+      <Parameter name="level"/>
+      <Parameter name="level"/>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+      <Parameter name="dateFrom"/>
+      <Parameter name="dateTo"/>
+      <Parameter name="mProductId"/>
+      <Parameter name="cCurrencyBase"/>
+      <Parameter name="cCurrencyConv"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectMachine" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[ 
+       SELECT pr.ID, pr.name, pr.CostPerUnit, pr.CostPerUnitStd, pr.level_blanck, pr.level_name, AD_Ref_List.Name as class_name, pr.levelid
+       FROM (
+       SELECT auxSeq.MA_Machine_ID AS ID, MA_Machine.name,  
+        SUM(auxSeq.TotalRealCost*auxSeq.ComponentCost)/SUM(auxSeq.ProducedQty) AS CostPerUnit,
+        SUM(C_CURRENCY_CONVERT(sm.CalcCost, ?, ?, TO_DATE(sm.Updated), null, sm.ad_client_id, sm.ad_org_id)*auxSeq.ComponentCost*auxSeq.ProducedQty)/SUM(auxSeq.ProducedQty) AS CostPerUnitStd, 
+            to_char((to_number(?)+1)*5) as level_blanck, to_char(40-((to_number(?)+1)*5)) as level_name, to_char(to_number(?)+1) as levelid
+        FROM 
+          (SELECT rmc.MA_Machine_ID, rpp.ComponentCost, SUM(rpp.ProducedQty) AS ProducedQty,
+           SUM(rmc.CalcCost) AS TotalRealCost, rpp.MA_Sequence_ID
+           FROM
+              (SELECT SUM(pl.MovementQty) AS ProducedQty, 
+              MAX(C_CURRENCY_CONVERT(pl.ComponentCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id)) AS ComponentCost, 
+              pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              FROM M_Production p
+                INNER JOIN M_ProductionPlan pp ON (p.M_Production_ID = pp.M_Production_ID)
+                INNER JOIN M_ProductionLine pl ON (pp.M_ProductionPlan_ID = pl.M_ProductionPlan_ID)
+                INNER JOIN MA_WRPhase wrp ON (pp.MA_WRPhase_ID = wrp.MA_WRPhase_ID)
+              WHERE p.IsSOTrx = 'N'
+              AND pl.ProductionType = '+'
+              AND p.Processed = 'Y'
+              AND p.MovementDate >= TO_DATE(?)
+              AND p.MovementDate < TO_DATE(?)
+              AND pl.M_Product_ID = ?
+              GROUP BY pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              HAVING SUM(pl.MovementQty) <> 0) rpp 
+           LEFT OUTER JOIN
+              (SELECT plm.MA_Machine_ID, 
+              C_CURRENCY_CONVERT(plm.CalcCost, ?, ?, TO_DATE(p.movementdate), null, plm.ad_client_id, plm.ad_org_id) AS CalcCost,
+              plm.M_ProductionPlan_ID
+              FROM MA_Pl_Machine plm, M_ProductionPlan pp, M_Production p
+              WHERE plm.M_ProductionPlan_ID = pp.M_ProductionPlan_ID  
+			  AND p.M_Production_ID = pp.M_Production_ID) rmc
+           ON (rpp.M_ProductionPlan_ID = rmc.M_ProductionPlan_ID) 
+           GROUP BY rmc.MA_Machine_ID, rpp.ComponentCost, rpp.MA_Sequence_ID
+           HAVING rmc.MA_Machine_ID IS NOT NULL) auxSeq
+        LEFT OUTER JOIN MA_Sequence_Machine sm 
+        ON (auxSeq.MA_Machine_ID = sm.MA_Machine_ID AND auxSeq.MA_Sequence_ID = sm.MA_Sequence_ID), MA_Machine
+        WHERE auxSeq.MA_Machine_ID = MA_Machine.MA_Machine_ID
+        GROUP BY auxSeq.MA_Machine_ID, MA_Machine.name) pr, AD_Ref_List
+        WHERE pr.levelid = AD_Ref_List.value
+        AND AD_Ref_List.AD_Reference_ID = '800097'
+        ]]></Sql>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="dateFrom"/>
+     <Parameter name="dateTo"/>
+     <Parameter name="mProductId"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+   </SqlMethod>
+
+  <SqlMethod name="selectIndirect" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[ 
+       SELECT pr.ID, pr.name, pr.CostPerUnit, pr.CostPerUnitStd, pr.level_blanck, pr.level_name, AD_Ref_List.Name as class_name, pr.levelid
+       FROM (
+       SELECT auxSeq.MA_Indirect_Cost_ID AS ID, MA_Indirect_Cost.name,  
+        SUM(auxSeq.TotalRealCost*auxSeq.ComponentCost)/SUM(auxSeq.ProducedQty) AS CostPerUnit,
+        SUM(C_CURRENCY_CONVERT(si.CalcCost, ?, ?, TO_DATE(si.Updated), null, si.ad_client_id, si.ad_org_id)*auxSeq.ComponentCost*auxSeq.ProducedQty)/SUM(auxSeq.ProducedQty) AS CostPerUnitStd, 
+            to_char((to_number(?)+1)*5) as level_blanck, to_char(40-((to_number(?)+1)*5)) as level_name, to_char(to_number(?)+1) as levelid
+        FROM 
+          (SELECT rmi.MA_Indirect_Cost_ID, rpp.ComponentCost, SUM(rpp.ProducedQty) AS ProducedQty,
+           SUM(rmi.CalcCost) AS TotalRealCost, rpp.MA_Sequence_ID
+           FROM
+              (SELECT SUM(pl.MovementQty) AS ProducedQty, 
+              MAX(C_CURRENCY_CONVERT(pl.ComponentCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id)) AS ComponentCost, 
+              pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              FROM M_Production p
+                INNER JOIN M_ProductionPlan pp ON (p.M_Production_ID = pp.M_Production_ID)
+                INNER JOIN M_ProductionLine pl ON (pp.M_ProductionPlan_ID = pl.M_ProductionPlan_ID)
+                INNER JOIN MA_WRPhase wrp ON (pp.MA_WRPhase_ID = wrp.MA_WRPhase_ID)
+              WHERE p.IsSOTrx = 'N'
+              AND pl.ProductionType = '+'
+              AND p.Processed = 'Y'
+              AND p.MovementDate >= TO_DATE(?)
+              AND p.MovementDate < TO_DATE(?)
+              AND pl.M_Product_ID = ?
+              GROUP BY pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              HAVING SUM(pl.MovementQty) <> 0) rpp 
+           LEFT OUTER JOIN
+              (SELECT pli.MA_Indirect_Cost_ID, 
+                C_CURRENCY_CONVERT(pli.CalcCost, ?, ?, TO_DATE(p.movementdate), null, pli.ad_client_id, pli.ad_org_id) AS CalcCost, 
+                pli.M_ProductionPlan_ID
+              FROM MA_Pl_Ic pli, M_ProductionPlan pp, M_Production p
+              WHERE pli.M_ProductionPlan_ID = pp.M_ProductionPlan_ID  
+			  AND p.M_Production_ID = pp.M_Production_ID) rmi
+           ON (rpp.M_ProductionPlan_ID = rmi.M_ProductionPlan_ID) 
+           GROUP BY rmi.MA_Indirect_Cost_ID, rpp.ComponentCost, rpp.MA_Sequence_ID
+           HAVING rmi.MA_Indirect_Cost_ID IS NOT NULL) auxSeq
+        LEFT OUTER JOIN MA_Sequence_IC si
+        ON (auxSeq.MA_Indirect_Cost_ID = si.MA_Indirect_Cost_ID AND auxSeq.MA_Sequence_ID = si.MA_Sequence_ID), MA_Indirect_Cost
+        WHERE auxSeq.MA_Indirect_Cost_ID = MA_Indirect_Cost.MA_Indirect_Cost_ID
+        GROUP BY auxSeq.MA_Indirect_Cost_ID, MA_Indirect_Cost.name) pr, AD_Ref_List
+        WHERE pr.levelid = AD_Ref_List.value
+        AND AD_Ref_List.AD_Reference_ID = '800097'
+        ]]></Sql>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="dateFrom"/>
+     <Parameter name="dateTo"/>
+     <Parameter name="mProductId"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectEmployee" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[ 
+       SELECT pr.ID, pr.name, pr.CostPerUnit, pr.CostPerUnitStd, pr.level_blanck, pr.level_name, AD_Ref_List.Name as class_name, pr.levelid
+       FROM (
+       SELECT auxSeq.C_Salary_Category_ID AS ID, C_Salary_Category.name,
+        SUM(auxSeq.TotalRealCost*auxSeq.ComponentCost)/SUM(auxSeq.ProducedQty) AS CostPerUnit,
+        SUM(C_CURRENCY_CONVERT(se.CalcCost, ?, ?, TO_DATE(se.Updated), null, se.ad_client_id, se.ad_org_id)*auxSeq.ComponentCost*auxSeq.ProducedQty)/SUM(auxSeq.ProducedQty) AS CostPerUnitStd, to_char((to_number(?)+1)*5) as level_blanck, to_char(40-((to_number(?)+1)*5)) as level_name, to_char(to_number(?)+1) as levelid
+        FROM 
+          (SELECT rme.C_Salary_Category_ID, rpp.ComponentCost, SUM(rpp.ProducedQty) AS ProducedQty,
+           SUM(rme.CalcCost) AS TotalRealCost, rpp.MA_Sequence_ID
+           FROM
+              (SELECT SUM(pl.MovementQty) AS ProducedQty, 
+              MAX(C_CURRENCY_CONVERT(pl.ComponentCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id)) AS ComponentCost, 
+              pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              FROM M_Production p
+                INNER JOIN M_ProductionPlan pp ON (p.M_Production_ID = pp.M_Production_ID)
+                INNER JOIN M_ProductionLine pl ON (pp.M_ProductionPlan_ID = pl.M_ProductionPlan_ID)
+                INNER JOIN MA_WRPhase wrp ON (pp.MA_WRPhase_ID = wrp.MA_WRPhase_ID)
+              WHERE p.IsSOTrx = 'N'
+              AND pl.ProductionType = '+'
+              AND p.Processed = 'Y'
+              AND p.MovementDate >= TO_DATE(?)
+              AND p.MovementDate < TO_DATE(?)
+              AND pl.M_Product_ID = ?
+              GROUP BY pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID
+              HAVING SUM(pl.MovementQty) <> 0) rpp 
+           LEFT OUTER JOIN
+              (SELECT ple.C_Salary_Category_ID, 
+              C_CURRENCY_CONVERT(ple.CalcCost, ?, ?, TO_DATE(p.movementdate), null, ple.ad_client_id, ple.ad_org_id) AS CalcCost, 
+              ple.M_ProductionPlan_ID
+              FROM MA_Pl_Employee ple, M_ProductionPlan pp, M_Production p
+              WHERE ple.M_ProductionPlan_ID = pp.M_ProductionPlan_ID  
+			  AND p.M_Production_ID = pp.M_Production_ID) rme
+           ON (rpp.M_ProductionPlan_ID = rme.M_ProductionPlan_ID) 
+           GROUP BY rme.C_Salary_Category_ID, rpp.ComponentCost, rpp.MA_Sequence_ID
+           HAVING rme.C_Salary_Category_ID IS NOT NULL) auxSeq
+        LEFT OUTER JOIN MA_Sequence_Employee se
+        ON (auxSeq.C_Salary_Category_ID = se.C_Salary_Category_ID AND auxSeq.MA_Sequence_ID = se.MA_Sequence_ID), C_Salary_Category
+        WHERE auxSeq.C_Salary_Category_ID = C_Salary_Category.C_Salary_Category_ID
+        GROUP BY auxSeq.C_Salary_Category_ID, C_Salary_Category.name) pr, AD_Ref_List
+        WHERE pr.levelid =AD_Ref_List.value
+        AND AD_Ref_List.AD_Reference_ID = '800097'
+        ]]></Sql>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="dateFrom"/>
+     <Parameter name="dateTo"/>
+     <Parameter name="mProductId"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+   </SqlMethod>
+
+   <SqlMethod name="selectCostCenter" type="preparedStatement" return="multiple">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+       <![CDATA[ 
+       SELECT pr.ID, pr.name, pr.CostPerUnit, pr.CostPerUnitStd, pr.level_blanck, pr.level_name, AD_Ref_List.Name as class_name, pr.levelid
+       FROM (
+       SELECT auxSeq.MA_CostCenter_Version_ID AS ID, MA_CostCenter.name,
+        SUM(auxSeq.TotalRealCost*auxSeq.ComponentCost)/SUM(auxSeq.ProducedQty) AS CostPerUnit,
+        SUM(C_CURRENCY_CONVERT(se.CostCenterCost, ?, ?, TO_DATE(se.Updated), null, se.ad_client_id, se.ad_org_id)*auxSeq.ComponentCost*auxSeq.ProducedQty)/SUM(auxSeq.ProducedQty) AS CostPerUnitStd, 
+            to_char((to_number(?)+1)*5) as level_blanck, to_char(40-((to_number(?)+1)*5)) as level_name, to_char(to_number(?)+1) as levelid
+        FROM 
+          (SELECT rpp.MA_CostCenter_Version_ID, rpp.ComponentCost, SUM(rpp.ProducedQty) AS ProducedQty,
+           SUM(rpp.CalcCost) AS TotalRealCost, rpp.MA_Sequence_ID
+           FROM
+              (SELECT SUM(pl.MovementQty) AS ProducedQty, 
+              MAX(C_CURRENCY_CONVERT(pl.ComponentCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id)) AS ComponentCost, 
+              pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID, pp.MA_CostCenter_Version_ID, 
+              C_CURRENCY_CONVERT(pp.CalcCost, ?, ?, TO_DATE(p.movementdate), null, pp.ad_client_id, pp.ad_org_id) AS CalcCost
+              FROM M_Production p
+                INNER JOIN M_ProductionPlan pp ON (p.M_Production_ID = pp.M_Production_ID)
+                INNER JOIN M_ProductionLine pl ON (pp.M_ProductionPlan_ID = pl.M_ProductionPlan_ID)
+                INNER JOIN MA_WRPhase wrp ON (pp.MA_WRPhase_ID = wrp.MA_WRPhase_ID)
+              WHERE p.IsSOTrx = 'N'
+              AND pl.ProductionType = '+'
+              AND p.Processed = 'Y'
+              AND p.MovementDate >= TO_DATE(?)
+              AND p.MovementDate < TO_DATE(?)
+              AND pl.M_Product_ID = ?
+              GROUP BY pp.M_ProductionPlan_ID, wrp.MA_Sequence_ID, pp.MA_CostCenter_Version_ID, pp.CalcCost, 
+              p.movementdate, pp.ad_client_id, pp.ad_org_id
+              HAVING SUM(pl.MovementQty) <> 0) rpp 
+           GROUP BY rpp.MA_CostCenter_Version_ID, rpp.ComponentCost, rpp.MA_Sequence_ID
+           HAVING rpp.MA_CostCenter_Version_ID IS NOT NULL) auxSeq
+        LEFT OUTER JOIN MA_Sequence se
+        ON (auxSeq.MA_Sequence_ID = se.MA_Sequence_ID), MA_CostCenter_Version, MA_CostCenter
+        WHERE auxSeq.MA_CostCenter_version_ID = MA_CostCenter_version.MA_CostCenter_Version_ID
+          AND MA_CostCenter_Version.MA_CostCenter_ID = MA_CostCenter.MA_CostCenter_ID
+        GROUP BY auxSeq.MA_CostCenter_Version_ID, MA_CostCenter.name) pr, AD_Ref_List
+        WHERE pr.levelid =AD_Ref_List.value
+        AND AD_Ref_List.AD_Reference_ID = '800097'
+        ]]></Sql>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="level"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="cCurrencyBase"/>
+     <Parameter name="cCurrencyConv"/>
+     <Parameter name="dateFrom"/>
+     <Parameter name="dateTo"/>
+     <Parameter name="mProductId"/>
+   </SqlMethod>
+
+  <SqlMethod name="mProductDescription" type="preparedStatement" return="String" default="">
+     <SqlMethodComment></SqlMethodComment>
+     <Sql>
+     SELECT MAX(NAME) AS NAME FROM M_PRODUCT WHERE M_PRODUCT_ID = ?
+     </Sql>
+     <Parameter name="cBpartnerId"/>
+   </SqlMethod>
+</SqlClass>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+************************************************************************************
+* Copyright (C) 2001-2006 Openbravo S.L.U.
+* Licensed under the Apache Software License version 2.0
+* You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to  in writing,  software  distributed
+* under the License is distributed  on  an  "AS IS"  BASIS,  WITHOUT  WARRANTIES  OR
+* CONDITIONS OF ANY KIND, either  express  or  implied.  See  the  License  for  the
+* specific language governing permissions and limitations under the License.
+************************************************************************************
+-->
+
+<!--
+List of targets:
+
+init: creates all the needed folders.
+clean: removes all the files and folders.
+compile: compile the java files of the project.
+build.jar: generates the jar file in the lib folder.
+build: compile the project and generates the jar and doc.
+doc: generates the api for the project.
+-->
+<project default="compile" basedir="." name="openbravo-core">
+  <property name="build.core" value="${basedir}/build/classes"/>
+  <property name="build.core.docs" value="${basedir}/docs"/>
+  <property name="build.core.src" value="${basedir}/src"/>
+
+  <path id="core.class.path">
+  <fileset dir="${base.lib}">
+      <include name="**/*.jar"/>
+    </fileset>
+  </path>
+
+  <target name="init">
+    <mkdir dir="${build.core}"/>
+    <mkdir dir="${build.core.docs}"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${build.core}" failonerror="false" includeemptydirs="true"/>
+    <delete dir="${build.core.docs}" failonerror="false" includeemptydirs="true"/>
+    <delete failonerror="false" file="${build.core.lib}/openbravo-core.jar"/>
+  </target>
+
+  <target name="compile" depends="init">
+    <javac srcdir="${build.core.src}" destdir="${build.core}" fork="true" deprecation="on" encoding="UTF-8" debug="true" debuglevel="lines,vars,source" includeantruntime="false">
+      <classpath refid="core.class.path"/>  
+    </javac>
+  </target>
+
+  <target name="build.jar">
+    <jar destfile="${build.core.lib}/openbravo-core.jar">
+      <fileset dir="${build.core}"/>
+      <manifest>
+        <attribute name="Built-By" value="Openbravo S.L.U."/>
+        <!--section name="common/class1.class">
+        <attribute name="Sealed" value="false"/>
+      </section-->
+    </manifest>
+  </jar> 
+</target>
+
+<target name="build" depends="compile, build.jar">
+</target>
+
+<target name="doc" depends="init" description="Generate api">
+  <javadoc packagenames="org.openbravo.*" 
+    sourcepath="${build.core.src}"
+    destdir="${build.core.docs}"
+    author="true"
+    version="true"
+    use="true"
+    docencoding="UTF-8"
+    encoding="UTF-8"
+    failonerror="false"
+    windowtitle="${ant.project.name}">
+    <classpath refid="core.class.path"/>
+  </javadoc>
+</target>
+</project>

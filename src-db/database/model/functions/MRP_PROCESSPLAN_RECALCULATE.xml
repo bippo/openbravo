@@ -1,0 +1,144 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION MRP_PROCESSPLAN_RECALCULATE">
+    <function name="MRP_PROCESSPLAN_RECALCULATE" type="NULL">
+      <parameter name="p_user_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_run_productionline_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_timehorizon" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_planningdate" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_securitymargin" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Result NUMBER:=1; -- 0=failure
+
+  v_Qty NUMBER;
+  v_PlannedDate DATE;
+  v_PlannedOrderDate DATE;
+  v_Product VARCHAR2(32);
+
+  v_Qty_New NUMBER;
+  v_NeededQty_New NUMBER;
+  v_PlannedDate_New DATE;
+  v_PlannedOrderDate_New DATE;
+
+  v_Capacity NUMBER;
+  v_Delaymin NUMBER;
+  v_Qtytype CHAR;
+  v_QtyMin NUMBER;
+  v_QtyStd NUMBER;
+
+  FINISH_PROCESS BOOLEAN DEFAULT FALSE;
+  --  Parameter
+  TYPE RECORD IS REF CURSOR;
+  Cur_Childs RECORD;
+
+BEGIN
+  BEGIN --BODY
+    SELECT QTY, planneddate, plannedorderdate, M_PRODUCT.M_PRODUCT_ID,
+           COALESCE(M_PRODUCT_ORG.CAPACITY, M_PRODUCT.CAPACITY) AS CAPACITY,
+           COALESCE(M_PRODUCT_ORG.DELAYMIN, M_PRODUCT.DELAYMIN, 0) AS DELAYMIN,
+           COALESCE(M_PRODUCT_ORG.QTYTYPE, M_PRODUCT_ORG.QTYTYPE, 'E') AS qtytype,
+           COALESCE(M_PRODUCT_ORG.QTYMIN, M_PRODUCT_ORG.QTYMIN, 0) AS qtymin,
+           COALESCE(M_PRODUCT_ORG.QTYSTD, M_PRODUCT_ORG.QTYSTD, 1) AS qtystd
+      INTO v_Qty, v_planneddate, v_plannedorderdate, v_Product,
+           v_capacity, v_delaymin, v_qtytype, v_qtymin, v_qtystd
+    FROM M_PRODUCT INNER JOIN MRP_RUN_PRODUCTIONLINE ON MRP_RUN_PRODUCTIONLINE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+                                                    AND MRP_RUN_PRODUCTIONLINE_ID = p_Run_ProductionLine_ID
+                    LEFT JOIN M_PRODUCT_ORG ON M_PRODUCT.M_PRODUCT_ID = M_PRODUCT_ORG.M_PRODUCT_ID
+                                           AND M_PRODUCT_ORG.AD_ORG_ID = MRP_RUN_PRODUCTIONLINE.AD_ORG_ID;
+
+    v_ResultStr := 'Recalculate';
+    FOR Cur_Childs IN (
+      SELECT *
+      FROM MRP_RUN_PRODUCTIONLINE
+      WHERE parent_id = p_Run_ProductionLine_ID
+      ) LOOP
+      IF v_qty > 0 THEN
+        SELECT ROUND(((DEPQTY/PROQTY)*v_qty)+0.0005,3), ROUND(((DEPQTY/PROQTY)*v_qty)+0.0005,3) INTO v_qty_new, v_neededqty_new
+        FROM MA_PROCESSPLAN_TOTALIZED
+        WHERE PRODUCED = v_Product
+          AND DEPENDANTPRODUCT = Cur_Childs.M_PRODUCT_ID;
+        IF v_qty_new < 0 THEN
+          v_Planneddate_new := v_PlannedOrderdate;
+          v_PlannedOrderdate_new := v_PlannedOrderdate;
+        ELSE
+          v_Planneddate_new := v_Planneddate;
+          v_PlannedOrderdate_new := v_PlannedOrderdate;
+        END IF;
+      ELSE
+
+        v_neededqty_new := -v_qty;
+        v_qty_new := -v_qty;
+
+        --Update needed production qty acording to lot qtys configuration
+        IF (v_neededqty_new <> 0) THEN
+          IF (v_qtymin > v_neededqty_new) THEN
+            v_qty_new := v_qtymin;
+          END IF;
+          IF (v_qtytype = 'M') THEN --Multiple lot qty
+            v_qty_new := CEIL(v_qty_new/v_qtystd)*v_qtystd;
+          END IF;
+        END IF;
+
+        v_planneddate_new := v_planneddate - p_SecurityMargin;
+        v_plannedorderdate_new := v_planneddate_new -
+                                  GREATEST(v_DELAYMIN, (CASE WHEN v_CAPACITY IS NULL THEN 0
+                                                             ELSE CEIL(v_Qty_new/v_CAPACITY)
+                                                             END));
+      END IF;
+      v_ResultStr := 'Recalculate. Update productionline';
+      UPDATE MRP_RUN_PRODUCTIONLINE
+      SET qty = v_Qty_new,
+          neededqty = v_neededqty_new,
+          planneddate = v_planneddate_new,
+          plannedorderdate = v_plannedorderdate_new,
+          updated = now(),
+          updatedby = p_User_ID
+      WHERE MRP_RUN_PRODUCTIONLINE_ID =  Cur_Childs.MRP_RUN_PRODUCTIONLINE_ID;
+
+      v_ResultStr := 'Recalculate. Recursive Call';
+      IF (v_Qty_new <> Cur_Childs.qty
+          OR v_planneddate <> Cur_Childs.planneddate
+          OR v_plannedorderdate <> Cur_Childs.plannedorderdate) THEN
+        MRP_PROCESSPLAN_RECALCULATE(p_User_ID, Cur_Childs.MRP_Run_ProductionLine_ID, p_TimeHorizon,
+                                    p_PlanningDate, p_SecurityMargin);
+      END IF;
+    END LOOP;
+
+
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('MRP_PROCESSPLAN_RECALCULATE exception: ' || v_ResultStr);
+  RAISE;
+--  RETURN;
+END MRP_PROCESSPLAN_RECALCULATE
+]]></body>
+    </function>
+  </database>

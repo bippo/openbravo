@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="ReportPricelistData" package="org.openbravo.erpCommon.ad_reports">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_PRICELIST_VERSION.M_PRICELIST_VERSION_ID, M_PRICELIST_VERSION.NAME||'   '||'valid from:  '|| M_PRICELIST_VERSION.VALIDFROM AS VERSION_NAME,
+      M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID, M_PRODUCT_CATEGORY.NAME AS CATEGORY_NAME,
+      M_PRODUCT.M_PRODUCT_ID, (CASE WHEN M_PRODUCT.VALUE IS NULL THEN M_PRODUCT.NAME ELSE M_PRODUCT.VALUE||' - '||M_PRODUCT.NAME END) AS PRODUCT_NAME, M_PRODUCTPRICE.PRICELIMIT, M_PRODUCTPRICE.PRICELIST, M_PRODUCTPRICE.PRICESTD, '' as name, '' as id, '' AS VALID, '' AS UOMNAME
+      FROM M_PRICELIST_VERSION, M_PRODUCTPRICE, M_PRODUCT, M_PRODUCT_CATEGORY
+      WHERE M_PRICELIST_VERSION.M_PRICELIST_VERSION_ID = M_PRODUCTPRICE.M_PRICELIST_VERSION_ID
+      AND M_PRODUCTPRICE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_PRODUCT.M_PRODUCT_CATEGORY_ID = M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID
+      AND M_PRICELIST_VERSION.AD_CLIENT_ID IN ('1')
+      AND M_PRICELIST_VERSION.AD_ORG_ID IN ('1')
+      AND 1=1
+      ORDER BY VERSION_NAME, CATEGORY_NAME, M_PRODUCT.NAME
+     ]]></Sql>
+    <Field name="rownum" value="count"/>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_PRICELIST_VERSION.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND M_PRICELIST_VERSION.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="mPricelistVersionId" optional="true" after="AND 1=1"><![CDATA[ AND M_PRICELIST_VERSION.M_PRICELIST_VERSION_ID = ?]]></Parameter>
+    <Parameter name="mProductCategoryId" optional="true" after="AND 1=1"><![CDATA[AND M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID = ?]]></Parameter>
+    <Parameter name="mProduct" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID IN]]></Parameter>
+  </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+  <SqlMethod name="selectPDF" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M_PRICELIST_VERSION.NAME||'   '||'valid from:  '|| M_PRICELIST_VERSION.VALIDFROM AS VERSION_NAME, M_PRODUCT_CATEGORY.NAME AS CATEGORY_NAME,
+      (CASE WHEN M_PRODUCT.VALUE IS NULL THEN M_PRODUCT.NAME ELSE M_PRODUCT.VALUE||' - '||M_PRODUCT.NAME END) AS PRODUCT_NAME, M_PRODUCTPRICE.PRICESTD, C_UOM.NAME AS UOMNAME, (CASE WHEN M_PRICELIST_VERSION.VALIDFROM IS NOT NULL THEN '(Valid from : '||M_PRICELIST_VERSION.VALIDFROM||')' END) AS VALID
+      FROM M_PRODUCT left join C_UOM on M_PRODUCT.C_UOM_ID = C_UOM.C_UOM_ID,
+	  M_PRICELIST_VERSION inner join M_PRICELIST ON M_PRICELIST_VERSION.M_PRICELIST_ID = M_PRICELIST.M_PRICELIST_ID,
+      M_PRODUCTPRICE, M_PRODUCT_CATEGORY
+      WHERE M_PRICELIST_VERSION.M_PRICELIST_VERSION_ID = M_PRODUCTPRICE.M_PRICELIST_VERSION_ID
+      AND M_PRODUCTPRICE.M_PRODUCT_ID = M_PRODUCT.M_PRODUCT_ID
+      AND M_PRODUCT.M_PRODUCT_CATEGORY_ID = M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID
+      AND M_PRICELIST_VERSION.AD_CLIENT_ID IN ('1')
+      AND M_PRICELIST_VERSION.AD_ORG_ID IN ('1')
+      AND 1=1
+      ORDER BY VERSION_NAME, CATEGORY_NAME, M_PRODUCT.NAME
+     ]]></Sql>
+    <Parameter name="adUserClient" type="replace" optional="true" after="AND M_PRICELIST_VERSION.AD_CLIENT_ID IN (" text="'1'"/>
+    <Parameter name="adOrgClient" type="replace" optional="true" after="AND M_PRICELIST_VERSION.AD_ORG_ID IN (" text="'1'"/>
+    <Parameter name="mPricelistVersionId" optional="true" after="AND 1=1"><![CDATA[ AND M_PRICELIST_VERSION.M_PRICELIST_VERSION_ID = ?]]></Parameter>
+    <Parameter name="mProductCategoryId" optional="true" after="AND 1=1"><![CDATA[AND M_PRODUCT_CATEGORY.M_PRODUCT_CATEGORY_ID = ?]]></Parameter>
+    <Parameter name="mProduct" optional="true" type="argument" after="AND 1=1"><![CDATA[ AND M_PRODUCT.M_PRODUCT_ID IN]]></Parameter>
+  </SqlMethod>
+</SqlClass>

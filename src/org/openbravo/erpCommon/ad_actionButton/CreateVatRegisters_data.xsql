@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+	*************************************************************************
+	* The contents of this file are subject to the Openbravo  Public  License
+	* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+	* Version 1.1  with a permitted attribution clause; you may not  use this
+	* file except in compliance with the License. You  may  obtain  a copy of
+	* the License at http://www.openbravo.com/legal/license.html 
+	* Software distributed under the License  is  distributed  on  an "AS IS"
+	* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+	* License for the specific  language  governing  rights  and  limitations
+	* under the License. 
+	* The Original Code is Openbravo ERP. 
+	* The Initial Developer of the Original Code is Openbravo SLU 
+	* All portions are Copyright (C) 2008 Openbravo SLU 
+	* All Rights Reserved. 
+	* Contributor(s):  ______________________________________.
+	************************************************************************
+-->
+
+
+
+<SqlClass name="CreateVatRegistersData" package="org.openbravo.erpCommon.ad_actionButton">
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment>Tax Payment for a period</SqlMethodComment>
+        <Sql>
+	  <![CDATA[
+         select C_invoice.C_invoice_ID, C_invoice.DocumentNo, 
+         C_InvoiceTax.C_InvoiceTax_ID, coalesce(C_invoice.TaxDate, C_invoice.DateAcct) as TaxDate, 
+         case when C_Invoice.C_Currency_ID = (select c_currency_id from c_taxpayment where c_taxpayment_id = ? ) then C_InvoiceTax.TaxAmt else
+         C_Currency_Convert(C_InvoiceTax.TaxAmt ,C_Invoice.C_Currency_ID, (select c_currency_id from c_taxpayment where c_taxpayment_id = ? ),
+         coalesce(C_invoice.TaxDate, C_invoice.DateAcct), 'S', c_invoice.ad_client_id, c_invoice.ad_org_id) end as TaxAmt,
+         case when C_Invoice.C_Currency_ID = (select c_currency_id from c_taxpayment where c_taxpayment_id = ? ) then C_InvoiceTax.TaxBaseAmt else
+         C_Currency_Convert(C_InvoiceTax.TaxBaseAmt ,C_Invoice.C_Currency_ID, (select c_currency_id from c_taxpayment where c_taxpayment_id = ? ),
+         coalesce(C_invoice.TaxDate, C_invoice.DateAcct), 'S', c_invoice.ad_client_id, c_invoice.ad_org_id) end as TaxBaseAmt,
+         C_Tax.C_Tax_ID, C_Tax.IsTaxExempt ,C_Tax.IsTaxUndeductable, C_Tax.IsNoVat, C_DocType.DocBaseType, C_DocType.isreversal
+         from C_Invoice,
+         C_TaxRegister_Type_Lines,
+         C_InvoiceTax,
+         C_Tax,
+         C_TaxRegister_Type,
+         C_DocType
+         where
+         C_Invoice.C_DocType_ID=C_TaxRegister_Type_Lines.C_DocType_ID
+         and C_TaxRegister_Type_Lines.ISACTIVE = 'Y'
+         and C_Invoice.C_DocType_ID=C_DocType.C_DocType_ID
+         and C_InvoiceTax.C_Invoice_ID=C_Invoice.C_Invoice_ID 
+         and C_InvoiceTax.C_Tax_ID = C_TaxRegister_Type_Lines.C_Tax_ID
+         and C_InvoiceTax.C_Tax_ID = C_Tax.C_Tax_ID
+         and C_Invoice.IsSoTrx=C_TaxRegister_Type.IsSoTrx
+         and C_TaxRegister_Type_Lines.C_TaxRegister_Type_ID=C_TaxRegister_Type.C_TaxRegister_Type_ID
+         and C_Invoice.Processed= 'Y'
+         and 1=1
+         and C_Invoice.AD_Org_ID IN ('1') 
+              ]]>
+	</Sql>
+        <Parameter name="taxPaymentID"/>
+        <Parameter name="taxPaymentID"/>
+        <Parameter name="taxPaymentID"/>
+        <Parameter name="taxPaymentID"/>
+        <Parameter name="parTaxRegType_id" optional="true" after="and 1=1"><![CDATA[ and C_TaxRegister_Type.C_TaxRegister_Type_ID= ?  ]]></Parameter>
+        <Parameter name="parDateFrom" optional="true" after="and 1=1"><![CDATA[ and coalesce(C_invoice.TaxDate, C_invoice.DateAcct) >= to_date(?) ]]></Parameter>
+        <Parameter name="parDateTo" optional="true" after="and 1=1"><![CDATA[ and coalesce(C_invoice.TaxDate, C_invoice.DateAcct) < to_date(?)]]></Parameter>
+        <Parameter name="adUserOrg" type="replace" optional="true" after="and C_Invoice.AD_Org_ID IN (" text="'1'"/>
+      </SqlMethod>
+  <SqlMethod name="set" type="constant" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql></Sql>
+  </SqlMethod>
+</SqlClass>

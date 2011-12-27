@@ -1,0 +1,774 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_INOUT_POST">
+    <function name="M_INOUT_POST" type="NULL">
+      <parameter name="p_pinstance_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_inout_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+  * The contents of this file are subject to the Compiere Public
+  * License 1.1 ("License"); You may not use this file except in
+  * compliance with the License. You may obtain a copy of the License in
+  * the legal folder of your Openbravo installation.
+  * Software distributed under the License is distributed on an
+  * "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+  * implied. See the License for the specific language governing rights
+  * and limitations under the License.
+  * The Original Code is  Compiere  ERP &  Business Solution
+  * The Initial Developer of the Original Code is Jorg Janke and ComPiere, Inc.
+  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke,
+  * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
+  * All Rights Reserved.
+  * Contributor(s): Openbravo SLU
+  * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+  *
+  * Specifically, this derivative work is based upon the following Compiere
+  * file and version.
+  *************************************************************************
+  * $Id: M_InOut_Post.sql,v 1.8 2003/09/05 04:58:06 jjanke Exp $
+  ***
+  * Title: Post M_InOut_ID
+  * Description:
+  *  Action: COmplete
+  *  - Create Transaction
+  *    (only stocked products)
+  *  - Update Inventory (QtyReserved, QtyOnHand)
+  *    (only stocked products)
+  *  - Update OrderLine (QtyDelivered)
+  *
+  *  Action: Reverse Correction
+  *  - Create Header and lines with negative Quantities (and header amounts)
+  *  - Post it
+  ************************************************************************/
+  -- Logistice
+  v_ResultStr VARCHAR2(2000):='';
+  v_Message VARCHAR2(2000):='';
+  v_Record_ID VARCHAR2(32);
+  v_User VARCHAR2(32);
+  v_PUser VARCHAR2(32);
+  v_is_included NUMBER:=0;
+  v_DocType_ID VARCHAR2(32);
+  v_isreturndoctype CHAR(1);
+  v_available_period NUMBER:=0;
+  v_is_ready AD_Org.IsReady%TYPE;
+  v_is_tr_allow AD_OrgType.IsTransactionsAllowed%TYPE;
+  v_DateAcct DATE;
+  v_isacctle AD_OrgType.IsAcctLegalEntity%TYPE;
+  v_org_bule_id AD_Org.AD_Org_ID%TYPE;
+  -- Parameter
+  TYPE RECORD IS REF CURSOR;
+    Cur_Parameter RECORD;
+    --
+    Cur_InOut RECORD;
+    Cur_InOutLine RECORD;
+    Cur_Order RECORD;
+    --
+    v_Result NUMBER:=1;
+    v_AD_Org_ID VARCHAR2(32);
+    v_AD_Client_ID VARCHAR2(32);
+    v_NextNo VARCHAR2(32);
+    v_Qty NUMBER;
+    v_QtyPO NUMBER;
+    v_QtySO NUMBER;
+    v_QuantityOrder NUMBER;
+    v_QuantityOrderPO NUMBER;
+    v_QuantityOrderSO NUMBER;
+    v_RDocumentNo VARCHAR2(40) ;
+    v_RInOut_ID VARCHAR2(32);
+    v_IsStocked NUMBER;
+    v_DoctypeReversed_ID VARCHAR2(32);
+    --MODIFIED BY F.IRIAZABAL
+    v_QtyOrder NUMBER;
+    v_ProductUOM NUMBER;
+    v_BreakDown VARCHAR2(60) ;
+    v_ActualQty NUMBER;
+    v_QtyAux NUMBER;
+    v_Count NUMBER:=0;
+    v_Line VARCHAR2(10) ;
+    v_OrderID_old VARCHAR2(32);
+    Cur_MILines RECORD;
+    FINISH_PROCESS BOOLEAN:=false;
+    v_Aux NUMBER;
+  BEGIN
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || p_PInstance_ID) ;
+      v_ResultStr:='PInstanceNotFound';
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'Y', NULL, NULL) ;
+      -- Get Parameters
+      v_ResultStr:='ReadingParameters';
+      FOR Cur_Parameter IN
+        (SELECT i.Record_ID,
+          i.AD_User_ID,
+          p.ParameterName,
+          p.P_String,
+          p.P_Number,
+          p.P_Date
+        FROM AD_PInstance i
+        LEFT JOIN AD_PInstance_Para p
+          ON i.AD_PInstance_ID=p.AD_PInstance_ID
+        WHERE i.AD_PInstance_ID=p_PInstance_ID
+        ORDER BY p.SeqNo
+        )
+      LOOP
+        v_Record_ID:=Cur_Parameter.Record_ID;
+        v_User:=Cur_Parameter.AD_User_ID;
+      END LOOP; -- Get Parameter
+      DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<M_InOut_Post>>') ;
+      v_Record_ID:=p_InOut_ID;
+      SELECT count(*),updatedby
+        INTO v_Count,v_User
+        FROM M_InOut
+        WHERE M_InOut_ID=v_Record_ID
+        GROUP BY updatedby;
+      IF v_Count=0 THEN
+        FINISH_PROCESS:=true;
+      END IF;
+    END IF;
+  BEGIN --BODY
+  	IF(NOT FINISH_PROCESS) THEN
+  	  v_PUser:=v_User;
+      SELECT io.AD_Client_ID, io.AD_Org_ID, io.CreatedBy, io.C_DocType_ID, io.DateAcct, dt.isreturn
+        INTO v_AD_Client_ID, v_AD_Org_ID, v_User, v_DocType_ID, v_DateAcct, v_isreturndoctype
+        FROM M_InOut io JOIN c_doctype dt ON io.c_doctype_id = dt.c_doctype_id
+        WHERE io.M_InOut_ID=v_Record_ID;
+        IF(v_PUser IS NOT NULL) THEN
+        	v_User:=v_PUser;
+        END IF;
+      SELECT count(*)
+      INTO v_Count
+      FROM AD_CLIENTINFO
+      WHERE AD_CLIENT_ID=v_AD_Client_ID
+        AND CHECKINOUTORG='Y';
+      IF v_Count>0 THEN
+        v_ResultStr:='CheckingRestrictions - M_INOUT ORG IS IN C_BPARTNER ORG TREE';
+        SELECT count(*)
+        INTO v_Count
+        FROM M_InOut m,
+          C_BPartner bp
+        WHERE m.M_InOut_ID=v_Record_ID
+          AND m.C_BPARTNER_ID=bp.C_BPARTNER_ID
+          AND AD_IsOrgIncluded(m.AD_ORG_ID, bp.AD_ORG_ID, bp.AD_CLIENT_ID)=-1;
+        IF v_Count>0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgBpartnerInout@') ;
+        END IF;
+      END IF;
+      
+     v_ResultStr:='CheckingRestrictions';
+     SELECT COUNT(*)
+     INTO v_Count
+     FROM C_DocType,
+          M_InOut M
+     WHERE M_Inout_ID = v_Record_ID
+       AND C_DocType.DocBaseType IN ('MMR', 'MMS')
+      AND C_DocType.IsSOTrx=M.IsSOTrx
+      AND AD_ISORGINCLUDED(m.AD_Org_ID,C_DocType.AD_Org_ID, m.AD_Client_ID) <> -1
+       AND M.C_DOCTYPE_ID=C_DocType.C_DOCTYPE_ID;
+        IF v_Count=0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@NotCorrectOrgDoctypeShipment@') ;
+        END IF;
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_line
+        FROM M_InOutLine M,
+          M_Product P
+        WHERE M.M_PRODUCT_ID=P.M_PRODUCT_ID
+          AND P.M_ATTRIBUTESET_ID IS NOT NULL
+          AND (P.ATTRSETVALUETYPE IS NULL OR P.ATTRSETVALUETYPE <> 'F')
+          AND (SELECT ISONEATTRSETVALREQUIRED FROM M_ATTRIBUTESET WHERE M_ATTRIBUTESET_ID = P.M_ATTRIBUTESET_ID) = 'Y'
+          AND COALESCE(M.M_ATTRIBUTESETINSTANCE_ID, '0') = '0'
+          AND M.M_INOUT_ID=v_Record_ID;
+        IF v_Count<>0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||' '||v_line||' '||'@productWithoutAttributeSet@') ;
+        END IF;
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_Line
+        FROM M_InOut I,
+          M_InOutLine M,
+          M_AttributeSetInstance P
+        WHERE I.M_InOut_ID=M.M_InOut_ID
+          AND M.M_AttributeSetInstance_ID=P.M_AttributeSetInstance_ID
+          AND P.ISLOCKED='Y'
+          AND I.ISSOTRX='Y'
+          AND I.M_INOUT_ID=v_Record_ID;
+        IF v_Count<>0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@lockedProduct@') ;
+        END IF;
+      -- check inout line instance location
+        SELECT COUNT(*), MAX(M.line)
+        INTO v_Count, v_Line
+        FROM M_InOutLine M,
+          M_Product P
+        WHERE M.M_InOut_ID=v_Record_ID
+          AND M.M_Locator_ID IS NULL
+          AND p.m_product_id = m.m_product_id
+          AND p.isstocked = 'Y'
+          AND p.producttype = 'I';
+        IF v_Count <> 0 THEN
+          RAISE_APPLICATION_ERROR(-20000, '@Inline@'||v_line||' '||'@InoutLineWithoutLocator@') ;
+        END IF;	  
+      
+    --Check negative quantities on return inouts
+    IF (v_isreturndoctype = 'Y') THEN
+      SELECT count(*) INTO v_count
+      FROM m_inoutline iol JOIN c_orderline ol ON iol.c_orderline_id = ol.c_orderline_id
+      WHERE iol.m_inout_id = v_record_id
+        AND iol.movementqty > 0
+        AND ol.c_order_discount_id IS NULL;
+      IF (v_Count <> 0) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ReturnInOutNegativeQty@');
+      END IF;
+    END IF;
+        -- Process Shipments
+  
+     -- Set org lines like the header
+       UPDATE M_INOUTLINE
+        SET AD_ORG_ID = (SELECT AD_ORG_ID FROM M_INOUT WHERE M_INOUT_ID = v_Record_ID),
+        Updated=now(),
+        UpdatedBy=v_User
+      WHERE M_INOUT_ID = v_Record_ID;
+      
+      -- Check the header belongs to a organization where transactions are posible and ready to use
+      SELECT AD_Org.IsReady, Ad_OrgType.IsTransactionsAllowed
+      INTO v_is_ready, v_is_tr_allow
+      FROM M_INOUT, AD_Org, AD_OrgType
+      WHERE AD_Org.AD_Org_ID=M_INOUT.AD_Org_ID
+      AND AD_Org.AD_OrgType_ID=AD_OrgType.AD_OrgType_ID
+      AND M_INOUT.M_INOUT_ID=v_Record_ID;
+      IF (v_is_ready='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotReady@');
+      END IF;
+      IF (v_is_tr_allow='N') THEN
+        RAISE_APPLICATION_ERROR(-20000, '@OrgHeaderNotTransAllowed@');
+      END IF;
+        
+      SELECT AD_ORG_CHK_DOCUMENTS('M_INOUT', 'M_INOUTLINE', v_Record_ID, 'M_INOUT_ID', 'M_INOUT_ID') INTO v_is_included FROM dual;
+      IF (v_is_included=-1) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
+      END IF;
+      
+      -- Check the period control is opened (only if it is legal entity with accounting)
+      -- Gets the BU or LE of the document
+      SELECT AD_GET_DOC_LE_BU('M_INOUT', v_Record_ID, 'M_INOUT_ID', 'LE')
+      INTO v_org_bule_id
+      FROM DUAL;
+      
+      SELECT AD_OrgType.IsAcctLegalEntity
+      INTO v_isacctle
+      FROM AD_OrgType, AD_Org
+      WHERE AD_Org.AD_OrgType_ID = AD_OrgType.AD_OrgType_ID
+      AND AD_Org.AD_Org_ID=v_org_bule_id;
+      
+      IF (v_isacctle='Y') THEN    
+        SELECT C_CHK_OPEN_PERIOD(v_AD_Org_ID, v_DateAcct, NULL, v_DocType_ID) 
+        INTO v_available_period
+        FROM DUAL;
+        
+        IF (v_available_period<>1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@PeriodNotAvailable@');
+        END IF;
+      END IF;  
+  
+        FOR Cur_InOut IN
+          (SELECT *
+          FROM M_INOUT
+          WHERE(M_InOut_ID=v_Record_ID
+            OR(v_Record_ID IS NULL
+            AND DocAction='CO'))
+            AND IsActive='Y'  FOR UPDATE
+          )
+        LOOP
+          DBMS_OUTPUT.PUT_LINE('Shipment_ID=' || Cur_InOut.M_InOut_ID || ', Doc=' || Cur_InOut.DocumentNo || ', Status=' || Cur_InOut.DocStatus || ', Action=' || Cur_InOut.DocAction) ;
+          v_ResultStr:='HeaderLoop';
+          /**
+          * Shipment not processed
+          */
+          IF(Cur_InOut.Processed='N' AND Cur_InOut.DocStatus='DR' AND Cur_InOut.DocAction='CO') THEN
+            -- For all active shipment lines
+            v_ResultStr:='HeaderLoop-1';
+            SELECT COUNT(*) INTO v_Aux
+        FROM M_InOutLine
+        WHERE M_InOut_ID = v_Record_ID;
+        IF v_Aux=0 THEN
+        RAISE_APPLICATION_ERROR(-20000, '@ReceiptWithoutLines@');
+        END IF;
+          FOR Cur_InOutLine IN
+            (SELECT *
+            FROM M_INOUTLINE
+            WHERE M_InOut_ID=Cur_InOut.M_InOut_ID
+              AND IsActive='Y'  FOR UPDATE
+            )
+          LOOP
+            -- Incomming or Outgoing :1:2
+            v_Qty:=Cur_InOutLine.MovementQty;
+            v_QuantityOrder:=Cur_InOutLine.QuantityOrder;
+            IF(SUBSTR(Cur_InOut.MovementType, 2)='-') THEN
+              v_Qty:=- Cur_InOutLine.MovementQty;
+              v_QuantityOrder:=-Cur_InOutLine.QuantityOrder;
+            END IF;
+            IF(Cur_InOut.IsSOTrx='N') THEN
+              v_QtySO:=0;
+              v_QtyPO:=Cur_InOutLine.MovementQty;
+              v_QuantityOrderSO:=0;
+              v_QuantityOrderPO:=Cur_InOutLine.QuantityOrder;
+            ELSE
+              v_QtySO:=Cur_InOutLine.MovementQty;
+              v_QtyPO:=0;
+              v_QuantityOrderSO:=Cur_InOutLine.QuantityOrder;
+              v_QuantityOrderPO:=0;
+            END IF;
+            -- UOM Conversion
+            -- Is it a standard stocked product:3
+            SELECT COUNT(*)
+            INTO v_IsStocked
+            FROM M_PRODUCT
+            WHERE M_Product_ID=Cur_InOutLine.M_Product_ID
+              AND IsStocked='Y'
+              AND ProductType='I';
+            -- Create Transaction for stocked product
+            IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND v_IsStocked=1 AND Cur_InOutLine.IsDescription <> 'Y') THEN
+              v_ResultStr:='CreateTransaction';
+              Ad_Sequence_Next('M_Transaction', Cur_InOutLine.AD_Org_ID, v_NextNo) ;
+              INSERT
+              INTO M_TRANSACTION
+                (
+                  M_Transaction_ID, M_InOutLine_ID, AD_Client_ID, AD_Org_ID,
+                  IsActive, Created, CreatedBy, Updated,
+                  UpdatedBy, MovementType, M_Locator_ID, M_Product_ID,
+                  M_AttributeSetInstance_ID, MovementDate, MovementQty, M_Product_UOM_ID,
+                  QuantityOrder, C_UOM_ID
+                )
+                VALUES
+                (
+                  v_NextNo, Cur_InOutLine.M_InOutLine_ID, Cur_InOutLine.AD_Client_ID, Cur_InOutLine.AD_Org_ID,
+                   'Y', now(), v_User, now(),
+                  v_User, Cur_InOut.MovementType, Cur_InOutLine.M_Locator_ID, Cur_InOutLine.M_Product_ID,
+                  COALESCE(Cur_InOutLine.M_AttributeSetInstance_ID, '0'), Cur_InOut.MovementDate, v_Qty, Cur_InOutLine.M_Product_UOM_ID,
+                  v_QuantityOrder, Cur_InOutLine.C_UOM_ID
+                )
+                ;
+            END IF;
+            -- Create Asset
+            IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND Cur_InOut.IsSOTrx='Y') THEN
+              A_ASSET_CREATE(NULL, Cur_InOutLine.M_InOutLine_ID) ;
+            END IF;
+            v_ResultStr:='UpdateOrderLine';
+            IF(Cur_InOutLine.C_OrderLine_ID IS NOT NULL) THEN
+              -- stocked product
+              IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND v_IsStocked=1) THEN
+                -- Update OrderLine (if C-, Qty is negative)
+                UPDATE C_ORDERLINE
+                  SET QtyReserved=QtyReserved - v_QtyPO - v_QtySO,
+                  QtyDelivered=QtyDelivered + v_QtySO,
+                  Updated=now(),
+                  UpdatedBy=v_User
+                WHERE C_OrderLine_ID=Cur_InOutLine.C_OrderLine_ID;
+                -- Products not stocked
+              ELSE
+                -- Update OrderLine (if C-, Qty is negative)
+                UPDATE C_ORDERLINE
+                  SET QtyDelivered=QtyDelivered + v_QtySO,
+                  Updated=now(),
+                  UpdatedBy=v_User
+                WHERE C_OrderLine_ID=Cur_InOutLine.C_OrderLine_ID;
+              END IF;
+            END IF;
+            IF(Cur_InOutLine.M_Product_ID IS NOT NULL AND v_IsStocked=1) THEN
+              M_Check_Stock(Cur_InOutLine.M_Product_ID, v_AD_Client_ID, v_AD_Org_ID, v_Result, v_Message) ;
+              IF v_Result=0 THEN
+			    RAISE_APPLICATION_ERROR(-20000, v_Message||' '||'@line@'||' '||Cur_InOutLine.line) ;
+              END IF;
+            END IF;
+          END LOOP; -- For all InOut Lines
+          /*******************
+          * PO Matching
+          ******************/
+          IF(Cur_InOut.IsSOTrx='N') THEN
+            DECLARE
+              Cur_SLines RECORD;
+              Cur_ILines RECORD;
+              v_Qty NUMBER;
+              v_MatchPO_ID VARCHAR2(32) ;
+              v_MatchInv_ID VARCHAR2(32) ;
+            BEGIN
+              v_ResultStr:='MatchPO';
+              FOR Cur_SLines IN
+                (SELECT sl.AD_Client_ID,
+                  sl.AD_Org_ID,
+                  ol.C_OrderLine_ID,
+                  sl.M_InOutLine_ID,
+                  sl.M_Product_ID,
+                  sl.M_AttributeSetInstance_ID,
+                  sl.MovementQty,
+                  ol.QtyOrdered
+                FROM M_INOUTLINE sl,
+                  C_ORDERLINE ol
+                WHERE sl.C_OrderLine_ID=ol.C_OrderLine_ID
+                  AND sl.M_Product_ID=ol.M_Product_ID  --    AND   sl.M_AttributeSetInstance_ID=ol.M_AttributeSetInstance_ID
+                  AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
+                )
+              LOOP
+                Ad_Sequence_Next('M_MatchPO', Cur_SLines.AD_Org_ID, v_MatchPO_ID) ;
+                -- The min qty. Modified by Ismael Ciordia
+                v_Qty:=Cur_SLines.MovementQty;
+                --IF (ABS(Cur_SLines.MovementQty) > ABS(Cur_SLines.QtyOrdered)) THEN
+                -- v_Qty := Cur_SLines.QtyOrdered;
+                --END IF;
+                v_ResultStr:='InsertMatchPO ' || v_MatchPO_ID;
+                INSERT
+                INTO M_MATCHPO
+                  (
+                    M_MatchPO_ID, AD_Client_ID, AD_Org_ID, IsActive,
+                    Created, CreatedBy, Updated, UpdatedBy,
+                    M_InOutLine_ID, C_OrderLine_ID, M_Product_ID, DateTrx,
+                    Qty, Processing, Processed, Posted
+                  )
+                  VALUES
+                  (
+                    v_MatchPO_ID, Cur_SLines.AD_Client_ID, Cur_SLines.AD_Org_ID, 'Y',
+                    now(), v_User, now(), v_User,
+                    Cur_SLines.M_InOutLine_ID, Cur_SLines.C_OrderLine_ID, Cur_SLines.M_Product_ID, now(),
+                    v_Qty, 'N', 'Y', 'N'
+                  )
+                  ;
+              END LOOP;
+              v_ResultStr:='MatchInv';
+              FOR Cur_ILines IN
+                (SELECT sl.AD_Client_ID,
+                  sl.AD_Org_ID,
+                  il.C_InvoiceLine_ID,
+                  sl.M_InOutLine_ID,
+                  sl.M_Product_ID,
+                  sl.M_AttributeSetInstance_ID,
+                  sl.MovementQty,
+                  il.QTYINVOICED,
+                  i.DateAcct
+                FROM M_INOUTLINE sl,
+                  C_INVOICE i,
+                  C_INVOICELINE il
+                WHERE sl.M_InOutLine_ID=il.M_InOutLine_ID
+                  AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
+                  AND i.C_INVOICE_ID = il.C_INVOICE_ID
+                )
+              LOOP
+                Ad_Sequence_Next('M_MatchInv', Cur_ILines.AD_Org_ID, v_MatchInv_ID) ;
+                -- The min qty. Modified by Ismael Ciordia
+                v_Qty:=Cur_ILines.MovementQty;
+                --IF (ABS(Cur_ILines.MovementQty) > ABS(Cur_ILines.QtyInvoiced)) THEN
+                -- v_Qty := Cur_ILines.QtyInvoiced;
+                --END IF;
+                v_ResultStr:='InsertMatchPO ' || v_MatchPO_ID;
+                INSERT
+                INTO M_MATCHINV
+                  (
+                    M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+                    CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+                    M_INOUTLINE_ID, C_INVOICELINE_ID, M_PRODUCT_ID, DATETRX,
+                    QTY, PROCESSING, PROCESSED, POSTED
+                  )
+                  VALUES
+                  (
+                    v_MatchInv_ID, Cur_ILines.AD_Client_ID, Cur_ILines.AD_Org_ID, 'Y',
+                    now(), v_User, now(), v_User,
+                    Cur_ILines.M_InOutLine_ID, Cur_ILines.C_InvoiceLine_ID, Cur_ILines.M_Product_ID, Cur_ILines.DateAcct,
+                    v_Qty, 'N', 'Y', 'N'
+                  )
+                  ;
+              END LOOP;
+            END;
+          ELSE
+            v_ResultStr:='Check delivery rule for sales orders';
+            v_Message:='';
+            v_orderid_old:='0';
+            FOR Cur_Order IN 
+              (SELECT c_order.deliveryrule, m_inoutline.line, c_order.c_order_id,
+                      c_order.documentno, c_orderline.line as orderline
+               FROM M_InOutLine, C_Orderline, C_Order
+               WHERE M_Inoutline.c_orderline_id = c_orderline.c_orderline_id
+                 AND c_orderline.c_order_id = c_order.c_order_id
+                 AND m_inoutline.m_inout_id = cur_inout.m_inout_id
+                 AND ((c_order.deliveryrule = 'O'
+                      AND EXISTS (SELECT 1 FROM C_OrderLine ol
+                                  WHERE ol.C_Order_ID = C_order.c_order_id
+                                    and ol.qtyordered > ol.qtydelivered ))
+                      OR (c_order.deliveryrule = 'L' 
+                          AND c_orderline.qtyordered > c_orderline.qtydelivered))
+               ORDER BY c_order.c_order_id, c_orderline.line) LOOP
+              --Order lines not completely delivered with delivery rule O or L
+              IF (v_orderid_old <> cur_order.c_order_id OR cur_order.deliveryrule <> 'O' ) THEN
+                v_Message := COALESCE(v_Message,'') || '@Shipment@' || ' ' || cur_inout.documentno;
+                v_Message := v_Message || ' ' || '@line@' || ' ' || cur_order.line || ': ';
+                v_Message := v_Message || '@SalesOrderDocumentno@' || cur_order.documentno;
+                IF (cur_order.deliveryrule = 'O') THEN
+                  v_Message := v_Message || ' ' || '@notCompleteDeliveryRuleOrder@' || '<br>';
+                ELSE
+                  v_Message := v_Message || ' ' || '@line@' || ' ' || cur_order.orderline;
+                  v_Message := v_Message || ' ' || '@notCompleteDeliveryRuleLine@' || '<br>';
+                END IF;
+              END IF;
+              v_orderid_old := cur_order.c_order_id;
+            END LOOP;
+            IF (v_Message IS NOT NULL AND v_Message <> '') THEN
+              RAISE_APPLICATION_ERROR(-20000, v_message);
+            END IF;
+          END IF;
+          -- Close Shipment
+          --Entry in Match Invoices
+          FOR Cur_MILines IN
+                (SELECT sl.AD_Client_ID,
+                  sl.AD_Org_ID,
+                  il.C_InvoiceLine_ID,
+                  sl.M_InOutLine_ID,
+                  sl.M_Product_ID,
+                  sl.M_AttributeSetInstance_ID,
+                  sl.MovementQty,
+                  il.QTYINVOICED,
+                  i.DateAcct,
+                  il.IsDescription
+                FROM M_INOUTLINE sl,
+                  C_INVOICE i,
+                  C_INVOICELINE il
+                WHERE sl.M_InOutLine_ID=il.M_InOutLine_ID
+                  AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
+                  AND i.C_INVOICE_ID = il.C_INVOICE_ID
+                )
+              LOOP
+                --Ad_Sequence_Next('M_MatchInv', Cur_MILines.AD_Org_ID, v_MatchInv_ID) ;
+                -- The min qty. Modified by Ismael Ciordia
+                v_Qty:=Cur_MILines.MovementQty;
+              --  v_ResultStr:='InsertMatchPO ' || v_MatchPO_ID;
+                INSERT
+                INTO M_MATCHINV
+                  (
+                    M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+                    CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+                    M_INOUTLINE_ID, C_INVOICELINE_ID, M_PRODUCT_ID, DATETRX,
+                    QTY, PROCESSING, PROCESSED, POSTED
+                  )
+                  VALUES
+                  (
+                    GET_UUID(), Cur_MILines.AD_Client_ID, Cur_MILines.AD_Org_ID, 'Y',
+                    now(), v_User, now(), v_User,
+                    Cur_MILines.M_InOutLine_ID, Cur_MILines.C_InvoiceLine_ID, Cur_MILines.M_Product_ID, Cur_MILines.DateAcct,
+                    v_Qty, 'N', 'Y', 'N'
+                  )
+                  ;
+              END LOOP;
+          v_ResultStr:='CloseShipment';
+          UPDATE M_INOUT
+            SET Processed='Y',
+            DocStatus='CO',
+            DocAction='--',
+            Updated=now(),
+            UpdatedBy=v_User
+          WHERE M_INOUT.M_INOUT_ID=Cur_InOut.M_INOUT_ID;
+          --
+          
+         
+          -- Not Processed + Complete --
+          /**
+          * Reverse Correction
+          */
+        ELSIF(Cur_InOut.DocStatus='CO' AND Cur_InOut.DocAction='RC') THEN
+          --Check that there isn't any line with an invoice if the order's 
+          --invoice rule is after delivery
+          select count(*), max(line) into v_count, v_line
+          from (
+          SELECT m_inoutline.m_inoutline_id, m_inoutline.line
+          from m_inoutline, c_order, c_orderline, c_invoiceline, m_inout, c_invoice
+          where m_inoutline.c_orderline_id = c_orderline.c_orderline_id
+            and c_orderline.c_order_id = c_order.c_order_id
+            and c_orderline.c_orderline_id = c_invoiceline.c_orderline_id
+            and m_inoutline.m_inout_id = m_inout.m_inout_id
+            and c_invoiceline.c_invoice_id = c_invoice.c_invoice_id
+            and m_inout.m_inout_id = Cur_InOut.m_inout_id
+            and m_inout.issotrx = 'Y'
+            and c_order.invoicerule in ('D', 'O', 'S')
+            and c_invoice.processed='Y'
+          group by m_inoutline.m_inoutline_id, m_inoutline.line
+          having sum(c_invoiceline.qtyinvoiced) <> 0
+          ) a;
+          IF (v_count > 0 ) THEN
+            v_Message := '@InoutDocumentno@' || ': ' || Cur_InOut.DocumentNo || ' ' || '@line@' || ': ' || v_line || '. ';
+            v_Message := v_Message || '@VoidShipmentInvoiced@';
+            RAISE_APPLICATION_ERROR(-20000, v_Message);
+          END IF;
+          v_ResultStr:='CreateInOut';
+          SELECT COALESCE(C_DOCTYPE_REVERSED_ID, C_DOCTYPE_ID)
+          INTO v_DoctypeReversed_ID
+          FROM C_DOCTYPE
+          WHERE C_DOCTYPE_ID=Cur_InOut.C_DocType_ID;
+          Ad_Sequence_Next('M_InOut', Cur_InOut.M_InOut_ID, v_RInOut_ID) ; -- Get RInOut_ID
+          Ad_Sequence_Doctype(v_DoctypeReversed_ID, Cur_InOut.M_InOut_ID, 'Y', v_RDocumentNo) ; -- Get RDocumentNo
+          IF(v_RDocumentNo IS NULL) THEN
+            AD_Sequence_Doc('DocumentNo_M_InOut', Cur_InOut.AD_Client_ID, 'Y', v_RDocumentNo) ;
+          END IF;
+          -- Indicate that it is invoiced (i.e. not printed on invoices)
+          v_ResultStr:='SetInvoiced';
+          UPDATE M_INOUTLINE  SET IsInvoiced='Y',Updated=now(),UpdatedBy=v_User  WHERE M_InOut_ID=Cur_InOut.M_InOut_ID;
+          --
+          DBMS_OUTPUT.PUT_LINE('Reverse InOut_ID=' || v_RInOut_ID || ' DocumentNo=' || v_RDocumentNo) ;
+          v_ResultStr:='InsertInOut Reverse ' || v_RInOut_ID;
+          INSERT
+          INTO M_INOUT
+            (
+              M_InOut_ID, C_Order_ID, IsSOTrx, AD_Client_ID,
+              AD_Org_ID, IsActive, Created, CreatedBy,
+              Updated, UpdatedBy, DocumentNo, C_DocType_ID,
+              Description, IsPrinted, MovementType, MovementDate,
+              DateAcct, C_BPartner_ID, C_BPartner_Location_ID, AD_User_ID,
+              M_Warehouse_ID, POReference, DateOrdered, DeliveryRule,
+              FreightCostRule, FreightAmt, C_Project_ID, C_Activity_ID,
+              C_Campaign_ID, AD_OrgTrx_ID, User1_ID, User2_ID,
+              DeliveryViaRule, M_Shipper_ID, C_Charge_ID, ChargeAmt,
+              PriorityRule, DocStatus, DocAction, Processing,
+              Processed, ISLOGISTIC, salesrep_id
+            )
+            VALUES
+            (
+              v_RInOut_ID, Cur_InOut.C_Order_ID, Cur_InOut.IsSOTrx, Cur_InOut.AD_Client_ID,
+              Cur_InOut.AD_Org_ID, 'Y', now(), v_User,
+              now(), v_User, v_RDocumentNo, v_DoctypeReversed_ID,
+               '(*R*: ' || Cur_InOut.DocumentNo || ') ' || Cur_InOut.Description, 'N', Cur_InOut.MovementType, Cur_InOut.MovementDate,
+              Cur_InOut.DateAcct, Cur_InOut.C_BPartner_ID, Cur_InOut.C_BPartner_Location_ID, Cur_InOut.AD_User_ID,
+              Cur_InOut.M_Warehouse_ID, Cur_InOut.POReference, Cur_InOut.DateOrdered, Cur_InOut.DeliveryRule,
+              Cur_InOut.FreightCostRule, Cur_InOut.FreightAmt * -1, Cur_InOut.C_Project_ID, Cur_InOut.C_Activity_ID,
+              Cur_InOut.C_Campaign_ID, Cur_InOut.AD_OrgTrx_ID, Cur_InOut.User1_ID, Cur_InOut.User2_ID,
+              Cur_InOut.DeliveryViaRule, Cur_InOut.M_Shipper_ID, Cur_InOut.C_Charge_ID, Cur_InOut.ChargeAmt * -1,
+              Cur_InOut.PriorityRule, 'DR', 'CO', 'N',
+               'N', Cur_InOut.islogistic, Cur_InOut.salesrep_id
+            )
+            ;
+          v_ResultStr:='InsertInOutLine';
+          FOR Cur_InOutLine IN
+            (SELECT *
+            FROM M_INOUTLINE
+            WHERE M_InOut_ID=Cur_InOut.M_InOut_ID
+              AND IsActive='Y'  FOR UPDATE
+            )
+          LOOP
+            -- Create InOut Line
+            Ad_Sequence_Next('M_InOutLine', Cur_InOut.M_InOut_ID, v_NextNo) ;
+            v_ResultStr:='CreateInOutLine';
+            INSERT
+            INTO M_INOUTLINE
+              (
+                M_InOutLine_ID, Line, M_InOut_ID, C_OrderLine_ID,
+                AD_Client_ID, AD_Org_ID, IsActive, Created,
+                CreatedBy, Updated, UpdatedBy, M_Product_ID,
+                M_AttributeSetInstance_ID, C_UOM_ID, M_Locator_ID, MovementQty,
+                Description, IsInvoiced,  --MODIFIED BY F.IRIAZABAL
+                QuantityOrder, M_Product_UOM_ID, IsDescription
+              )
+              VALUES
+              (
+                v_NextNo, Cur_InOutLine.Line, v_RInOut_ID, Cur_InOutLine.C_OrderLine_ID,
+                Cur_InOut.AD_Client_ID, Cur_InOut.AD_Org_ID, 'Y', now(),
+                v_User, now(), v_User, Cur_InOutLine.M_Product_ID,
+                Cur_InOutLine.M_AttributeSetInstance_ID, Cur_InOutLine.C_UOM_ID, Cur_InOutLine.M_Locator_ID, Cur_InOutLine.MovementQty * -1,
+                 '*R*: ' || Cur_InOutLine.Description, Cur_InOutLine.IsInvoiced, --MODIFIED BY F.IRIAZABAL
+                Cur_InOutLine.QuantityOrder * -1, Cur_InOutLine.M_PRODUCT_UOM_ID, Cur_InOutLine.IsDescription
+              )
+              ;
+            INSERT INTO M_MATCHINV
+              (M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+              M_INOUTLINE_ID, C_INVOICELINE_ID, M_PRODUCT_ID, DATETRX, QTY, PROCESSING, PROCESSED, POSTED)
+            SELECT
+              GET_UUID(), MI.AD_CLIENT_ID, MI.AD_ORG_ID, MI.ISACTIVE, now(), '0', now(), '0',
+              v_NextNo, MI.C_INVOICELINE_ID, MI.M_PRODUCT_ID, MI.DATETRX, -MI.QTY, 'N', 'Y', 'N'
+            FROM M_MATCHINV MI
+            WHERE MI.M_INOUTLINE_ID = Cur_InOutLine.M_InOutLine_ID;
+          END LOOP;
+          -- Close Order
+          v_ResultStr:='CloseInOut';
+          UPDATE M_INOUT
+            SET Description=COALESCE(TO_CHAR(Description), '') || ' (*R*=' || v_RDocumentNo || ')',
+            Processed='Y',
+            DocStatus='VO', -- it IS reversed
+            DocAction='--',
+            Updated=now(),
+            UpdatedBy=v_User
+          WHERE M_INOUT.M_INOUT_ID=Cur_InOut.M_INOUT_ID;
+         
+          -- Post Reversal
+          v_ResultStr:='PostReversal';
+          M_INOUT_POST(NULL, v_RInOut_ID) ;
+          -- Indicate as Reversal Transaction
+          v_ResultStr:='IndicateReversal';
+          UPDATE M_INOUT
+            SET Updated=now(),
+            UpdatedBy=v_User,
+            DocStatus='VO' -- the reversal transaction
+          WHERE M_InOut_ID=v_RInOut_ID;
+        END IF; -- ReverseCorrection
+
+        --M_Inout_Post - Finish_Process Extension Point
+        --Extension point at the end of the M_Inout_Post. It has 5 available parameters Record_ID, DocAction, User, Message and Result
+        SELECT count(*) INTO v_count
+        FROM DUAL
+        where exists (select 1 from ad_ep_procedures where ad_extension_points_id = '5A7C6972321E42C2A5A8E9D6D73E6A7C');
+        IF (v_count=1) THEN
+          DECLARE
+            v_ep_instance VARCHAR2(32);
+            v_extension_point_id VARCHAR2(32) := '5A7C6972321E42C2A5A8E9D6D73E6A7C';
+          BEGIN
+            v_ep_instance := get_uuid();
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+              v_record_id, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'DocAction',
+              Cur_InOut.DocAction, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+              v_User, NULL, NULL, NULL, NULL, NULL, NULL);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+              NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+            AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+              NULL, NULL, v_Result, NULL, NULL, NULL, NULL);
+            AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+            SELECT p_number INTO v_Result
+            FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance
+              AND parametername LIKE 'Result';
+            SELECT p_text INTO v_Message
+            FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance
+              AND parametername LIKE 'Message';
+
+            DELETE FROM ad_ep_instance_para
+            WHERE ad_ep_instance_id = v_ep_instance;
+          END;
+        END IF;
+
+      END LOOP; -- InOut Header
+      /**
+      * Transaction End
+      */
+      v_ResultStr:='Fini';
+    END IF; --FINISH_PROCESS
+    --<<FINISH_PROCESS>>
+    IF(p_PInstance_ID IS NOT NULL) THEN
+      --  Update AD_PInstance
+      DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
+      AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', v_Result, v_Message) ;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('--<<M_InOut_Post finished>>') ;
+    END IF;
+    RETURN;
+  END; --BODY
+EXCEPTION
+WHEN OTHERS THEN
+  v_ResultStr:= '@ERROR=' || SQLERRM;
+  DBMS_OUTPUT.PUT_LINE(v_ResultStr) ;
+  IF(p_PInstance_ID IS NOT NULL) THEN
+    ROLLBACK;
+    AD_UPDATE_PINSTANCE(p_PInstance_ID, NULL, 'N', 0, v_ResultStr) ;
+  ELSE
+    RAISE;
+  END IF;
+  RETURN;
+END M_INOUT_POST
+]]></body>
+    </function>
+  </database>

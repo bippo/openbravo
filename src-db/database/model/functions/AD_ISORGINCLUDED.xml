@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION AD_ISORGINCLUDED">
+    <function name="AD_ISORGINCLUDED" type="NUMERIC">
+      <parameter name="p_orgid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_parentorgid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_clientid" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+/*************************************************************************
+* Title: Return 'Org Level' if orgID is a leaf of the org tree
+*    where parentOrgID is the root. Else return -1
+************************************************************************/
+  v_Level NUMBER:=0;
+  v_treeID varchar2(32) ;
+  v_Parent VARCHAR(32) ;
+  v_Node   VARCHAR(32) ;
+BEGIN
+  SELECT MAX(AD_TREE_ORG_ID)
+  INTO v_treeID
+  FROM AD_CLIENTINFO
+  WHERE AD_CLIENT_ID=p_clientID;
+  v_Parent:=p_OrgID;
+  WHILE v_Parent IS NOT NULL
+  LOOP
+    v_Level:=v_Level + 1;
+    SELECT MAX(NODE_ID),
+      MAX(PARENT_ID)
+    INTO v_Node,
+      v_Parent
+    FROM AD_TREENODE
+    WHERE AD_TREE_ID=v_treeID
+      AND NODE_ID=v_Parent;
+    IF v_Node=p_parentOrgID THEN
+      RETURN v_Level;
+    END IF;
+  END LOOP;
+  RETURN(-1) ;
+END AD_ISORGINCLUDED
+]]></body>
+    </function>
+  </database>
