@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2011 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="CreateLineForSequenceProductData" package="org.openbravo.modulescript">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT MA_SEQUENCE.MA_SEQUENCE_ID, '' AS TOTAL, '' AS MA_SEQUENCEPRODUCT_ID, '' AS NUM
+      FROM MA_SEQUENCEPRODUCT 
+          JOIN MA_SEQUENCE ON MA_SEQUENCEPRODUCT.MA_SEQUENCE_ID = MA_SEQUENCE.MA_SEQUENCE_ID
+      WHERE MA_SEQUENCEPRODUCT.LINE IS NULL
+      GROUP BY MA_SEQUENCE.MA_SEQUENCE_ID
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="existsNull" type="preparedStatement" return="boolean">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql>
+        SELECT COUNT(1) AS NUM FROM DUAL
+     	WHERE EXISTS (SELECT 1 FROM MA_SEQUENCEPRODUCT WHERE LINE IS NULL)
+      </Sql>
+   </SqlMethod>
+   <SqlMethod name="selectSequenceProducts" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        SELECT MA_SEQUENCEPRODUCT_ID
+        FROM MA_SEQUENCEPRODUCT
+        WHERE MA_SEQUENCE_ID = ?
+        ORDER BY PRODUCTIONTYPE
+      ]]>
+    </Sql>
+    <Parameter name="maSequenceId"/>
+  </SqlMethod>
+  <SqlMethod name="updateline" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      UPDATE MA_SEQUENCEPRODUCT SET LINE = TO_NUMBER(?) WHERE MA_SEQUENCEPRODUCT_ID = ?
+      ]]>
+    </Sql>
+    <Parameter name="line"/>
+    <Parameter name="maSequenceProductId"/>
+  </SqlMethod>
+</SqlClass>

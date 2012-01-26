@@ -27,16 +27,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
-import org.openbravo.base.HttpBaseUtils;
-import org.openbravo.base.exception.OBException;
+import org.openbravo.authentication.AuthenticationException;
+import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.base.exception.OBSecurityException;
-import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.core.SessionHandler;
-import org.openbravo.erpCommon.security.SessionLogin;
-import org.openbravo.service.db.DalConnectionProvider;
 
 /**
  * This servlet has two main responsibilities: 1) authenticate, 2) set the correct {@link OBContext}
@@ -57,18 +53,38 @@ public class BaseWebServiceServlet extends HttpServlet {
   private static final long serialVersionUID = 1L;
 
   @Override
-  protected void service(HttpServletRequest request, HttpServletResponse response)
+  protected final void service(HttpServletRequest request, HttpServletResponse response)
       throws ServletException, IOException {
-
     // already logged in?
     if (OBContext.getOBContext() != null) {
       doService(request, response);
-      // do the login action
-    } else if (isLoggedIn(request, response)) {
+      return;
+    }
+
+    // do the login action
+    AuthenticationManager authManager = AuthenticationManager.getAuthenticationManager(this);
+
+    String userId = null;
+    try {
+      userId = authManager.webServiceAuthenticate(request);
+    } catch (AuthenticationException e) {
+      response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      response.setContentType("text/plain;charset=UTF-8");
+      final Writer w = response.getWriter();
+      w.write(e.getMessage());
+      w.close();
+      return;
+    }
+
+    if (userId != null) {
+      OBContext.setOBContext(UserContextCache.getInstance().getCreateOBContext(userId));
+      OBContext.setOBContextInSession(request, OBContext.getOBContext());
+
       doService(request, response);
     } else {
+      // not logged in
       response.setHeader("WWW-Authenticate", "Basic realm=\"Openbravo\"");
-      response.setStatus(401);
+      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     }
   }
 
@@ -113,74 +129,6 @@ public class BaseWebServiceServlet extends HttpServlet {
       final Writer w = response.getWriter();
       w.write(WebServiceUtil.getInstance().createErrorXML(t));
       w.close();
-    }
-  }
-
-  protected boolean isLoggedIn(HttpServletRequest request, HttpServletResponse response) {
-    final String login = request.getParameter(LOGIN_PARAM);
-    final String password = request.getParameter(PASSWORD_PARAM);
-    String userId = null;
-    if (login != null && password != null) {
-      userId = LoginUtils.getValidUserId(new DalConnectionProvider(), login, password);
-    } else { // use basic authentication
-      userId = doBasicAuthentication(request);
-    }
-
-    if (userId != null) {
-      OBContext.setOBContext(UserContextCache.getInstance().getCreateOBContext(userId));
-      OBContext.setOBContextInSession(request, OBContext.getOBContext());
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  private void createDBSession(HttpServletRequest req, String strUser, String strUserAuth) {
-    try {
-      String usr = strUserAuth == null ? "0" : strUserAuth;
-
-      final SessionLogin sl = new SessionLogin(req, "0", "0", usr);
-
-      if (strUserAuth == null) {
-        sl.setStatus("F");
-      } else {
-        sl.setStatus("S");
-      }
-
-      sl.setUserName(strUser);
-      sl.setServerUrl(HttpBaseUtils.getLocalAddress(req));
-      sl.save();
-    } catch (Exception e) {
-      log.error("Error creating DB session", e);
-    }
-  }
-
-  protected String doBasicAuthentication(HttpServletRequest request) {
-    try {
-      final String auth = request.getHeader("Authorization");
-      if (auth == null) {
-        return null;
-      }
-      if (!auth.toUpperCase().startsWith("BASIC ")) {
-        return null; // only BASIC supported
-      }
-
-      // user and password come after BASIC
-      final String userpassEncoded = auth.substring(6);
-
-      // Decode it, using any base 64 decoder
-      final String decodedUserPass = new String(Base64.decodeBase64(userpassEncoded.getBytes()));
-      final int index = decodedUserPass.indexOf(":");
-      if (index == -1) {
-        return null;
-      }
-      final String login = decodedUserPass.substring(0, index);
-      final String password = decodedUserPass.substring(index + 1);
-      String userId = LoginUtils.getValidUserId(new DalConnectionProvider(), login, password);
-      createDBSession(request, login, userId);
-      return userId;
-    } catch (final Exception e) {
-      throw new OBException(e);
     }
   }
 }

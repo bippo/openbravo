@@ -1969,7 +1969,6 @@ isc.OBStandardView.addProperties({
 
       // correct some stuff coming from the form fields
       if (fld.displayed === false) {
-        fld.canEdit = false;
         fld.visible = true;
         fld.alwaysTakeSpace = true;
       }

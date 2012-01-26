@@ -99,7 +99,7 @@
               HAVING SUM(pl.MovementQty) <> 0) rpp 
            LEFT OUTER JOIN
               (SELECT pl.M_Product_ID, SUM(pl.MovementQty) AS ConsumedQty, 
-              SUM(pl.MovementQty*C_CURRENCY_CONVERT(pl.CalcCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id))/SUM(pl.MovementQty) AS CalcCost, 
+              SUM(C_CURRENCY_CONVERT(pl.CalcCost, ?, ?, TO_DATE(p.movementdate), null, pl.ad_client_id, pl.ad_org_id))/SUM(pl.MovementQty) AS CalcCost, 
               pl.M_ProductionPlan_ID
               FROM M_ProductionLine pl, M_ProductionPlan pp, M_Production p
               WHERE pl.ProductionType = '-'

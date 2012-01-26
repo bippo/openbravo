@@ -109,6 +109,7 @@ public class TabAttachments extends HttpSecureAppServlet {
             Tab tab = OBDal.getInstance().get(Tab.class, strTab);
             JSONObject obj = AttachmentsAH.getAttachmentJSONObject(tab, key);
             String buttonId = vars.getStringParameter("buttonId");
+            response.setContentType("text/html; charset=UTF-8");
             Writer writer = response.getWriter();
             writer.write("<HTML><BODY><script type=\"text/javascript\">");
             writer.write("top." + buttonId + ".callback(" + obj.toString() + ");");

@@ -76,7 +76,9 @@ public class SessionLogin {
     setClient(ad_client_id);
     setOrg(ad_org_id);
     setUser(ad_user_id);
-    defaultParameters(request);
+    if (request != null) {
+      defaultParameters(request);
+    }
   }
 
   public void setServerUrl(String strAddr) {

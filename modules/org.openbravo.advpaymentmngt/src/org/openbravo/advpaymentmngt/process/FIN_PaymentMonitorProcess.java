@@ -54,11 +54,9 @@ import org.quartz.JobExecutionException;
 
 public class FIN_PaymentMonitorProcess extends DalBaseProcess {
   private static ProcessLogger logger;
-  private static ConnectionProvider conn = null;
 
   public void doExecute(ProcessBundle bundle) throws Exception {
     logger = bundle.getLogger();
-    conn = bundle.getConnection();
     // Check to know if PaymentMonitor property is set in the system.
     try {
       Preferences.getPreferenceValue("PaymentMonitor", true, null, null, OBContext.getOBContext()
@@ -439,9 +437,8 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
       Date ConvDate, String client, String org) {
     if (CurFrom_ID == null || CurTo_ID == null || CurFrom_ID.equals(CurTo_ID))
       return Amt;
-    if (conn == null) {
-      conn = new DalConnectionProvider();
-    }
+    ConnectionProvider conn = new DalConnectionProvider(false);
+
     String dateFormat = OBPropertiesProvider.getInstance().getOpenbravoProperties()
         .getProperty("dateFormat.java");
     SimpleDateFormat dateFormater = new SimpleDateFormat(dateFormat);

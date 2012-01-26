@@ -75,7 +75,7 @@ isc.OBSectionItem.addProperties({
         if (item.hiddenInForm) {
           continue;
         }
-        if (item.visible || item.displayed !== false) {
+        if (item.displayed !== false) {
           item.alwaysTakeSpace = flag;
         }
       }
@@ -95,11 +95,12 @@ isc.OBSectionItem.addProperties({
     var ret = this.Super('expandSection', arguments);
     return ret;
   },
-
+    
   showIf: function(item, value, form, values) {
     var i, field, length;
-
-    if(!this.itemIds) {
+    
+    if (!this.itemIds || item.hiddenInForm === true || item.displayed === false ) {
+      this.updateAlwaysTakeSpace(false); // To avoid an empty space if the section is not shown
       return false;
     }
     
@@ -108,7 +109,7 @@ isc.OBSectionItem.addProperties({
     for (i = 0; i < length; i++) {
       field = form.getItem(this.itemIds[i]);
 
-      if(!field || (item.visible === false || item.displayed === false || item.hiddenInForm === true)) {
+      if(!field || field.displayed === false || field.hiddenInForm === true) {
         continue;
       }
 
@@ -120,6 +121,8 @@ isc.OBSectionItem.addProperties({
         return true;
       }
     }
+    
+    this.updateAlwaysTakeSpace(false); // To avoid an empty space if the section is not shown
     return false;
   }
 });

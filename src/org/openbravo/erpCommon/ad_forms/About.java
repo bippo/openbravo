@@ -99,6 +99,7 @@ public class About extends HttpSecureAppServlet {
       if (ActivationKey.isActiveInstance()) {
         xmlDocument.setParameter("paraOPSPurpose", ak.getPurpose(vars.getLanguage()));
         xmlDocument.setParameter("paraOPSType", ak.getLicenseExplanation(this, vars.getLanguage()));
+        xmlDocument.setParameter("paraOPSWSAccess", ak.getWSExplanation(this, vars.getLanguage()));
         xmlDocument.setParameter("paraOBPSStatus",
             ak.getSubscriptionStatus().getStatusName(vars.getLanguage()));
       }

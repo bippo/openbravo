@@ -16,7 +16,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -67,6 +67,7 @@
     v_AD_Org_ID VARCHAR2(32);
     v_prodline NUMBER;
     v_line NUMBER;
+    v_AD_Pinstance_ID VARCHAR2(32);
   BEGIN
     -- Process Parameters
     IF(p_PInstance_ID IS NOT NULL) THEN
@@ -328,15 +329,29 @@
         (SELECT *  FROM M_PRODUCTIONPLAN pp  WHERE pp.M_PRODUCTION_ID=v_Record_ID)
       LOOP
         UPDATE MA_WRPHASE
-          SET DONEQUANTITY=DONEQUANTITY + Cur_ProductionPlan.PRODUCTIONQTY
+          SET DONEQUANTITY=DONEQUANTITY + Cur_ProductionPlan.PRODUCTIONQTY, RUNTIME=Cur_ProductionPlan.RUNTIME
         WHERE MA_WRPhase_ID=Cur_ProductionPlan.MA_WRPHASE_ID;
+        -- Close Phase if its marked
+	IF (Cur_ProductionPlan.CLOSEPHASE='Y') THEN
+	  v_AD_Pinstance_ID := GET_UUID();
+	  INSERT INTO AD_PINSTANCE 
+	  (AD_PINSTANCE_ID, AD_PROCESS_ID, RECORD_ID, ISACTIVE, 
+	  AD_USER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY,
+	  UPDATED, UPDATEDBY)
+	  VALUES
+	  (v_AD_Pinstance_ID,'800118',Cur_ProductionPlan.MA_WRPHASE_ID,'Y',
+	  v_User_ID, v_Client_ID, v_Org_ID, now(), v_User_ID,
+	  now(), v_User_ID
+	  );
+	  MA_WRPHASE_CLOSE(v_AD_Pinstance_ID);
+	END IF;
       END LOOP;
       -- Indicate that we are done
       UPDATE M_PRODUCTION
         SET Processed='Y',
         updated=now(),
         updatedby=v_User_ID
-      WHERE M_Production_ID=v_Record_ID;
+      WHERE M_Production_ID=v_Record_ID;    
     END IF; --FINISH_PROCESS
     IF(NOT FINISH_PROCESS) THEN
       v_ResultStr:='Updating used toolsets';
@@ -350,6 +365,39 @@
         WHERE MA_TOOLSET_ID = Cur_Toolset.MA_TOOLSET_ID;
       END LOOP;
     END IF;
+
+    --MA_Workeffort_Validate - Finish Process Extension Point
+	SELECT count(*) INTO v_count
+	FROM DUAL
+	where exists (select 1 from ad_ep_procedures where ad_extension_points_id = 'FF80818132FDD74F0132FDEFDF200024');
+	IF (v_count=1) THEN
+	  DECLARE
+	    v_ep_instance VARCHAR2(32);
+	    v_extension_point_id VARCHAR2(32) := 'FF80818132FDD74F0132FDEFDF200024';
+	  BEGIN
+	    v_ep_instance := get_uuid();
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+	      v_Record_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+	      v_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+	      NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+	    NULL, NULL, v_Result, NULL, NULL, NULL, NULL);
+	    AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+	    SELECT p_number INTO v_Result
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	    AND parametername LIKE 'Result';	    
+	    SELECT p_text INTO v_Message
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	    AND parametername LIKE 'Message';
+		  
+	    DELETE FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance;
+	  END;
+	END IF;
     --<<FINISH_PROCESS>>
     --v_Message := v_Message || '@Created@: ' || v_NoRecords;
       --  Update AD_PInstance

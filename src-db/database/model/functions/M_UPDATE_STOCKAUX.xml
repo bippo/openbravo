@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION M_UPDATE_STOCKAUX">
+    <function name="M_UPDATE_STOCKAUX" type="NULL">
+      <parameter name="p_client" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_org" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_user" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_locator" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_attributesetinstance" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_uom" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_product_uom" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qty" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_qtyorder" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_aux_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_table_id" type="VARCHAR" mode="in">
+        <default/>
+      </parameter>
+      <parameter name="p_line" type="NUMERIC" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_count NUMBER;
+  v_StorageDetail_ID VARCHAR2(32);
+  
+BEGIN
+  SELECT COUNT(*)
+  INTO v_count
+  FROM M_STORAGE_DETAIL
+  WHERE M_PRODUCT_ID=p_product
+    AND M_LOCATOR_ID=p_locator
+    AND COALESCE(M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_attributesetinstance, '0')
+    AND C_UOM_ID=p_uom
+    AND COALESCE(M_PRODUCT_UOM_ID, '-1')=COALESCE(p_product_uom, '-1') ;
+
+  IF(v_count <> 1 ) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@StorageDetailError@');
+  ELSE
+  
+    SELECT M_STORAGE_DETAIL_ID
+    INTO v_StorageDetail_ID
+    FROM M_STORAGE_DETAIL
+    WHERE M_PRODUCT_ID=p_product
+    AND M_LOCATOR_ID=p_locator
+    AND COALESCE(M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_attributesetinstance, '0')
+    AND C_UOM_ID=p_uom
+    AND COALESCE(M_PRODUCT_UOM_ID, '-1')=COALESCE(p_product_uom, '-1') ;
+    
+    SELECT COUNT(*) 
+    INTO v_count
+    FROM M_STOCK_AUX
+    WHERE M_STORAGE_DETAIL_ID = v_StorageDetail_ID;
+
+    IF (v_count = 0) THEN
+	INSERT INTO M_STOCK_AUX
+	(
+	m_stock_aux_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby,
+	quantity, qtyorder, m_storage_detail_id, aux_id, ad_table_id, line
+	) 
+	VALUES
+	(
+	get_uuid(), p_client, p_org, 'Y', now(), p_user, now(), p_user,
+	p_qty, p_qtyorder, v_StorageDetail_ID, p_aux_id, p_table_id, p_line
+	);
+    ELSE
+	UPDATE M_STOCK_AUX 
+	SET QUANTITY = QUANTITY + p_qty, UPDATED = now()
+	WHERE M_STORAGE_DETAIL_ID = v_StorageDetail_ID;
+    END IF;
+  END IF;
+END M_UPDATE_STOCKAUX
+]]></body>
+    </function>
+  </database>

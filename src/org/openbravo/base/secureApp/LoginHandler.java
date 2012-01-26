@@ -23,10 +23,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.authentication.AuthenticationException;
 import org.openbravo.authentication.AuthenticationManager;
-import org.openbravo.authentication.basic.DefaultAuthenticationManager;
 import org.openbravo.base.HttpBaseServlet;
-import org.openbravo.base.session.OBPropertiesProvider;
-import org.openbravo.base.util.OBClassLoader;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.obps.ActivationKey;
@@ -55,7 +52,6 @@ import org.openbravo.xmlEngine.XmlDocument;
  */
 public class LoginHandler extends HttpBaseServlet {
   private static final long serialVersionUID = 1L;
-  private static final String DEFAULT_AUTH_CLASS = "org.openbravo.authentication.basic.DefaultAuthenticationManager";
 
   @Override
   public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException,
@@ -85,26 +81,8 @@ public class LoginHandler extends HttpBaseServlet {
       if (strUser.equals("") && !OBVersion.getInstance().is30()) {
         res.sendRedirect(res.encodeRedirectURL(strDireccion + "/security/Login_F1.html"));
       } else {
-
         try {
-
-          AuthenticationManager authManager;
-          String authClass = OBPropertiesProvider.getInstance().getOpenbravoProperties()
-              .getProperty("authentication.class", DEFAULT_AUTH_CLASS);
-          if (authClass == null || authClass.equals("")) {
-            // If not defined, load default
-            authClass = "org.openbravo.authentication.basic.DefaultAuthenticationManager";
-          }
-          try {
-            authManager = (AuthenticationManager) OBClassLoader.getInstance().loadClass(authClass)
-                .newInstance();
-            authManager.init(this);
-          } catch (Exception e) {
-            log4j
-                .error("Defined authentication manager cannot be loaded. Verify the 'authentication.class' entry in Openbravo.properties");
-
-            authManager = new DefaultAuthenticationManager(this);
-          }
+          AuthenticationManager authManager = AuthenticationManager.getAuthenticationManager(this);
 
           final String strUserAuth = authManager.authenticate(req, res);
           final String sessionId = vars.getSessionValue("#AD_Session_ID");
@@ -143,7 +121,7 @@ public class LoginHandler extends HttpBaseServlet {
       ServletException {
     OBContext.setAdminMode();
     try {
-      ActivationKey ak = ActivationKey.getInstance();
+      ActivationKey ak = ActivationKey.getInstance(true);
       boolean hasSystem = false;
 
       try {
@@ -244,6 +222,30 @@ public class LoginHandler extends HttpBaseServlet {
         updateDBSession(sessionId, msgType.equals("Warning"), "LBF");
         goToRetry(res, vars, msg, title, msgType, action, doRedirect);
         return;
+      }
+
+      // WS calls restrictions
+      if (hasSystem && ak.getWsCallsExceededDays() > 0) {
+        String msg;
+        String title = Utility.messageBD(myPool, "OPS_MAX_WS_CALLS_TITLE", vars.getLanguage());
+
+        switch (ak.checkNewWSCall(false)) {
+        case NO_RESTRICTION:
+        case EXPIRED:
+          break;
+        case EXCEEDED_WARN_WS_CALLS:
+          msg = Utility.messageBD(myPool, "OPS_MAX_WS_CALLS_SOFT_MSG", vars.getLanguage(), false)
+              .replace("@daysExceeding@", Integer.toString(ak.getWsCallsExceededDays()))
+              .replace("@extraDays@", Integer.toString(ak.getExtraWsExceededDaysAllowed()))
+              .replace("@numberOfDays@", Integer.toString(ak.getNumberOfDaysLeftInPeriod()));
+          goToRetry(res, vars, msg, title, msgType, action, doRedirect);
+          return;
+        case EXCEEDED_MAX_WS_CALLS:
+          msg = Utility.messageBD(myPool, "OPS_MAX_WS_CALLS_MSG", vars.getLanguage(), false)
+              .replace("@daysExceeding@", Integer.toString(ak.getWsCallsExceededDays()));
+          goToRetry(res, vars, msg, title, msgType, action, doRedirect);
+          return;
+        }
       }
 
       try {

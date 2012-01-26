@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html 
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License. 
+ * The Original Code is Openbravo ERP. 
+ * The Initial Developer of the Original Code is Openbravo SLU 
+ * All portions are Copyright (C) 2011 Openbravo SLU 
+ * All Rights Reserved. 
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+
+
+
+
+
+<SqlClass name="AttributeSetInstanceValueData" package="org.openbravo.erpCommon.utility">
+   <SqlClassComment></SqlClassComment>
+   <SqlMethod name="select" type="preparedStatement" return="multiple">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT A_S.M_ATTRIBUTESET_ID, A_S.NAME, A_S.DESCRIPTION, A_S.GUARANTEEDAYS, A_S.ISGUARANTEEDATE, A_S.ISLOT, A_S.ISSERNO, 
+        A_S.M_LOTCTL_ID, A_S.M_SERNOCTL_ID, A.ISLIST, A.NAME AS ELEMENTNAME, A.M_ATTRIBUTE_ID, 
+        A_S.ISLOCKABLE, A.ISINSTANCEATTRIBUTE, '' AS M_ATTRIBUTESETINSTANCE_ID, '' as GUARANTEEDATE, '' as LOT, '' as SERNO, 
+        '' as M_ATTRIBUTEVALUE_ID, '' as VALUE, A.ISMANDATORY, '' AS ISLOCKED, '' AS LOCK_DESCRIPTION 
+        FROM M_ATTRIBUTESET A_S left join (M_ATTRIBUTEUSE A_U 
+                                           join M_ATTRIBUTE A on A_U.M_ATTRIBUTE_ID = A.M_ATTRIBUTE_ID
+                                                                 and A_U.ISACTIVE= 'Y'
+                                                                 and A.ISACTIVE= 'Y')
+                                on a_s.M_ATTRIBUTESET_ID = a_u.M_ATTRIBUTESET_ID
+        WHERE A_S.ISACTIVE = 'Y'
+        AND A_S.M_ATTRIBUTESET_ID = ? 
+        ORDER BY A_U.SEQNO
+      ]]></Sql>
+        <Parameter name="mAttributesetId"/>
+   </SqlMethod>
+   <SqlMethod name="hasIdentical" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT m_attributesetinstance_id 
+        FROM M_AttributeSetInstance 
+        WHERE (upper(description) = upper(?) OR ((description IS NULL) AND (? IS NULL)))
+        AND M_AttributeSet_ID = ?
+      ]]></Sql>
+        <Parameter name="description"/>
+        <Parameter name="description"/>
+        <Parameter name="mAttributeSet"/>
+   </SqlMethod>
+   <SqlMethod name="selectNextLot" type="preparedStatement" return="String" default="0">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT COALESCE(TO_CHAR(PREFIX),'') || CURRENTNEXT || COALESCE(TO_CHAR(SUFFIX),'') AS TOTAL
+        FROM M_LOTCTL 
+        WHERE M_LOTCTL_ID = ?
+      ]]></Sql>
+        <Parameter name="mLotctlId"/>
+   </SqlMethod>   
+   <SqlMethod name="selectNextSerNo" type="preparedStatement" return="String" connection="true" default="0">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT COALESCE(TO_CHAR(PREFIX),'') || CURRENTNEXT || COALESCE(TO_CHAR(SUFFIX),'') AS TOTAL
+        FROM M_SERNOCTL 
+        WHERE M_SERNOCTL_ID = ?
+      ]]></Sql>
+        <Parameter name="mSernoctlId"/>
+   </SqlMethod>
+   <SqlMethod name="isInstanceAttribute" type="preparedStatement" return="String" default="0">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT (CASE A_S.ISLOCKABLE WHEN 'Y' THEN 1 ELSE (CASE A_S.ISLOT WHEN 'Y' THEN 1 ELSE (CASE A_S.ISSERNO WHEN 'Y' THEN 1 ELSE (CASE A_S.ISGUARANTEEDATE WHEN 'Y' THEN 1 ELSE 
+        (CASE (SELECT MAX(ISINSTANCEATTRIBUTE) FROM M_ATTRIBUTE, M_ATTRIBUTEUSE 
+                WHERE M_ATTRIBUTE.M_ATTRIBUTE_ID = M_ATTRIBUTEUSE.M_ATTRIBUTE_ID
+                AND M_ATTRIBUTEUSE.M_ATTRIBUTESET_ID = A_S.M_ATTRIBUTESET_ID) WHEN 'Y' THEN 1 ELSE 0 END) END) END) END) END) AS TOTAL 
+        FROM M_ATTRIBUTESET A_S
+        WHERE A_S.ISACTIVE = 'Y'
+        AND A_S.M_ATTRIBUTESET_ID = ? 
+      ]]></Sql>
+        <Parameter name="mAttributesetId"/>
+   </SqlMethod>
+   <SqlMethod name="selectAttributeValue" type="preparedStatement" return="String" default="">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        SELECT NAME FROM M_ATTRIBUTEVALUE WHERE M_ATTRIBUTEVALUE_ID=?
+      ]]></Sql>
+        <Parameter name="mAttributevalueId"/>
+   </SqlMethod>
+   <SqlMethod name="insert" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        INSERT INTO M_ATTRIBUTEINSTANCE (M_ATTRIBUTEINSTANCE_ID, M_ATTRIBUTESETINSTANCE_ID, M_ATTRIBUTE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, 
+        CREATEDBY, UPDATED, UPDATEDBY, M_ATTRIBUTEVALUE_ID, VALUE) 
+        VALUES ( ?, ?, ?, ?, ?, 'Y', now(), ?, now(), ?, ?, ?)
+      ]]></Sql>
+        <Parameter name="mAttributeinstanceId"/>
+        <Parameter name="mAttributesetinstanceId"/>
+        <Parameter name="mAttributeId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="mAttributevalueId"/>
+        <Parameter name="value"/>
+   </SqlMethod>
+   <SqlMethod name="update" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        UPDATE M_ATTRIBUTEINSTANCE SET UPDATED=now(), UPDATEDBY = ?, M_ATTRIBUTEVALUE_id = ?, VALUE=? 
+        WHERE M_ATTRIBUTESETINSTANCE_ID = ? 
+        AND M_ATTRIBUTE_ID = ? 
+        AND ISACTIVE = 'Y'
+      ]]></Sql>
+        <Parameter name="adUserId"/>
+        <Parameter name="mAttributevalueId"/>
+        <Parameter name="value"/>
+        <Parameter name="mAttributesetinstanceId"/>
+        <Parameter name="mAttributeId"/>
+   </SqlMethod>
+   <SqlMethod name="insertHeader" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        INSERT INTO M_ATTRIBUTESETINSTANCE (M_ATTRIBUTESETINSTANCE_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, 
+        UPDATED, UPDATEDBY, M_ATTRIBUTESET_ID, SERNO, LOT, GUARANTEEDATE, M_LOT_ID, ISLOCKED, LOCK_DESCRIPTION) 
+        VALUES ( ?, ?, ?, 'Y', now(), ?, now(), ?, ?, ?, ?, TO_DATE(?), ?, ?, ?)
+      ]]></Sql>
+        <Parameter name="mAttributesetinstanceId"/>
+        <Parameter name="adClientId"/>
+        <Parameter name="adOrgId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="adUserId"/>
+        <Parameter name="mAttributesetId"/>
+        <Parameter name="serno"/>
+        <Parameter name="lot"/>
+        <Parameter name="guaranteedate"/>
+        <Parameter name="mLotId"/>
+        <Parameter name="islocked"/>
+        <Parameter name="lockDescription"/>
+   </SqlMethod>
+   <SqlMethod name="updateHeader" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        UPDATE M_ATTRIBUTESETINSTANCE SET UPDATED=now(), UPDATEDBY = ?, M_ATTRIBUTESET_ID = ?, SERNO=?, LOT=?, GUARANTEEDATE=TO_DATE(?), 
+        M_LOT_ID = ?, ISLOCKED = ?, LOCK_DESCRIPTION = ? 
+        WHERE M_ATTRIBUTESETINSTANCE_ID = ?
+      ]]></Sql>
+        <Parameter name="adUserId"/>
+        <Parameter name="mAttributesetId"/>
+        <Parameter name="serno"/>
+        <Parameter name="lot"/>
+        <Parameter name="guaranteedate"/>
+        <Parameter name="mLotId"/>
+        <Parameter name="islocked"/>
+        <Parameter name="lockDescription"/>
+        <Parameter name="mAttributesetinstanceId"/>
+   </SqlMethod>
+   <SqlMethod name="updateHeaderDescription" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        UPDATE M_ATTRIBUTESETINSTANCE SET UPDATED=now(), UPDATEDBY = ?, DESCRIPTION=? 
+        WHERE M_ATTRIBUTESETINSTANCE_ID = ?
+      ]]></Sql>
+        <Parameter name="adUserId"/>
+        <Parameter name="description"/>
+        <Parameter name="mAttributesetinstanceId"/>
+   </SqlMethod>
+   <SqlMethod name="updateLotSequence" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        UPDATE M_LOTCTL SET UPDATED=now(), UPDATEDBY = ?, CURRENTNEXT=(CURRENTNEXT + INCREMENTNO) 
+        WHERE M_LOTCTL_ID = ?
+      ]]></Sql>
+        <Parameter name="adUserId"/>
+        <Parameter name="mLotctlId"/>
+   </SqlMethod>
+   <SqlMethod name="updateSerNoSequence" type="preparedStatement" connection="true" return="rowCount">
+      <SqlMethodComment></SqlMethodComment>
+      <Sql> <![CDATA[
+        UPDATE M_SERNOCTL SET UPDATED=now(), UPDATEDBY = ?, CURRENTNEXT=(CURRENTNEXT + INCREMENTNO) 
+        WHERE M_SERNOCTL_ID = ?
+      ]]></Sql>
+        <Parameter name="adUserId"/>
+        <Parameter name="mSernoctlId"/>
+   </SqlMethod>
+</SqlClass>

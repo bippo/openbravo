@@ -50,9 +50,7 @@ import net.sf.jasperreports.engine.export.JRHtmlExporter;
 import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 
 import org.hibernate.criterion.Restrictions;
-import org.openbravo.authentication.AuthenticationException;
 import org.openbravo.authentication.AuthenticationManager;
-import org.openbravo.authentication.basic.DefaultAuthenticationManager;
 import org.openbravo.base.HttpBaseServlet;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.LoginUtils.RoleDefaults;
@@ -132,26 +130,7 @@ public class HttpSecureAppServlet extends HttpBaseServlet {
   public void init(ServletConfig config) {
     super.init(config);
 
-    String sAuthManagerClass = globalParameters.getOBProperty("authentication.class");
-    if (sAuthManagerClass == null || sAuthManagerClass.equals("")) {
-      // If not defined, load default
-      sAuthManagerClass = "org.openbravo.authentication.basic.DefaultAuthenticationManager";
-    }
-
-    try {
-      m_AuthManager = (AuthenticationManager) Class.forName(sAuthManagerClass).newInstance();
-      m_AuthManager.init(this);
-    } catch (final Exception e) {
-      log4j
-          .error("Defined authentication manager cannot be loaded. Verify the 'authentication.class' entry in Openbravo.properties");
-      try {
-        m_AuthManager = new DefaultAuthenticationManager(this);
-      } catch (AuthenticationException e1) {
-        log4j.error("Error trying to initialize Authentication Manager", e1);
-        return;
-      }
-    }
-
+    m_AuthManager = AuthenticationManager.getAuthenticationManager(this);
     log4j.debug("strdireccion: " + strDireccion);
 
     // Calculate class info

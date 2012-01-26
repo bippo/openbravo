@@ -12,6 +12,8 @@
   v_MOVEMENTQTY   NUMBER;
   v_QUANTITYORDER NUMBER;
   v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
+  v_PRODUCTION_ID VARCHAR2(32);
+  v_LINE NUMBER;
   /*************************************************************************
   * The contents of this file are subject to the Compiere Public
   * License 1.1 ("License"); You may not use this file except in
@@ -27,7 +29,7 @@
   * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
   * All Rights Reserved.
   * Contributor(s): Openbravo SLU
-  * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
   *
   * Specifically, this derivative work is based upon the following Compiere
   * file and version.
@@ -88,6 +90,13 @@ BEGIN
           v_QUANTITYORDER:=-:OLD.QUANTITYORDER;
         END IF;
         M_UPDATE_INVENTORY(:OLD.AD_CLIENT_ID, :OLD.AD_ORG_ID, :OLD.UPDATEDBY, :OLD.M_PRODUCT_ID, :OLD.M_LOCATOR_ID, :OLD.M_ATTRIBUTESETINSTANCE_ID, :OLD.C_UOM_ID, :OLD.M_PRODUCT_UOM_ID, NULL, NULL, NULL, -v_MOVEMENTQTY, -v_QUANTITYORDER) ;
+	-- FIXME: this shall be removed/reviewed when new warehouse management is implemented
+	SELECT M_PRODUCTIONPLAN.M_PRODUCTION_ID , M_PRODUCTIONPLAN.LINE
+	INTO v_PRODUCTION_ID, v_LINE
+	FROM M_PRODUCTIONPLAN
+	WHERE M_PRODUCTIONPLAN_ID = v_ID;
+ M_UPDATE_STOCKAUX(:OLD.AD_CLIENT_ID, :OLD.AD_ORG_ID, :OLD.UPDATEDBY, :OLD.M_PRODUCT_ID, :OLD.M_LOCATOR_ID, :OLD.M_ATTRIBUTESETINSTANCE_ID, :OLD.C_UOM_ID, :OLD.M_PRODUCT_UOM_ID,-v_MOVEMENTQTY, -v_QUANTITYORDER, v_PRODUCTION_ID,'325', v_LINE);
+	-- END FIXME
       END IF;
     END IF;
     IF INSERTING OR UPDATING THEN
@@ -106,6 +115,13 @@ BEGIN
           v_QUANTITYORDER:=-:NEW.QUANTITYORDER;
         END IF;
         M_UPDATE_INVENTORY(:NEW.AD_CLIENT_ID, :NEW.AD_ORG_ID, :NEW.UPDATEDBY, :NEW.M_PRODUCT_ID, :NEW.M_LOCATOR_ID, :NEW.M_ATTRIBUTESETINSTANCE_ID, :NEW.C_UOM_ID, :NEW.M_PRODUCT_UOM_ID, NULL, NULL, NULL, v_MOVEMENTQTY, v_QUANTITYORDER) ;
+	-- FIXME: this shall be removed/reviewed when new warehouse management is implemented
+	SELECT M_PRODUCTIONPLAN.M_PRODUCTION_ID , M_PRODUCTIONPLAN.LINE
+	INTO v_PRODUCTION_ID, v_LINE
+	FROM M_PRODUCTIONPLAN
+	WHERE M_PRODUCTIONPLAN_ID = v_ID;
+        M_UPDATE_STOCKAUX(:NEW.AD_CLIENT_ID, :NEW.AD_ORG_ID, :NEW.UPDATEDBY, :NEW.M_PRODUCT_ID, :NEW.M_LOCATOR_ID, :NEW.M_ATTRIBUTESETINSTANCE_ID, :NEW.C_UOM_ID, :NEW.M_PRODUCT_UOM_ID, v_MOVEMENTQTY, v_QUANTITYORDER, v_PRODUCTION_ID,'325', v_LINE) ;	
+	-- END FIXME
       END IF;
     END IF;
   END IF;

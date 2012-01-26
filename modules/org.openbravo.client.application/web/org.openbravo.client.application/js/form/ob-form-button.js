@@ -26,3 +26,21 @@ isc.OBFormButton.addProperties({
   baseStyle: 'OBFormButton',
   titleStyle: 'OBFormButtonTitle'
 });
+
+
+// == OBFocusButton ==
+// Invisible button. It changes the focus location when it gets the focus.
+isc.ClassFactory.defineClass('OBFocusButton', isc.Button);
+
+isc.OBFocusButton.addProperties({
+  title: '',
+  width: 1,
+  height: 1,
+  border: '0px solid',
+  getFocusTarget: null,
+  focusChanged: function(hasFocus) {
+    if (hasFocus && typeof this.getFocusTarget === 'function' && typeof this.getFocusTarget().focus === 'function') {
+      this.getFocusTarget().focus();
+    }
+  }
+});

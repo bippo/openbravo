@@ -83,7 +83,7 @@ isc.OBQuickRun.addProperties({
       if (!me.showing) {
         isc.EH.clickMaskClick();
       }
-      me.click();
+      setTimeout(function() {me.click();}, 10); //setTimeout to avoid delayCall function that manages the focus
       return false; //To avoid keyboard shortcut propagation
     };
     OB.KeyboardManager.Shortcuts.set(this.keyboardShortcutId, 'Canvas', ksAction);

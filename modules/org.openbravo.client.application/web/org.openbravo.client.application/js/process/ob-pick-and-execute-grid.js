@@ -337,13 +337,22 @@ isc.OBPickAndExecuteGrid.addProperties({
         record = isc.addProperties({}, this.getRecord(rowNum), this.getEditValues(rowNum)),
         fields = this.view.viewProperties.fields,
         len = fields.length,
-        fld, i, value, undef;
+        fld, i, value, undef, type;
 
     for (i = 0; i < len; i++) {
       fld = fields[i];
       value = record[fld.name];
       if (value !== undef) {
-        contextInfo[fld.inpColumnName] = value;
+        if (fld.type) {
+          type = isc.SimpleType.getType(fld.type);
+          if (type.createClassicString) {
+            contextInfo[fld.inpColumnName] = type.createClassicString(value);
+          } else {
+            contextInfo[fld.inpColumnName] = this.view.parentWindow.activeView.convertContextValue(value, fld.type);
+          }
+        } else {
+          contextInfo[fld.inpColumnName] = this.view.parentWindow.activeView.convertContextValue(value, fld.type);
+        }
       }
     }
 

@@ -1656,14 +1656,19 @@ function keyControl(pushedKey) {
 * Put the focus on the Menu frame
 */
 function putFocusOnMenu() {
-  if (parent && parent.appFrame && parent.appFrame.selectedArea == 'tabs') {
-    parent.appFrame.swichSelectedArea();
+  if (isWindowInMDIPage) {
+    // In a classic window opened in OB 3.0, it avoids the focus go to the hidden menu frame
+    // Solves issue https://issues.openbravo.com/view.php?id=17636
+    return false;
+  } else {
+    if (parent && parent.appFrame && parent.appFrame.selectedArea == 'tabs') {
+      parent.appFrame.swichSelectedArea();
+    }
+    if (parent && parent.frameMenu) {
+      parent.frameMenu.focus();
+    }
+    return true;
   }
-  if (parent && parent.frameMenu) {
-    parent.frameMenu.focus();
-  }
-
-  return true;
 }
 
 /**

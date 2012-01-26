@@ -40,14 +40,51 @@ isc.OBHelpAbout.addProperties({
     OB.TestRegistry.register('org.openbravo.client.application.HelpAboutWidget', this);
     this.Super('initWidget', arguments);
   },
+
+  doShow: function(){
+    this.Super('doShow', arguments);
+    var me = this, focusInFirstHelpItem;
+    focusInFirstHelpItem = function() {
+      if (me.members[0].members[1]) {
+        me.members[0].members[1].focus(); 
+      }
+      if (isc.EH.getFocusCanvas() === me.members[0].members[1]) { // Sometimes the focus is not positioned in the previous step
+        return;
+      } else {
+        setTimeout(function() { focusInFirstHelpItem(); }, 10);
+      }
+    };
+    focusInFirstHelpItem();
+  },
   
   beforeShow: function(){
     // determine if the help should be displayed or not
-    var tabPane = null, aboutLink = null, helpLink = null, helpView = null;
-    
+    var tabPane = null, aboutLink = null, helpLink = null, helpView = null, dummyFirstField = null, dummyLastField = null;
+
+    dummyFirstField = isc.OBFocusButton.create({
+      getFocusTarget: function() {
+        return isc.OBQuickRun.currentQuickRun.members[0].members[isc.OBQuickRun.currentQuickRun.members[0].getMembers().length-2];
+      }
+    });
+
+    dummyLastField = isc.OBFocusButton.create({
+      getFocusTarget: function() {
+        return isc.OBQuickRun.currentQuickRun.members[0].members[1];
+      }
+    });
+
     aboutLink = isc.OBHelpAboutLinkButton.create({
       name: 'aboutLink',
       title: OB.I18N.getLabel('UINAVBA_About'),
+      keyPress: function(){
+        var key = isc.EventHandler.getKey();
+        if (key === 'Escape') {
+          if (isc.OBQuickRun.currentQuickRun) {
+            isc.OBQuickRun.currentQuickRun.doHide();
+          }
+        }
+        return true;
+      },
       action: function(){
         isc.OBQuickRun.hide();
         OB.Layout.ClassicOBCompatibility.Popup.open('About', 620, 500, OB.Application.contextUrl + 'ad_forms/about.html', '', window);
@@ -57,6 +94,15 @@ isc.OBHelpAbout.addProperties({
     helpLink = isc.OBHelpAboutLinkButton.create({
       name: 'helpLink',
       title: OB.I18N.getLabel('UINAVBA_Help'),
+      keyPress: function(){
+        var key = isc.EventHandler.getKey();
+        if (key === 'Escape') {
+          if (isc.OBQuickRun.currentQuickRun) {
+            isc.OBQuickRun.currentQuickRun.doHide();
+          }
+        }
+        return true;
+      },
       action: function(){
         isc.OBQuickRun.hide();
         OB.Layout.ViewManager.openView(helpView.viewId, helpView);
@@ -74,15 +120,17 @@ isc.OBHelpAbout.addProperties({
       this.members[0].destroyAndRemoveMembers(this.members[0].getMembers().duplicate());
     } 
     if (!tabPane) {
-      this.members[0].setMembers([aboutLink]);
+      this.members[0].addMembers([aboutLink]);
     } else {
       helpView = tabPane.getHelpView();
       if (!helpView) {
-        this.members[0].setMembers([aboutLink]);
+        this.members[0].addMembers([aboutLink]);
       } else {
-        this.members[0].setMembers([helpLink, aboutLink]);
+        this.members[0].addMembers([helpLink, aboutLink]);
       }
     }
+    this.members[0].addMembers(dummyFirstField, 0);
+    this.members[0].addMembers(dummyLastField, this.members[0].getMembers().length);
     OB.TestRegistry.register('org.openbravo.client.application.HelpAbout.HelpLink', helpLink);
     OB.TestRegistry.register('org.openbravo.client.application.HelpAbout.AboutLink', aboutLink);
   },

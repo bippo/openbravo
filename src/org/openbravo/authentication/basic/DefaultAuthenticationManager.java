@@ -27,12 +27,8 @@ import org.openbravo.base.HttpBaseUtils;
 import org.openbravo.base.secureApp.LoginUtils;
 import org.openbravo.base.secureApp.VariablesHistory;
 import org.openbravo.base.secureApp.VariablesSecureApp;
-import org.openbravo.dal.core.OBContext;
-import org.openbravo.dal.service.OBDal;
-import org.openbravo.erpCommon.security.SessionLogin;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.Utility;
-import org.openbravo.model.ad.access.Session;
 
 /**
  * 
@@ -68,6 +64,7 @@ public class DefaultAuthenticationManager extends AuthenticationManager {
 
     final String strUser = vars.getStringParameter("user");
     final String strPass = vars.getStringParameter("password");
+    username = strUser;
 
     if (StringUtils.isEmpty(strUser)) {
       // redirects to the menu or the menu with the target
@@ -133,43 +130,6 @@ public class DefaultAuthenticationManager extends AuthenticationManager {
     if (qString != null && !qString.equals("")) {
       variables.setSessionValue("targetQueryString", qString);
     }
-  }
-
-  private String createDBSession(HttpServletRequest req, String strUser, String strUserAuth) {
-    try {
-      String usr = strUserAuth == null ? "0" : strUserAuth;
-
-      final SessionLogin sl = new SessionLogin(req, "0", "0", usr);
-
-      if (strUserAuth == null) {
-        sl.setStatus("F");
-      } else {
-        sl.setStatus("S");
-      }
-
-      sl.setUserName(strUser);
-      sl.setServerUrl(HttpBaseUtils.getLocalAddress(req));
-      sl.save();
-      return sl.getSessionID();
-    } catch (Exception e) {
-      log4j.error("Error creating DB session", e);
-      return null;
-    }
-  }
-
-  private void updateDBSession(String sessionId, boolean sessionActive, String status) {
-    try {
-      OBContext.setAdminMode();
-      Session session = OBDal.getInstance().get(Session.class, sessionId);
-      session.setSessionActive(sessionActive);
-      session.setLoginStatus(status);
-      OBDal.getInstance().flush();
-    } catch (Exception e) {
-      log4j.error("Error updating session in DB", e);
-    } finally {
-      OBContext.restorePreviousMode();
-    }
-
   }
 
   @Override

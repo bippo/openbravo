@@ -16,7 +16,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2010 Openbravo SLU
+* All portions are Copyright (C) 2001-2011 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -58,6 +58,10 @@
     v_allownegativestock CHAR(1);
     v_Calculated CHAR(1);
     v_ByDefault CHAR(1);
+    v_PendingQty NUMBER; 
+    v_InsertQty NUMBER;
+    v_AD_Pinstance_ID VARCHAR2(32);
+    v_UniqueAttConsum CHAR(1);
     --  Toolset Types to process
     Cur_ToolsetProcess RECORD;
     --  WRPhase products created
@@ -65,33 +69,18 @@
     --  WRPhase products useed
     Cur_WRPUsed RECORD;
     --  Stocked Products
-    CURSOR Cur_Stock (v_Product_old VARCHAR, v_UOM_old VARCHAR, v_Product_UOM_old VARCHAR, v_Org_old VARCHAR, v_Production_Id VARCHAR, v_Line NUMBER) IS
+    Cur_CostCenter_Employee RECORD;
+    -- CostCenter Employee
+    CURSOR Cur_Stock (v_AD_Pinstance_ID VARCHAR)IS
       SELECT T.M_PRODUCT_ID, T.C_UOM_ID, T.M_LOCATOR_ID, T.M_ATTRIBUTESETINSTANCE_ID,
-        T.M_PRODUCT_UOM_ID, COALESCE(T.QtyOnHand, 0) AS Qty, T.QtyOrderOnHand AS QtyOrder,
-        U.STDPRECISION, L.PRIORITYNO, T.UPDATED AS lastupdated
-      FROM M_LOCATOR L, M_WAREHOUSE W, M_STORAGE_DETAIL T LEFT JOIN M_PRODUCT_UOM PU ON T.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
-                         LEFT JOIN C_UOM U ON PU.C_UOM_ID = U.C_UOM_ID
-      WHERE T.M_PRODUCT_ID=v_Product_old
-        AND T.C_UOM_ID=v_UOM_old
-        AND (v_Product_UOM_old IS NULL OR T.M_Product_UOM_id = v_Product_UOM_old)
-        AND T.M_LOCATOR_ID=L.M_LOCATOR_ID
-        AND L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
-        AND AD_ISORGINCLUDED(v_Org_old,W.AD_ORG_ID,W.AD_CLIENT_ID)<>-1
-        AND COALESCE(T.QtyOnHand, 0)>0
-      UNION
-      SELECT M_PRODUCTIONLINE.M_PRODUCT_ID, m_productionline.c_uom_id, m_productionline.m_locator_id, m_productionline.m_attributesetinstance_id,
-        m_productionline.m_product_uom_id, m_productionline.movementqty as qty, m_productionline.quantityorder as qtyorder,
-        c_uom.stdprecision, -1 as priorityno, m_productionline.updated as lastupdated
-      FROM M_PRODUCTIONLINE, M_PRODUCTIONPLAN, c_uom
-      WHERE M_PRODUCTIONLINE.M_PRODUCTIONPLAN_ID = M_PRODUCTIONPLAN.M_PRODUCTIONPLAN_ID
-        AND M_PRODUCTIONLINE.C_UOM_ID = C_UOM.C_UOM_ID
-        AND M_PRODUCTION_ID = v_Production_Id     
-        AND M_PRODUCTIONPLAN.line < v_Line
-	AND M_PRODUCTIONLINE.movementqty > 0
-        AND M_PRODUCTIONLINE.M_PRODUCT_ID = v_product_old
-        AND M_PRODUCTIONLINE.C_UOM_ID = v_UOM_Old
-        AND (v_Product_UOM_old IS NULL OR M_PRODUCTIONLINE.M_Product_UOM_id = v_Product_UOM_old)
-      ORDER BY PRIORITYNO, LASTUPDATED;
+        T.M_PRODUCT_UOM_ID, MS.QUANTITY AS Qty, MS.QTYORDER AS QtyOrder,
+        U.STDPRECISION, MS.PRIORITY
+      FROM M_STOCK_PROPOSED MS 
+		LEFT JOIN M_STORAGE_DETAIL T ON MS.M_STORAGE_DETAIL_ID = T.M_STORAGE_DETAIL_ID
+		LEFT JOIN M_PRODUCT_UOM PU ON T.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
+                LEFT JOIN C_UOM U ON PU.C_UOM_ID = U.C_UOM_ID
+      WHERE MS.AD_PINSTANCE_ID = v_AD_Pinstance_ID
+      ORDER BY MS.PRIORITY;
       v_storage CUR_STOCK%ROWTYPE;
       NEXT_PRODUCT BOOLEAN:=false;
       Cur_Stock_ISOPEN BOOLEAN:=false;
@@ -185,12 +174,14 @@
         v_Line:=0;
         v_ResultStr:='ProdRunProduct P+ Processing';
         FOR Cur_WRPProduct IN
-          (SELECT wrpp.*, COALESCE(po.M_Locator_ID, p.M_Locator_ID) AS M_Locator_ID, p.name as pname, p.M_AttributeSetInstance_ID, p.AttrSetValueType
+          (SELECT wrpp.*, COALESCE(po.M_Locator_ID, p.M_Locator_ID) AS M_Locator_ID, p.name as pname, p.M_AttributeSetInstance_ID,
+           p.AttrSetValueType, masp.Divisiongroupqty
           FROM M_Product p, MA_WRPhaseProduct wrpp
             left join M_Product_Org po on wrpp.M_Product_ID = po.M_Product_ID
                                     AND po.AD_Org_ID = v_PlanOrg_ID
+	    left join MA_SequenceProduct masp on wrpp.MA_SequenceProduct_ID = masp.MA_SequenceProduct_ID
           WHERE MA_WRPhase_ID=v_WRPhase_ID
-            AND ProductionType='+'
+            AND wrpp.ProductionType='+'
             AND wrpp.M_PRODUCT_ID=p.M_Product_ID
           )
         LOOP
@@ -199,33 +190,78 @@
             v_Message:='@ILS_PRODUCT_NAME@ ' ||  Cur_WRPProduct.pname || ' @ProductLocatorNeeded@';
             RAISE_APPLICATION_ERROR(-20000, v_Message);
           END IF;
-          Ad_Sequence_Next('M_ProductionLine', v_Client_ID, v_ProductionLine_ID) ;
-          v_Line:=v_Line + 10;
-          INSERT
-          INTO M_ProductionLine
-            (
-              M_ProductionLine_ID, AD_Client_ID, AD_Org_ID, Created,
-              Createdby, Isactive, M_ProductionPlan_ID, M_Product_ID,
-              Productiontype, MovementQty, Updated, Updatedby,
-              C_UOM_ID, M_Locator_ID, 
-	      Line, M_AttributeSetInstance_ID, M_Product_UOM_ID, QuantityOrder
-            )
-            VALUES
-            (
-              v_ProductionLine_ID, v_Client_ID, v_PlanOrg_ID, now(),
-              v_User_ID, 'Y', v_Record_ID, Cur_WRPProduct.M_Product_ID,
-              Cur_WRPProduct.ProductionType, (CASE v_NoQty WHEN 'Y' THEN 0 ELSE Cur_WRPProduct.MovementQty*v_DoneQuantity END), now(), v_User_ID,
-              Cur_WRPProduct.C_UOM_ID,
-              COALESCE(Cur_WRPProduct.M_Locator_ID, (SELECT MIN(M_LOCATOR_ID)
-                                                    FROM M_LOCATOR L, M_WAREHOUSE W
-                                                    WHERE L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
-                                                    AND W.AD_ORG_ID = v_PlanOrg_ID)),
-              v_Line, (CASE WHEN Cur_WRPProduct.AttrSetValueType='D' THEN Cur_WRPProduct.M_AttributeSetInstance_ID ELSE NULL END)
-              ,Cur_WRPProduct.M_Product_UOM_ID, 
-              CASE WHEN Cur_WRPProduct.M_Product_UOM_ID IS NULL THEN NULL WHEN v_NoQty = 'Y' THEN 0 ELSE Cur_WRPProduct.QuantityOrder * v_DoneQuantity END
-            )
-            ;
-          --v_Line:=v_Line + 10;
+          -- Division Group Quantity
+	  IF (Cur_WRPProduct.Divisiongroupqty is not null AND Cur_WRPProduct.Divisiongroupqty <> 0 AND v_NoQty <> 'Y') THEN
+		  v_PendingQty := Cur_WRPProduct.MovementQty*v_DoneQuantity;
+		  WHILE (v_PendingQty>0)
+		  LOOP
+			IF (v_PendingQty > Cur_WRPProduct.Divisiongroupqty) THEN
+			 v_InsertQty:= Cur_WRPProduct.Divisiongroupqty;
+			ELSE
+			 v_InsertQty:= v_PendingQty;
+			END IF;
+
+			Ad_Sequence_Next('M_ProductionLine', v_Client_ID, v_ProductionLine_ID) ;
+			v_Line:=v_Line + 10;
+			INSERT
+			INTO M_ProductionLine
+			(
+			M_ProductionLine_ID, AD_Client_ID, AD_Org_ID, Created,
+			Createdby, Isactive, M_ProductionPlan_ID, M_Product_ID,
+			Productiontype, MovementQty, Updated, Updatedby,
+			C_UOM_ID, M_Locator_ID, 
+			Line, M_AttributeSetInstance_ID, M_Product_UOM_ID, QuantityOrder, 
+			MA_WRPhaseProduct_ID, Divisiongroupqty
+			)
+			VALUES
+			(
+			v_ProductionLine_ID, v_Client_ID, v_PlanOrg_ID, now(),
+			v_User_ID, 'Y', v_Record_ID, Cur_WRPProduct.M_Product_ID,
+			Cur_WRPProduct.ProductionType, v_InsertQty, now(), v_User_ID,
+			Cur_WRPProduct.C_UOM_ID,
+			COALESCE(Cur_WRPProduct.M_Locator_ID, (SELECT MIN(M_LOCATOR_ID)
+							    FROM M_LOCATOR L, M_WAREHOUSE W
+							    WHERE L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
+							    AND W.AD_ORG_ID = v_PlanOrg_ID)),
+			v_Line, (CASE WHEN Cur_WRPProduct.AttrSetValueType='D' THEN Cur_WRPProduct.M_AttributeSetInstance_ID ELSE NULL END)
+			,Cur_WRPProduct.M_Product_UOM_ID, 
+			CASE WHEN Cur_WRPProduct.M_Product_UOM_ID IS NULL THEN NULL WHEN v_NoQty = 'Y' THEN 0 ELSE Cur_WRPProduct.QuantityOrder * v_DoneQuantity END,
+			Cur_WRPProduct.MA_WRPhaseProduct_ID, Cur_WRPProduct.Divisiongroupqty
+			)
+			;
+		        v_PendingQty:= v_PendingQty-v_InsertQty;
+		  END LOOP;
+
+	  ELSE
+		  v_ProductionLine_ID := get_uuid();
+		  v_Line:=v_Line + 10;
+		  INSERT
+		  INTO M_ProductionLine
+		    (
+		      M_ProductionLine_ID, AD_Client_ID, AD_Org_ID, Created,
+		      Createdby, Isactive, M_ProductionPlan_ID, M_Product_ID,
+		      Productiontype, MovementQty, Updated, Updatedby,
+		      C_UOM_ID, M_Locator_ID, 
+		      Line, M_AttributeSetInstance_ID, M_Product_UOM_ID, QuantityOrder, 
+		      MA_WRPhaseProduct_ID
+		    )
+		    VALUES
+		    (
+		      v_ProductionLine_ID, v_Client_ID, v_PlanOrg_ID, now(),
+		      v_User_ID, 'Y', v_Record_ID, Cur_WRPProduct.M_Product_ID,
+		      Cur_WRPProduct.ProductionType, (CASE v_NoQty WHEN 'Y' THEN 0 ELSE Cur_WRPProduct.MovementQty*v_DoneQuantity END), now(), v_User_ID,
+		      Cur_WRPProduct.C_UOM_ID,
+		      COALESCE(Cur_WRPProduct.M_Locator_ID, (SELECT MIN(M_LOCATOR_ID)
+							    FROM M_LOCATOR L, M_WAREHOUSE W
+							    WHERE L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
+							    AND W.AD_ORG_ID = v_PlanOrg_ID)),
+		      v_Line, (CASE WHEN Cur_WRPProduct.AttrSetValueType='D' THEN Cur_WRPProduct.M_AttributeSetInstance_ID ELSE NULL END)
+		      ,Cur_WRPProduct.M_Product_UOM_ID, 
+		      CASE WHEN Cur_WRPProduct.M_Product_UOM_ID IS NULL THEN NULL WHEN v_NoQty = 'Y' THEN 0 ELSE Cur_WRPProduct.QuantityOrder * v_DoneQuantity END,
+		      Cur_WRPProduct.MA_WRPhaseProduct_ID
+		    )
+		    ;
+	  END IF;
         END LOOP;
         -- Insert production plan for used products P-
         SELECT wrp.GROUPUSE INTO v_GlobalUse
@@ -253,7 +289,38 @@
                 CLOSE Cur_Stock;
                 Cur_Stock_ISOPEN:=false;
               END IF;
-              OPEN CUR_STOCK(v_Product_old, v_UOM_old, v_Product_UOM_old, v_PlanOrg_ID, v_Production_ID, v_PlanLine) ;
+	      -- Call M_GET_STOCK
+		v_AD_Pinstance_ID := GET_UUID();
+		INSERT INTO AD_PINSTANCE 
+		(AD_PINSTANCE_ID, AD_PROCESS_ID, RECORD_ID, ISACTIVE, 
+		AD_USER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY,
+		UPDATED, UPDATEDBY)
+		VALUES
+		(v_AD_Pinstance_ID,'FF80818132C964E30132C9747257002E',v_Record_ID,'Y',
+		v_User_ID, v_Client_ID, v_PlanOrg_ID, now(), v_User_ID,
+		now(), v_User_ID
+		);
+
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '10', 'AD_Client_ID', v_Client_ID, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '20', 'M_Product_ID', v_Product_old, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '30', 'C_Uom_ID', v_UOM_old, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '40', 'M_Product_Uom_ID', v_Product_UOM_old, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '50', 'AD_Org_ID', v_PlanOrg_ID, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '60', 'AuxID', v_Production_ID, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '70', 'TableId', '325', null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '80', 'LineNo', null, null, v_PlanLine, null, null, null);
+		SELECT COALESCE(SP.UNIQUEATTCONSUM, 'N')
+		INTO v_UniqueAttConsum
+		FROM MA_WRPHASEPRODUCT WRPP
+			LEFT JOIN MA_SEQUENCEPRODUCT SP ON WRPP.MA_SEQUENCEPRODUCT_ID = SP.MA_SEQUENCEPRODUCT_ID
+		WHERE MA_WRPHASEPRODUCT_ID = Cur_WRPUsed.MA_WRPhaseProduct_ID;
+		IF (v_UniqueAttConsum='Y') THEN 
+		 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '90', 'UniqueAttribute', v_UniqueAttConsum, null, null, null, null, null);
+		 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '100', 'Quantity', null, null, v_DoneQuantity*Cur_WRPUsed.MovementQty, null, null, null);
+		END IF;
+	 M_GET_STOCK(v_AD_Pinstance_ID);
+	      -- End Call M_GET_STOCK
+              OPEN CUR_STOCK(v_AD_Pinstance_ID);
               Cur_Stock_ISOPEN:=true;
               FETCH CUR_STOCK INTO v_storage;
               IF CUR_STOCK%NOTFOUND THEN
@@ -313,7 +380,8 @@
                         Updated, UpdatedBy, M_Product_ID, C_UOM_ID,
                         MovementQty, ProductionType, M_Locator_ID, 
                         M_AttributeSetInstance_ID,
-                        M_Product_UOM_ID, QuantityOrder
+                        M_Product_UOM_ID, QuantityOrder,
+                        MA_WRPhaseProduct_ID
                       )
                       VALUES
                       (
@@ -329,7 +397,7 @@
                                            ELSE 0
                                          END)
                           ELSE v_QtyOrder
-                         END)
+                         END), Cur_WRPUsed.MA_WRPhaseProduct_ID
                       )
                       ;
                     IF(v_QtyAcumulated>=v_DoneQuantity*Cur_WRPUsed.MovementQty) THEN
@@ -377,14 +445,16 @@
 		                    M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
 		                    AD_Org_ID, IsActive, Created, CreatedBy,
 		                    Updated, UpdatedBy, M_Product_ID, MovementQty,
-		                    ProductionType, C_UOM_ID, M_Locator_ID, M_Product_UOM_ID, QuantityOrder
+		                    ProductionType, C_UOM_ID, M_Locator_ID, M_Product_UOM_ID, QuantityOrder,
+		                    MA_WRPhaseProduct_ID
 		                  )
 		                  VALUES
 		                  (
 		                    GET_UUID(), v_Record_ID, v_Line, Cur_WRPUsed.Client_ID,
 		                    Cur_WRPUsed.Org_ID, 'Y', now(), v_User_ID,
 		                    now(), v_User_ID, Cur_WRPUsed.M_Product_ID,( CASE v_NoQty WHEN 'Y' THEN 0 ELSE v_DoneQuantity*Cur_WRPUsed.MovementQty - v_QtyAcumulated END),
-		                    '-', Cur_WRPUsed.C_UOM_ID, Cur_WRPUsed.M_Locator_ID, Cur_WRPUsed.M_Product_UOM_ID, Cur_WRPUsed.QuantityOrder
+		                    '-', Cur_WRPUsed.C_UOM_ID, Cur_WRPUsed.M_Locator_ID, Cur_WRPUsed.M_Product_UOM_ID, Cur_WRPUsed.QuantityOrder,
+		                    Cur_WRPUsed.MA_WRPhaseProduct_ID
 		                  )
 		                  ;
                      END IF;
@@ -433,14 +503,16 @@
                     M_ProductionLine_ID, M_ProductionPlan_ID, Line, AD_Client_ID,
                     AD_Org_ID, IsActive, Created, CreatedBy,
                     Updated, UpdatedBy, M_Product_ID, MovementQty,
-                    ProductionType, C_UOM_ID, M_Locator_ID, M_Product_UOM_ID, QuantityOrder
+                    ProductionType, C_UOM_ID, M_Locator_ID, M_Product_UOM_ID, QuantityOrder,
+                    MA_WRPhaseProduct_ID
                   )
                   VALUES
                   (
                     v_ProductionLine_ID, v_Record_ID, v_Line, Cur_WRPUsed.Client_ID,
                     Cur_WRPUsed.Org_ID, 'Y', now(), '0',
                     now(), '0', Cur_WRPUsed.M_Product_ID,( CASE v_NoQty WHEN 'Y' THEN 0 ELSE v_DoneQuantity*Cur_WRPUsed.MovementQty END),
-                    '-', Cur_WRPUsed.C_UOM_ID, Cur_WRPUsed.M_Locator_ID, Cur_WRPUsed.M_Product_UOM_ID, Cur_WRPUsed.QuantityOrder
+                    '-', Cur_WRPUsed.C_UOM_ID, Cur_WRPUsed.M_Locator_ID, Cur_WRPUsed.M_Product_UOM_ID, Cur_WRPUsed.QuantityOrder,
+                    Cur_WRPUsed.MA_WRPhaseProduct_ID
                   )
                   ;
               END IF;
@@ -451,17 +523,41 @@
         END LOOP; --Used Products
         --Insert salary categories.
 
-        INSERT INTO MA_PL_EMPLOYEE
-        (MA_PL_EMPLOYEE_ID,
-         CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
-         M_PRODUCTIONPLAN_ID, C_SALARY_CATEGORY_ID, QUANTITY)
-        SELECT AD_Get_Next_Sequence('MA_PL_Employee', v_Client_ID),
-         now(), v_User_ID, now(), v_User_ID, v_Client_ID, v_PlanOrg_ID, 'Y',
-         v_Record_ID, C_Salary_Category_ID, Quantity
-        FROM MA_COSTCENTER_EMPLOYEE cce, M_ProductionPlan pp
-        WHERE cce.MA_Costcenter_version_ID = pp.MA_COstCenter_Version_ID
-          AND pp.M_ProductionPlan_ID = v_Record_ID
-          AND cce.IsActive = 'Y';
+        FOR Cur_CostCenter_Employee IN
+		(SELECT C_Salary_Category_ID, Quantity, Split
+		FROM MA_COSTCENTER_EMPLOYEE cce, M_ProductionPlan pp
+		WHERE cce.MA_Costcenter_version_ID = pp.MA_COstCenter_Version_ID
+		  AND pp.M_ProductionPlan_ID = v_Record_ID
+		  AND cce.IsActive = 'Y')
+	LOOP
+		IF (Cur_COSTCENTER_EMPLOYEE.Split = 'Y') THEN 
+			FOR i IN 1..Cur_CostCenter_Employee.Quantity 
+			LOOP
+				INSERT INTO MA_PL_EMPLOYEE
+				(MA_PL_EMPLOYEE_ID,
+				 CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+				 M_PRODUCTIONPLAN_ID, C_SALARY_CATEGORY_ID, QUANTITY)
+				 VALUES
+				(get_uuid(),
+				 now(), v_User_ID, now(), v_User_ID, v_Client_ID, v_PlanOrg_ID, 'Y',
+				 v_Record_ID, Cur_CostCenter_Employee.C_Salary_Category_ID, 1)
+				 ;
+						
+			END LOOP;
+			
+		ELSE
+			INSERT INTO MA_PL_EMPLOYEE
+			(MA_PL_EMPLOYEE_ID,
+			 CREATED, CREATEDBY, UPDATED, UPDATEDBY, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
+			 M_PRODUCTIONPLAN_ID, C_SALARY_CATEGORY_ID, QUANTITY)
+			 VALUES
+			(get_uuid(),
+			 now(), v_User_ID, now(), v_User_ID, v_Client_ID, v_PlanOrg_ID, 'Y',
+			 v_Record_ID, Cur_CostCenter_Employee.C_Salary_Category_ID, Cur_CostCenter_Employee.Quantity)
+			 ;
+		END IF;
+	END LOOP;
+
 
         --Insert machines.
 
@@ -493,7 +589,7 @@
 
         IF (v_Calculated = 'Y') THEN
           IF (v_ByDefault = 'N') THEN
-            SELECT TO_NUMBER((M_Production.ENDTIME - M_Production.STARTTIME)*24) INTO v_CostCenterUse
+            SELECT TO_NUMBER((M_ProductionPlan.ENDTIME - M_ProductionPlan.STARTTIME)*24) INTO v_CostCenterUse
             FROM M_Production, M_ProductionPlan
             WHERE M_Production.M_Production_ID = M_ProductionPlan.M_PRODUCTION_ID
               AND M_ProductionPlan.M_PRODUCTIONPLAN_ID = v_Record_ID;
@@ -517,6 +613,39 @@
         UPDATE M_PRODUCTIONPLAN
           SET Processed='Y'
         WHERE M_ProductionPlan_ID=v_Record_ID;
+
+        --MA_Productionrun_Standard - Finish Process Extension Point
+	SELECT count(*) INTO v_count
+	FROM DUAL
+	where exists (select 1 from ad_ep_procedures where ad_extension_points_id = 'FF80818132FDD74F0132FDEB6304001F');
+	IF (v_count=1) THEN
+	  DECLARE
+	    v_ep_instance VARCHAR2(32);
+	    v_extension_point_id VARCHAR2(32) := 'FF80818132FDD74F0132FDEB6304001F';
+	  BEGIN
+	    v_ep_instance := get_uuid();
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+	      v_Record_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+	      v_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+	      NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Result',
+	    NULL, NULL, v_result, NULL, NULL, NULL, NULL);
+	    AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+	    SELECT p_number INTO v_result
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	    AND parametername LIKE 'Result';	    
+	    SELECT p_text INTO v_Message
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	    AND parametername LIKE 'Message';
+		  
+	    DELETE FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance;
+	  END;
+	END IF;
       --<<FINISH_PROCESS>>
       v_ResultStr:='Ending';
       --v_Message := v_Message || '@Created@: ' || v_NoRecords;

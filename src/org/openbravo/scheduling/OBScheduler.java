@@ -362,7 +362,6 @@ public class OBScheduler {
 
       Calendar start = null;
       Calendar finish = null;
-
       try {
         final String timingOption = data.timingOption;
         if ("".equals(timingOption) || timingOption.equals(TIMING_OPTION_IMMEDIATE)) {

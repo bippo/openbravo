@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+  <database name="TABLE MA_SEQUENCEPRODUCTATT">
+    <table name="MA_SEQUENCEPRODUCTATT" primaryKey="MA_SEQUENCEPRODUCTATT_KEY">
+      <column name="MA_SEQUENCEPRODUCTATT_ID" primaryKey="true" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_CLIENT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="AD_ORG_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ISACTIVE" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[Y]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="CREATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATED" primaryKey="false" required="true" type="TIMESTAMP" size="7" autoIncrement="false">
+        <default><![CDATA[SYSDATE]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="UPDATEDBY" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="MA_SEQUENCEPRODUCT_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="M_ATTRIBUTEUSETO_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="M_ATTRIBUTEUSE_ID" primaryKey="false" required="false" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="ISSPECIALATT" primaryKey="false" required="true" type="CHAR" size="1" autoIncrement="false">
+        <default><![CDATA[N]]></default>
+        <onCreateDefault/>
+      </column>
+      <column name="SPECIALATT" primaryKey="false" required="false" type="VARCHAR" size="60" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <column name="MA_SEQUENCEPRODUCTFROM_ID" primaryKey="false" required="true" type="VARCHAR" size="32" autoIncrement="false">
+        <default/>
+        <onCreateDefault/>
+      </column>
+      <foreign-key foreignTable="AD_ORG" name="AD_ORG_MASEQUENCEATTPRODUCT">
+        <reference local="AD_ORG_ID" foreign="AD_ORG_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="M_ATTRIBUTEUSE" name="M_ATTRIBUTEUSE_MASEQATTPRODUCT">
+        <reference local="M_ATTRIBUTEUSE_ID" foreign="M_ATTRIBUTEUSE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="M_ATTRIBUTEUSE" name="M_ATTUSETO_MASEQATTPRODUCT">
+        <reference local="M_ATTRIBUTEUSETO_ID" foreign="M_ATTRIBUTEUSE_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="MA_SEQUENCEPRODUCT" name="MA_SEQPRODFROM_MASEQNCEATTPROD">
+        <reference local="MA_SEQUENCEPRODUCTFROM_ID" foreign="MA_SEQUENCEPRODUCT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="MA_SEQUENCEPRODUCT" name="MA_SEQPRODUCT_MA_SEQATTPRODUCT">
+        <reference local="MA_SEQUENCEPRODUCT_ID" foreign="MA_SEQUENCEPRODUCT_ID"/>
+      </foreign-key>
+      <foreign-key foreignTable="AD_CLIENT" name="MA_SEQUENCEATTPRODUCT_ADCLIENT">
+        <reference local="AD_CLIENT_ID" foreign="AD_CLIENT_ID"/>
+      </foreign-key>
+      <index name="MA_SEQUENCEPRODUCTATT_PARENT" unique="false">
+        <index-column name="MA_SEQUENCEPRODUCT_ID"/>
+      </index>
+      <check name="MA_SEQATTPROD_ISACTIVE_CHECK"><![CDATA[ISACTIVE IN ('Y', 'N')]]></check>
+      <check name="MA_SEQATTPROD_ISSPEATT_CHECK"><![CDATA[ISSPECIALATT IN ('Y', 'N')]]></check>
+    </table>
+  </database>

@@ -31,7 +31,7 @@ import org.openbravo.service.json.JsonUtils;
  */
 public class TimeUIDefinition extends UIDefinition {
   private SimpleDateFormat classicFormat = null;
-  private SimpleDateFormat xmlTimeFormat = JsonUtils.createTimeFormat();
+  private SimpleDateFormat xmlTimeFormat = JsonUtils.createJSTimeFormat();
 
   @Override
   public String getParentType() {
@@ -72,15 +72,9 @@ public class TimeUIDefinition extends UIDefinition {
       if (value == null || value.length() == 0 || value.equals("null")) {
         return null;
       }
-      // sometimes the default value gets passed which is already in the correct
-      // format, in that case just use that.
-      if (value.indexOf(":") == 2 && value.indexOf(":", 3) == 5) {
-        if (!value.contains("+") && !value.contains("-")) {
-          return value + "+00:00";
-        }
-        return value;
-      }
+
       final java.util.Date date = getClassicFormat().parse(value);
+
       return xmlTimeFormat.format(date);
     } catch (Exception e) {
       throw new OBException("Exception when handling value " + value, e);

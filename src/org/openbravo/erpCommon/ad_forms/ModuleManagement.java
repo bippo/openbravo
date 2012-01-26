@@ -1160,7 +1160,7 @@ public class ModuleManagement extends HttpSecureAppServlet {
                     + " "
                     + module.getVersionNo()
                     + " "
-                    + Utility.messageBD(this, "OtherModuleVersionToinstallOrigall",
+                    + Utility.messageBD(this, "OtherModuleVersionToinstall",
                         vars.getLanguage()) + " " + installOrig[i].getVersionNo());
               }
               if (found) {

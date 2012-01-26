@@ -231,22 +231,62 @@ isc.OBToolbar.addClassProperties({
   ATTACHMENTS_BUTTON_PROPERTIES: {
     action: function(){
       var selectedRows = this.view.viewGrid.getSelectedRecords(),
-          attachmentExists = this.view.attachmentExists, i;
+          attachmentExists = this.view.attachmentExists,
+          attachmentSection = this.view.viewForm.getItem('_attachments_'),
+          me = this, i;
       if(this.view.isShowingForm){
-        this.view.viewForm.getItem('_attachments_').expandSection();
-        this.view.viewForm.scrollToBottom();
+        if (!attachmentSection.isExpanded()) {
+          attachmentSection.expandSection();
+        }
+        attachmentSection.focusInItem();
+        if (this.view.viewForm.parentElement) {
+          // scroll after things have been expanded
+          this.view.viewForm.parentElement.delayCall('scrollTo', [null, attachmentSection.getTop()], 100);
+        }
+
         if(!attachmentExists){
-          this.view.viewForm.getItem('_attachments_').canvasItem.canvas.getMember(0).getMember(0).click();
+          attachmentSection.attachmentCanvasItem.canvas.getMember(0).getMember(0).click();
         }
         return;
       }
       if(selectedRows.size() === 1){
-        this.view.viewForm.setFocusItem(this.view.viewForm.getItem('_attachments_'));
+        this.view.viewForm.setFocusItem(attachmentSection);
         this.view.viewForm.forceFocusedField = '_attachments_';
         this.view.viewForm.expandAttachments = true;
         this.view.editRecord(selectedRows[0]);
+
+        // Move from grid view to form view could take a while.
+        // Section needs to be expanded before the viewport adjustment.
+        var expandedCount = 0, expandedInterval;
+        expandedInterval = setInterval(function() {
+          expandedCount += 1;
+          if(attachmentSection.isExpanded()){
+            me.view.viewForm.parentElement.scrollTo(null, attachmentSection.getTop());
+            clearInterval(expandedInterval);
+          }
+          if (expandedCount === 50) {
+            clearInterval(expandedInterval);
+          }
+        }, 100);
+
         if(!attachmentExists){
-          this.view.viewForm.getItem('_attachments_').canvasItem.canvas.getMember(0).getMember(0).click();
+          if (attachmentSection.attachmentCanvasItem.canvas.getMember(0)) {
+            attachmentSection.attachmentCanvasItem.canvas.getMember(0).getMember(0).click();
+          } else {
+            // The first time the form view is loaded, the section is not already built and it could take a while to be.
+            // Section needs to be built before the click event.
+            var clickCount = 0, clickInterval;
+            clickInterval = setInterval(function() {
+              clickCount += 1;
+              if(attachmentSection.attachmentCanvasItem.canvas.getMember(0)){
+                attachmentSection.attachmentCanvasItem.canvas.getMember(0).getMember(0).click();
+                clearInterval(clickInterval);
+              }
+              if (clickCount === 50) {
+                clearInterval(clickInterval);
+              }
+            }, 100);
+          }
         }
       } else {
         var recordIds = "";

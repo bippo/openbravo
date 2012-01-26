@@ -60,10 +60,11 @@ isc.OBQuickLaunch.addProperties({
   // todo: it is nicer to move this to a style but then this issue occurs:
   // https://issues.openbravo.com/view.php?id=13786
   width: 57,
+  separatorHeight: 10,
   
   layoutProperties: {
     width: 250,
-    membersMargin: 10
+    membersMargin: 0 // use custom attribute "separatorHeight" instead
   },
 
   nodeIcons: {

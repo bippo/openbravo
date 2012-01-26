@@ -374,6 +374,52 @@ public class HeartbeatProcess implements Process {
           log.warn("Incorrect maximum number of concurrent users during last 30 days: "
               + systemInfo.getProperty(SystemInfo.Item.MAX_CONCURRENT_USERS.getLabel()));
         }
+
+        try {
+          hbLog.setWSCallsMaximum(Long.parseLong(systemInfo
+              .getProperty(SystemInfo.Item.WS_CALLS_MAX.getLabel())));
+        } catch (NumberFormatException e) {
+          log.warn("Incorrect max number of ws calls during last 30 days: "
+              + systemInfo.getProperty(SystemInfo.Item.WS_CALLS_MAX.getLabel()));
+        }
+        try {
+          hbLog.setWSCallsAverage(new BigDecimal(systemInfo
+              .getProperty(SystemInfo.Item.WS_CALLS_AVG.getLabel())));
+        } catch (NumberFormatException e) {
+          log.warn("Incorrect avg number of ws calls during last 30 days: "
+              + systemInfo.getProperty(SystemInfo.Item.WS_CALLS_AVG.getLabel()));
+        }
+
+        try {
+          hbLog.setConnectorCallsMax(Long.parseLong(systemInfo
+              .getProperty(SystemInfo.Item.WSC_CALLS_MAX.getLabel())));
+        } catch (NumberFormatException e) {
+          log.warn("Incorrect max number of wsc calls during last 30 days: "
+              + systemInfo.getProperty(SystemInfo.Item.WSC_CALLS_MAX.getLabel()));
+        }
+        try {
+          hbLog.setConnectorCallsAverage(new BigDecimal(systemInfo
+              .getProperty(SystemInfo.Item.WSC_CALLS_AVG.getLabel())));
+        } catch (NumberFormatException e) {
+          log.warn("Incorrect avg number of wsc calls during last 30 days: "
+              + systemInfo.getProperty(SystemInfo.Item.WSC_CALLS_AVG.getLabel()));
+        }
+
+        try {
+          hbLog.setWSRejectedMaximum(Long.parseLong(systemInfo
+              .getProperty(SystemInfo.Item.WSR_CALLS_MAX.getLabel())));
+        } catch (NumberFormatException e) {
+          log.warn("Incorrect max number of ws rejected calls during last 30 days: "
+              + systemInfo.getProperty(SystemInfo.Item.WSR_CALLS_MAX.getLabel()));
+        }
+        try {
+          hbLog.setWSRejectedAverage(new BigDecimal(systemInfo
+              .getProperty(SystemInfo.Item.WSR_CALLS_AVG.getLabel())));
+        } catch (NumberFormatException e) {
+          log.warn("Incorrect avg number of ws rejected calls during last 30 days: "
+              + systemInfo.getProperty(SystemInfo.Item.WSR_CALLS_AVG.getLabel()));
+        }
+
         try {
           hbLog.setNumberOfClients(Long.parseLong(systemInfo
               .getProperty(SystemInfo.Item.NUMBER_OF_CLIENTS.getLabel())));

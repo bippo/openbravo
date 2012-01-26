@@ -20,7 +20,7 @@ package org.openbravo.erpCommon.info;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
+import java.util.HashMap;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -31,11 +31,12 @@ import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.database.ConnectionProvider;
+import org.openbravo.erpCommon.utility.AttributeSetInstanceValue;
 import org.openbravo.erpCommon.utility.DateTimeData;
 import org.openbravo.erpCommon.utility.OBError;
-import org.openbravo.erpCommon.utility.SequenceIdData;
 import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.model.common.plm.AttributeSet;
+import org.openbravo.model.common.plm.AttributeUse;
 import org.openbravo.model.common.plm.Product;
 import org.openbravo.utils.Replace;
 import org.openbravo.xmlEngine.XmlDocument;
@@ -128,9 +129,30 @@ public class AttributeSetInstance extends HttpSecureAppServlet {
       String strProduct = vars.getRequestGlobalVariable("inpProduct",
           "AttributeSetInstance.product");
       String strIsSOTrx = Utility.getContext(this, vars, "isSOTrx", strWindowId);
-      OBError myMessage = writeFields(this, vars,
-          AttributeSetInstanceData.select(this, strAttributeSet), strAttributeSet, strInstance,
-          strWindowId, strIsSOTrx, strProduct);
+
+      // Set Attributes
+      AttributeSetInstanceValue attSetValue = new AttributeSetInstanceValue(
+          vars.getStringParameter("inplot"), vars.getStringParameter("inpserno"),
+          vars.getStringParameter("inpDateFrom"), vars.getStringParameter("inpislocked", "N"),
+          vars.getStringParameter("inplockDescription"));
+      AttributeSet attSet = OBDal.getInstance().get(AttributeSet.class, strAttributeSet);
+      HashMap<String, String> attValues = new HashMap<String, String>();
+      for (AttributeUse attrUse : attSet.getAttributeUseList()) {
+        final String elementName = attrUse.getAttribute().getName();
+        if (attrUse.isActive() && attrUse.getAttribute().isActive()) {
+          if (attrUse.getAttribute().isMandatory()) {
+            attValues.put(replace(elementName),
+                vars.getRequiredStringParameter("inp" + elementName));
+          } else {
+            attValues.put(replace(elementName),
+                vars.getStringParameter("inp" + replace(elementName)));
+          }
+        }
+      }
+
+      OBError myMessage = attSetValue.setAttributeInstance(this, vars, strAttributeSet,
+          strInstance, strWindowId, strIsSOTrx, strProduct, attValues);
+      vars.setSessionValue("AttributeSetInstance.instance", attSetValue.getAttSetInstanceId());
       vars.setSessionValue("AttributeSetInstance.attribute", strAttributeSet);
       vars.setSessionValue("AttributeSetInstance.close", "Y");
       vars.setMessage(strTabId, myMessage);
@@ -138,200 +160,6 @@ public class AttributeSetInstance extends HttpSecureAppServlet {
       response.sendRedirect(strDireccion + request.getServletPath() + "?Command=DISPLAY");
     } else
       pageErrorPopUp(response);
-  }
-
-  private String getDescription(VariablesSecureApp vars, AttributeSetInstanceData[] data,
-      String strIsSOTrx, String strWindowId) {
-    if (data == null || data.length == 0)
-      return "";
-    String description = "";
-    try {
-      // AttributeSet header
-      String serno = "", lot = "", guaranteedate = "", lockDescription = "", description_first = "";
-      if (data[0].islot.equals("Y")) {
-        lot = vars.getStringParameter("inplot");
-        if (!data[0].mLotctlId.equals("") && (strIsSOTrx.equals("N") || strWindowId.equals("191"))) {
-          description_first += (description_first.equals("") ? "" : "_") + lot;// esto
-        } else
-          description_first += (description_first.equals("") ? "" : "_") + "L" + lot;
-      }
-      if (data[0].isserno.equals("Y")) {
-        serno = vars.getStringParameter("inpserno");
-        if (!data[0].mSernoctlId.equals("")
-            && (strIsSOTrx.equals("N") || strWindowId.equals("191"))) {
-          description_first += (description_first.equals("") ? "" : "_") + serno;
-        } else
-          description_first += (description_first.equals("") ? "" : "_") + "#" + serno;
-      }
-      if (data[0].isguaranteedate.equals("Y")) {
-        guaranteedate = vars.getStringParameter("inpDateFrom");
-        description_first += (description_first.equals("") ? "" : "_") + guaranteedate;
-      }
-      if (data[0].islockable.equals("Y")) {
-        lockDescription = vars.getStringParameter("inplockDescription");
-        description_first += (description_first.equals("") ? "" : "_") + lockDescription;
-      }
-
-      if (!data[0].elementname.equals("")) {
-        for (int i = 0; i < data.length; i++) {
-          String strValue = "";
-          if (data[i].ismandatory.equals("Y"))
-            strValue = vars.getRequiredStringParameter("inp" + replace(data[i].elementname));
-          else
-            strValue = vars.getStringParameter("inp" + replace(data[i].elementname));
-          String strDescValue = strValue;
-          if (data[i].islist.equals("Y"))
-            strDescValue = AttributeSetInstanceData.selectAttributeValue(this, strValue);
-          description += (description.equals("") ? "" : "_") + strDescValue;
-        }
-      }
-      if (!description_first.equals(""))
-        description += (description.equals("") ? "" : "_") + description_first;
-    } catch (ServletException e) {
-      return "";
-    }
-    return description;
-  }
-
-  private OBError writeFields(ConnectionProvider cp, VariablesSecureApp vars,
-      AttributeSetInstanceData[] data, String strAttributeSet, String strInstance,
-      String strWindow, String strIsSOTrx, String strProduct) throws ServletException {
-    String strNewInstance = "";
-
-    OBError myMessage = null;
-    myMessage = new OBError();
-    myMessage.setTitle("");
-    myMessage.setType("Success");
-    myMessage.setMessage(Utility.messageBD(this, "Success", vars.getLanguage()));
-    if (data == null || data.length == 0) {
-      myMessage.setType("Error");
-      myMessage.setMessage(Utility.messageBD(this, "FindZeroRecords", vars.getLanguage()));
-      // Utility.messageBD(this, "FindZeroRecords", vars.getLanguage());
-      return myMessage;
-    }
-
-    boolean isinstance = !AttributeSetInstanceData.isInstanceAttribute(this, strAttributeSet)
-        .equals("0");
-    String strDescription = getDescription(vars, data, strIsSOTrx, strWindow);
-    Connection conn = null;
-    try {
-      conn = cp.getTransactionConnection();
-      String serno = "", lot = "", guaranteedate = "", locked = "", lockDescription = "", description = "", description_first = "";
-      if (data[0].islot.equals("Y")) {
-        lot = vars.getStringParameter("inplot");
-        if (!data[0].mLotctlId.equals("") && (strIsSOTrx.equals("N") || strWindow.equals("191"))) {
-          lot = AttributeSetInstanceData.selectNextLot(this, data[0].mLotctlId);
-          AttributeSetInstanceData.updateLotSequence(conn, this, vars.getUser(), data[0].mLotctlId);
-          description_first += (description_first.equals("") ? "" : "_") + lot;// esto
-        } else {
-          description_first += (description_first.equals("") ? "" : "_") + "L" + lot;
-        }
-      }
-      if (data[0].isserno.equals("Y")) {
-        serno = vars.getStringParameter("inpserno");
-        if (!data[0].mSernoctlId.equals("") && (strIsSOTrx.equals("N") || strWindow.equals("191"))) {
-          serno = AttributeSetInstanceData.selectNextSerNo(conn, this, data[0].mSernoctlId);
-          AttributeSetInstanceData.updateSerNoSequence(conn, this, vars.getUser(),
-              data[0].mSernoctlId);
-          description_first += (description_first.equals("") ? "" : "_") + serno;
-        } else {
-          description_first += (description_first.equals("") ? "" : "_") + "#" + serno;
-        }
-      }
-      if (data[0].isguaranteedate.equals("Y")) {
-        guaranteedate = vars.getStringParameter("inpDateFrom");
-        description_first += (description_first.equals("") ? "" : "_") + guaranteedate;
-      }
-      if (data[0].islockable.equals("Y")) {
-        locked = vars.getStringParameter("inpislocked", "N");
-        lockDescription = vars.getStringParameter("inplockDescription");
-        description_first += (description_first.equals("") ? "" : "_") + lockDescription;
-      }
-      if (!isinstance) {
-        strNewInstance = AttributeSetInstanceData.hasIdentical(this, strDescription,
-            data[0].mAttributesetId);
-      }
-      boolean hasToUpdate = false;
-      if ((!strInstance.equals("")) && (isinstance)) {// Si if it's
-        // existant and
-        // requestable, it
-        // edits it
-        hasToUpdate = true;
-        if (AttributeSetInstanceData.updateHeader(conn, this, vars.getUser(),
-            data[0].mAttributesetId, serno, lot, guaranteedate, "", locked, lockDescription,
-            strInstance) == 0) {
-          AttributeSetInstanceData.insertHeader(conn, this, strInstance, vars.getClient(),
-              vars.getOrg(), vars.getUser(), data[0].mAttributesetId, serno, lot, guaranteedate,
-              "", locked, lockDescription);
-        }
-      } else if ((isinstance) || (strNewInstance.equals(""))) { // New or
-        // editable,if
-        // it's
-        // requestable
-        // or
-        // doesn't
-        // exist
-        // the
-        // identic,
-        // then it
-        // inserts
-        // a new
-        // one
-        hasToUpdate = true;
-        strNewInstance = SequenceIdData.getUUID();
-        AttributeSetInstanceData.insertHeader(conn, this, strNewInstance, vars.getClient(),
-            vars.getOrg(), vars.getUser(), data[0].mAttributesetId, serno, lot, guaranteedate, "",
-            locked, lockDescription);
-      }
-      if (hasToUpdate) {
-        if (!data[0].elementname.equals("")) {
-          for (int i = 0; i < data.length; i++) {
-            String strValue = "";
-            if (data[i].ismandatory.equals("Y"))
-              strValue = vars.getRequiredStringParameter("inp" + replace(data[i].elementname));
-            else
-              strValue = vars.getStringParameter("inp" + replace(data[i].elementname));
-            String strDescValue = strValue;
-            if (data[i].islist.equals("Y"))
-              strDescValue = AttributeSetInstanceData.selectAttributeValue(this, strValue);
-            if (!strNewInstance.equals("")) {
-              if (AttributeSetInstanceData.update(conn, this, vars.getUser(),
-                  (data[i].islist.equals("Y") ? strValue : ""), strDescValue, strNewInstance,
-                  data[i].mAttributeId) == 0) {
-                String strNewAttrInstance = SequenceIdData.getUUID();
-                AttributeSetInstanceData.insert(conn, this, strNewAttrInstance, strNewInstance,
-                    data[i].mAttributeId, vars.getClient(), vars.getOrg(), vars.getUser(),
-                    (data[i].islist.equals("Y") ? strValue : ""), strDescValue);
-              }
-            } else {
-              if (AttributeSetInstanceData.update(conn, this, vars.getUser(),
-                  (data[i].islist.equals("Y") ? strValue : ""), strDescValue, strInstance,
-                  data[i].mAttributeId) == 0) {
-                String strNewAttrInstance = SequenceIdData.getUUID();
-                AttributeSetInstanceData.insert(conn, this, strNewAttrInstance, strInstance,
-                    data[i].mAttributeId, vars.getClient(), vars.getOrg(), vars.getUser(),
-                    (data[i].islist.equals("Y") ? strValue : ""), strDescValue);
-              }
-            }
-            description += (description.equals("") ? "" : "_") + strDescValue;
-          }
-        }
-        if (!description_first.equals(""))
-          description += (description.equals("") ? "" : "_") + description_first;
-        AttributeSetInstanceData.updateHeaderDescription(conn, this, vars.getUser(), description,
-            (strNewInstance.equals("") ? strInstance : strNewInstance));
-      }
-      releaseCommitConnection(conn);
-      vars.setSessionValue("AttributeSetInstance.instance",
-          (strNewInstance.equals("") ? strInstance : strNewInstance));
-    } catch (Exception e) {
-      try {
-        releaseRollbackConnection(conn);
-      } catch (Exception ignored) {
-      }
-      log4j.error("Rollback in transaction: " + e);
-    }
-    return myMessage;
   }
 
   private void printPage(HttpServletResponse response, VariablesSecureApp vars, String strInstance,

@@ -23,12 +23,6 @@ isc.OBQuickLaunchRecentLinkButton.addProperties({
   recentObject: null,
   prefixLabel: null,
   action: function(){
-    // getting the last event prevents an error in chrome
-    // https://issues.openbravo.com/view.php?id=16847
-    var lastEvent = isc.EventHandler.getLastEvent();
-    if (!isc.EventHandler.leftButtonDown()) {
-      return;
-    }
     OB.RecentUtilities.addRecent(this.recentPropertyName, this.recentObject);
     if (this.recentObject.viewId) {
       OB.Layout.ViewManager.openView(this.recentObject.viewId, this.recentObject);
@@ -88,22 +82,27 @@ isc.OBQuickLaunch.addProperties({
           index++;
         }
       }
-      if (this.members[0].getMembers()) {
-        this.members[0].destroyAndRemoveMembers(this.members[0].getMembers().duplicate());
-      } 
+      if (this.members[1].getMembers()) {
+        this.members[1].destroyAndRemoveMembers(this.members[1].getMembers().duplicate());
+      }
 
-      this.members[0].setMembers(newFields);
+      this.members[1].setMembers(newFields);
 
-      this.layout.showMember(this.members[0]);
+      if (this.separatorHeight) {
+        this.members[1].layoutBottomMargin = this.separatorHeight;
+        this.members[1].setLayoutMargin();
+      }
+
+      this.layout.showMember(this.members[1]);
     }
-    this.members[1].getField('value').setValue(null);
-    this.members[1].getField('value').setElementValue('', null);
+    this.members[2].getField('value').setValue(null);
+    this.members[2].getField('value').setElementValue('', null);
   },
 
   // handle the case that someone entered a url in the quick launch
   doHide: function(){
-    if (this.members[1].getField('value').getValue() && this.members[1].getField('value').getValue().contains('?')) {
-      var params = OB.Utilities.getUrlParameters(this.members[1].getField('value').getValue());
+    if (this.members[2].getField('value').getValue() && this.members[2].getField('value').getValue().contains('?')) {
+      var params = OB.Utilities.getUrlParameters(this.members[2].getField('value').getValue());
       if (params && params.tabId) {
         OB.Utilities.openDirectTab(params.tabId, params.recordId, params.command);
       }
@@ -112,7 +111,24 @@ isc.OBQuickLaunch.addProperties({
   },
 
   initWidget: function(){
-    this.members = [isc.VLayout.create({
+    var dummyFirstField = isc.OBFocusButton.create({
+      getFocusTarget: function() {
+        return this.parentElement.members[this.parentElement.members.length-2];
+      }
+    });
+    var dummyLastField = isc.OBFocusButton.create({
+      getFocusTarget: function() {
+        var firstFocusableItem;
+        if (this.parentElement.members[1].members.length > 0) {
+          firstFocusableItem = this.parentElement.members[1].members[0];
+        } else {
+          firstFocusableItem = this.parentElement.members[this.parentElement.members.length-2];
+        }
+        return firstFocusableItem;
+      }
+    });
+    this.members = [dummyFirstField,
+    isc.VLayout.create({
       height: 1, //To allow height grow with its contents
       visibility: 'hidden'
     }), isc.DynamicForm.create({
@@ -124,6 +140,7 @@ isc.OBQuickLaunch.addProperties({
         cellStyle: OB.Styles.OBFormField.DefaultComboBox.cellStyle,
         titleStyle: OB.Styles.OBFormField.DefaultComboBox.titleStyle,
         textBoxStyle: OB.Styles.OBFormField.DefaultComboBox.textBoxStyle,
+        pendingTextBoxStyle: OB.Styles.OBFormField.DefaultComboBox.pendingTextBoxStyle,
         controlStyle: OB.Styles.OBFormField.DefaultComboBox.controlStyle,
         pickListBaseStyle: OB.Styles.OBFormField.DefaultComboBox.pickListBaseStyle,
         pickListTallBaseStyle: OB.Styles.OBFormField.DefaultComboBox.pickListTallBaseStyle,
@@ -287,14 +304,14 @@ isc.OBQuickLaunch.addProperties({
           return result;
         }
       }]
-    })];
+    }), dummyLastField];
 
     var ret = this.Super('initWidget', arguments);
 
     // register the field in the registry
-    var suggestionField = this.members[1].getField('value');
-    OB.TestRegistry.register(this.recentPropertyName + '_RECENTFORM', this.members[0]);
-    OB.TestRegistry.register(this.recentPropertyName + '_FORM', this.members[1]);
+    var suggestionField = this.members[2].getField('value');
+    OB.TestRegistry.register(this.recentPropertyName + '_RECENTFORM', this.members[1]);
+    OB.TestRegistry.register(this.recentPropertyName + '_FORM', this.members[2]);
     OB.TestRegistry.register(this.recentPropertyName + '_BUTTON', this);
     OB.TestRegistry.register(this.recentPropertyName + '_FIELD', suggestionField);
 

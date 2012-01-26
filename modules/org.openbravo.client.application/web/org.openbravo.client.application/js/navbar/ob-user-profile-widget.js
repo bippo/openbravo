@@ -98,7 +98,7 @@ isc.OBUserProfile.addProperties({
      orgField, warehouseField, languageField, checkboxFieldProperties,
      defaultField, clientField, tabSet, pwdButtonLayout, 
      pwdFormLayout, pwdSaveButton, textFieldProperties, 
-     passwordFieldProperties;
+     passwordFieldProperties, dummyFirstField, dummyLastField;
   
     OB.Layout.userProfileWidget = this;
     
@@ -111,6 +111,7 @@ isc.OBUserProfile.addProperties({
       cellStyle: OB.Styles.OBFormField.DefaultComboBox.cellStyle,
       titleStyle: OB.Styles.OBFormField.DefaultComboBox.titleStyle,
       textBoxStyle: OB.Styles.OBFormField.DefaultComboBox.textBoxStyle,
+      pendingTextBoxStyle: OB.Styles.OBFormField.DefaultComboBox.pendingTextBoxStyle,
       controlStyle: OB.Styles.OBFormField.DefaultComboBox.controlStyle,
       width: '*',
       pickListBaseStyle: OB.Styles.OBFormField.DefaultComboBox.pickListBaseStyle,
@@ -555,8 +556,26 @@ isc.OBUserProfile.addProperties({
       }]
     });
     widgetInstance.tabSet = tabSet;
+
+    dummyFirstField = isc.OBFocusButton.create({
+      getFocusTarget: function() {
+        var tabSet = this.parentElement.members[1];
+        var selectedTabNumber = tabSet.getSelectedTabNumber();
+        var length1 = tabSet.getTabPane(selectedTabNumber).members.length - 1;
+        var length2 = tabSet.getTabPane(selectedTabNumber).members[length1].members.length - 1;
+        return tabSet.getTabPane(selectedTabNumber).members[length1].members[length2];
+      }
+    });
+
+    dummyLastField = isc.OBFocusButton.create({
+      getFocusTarget: function() {
+        var tabSet = this.parentElement.members[1];
+        var selectedTabNumber = tabSet.getSelectedTabNumber();
+        return tabSet.tabBar.members[selectedTabNumber];
+      }
+    });
     
-    this.members = [tabSet];
+    this.members = [dummyFirstField, tabSet, dummyLastField];
     
     OB.TestRegistry.register('org.openbravo.client.application.navigationbarcomponents.UserProfile.Tabset', tabSet);
     OB.TestRegistry.register('org.openbravo.client.application.navigationbarcomponents.UserProfilePassword.SaveButton', pwdSaveButton);

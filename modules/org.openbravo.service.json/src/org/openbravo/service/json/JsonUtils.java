@@ -70,6 +70,17 @@ public class JsonUtils {
   }
 
   /**
+   * @return a new instance of the {@link SimpleDateFormat} using a format of yyyy-MM-dd'T'HH:mm:ss
+   *         (see http://www.w3.org/TR/xmlschema-2/#dateTime). The date format has lenient set to
+   *         true.
+   */
+  public static SimpleDateFormat createJSTimeFormat() {
+    final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    dateFormat.setLenient(true);
+    return dateFormat;
+  }
+
+  /**
    * Note the formatted date string must be repaired in the timezone to follow the XSD format, see:
    * {@link #convertToCorrectXSDFormat(String)}.
    * 
