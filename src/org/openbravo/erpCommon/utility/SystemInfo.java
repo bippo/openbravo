@@ -88,6 +88,14 @@ public class SystemInfo {
   private static String macAddress;
   private static String databaseIdentifier;
 
+  private static long maxDayWsLogins;
+  private static BigDecimal avgWsLogins = BigDecimal.ZERO;
+
+  private static long maxDayWsCLogins;
+  private static BigDecimal avgWsCLogins = BigDecimal.ZERO;
+  private static long maxDayRejectedWsLogins;
+  private static BigDecimal avgRejectedWsLogins;
+
   static {
     systemInfo = new HashMap<Item, String>();
     sd = new SimpleDateFormat("dd-MM-yyyy");
@@ -225,6 +233,24 @@ public class SystemInfo {
         break;
       case TOTAL_LOGINS_LAST_MOTH:
         systemInfo.put(i, Integer.toString(numberOfLoginsThisMonth));
+        break;
+      case WS_CALLS_MAX:
+        systemInfo.put(i, Long.toString(maxDayWsLogins));
+        break;
+      case WS_CALLS_AVG:
+        systemInfo.put(i, avgWsLogins.toString());
+        break;
+      case WSR_CALLS_MAX:
+        systemInfo.put(i, Long.toString(maxDayRejectedWsLogins));
+        break;
+      case WSR_CALLS_AVG:
+        systemInfo.put(i, avgRejectedWsLogins.toString());
+        break;
+      case WSC_CALLS_MAX:
+        systemInfo.put(i, Long.toString(maxDayWsCLogins));
+        break;
+      case WSC_CALLS_AVG:
+        systemInfo.put(i, avgWsCLogins.toString());
         break;
       case NUMBER_OF_CLIENTS:
         systemInfo.put(i, getNumberOfClients());
@@ -567,7 +593,7 @@ public class SystemInfo {
   /**
    * In case it is an OBPS instance, it returns the CRC of the activation key
    */
-  private static String getOBPSInstance() {
+  public static String getOBPSInstance() {
     if (ActivationKey.getInstance().isOPSInstance()) {
       return ActivationKey.getInstance().getOpsLogId();
     } else {
@@ -578,7 +604,7 @@ public class SystemInfo {
   /**
    * In case it is an OBPS instance, it returns the number of instance
    */
-  private static String getOBPSIntanceNumber() {
+  public static String getOBPSIntanceNumber() {
     if (ActivationKey.getInstance().isOPSInstance()) {
       return ActivationKey.getInstance().getProperty("instanceno");
     } else {
@@ -682,12 +708,69 @@ public class SystemInfo {
       }
       log4j.debug("max:" + maxUsers + " total:" + totalUsageTime + " "
           + usagePercentageTime.toString() + "% avg usr:" + avgUsers.toString());
+
+      // WS calls
+      maxDayWsLogins = 0L;
+      long totalWsLogins = 0L;
+      for (Long dayWsLogins : getWsLogins("WS", startOfPeriod.getTime())) {
+        totalWsLogins += dayWsLogins;
+        if (dayWsLogins > maxDayWsLogins) {
+          maxDayWsLogins = dayWsLogins;
+        }
+      }
+      avgWsLogins = BigDecimal.valueOf(totalWsLogins).divide(BigDecimal.valueOf(30), 3,
+          RoundingMode.HALF_DOWN);
+      log4j.debug("WS Calls: total:" + totalWsLogins + " - max:" + maxDayWsLogins + " - avg:"
+          + avgWsLogins.toString());
+
+      // Rejected WS calls
+      maxDayRejectedWsLogins = 0L;
+      long totalRejectedWsLogins = 0L;
+      for (Long dayRWsLogins : getWsLogins("WSR", startOfPeriod.getTime())) {
+        totalRejectedWsLogins += dayRWsLogins;
+        if (dayRWsLogins > maxDayRejectedWsLogins) {
+          maxDayRejectedWsLogins = dayRWsLogins;
+        }
+      }
+      avgRejectedWsLogins = BigDecimal.valueOf(totalRejectedWsLogins).divide(
+          BigDecimal.valueOf(30), 3, RoundingMode.HALF_DOWN);
+      log4j.debug("WS Rejected Calls: total:" + totalRejectedWsLogins + " - max:"
+          + maxDayRejectedWsLogins + " - avg:" + avgRejectedWsLogins.toString());
+
+      // Connector calls
+      maxDayWsCLogins = 0L;
+      long totalWsCLogins = 0L;
+      for (Long dayWsCLogins : getWsLogins("WSC", startOfPeriod.getTime())) {
+        totalWsCLogins += dayWsCLogins;
+        if (dayWsCLogins > maxDayWsCLogins) {
+          maxDayWsCLogins = dayWsCLogins;
+        }
+      }
+      avgWsCLogins = BigDecimal.valueOf(totalWsCLogins).divide(BigDecimal.valueOf(30), 3,
+          RoundingMode.HALF_DOWN);
+      log4j.debug("WSC Calls: total:" + totalWsCLogins + " - max:" + maxDayWsCLogins + " - avg:"
+          + avgWsCLogins.toString());
+
       log4j
           .debug("Total time computing sessions:" + (System.currentTimeMillis() - computationTime));
     } catch (Exception e) {
       log4j.error("Error calculating login information", e);
     }
 
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<Long> getWsLogins(String type, Date fromDate) {
+    StringBuilder hql = new StringBuilder();
+    hql.append("select count(*)\n");
+    hql.append("  from ADSession\n");
+    hql.append(" where loginStatus = :type\n");
+    hql.append("   and creationDate > :firstDay\n");
+    hql.append(" group by day(creationDate), month(creationDate), year(creationDate)\n");
+    Query qWs = OBDal.getInstance().getSession().createQuery(hql.toString());
+    qWs.setParameter("firstDay", fromDate);
+    qWs.setParameter("type", type);
+    return qWs.list();
   }
 
   private static void calculateNumberOfRejectedLoginsDueConcurrentUsersLastMonth(
@@ -754,7 +837,9 @@ public class SystemInfo {
         false), NUMBER_OF_ORGS("orgNum", false), USAGE_AUDIT("usageAudit", false), INSTANCE_PURPOSE(
         "instancePurpose", false), REJECTED_LOGINS_DUE_CONC_USERS("rejectedLoginsDueConcUsers",
         false), INSTANCE_NUMBER("instanceNo", false), CUSTOM_QUERY_ENABLED("enabledCustomQuery",
-        false);
+        false), WS_CALLS_MAX("wsCallsMax", false), WS_CALLS_AVG("wsCallsAvg", false), WSC_CALLS_MAX(
+        "wscCallsMax", false), WSC_CALLS_AVG("wscCallsAvg", false), WSR_CALLS_MAX(
+        "wsRejectedCallsMax", false), WSR_CALLS_AVG("wsRejectedCallsAvg", false);
 
     private String label;
     private boolean isIdInfo;

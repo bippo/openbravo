@@ -238,8 +238,10 @@ BEGIN
         FROM (
             SELECT line, percentage, onremainder, excludetax,
                    COALESCE(paymentrule, v_paymentrule) AS paymentrule,
-                   fixmonthday, fixmonthday2, fixmonthday3, netdays,
-                   fixmonthoffset, netday, isnextbusinessday
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday END) AS fixmonthday,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday2 END) AS Fixmonthday2,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday3 END) AS fixmonthday3,
+                   netdays, fixmonthoffset, netday, isnextbusinessday
             FROM c_paymenttermline
             WHERE c_paymentterm_id=v_paymentterm
               AND isactive = 'Y'
@@ -247,27 +249,37 @@ BEGIN
             -- Header of paymentTerm is processed at last
             SELECT 9999 AS line, 100 AS percentage, 'Y' AS onremainder, 'N' AS excludetax,
                    v_paymentRule AS paymentrule,
-                   fixmonthday, fixmonthday2, fixmonthday3, netdays,
-                   fixmonthoffset, netday, isnextbusinessday
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday END) AS fixmonthday,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday2 END) AS Fixmonthday2,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday3 END) AS fixmonthday3,
+                   netdays, fixmonthoffset, netday, isnextbusinessday
             FROM c_paymentterm
             WHERE c_paymentterm_id=v_paymentterm) a;
 
         FOR cur_payments IN (
             SELECT line, percentage, onremainder, excludetax,
-                   COALESCE(paymentrule, v_paymentrule) AS paymentrule,
-                   fixmonthday, fixmonthday2, fixmonthday3, netdays,
-                   fixmonthoffset, netday, isnextbusinessday
-            FROM c_paymenttermline
-            WHERE c_paymentterm_id=v_paymentterm
-              AND isactive = 'Y'
+                   COALESCE(cptl.paymentrule, v_paymentrule) AS paymentrule,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday END) AS fixmonthday,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday2 END) AS Fixmonthday2,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday3 END) AS fixmonthday3,
+                   netdays, fixmonthoffset, netday, isnextbusinessday,
+                   COALESCE(cptl.fin_paymentmethod_id,c.fin_paymentmethod_id) as fin_paymentmethod_id
+            FROM c_paymenttermline cptl,c_invoice c
+            WHERE cptl.c_paymentterm_id=v_paymentterm
+              AND cptl.isactive = 'Y'
+              AND c_invoice_id = p_record_id
             UNION
             -- Header of paymentTerm is processed at last
             SELECT 9999 AS line, 100 AS percentage, 'Y' AS onremainder, 'N' AS excludetax,
                    v_paymentRule AS paymentrule,
-                   fixmonthday, fixmonthday2, fixmonthday3, netdays,
-                   fixmonthoffset, netday, isnextbusinessday
-            FROM c_paymentterm
-            WHERE c_paymentterm_id=v_paymentterm
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday END) AS fixmonthday,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday2 END) AS Fixmonthday2,
+                   (CASE isduefixed WHEN 'N' THEN  null ELSE fixmonthday3 END) AS fixmonthday3,
+                   netdays, fixmonthoffset, netday, isnextbusinessday,
+                   c.fin_paymentmethod_id
+            FROM c_paymentterm cpt ,c_invoice c
+            WHERE cpt.c_paymentterm_id=v_paymentterm
+              AND c_invoice_id = p_record_id
             ORDER BY line
           )
         LOOP
@@ -305,7 +317,7 @@ BEGIN
             v_payment_schedule_invoice, v_client_id, v_org_id, 'Y',
             now(), p_user, now(), p_user,
             p_record_id, v_currency_id, null,
-            v_PaymentMethod,
+            cur_payments.fin_paymentmethod_id,
             v_scheduledamount, v_planneddate,
             v_scheduledamount, v_PaymentPriority
           );

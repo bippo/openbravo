@@ -1266,7 +1266,12 @@
         */
         UPDATE C_DEBT_PAYMENT  SET IsValid='Y'  WHERE C_Order_ID=v_Record_ID;
         SELECT C_ORDER.PAYMENTRULE,
-            C_ORDER.DOCUMENTNO||' - '||C_BPARTNER.NAME||' - '||C_ORDER.GRANDTOTAL,
+            (CASE 
+		WHEN (length(C_ORDER.DOCUMENTNO||' - '||C_BPARTNER.NAME||' - '||C_ORDER.GRANDTOTAL) > 200) 
+			THEN substr(C_ORDER.DOCUMENTNO||' - '||C_BPARTNER.NAME||' - '||C_ORDER.GRANDTOTAL,1,197)||'...'
+		ELSE 
+			C_ORDER.DOCUMENTNO||' - '||C_BPARTNER.NAME||' - '||C_ORDER.GRANDTOTAL
+	    END) AS CONCATENATION,
             C_ORDER.GRANDTOTAL,
             C_ORDER.M_WAREHOUSE_ID
           INTO v_PaymentRule,

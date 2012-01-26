@@ -37,6 +37,7 @@ import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.type.Type;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.exception.OBSecurityException;
+import org.openbravo.base.model.BaseOBObjectDef;
 import org.openbravo.base.model.Entity;
 import org.openbravo.base.model.Property;
 import org.openbravo.base.structure.BaseOBObject;
@@ -223,6 +224,15 @@ public class OBInterceptor extends EmptyInterceptor {
 
     doEvent(entity, currentState, propertyNames);
 
+    // also check for new records
+    // commented out for now, re-apply in MP9
+    // see issue https://issues.openbravo.com/view.php?id=19273
+    // if (disableCheckReferencedOrganizations.get() == null
+    // || !disableCheckReferencedOrganizations.get()) {
+    // checkReferencedOrganizations(entity, currentState, new Object[currentState.length],
+    // propertyNames);
+    // }
+
     boolean listenerResult = false;
     if (getInterceptorListener() != null) {
       listenerResult = getInterceptorListener().onSave(entity, id, currentState, propertyNames,
@@ -269,6 +279,20 @@ public class OBInterceptor extends EmptyInterceptor {
         // get the organization from the current state
         final OrganizationEnabled oe = (OrganizationEnabled) currentState[i];
         final Organization o2 = oe.getOrganization();
+
+        // don't do the check for references to attribute set instance
+        // using a hard coded name to prevent compile time dependencies
+        // attribute set instances could be saved with the wrong org
+        // see:
+        // https://issues.openbravo.com/view.php?id=19272
+        // to not block companies with wrong data prevent the check
+        // in this case
+        // also see:
+        // https://issues.openbravo.com/view.php?id=19273
+        final BaseOBObjectDef obObject = (BaseOBObjectDef) currentState[i];
+        if (obObject.getEntity().getName().equals("AttributeSetInstance")) {
+          continue;
+        }
 
         if (!obContext.getOrganizationStructureProvider(o1.getClient().getId()).isInNaturalTree(o1,
             o2)) {

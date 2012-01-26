@@ -391,6 +391,7 @@ isc.OBStatusBar.addProperties( {
             arrayTitleField[1][i]._value = arrayTitleField[1][i].contents;
 
             arrayTitleField[1][i].show();
+            arrayTitleField[1][i].inStatusBar = true;
             this.content.addMember(arrayTitleField[1][i]);
             continue;
           }

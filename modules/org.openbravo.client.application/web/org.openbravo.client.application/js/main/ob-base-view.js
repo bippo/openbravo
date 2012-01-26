@@ -40,12 +40,21 @@ isc.OBBaseView.addProperties({
   // replacing the current open view there). This is needed for cases
   // when a certain view may only be opened once.
   isSameTab: function(viewId, params){
+    var prop;
+    
+    for (prop in params) {
+      if (params.hasOwnProperty(prop)) {
+        if (params[prop] !== this[prop]) {
+          return false;
+        }
+      }
+    }
+    
     // a common implementation does this, this allows only 
     // one instance of certain view class to be open at one point 
     // in time.
-    // return viewId === this.getClassName();
     // this will allow multiple tabs to be opened:
-    return false;
+    return viewId === this.getClassName();
   },
 
   // ** {{{ OBBaseView.getBookMarkParams() }}} **
@@ -57,6 +66,7 @@ isc.OBBaseView.addProperties({
   getBookMarkParams: function() {
     var result = {};
     result.viewId = this.getClassName();
+    result.tabTitle = this.tabTitle;
     return result;
   },
   

@@ -60,6 +60,8 @@ isc.OBTextItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.Default
 
 isc.OBTimeItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.DefaultTextItem));
 
+isc.OBFKFilterTextItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.DefaultTextItem));
+
 isc.OBEncryptedItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.DefaultTextItem));
 
 isc.OBClientClassCanvasItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.DefaultTextItem));
@@ -100,10 +102,10 @@ OB.Styles.OBFormField.DefaultComboBox = {
   cellStyle: 'OBFormField',
   titleStyle: 'OBFormFieldLabel',
   textBoxStyle: 'OBFormFieldSelectInput',
+  pendingTextBoxStyle: null, //'OBFormFieldSelectInputPending',
   controlStyle: 'OBFormFieldSelectControl',
   pickerIconStyle: 'OBFormFieldSelectPickerIcon',
   pickListBaseStyle: 'OBFormFieldPickListCell',
-  pendingTextBoxStyle: null,
   // tallbasestyle is used when the cellheight is different
   // from the standard
   pickListTallBaseStyle: 'OBFormFieldPickListCell',
@@ -265,6 +267,9 @@ isc.OBDateItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.Default
 
 isc.OBDateTimeItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.DefaultDateInput));
 
+isc.OBTruncAddMinusDisplay.addProperties({
+  baseStyle: 'OBLabelCanvasItem'
+});
 
 isc.OBNumberItem.addProperties({
   cellStyle: 'OBFormField',

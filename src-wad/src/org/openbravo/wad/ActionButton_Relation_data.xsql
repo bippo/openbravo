@@ -138,20 +138,13 @@
       <![CDATA[
         SELECT count(*) as total
           FROM AD_PROCESS P,
-            AD_MENU M,
             AD_SYSTEM_INFO SI
-          WHERE P.isactive = 'Y'
-           AND (P.PROCEDURENAME IS NOT NULL 
-               OR P.IsJasper = 'Y' 
-               OR (P.UIPattern = 'S'
-                  AND (P.IsJasper = 'N' AND P.PROCEDURENAME IS NULL)))
-           and P.ad_process_id = m.ad_process_id
-           and (p.UPDATED>SI.LAST_BUILD
+          WHERE p.UPDATED>SI.LAST_BUILD
             or exists (Select 1 
                          from AD_Process_Para pp
                         where pp.AD_Process_ID = p.AD_Process_ID
                           and pp.updated > si.last_build
-                         ))
+                         )
       ]]>
     </Sql>
   </SqlMethod>

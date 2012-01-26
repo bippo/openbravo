@@ -58,7 +58,7 @@ public class BaseWSTest extends BaseTest {
 
   private static final Logger log = Logger.getLogger(BaseWSTest.class);
 
-  private static final String OB_URL = "http://localhost:8080/openbravo";
+  private static final String OB_URL = "http://localhost:8081/openbravo";
   private static final String LOGIN = "Openbravo";
   private static final String PWD = "openbravo";
 

@@ -774,9 +774,10 @@ BEGIN --BODY
       END LOOP;
       IF (v_IsSOTrx='Y') THEN
         -- Undo revenue and credit limit
-        UPDATE C_BPARTNER
-        SET ActualLifeTimeValue=ActualLifeTimeValue -(v_Multiplier *  C_Base_Convert(v_GrandTotal, v_Currency_ID, v_Client_ID, v_DateAcct, v_Org_ID))
-        WHERE C_BPartner_ID=v_BPartner_ID;
+        --The next lines (3) have been commented due to the issue 19198
+        --UPDATE C_BPARTNER
+        --SET ActualLifeTimeValue=ActualLifeTimeValue -(v_Multiplier *  C_Base_Convert(v_GrandTotal, v_Currency_ID, v_Client_ID, v_DateAcct, v_Org_ID))
+        --WHERE C_BPartner_ID=v_BPartner_ID;
         FOR Cur_ReactivateInvoiceLine IN
           (SELECT C_InvoiceLine_ID, C_Orderline_ID, M_InoutLine_ID, QtyInvoiced
            FROM C_INVOICELINE
@@ -1277,11 +1278,12 @@ BEGIN --BODY
     WHERE AD_User_ID=v_BPartner_User_ID;
     -- Update total revenue and credit limit
     -- It is reversed in C_Allocation_Trg
-    IF (v_IsSOTrx='Y') THEN
-      UPDATE C_BPARTNER
-      SET ActualLifeTimeValue=ActualLifeTimeValue +(v_Multiplier *  C_Base_Convert(v_GrandTotal, v_Currency_ID, v_Client_ID, v_DateAcct, v_Org_ID))
-      WHERE C_BPartner_ID=v_BPartner_ID;
-    END IF;
+    --The next lines (5) have been commented due to the issue 19198
+    --IF (v_IsSOTrx='Y') THEN
+      --UPDATE C_BPARTNER
+      --SET ActualLifeTimeValue=ActualLifeTimeValue +(v_Multiplier *  C_Base_Convert(v_GrandTotal, v_Currency_ID, v_Client_ID, v_DateAcct, v_Org_ID))
+      --WHERE C_BPartner_ID=v_BPartner_ID;
+    --END IF;
   END IF;--FINISH_PROCESS
   IF (NOT FINISH_PROCESS AND NOT END_PROCESSING) THEN
     /**************************************************************************

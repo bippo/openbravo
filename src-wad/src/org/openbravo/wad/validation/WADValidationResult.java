@@ -49,7 +49,8 @@ class WADValidationResult {
     SQL("SQL"), MISSING_IDENTIFIER("Missing Identifier"), MISSING_KEY("Missing Key Column"), MODEL_OBJECT(
         "Model Object"), MODEL_OBJECT_MAPPING("HTML Mapping"), COLUMN_NAME("Column Naming"), AUXILIARINPUT(
         "Auxiliary Input Name"), MULTIPLE_KEYS("Multiple Key Columns in Table"), BASEREFERENCE_WITH_PARENT(
-        "Base Reference with Parent Reference");
+        "Base Reference with Parent Reference"), PROCESS_WITHOUT_CLASS(
+        "Standard UI Processes without class");
 
     private String description;
 

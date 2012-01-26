@@ -300,4 +300,26 @@
     <Parameter name="checkAll"/>
   </SqlMethod>
   
+  <SqlMethod name="checkProcessClasses" type="preparedStatement" return="multiple">
+    <Sql>
+      <![CDATA[
+       select p.name as objectName, m.name as moduleName, m.ad_module_id as moduleId
+         from ad_process p, ad_module m
+        where p.isactive='Y' 
+          and p.UIPattern = 'S'
+          and (p.IsJasper = 'N' AND p.PROCEDURENAME IS NULL)
+          and m.ad_module_id = p.ad_module_id
+          and (m.javapackage in ('1') or to_char('Y')=to_char(?))
+          and not exists (select 1  
+                         from ad_model_object mo 
+                         where p.ad_process_id = mo.ad_process_id 
+                          and mo.isactive = 'Y' 
+                          and mo.action = 'P' 
+                          and mo.isdefault = 'Y')
+      ]]>
+    </Sql>
+    <Parameter name="module" optional="true" type="replace" after="m.javapackage in (" text="'1'"/>
+    <Parameter name="checkAll"/>
+  </SqlMethod>
+  
 </SqlClass>

@@ -175,18 +175,34 @@ isc.OBMyOpenbravo.addProperties({
       overflow: 'visible',
       contents: OB.I18N.getLabel('OBKMO_AddWidget') + ' »',
       addWidgetLayout: addWidgetLayout,
-      action: function(){
-        var addWidgetDialog;
+      doOpen: function() {
+        this.setContents(OB.I18N.getLabel('OBKMO_AddWidget') + ' «');
+        this.addWidgetLayout.addMember(isc.OBMyOBAddWidgetDialog.create({myParent: this}));
+      },
+      doBeforeClose: function() { // Invoked directly from widget dialog 'destroy' function
+        this.setContents(OB.I18N.getLabel('OBKMO_AddWidget') + ' »');
+      },
+      isOpened: function() {
         if (this.addWidgetLayout.getMembers().length >= 2) {
-          return;
+          return true;
+        } else {
+          return false;
         }
-        addWidgetDialog = isc.OBMyOBAddWidgetDialog.create({});
-        this.addWidgetLayout.addMember(addWidgetDialog);
+      },
+      action: function(){
+        if (this.isOpened()) {
+          this.addWidgetLayout.getMembers()[1].destroy();
+        } else {
+          this.doOpen();
+        }
       }
     }));
 
     if (this.enableAdminMode) {
-      adminOtherMyOBLayout = isc.VLayout.create({});
+      adminOtherMyOBLayout = isc.VLayout.create({
+        height: 1,
+        overflow: 'visible'
+      });
       adminOtherMyOBLayout.addMember(isc.Label.create({
         styleName: OB.Styles.OBMyOpenbravo.adminOtherMyOBLayout.styleName,
         height: 1,
@@ -194,17 +210,26 @@ isc.OBMyOpenbravo.addProperties({
         overflow: 'visible',
         contents: OB.I18N.getLabel('OBKMO_AdminOtherMyOpenbravos') + ' »',
         adminOtherMyOBLayout: adminOtherMyOBLayout,
-        action: function(){
-          var adminModeDialog;
+        doOpen: function() {
+          this.setContents(OB.I18N.getLabel('OBKMO_AdminOtherMyOpenbravos') + ' «');
+          this.adminOtherMyOBLayout.addMember(isc.OBMyOBAdminModeDialog.create({myParent: this}));
+        },
+        doBeforeClose: function() { // Invoked directly from widget dialog 'destroy' function
+          this.setContents(OB.I18N.getLabel('OBKMO_AdminOtherMyOpenbravos') + ' »');
+        },
+        isOpened: function() {
           if (this.adminOtherMyOBLayout.getMembers().length >= 2) {
-            return;
+            return true;
+          } else {
+            return false;
           }
-          adminModeDialog = isc.OBMyOBAdminModeDialog.create({});
-          adminOtherMyOBLayout = isc.VLayout.create({
-            height: 1,
-            overflow: 'visible'
-          });
-          this.adminOtherMyOBLayout.addMember(adminModeDialog);
+        },
+        action: function(){
+          if (this.isOpened()) {
+            this.adminOtherMyOBLayout.getMembers()[1].destroy();
+          } else {
+            this.doOpen();
+          }
         }
       }));
     }
@@ -224,6 +249,9 @@ isc.OBMyOpenbravo.addProperties({
     if (this.enableAdminMode) {
       this.leftColumnLayout.addMember(adminOtherMyOBLayout);
     }
+    this.leftColumnLayout.addMember(isc.VLayout.create({
+      height: 10
+    }));
     
     this.leftColumnLayout.recentViewsLayout = recentViewsLayout;
     this.leftColumnLayout.recentDocumentsLayout = recentDocumentsLayout;
@@ -802,6 +830,9 @@ isc.OBMyOpenbravo.addProperties({
     leftColumn.recentDocumentsLayout.hide();
     leftColumn.adminOtherMyOBLayout.getMembers()[1].destroy(); // remove DynamicForm
     leftColumn.adminOtherMyOBLayout.hide();
+    if (!leftColumn.addWidgetLayout.getMember(0).isOpened()) {
+      leftColumn.addWidgetLayout.getMember(0).doOpen();
+    }
     leftColumn.addMember(isc.OBMyOBPublishChangesDialog.create({
       levelLabel: level.getDisplayValue(),
       levelValueLabel: levelValue.getDisplayValue ? levelValue.getDisplayValue() : ''
@@ -860,8 +891,11 @@ isc.defineClass('OBMyOBDialog', isc.Window).addProperties({
   actionHandler: 'org.openbravo.client.myob.MyOpenbravoActionHandler',
 
   initWidget: function(){
-    this.buttonsLayout = isc.HStack.create({
+    this.buttonsLayout = isc.VStack.create({
+      layoutTopMargin: 10,
+      layoutBottomMargin: 5,
       align: 'center',
+      defaultLayoutAlign: 'center',
       overflow: 'visible',
       height: 1,
       width: '100%'
@@ -883,6 +917,8 @@ isc.defineClass('OBMyOBDialog', isc.Window).addProperties({
 });
 
 isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
+  myParent: null,
+  canDragReposition: false,
 
   initWidget: function(){
     var post = {
@@ -908,6 +944,11 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
     });
   },
 
+  destroy: function() {
+    this.myParent.doBeforeClose();
+    this.Super('destroy', arguments);
+  },
+
   createDialogContents: function(rpcResponse, data, rpcRequest){
     var i, widgetClasses, availableWidgetsMap = {};
 
@@ -925,7 +966,7 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
 
     this.form = isc.DynamicForm.create({
       width: '100%',
-      height: '100%',
+      height: 1,
       numCols: 1,
       titleSuffix: '',
       requiredTitleSuffix: '',
@@ -938,10 +979,13 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
         cellStyle: OB.Styles.OBMyOBAddWidgetDialog.cellStyle,
         titleStyle: OB.Styles.OBMyOBAddWidgetDialog.titleStyle,
         textBoxStyle: OB.Styles.OBMyOBAddWidgetDialog.textBoxStyle,
+        pendingTextBoxStyle: OB.Styles.OBFormField.DefaultComboBox.pendingTextBoxStyle,
         controlStyle: OB.Styles.OBMyOBAddWidgetDialog.controlStyle,
         pickListBaseStyle: OB.Styles.OBMyOBAddWidgetDialog.pickListBaseStyle,
+        pickListTallBaseStyle: OB.Styles.OBMyOBAddWidgetDialog.pickListTallBaseStyle,
         pickerIconSrc: OB.Styles.OBMyOBAddWidgetDialog.pickerIconSrc,
         height: OB.Styles.OBMyOBAddWidgetDialog.height,
+        pickListCellHeight: OB.Styles.OBMyOBAddWidgetDialog.pickListCellHeight,
         pickerIconWidth: OB.Styles.OBMyOBAddWidgetDialog.pickerIconWidth,
         pickListProperties: {
           bodyStyleName: OB.Styles.OBMyOBAddWidgetDialog.pickListProperties.bodyStyleName
@@ -950,7 +994,12 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
         titleSuffix: '',
         requiredTitleSuffix: '',
         type: 'select',
-        valueMap: availableWidgetsMap
+        valueMap: availableWidgetsMap,
+        changed: function(form, item, value){
+          if (value) {
+            form.parentElement.parentElement.buttonsLayout.getMember(0).setDisabled(false);
+          }
+        }
       }]
     });
 
@@ -961,6 +1010,12 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
       title: OB.I18N.getLabel('OBKMO_AddLabel'),
       form: this.form,
       dialog: this,
+      draw: function() {
+        if (!this.form.getItem('widget').getValue()) {
+          this.setDisabled(true);
+        }
+        this.Super('draw', arguments);
+      },
       click: function(){
 
         if (!this.form.getItem('widget').getValue()) {
@@ -973,7 +1028,8 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
         widgetInstanceProperties.rowNum = position.rowNum;
 
         OB.MyOB.addWidget(widgetInstanceProperties);
-        this.dialog.destroy();
+        this.dialog.form.reset();
+        this.setDisabled(true);
       }
     }));
     this.addItem(this.buttonsLayout);
@@ -981,6 +1037,14 @@ isc.defineClass('OBMyOBAddWidgetDialog', isc.OBMyOBDialog).addProperties({
 });
 
 isc.defineClass('OBMyOBAdminModeDialog', isc.OBMyOBDialog).addProperties({
+  myParent: null,
+  canDragReposition: false,
+
+  destroy: function() {
+    this.myParent.doBeforeClose();
+    this.Super('destroy', arguments);
+  },
+
   initWidget: function(){
     var valueMap = isc.addProperties({}, OB.MyOB.adminModeValueMap.level), prop, formFields = [];
 
@@ -1000,26 +1064,33 @@ isc.defineClass('OBMyOBAdminModeDialog', isc.OBMyOBDialog).addProperties({
     }
     formFields.push({
       name: 'level',
-      title: '',
+      title: OB.I18N.getLabel('OBKMO_AdminLevelLabel'),
       type: 'select',
       width: '*',
       errorOrientation: 'left',
       cellStyle: OB.Styles.OBMyOBAdminModeDialog.cellStyle,
       titleStyle: OB.Styles.OBMyOBAdminModeDialog.titleStyle,
       textBoxStyle: OB.Styles.OBMyOBAdminModeDialog.textBoxStyle,
+      pendingTextBoxStyle: OB.Styles.OBFormField.DefaultComboBox.pendingTextBoxStyle,
       controlStyle: OB.Styles.OBMyOBAdminModeDialog.controlStyle,
       pickListBaseStyle: OB.Styles.OBMyOBAdminModeDialog.pickListBaseStyle,
+      pickListTallBaseStyle: OB.Styles.OBMyOBAdminModeDialog.pickListTallBaseStyle,
       pickerIconSrc: OB.Styles.OBMyOBAdminModeDialog.pickerIconSrc,
       height: OB.Styles.OBMyOBAdminModeDialog.height,
+      pickListCellHeight: OB.Styles.OBMyOBAdminModeDialog.pickListCellHeight,
       pickerIconWidth: OB.Styles.OBMyOBAdminModeDialog.pickerIconWidth,
       pickListProperties: {
         bodyStyleName: OB.Styles.OBMyOBAdminModeDialog.pickListProperties.bodyStyleName
       },
       valueMap: OB.MyOB.adminModeValueMap.level,
-      changed: function(){
+      changed: function(form, item, value){
         var levelValue = this.form.getField('levelValue');
         if (levelValue) {
           levelValue.setValueMap(OB.MyOB.adminModeValueMap.levelValue[this.getValue()]);
+          levelValue.setDisabled(false);
+          form.parentElement.parentElement.buttonsLayout.getMember(0).setDisabled(true);
+        } else if (value) {
+          form.parentElement.parentElement.buttonsLayout.getMember(0).setDisabled(false);
         }
       }
     });
@@ -1027,28 +1098,50 @@ isc.defineClass('OBMyOBAdminModeDialog', isc.OBMyOBDialog).addProperties({
     if (!valueMap.system) {
       formFields.push({
         name: 'levelValue',
-        title: '',
+        title: OB.I18N.getLabel('OBKMO_AdminValueLabel'),
         type: 'select',
         width: '*',
         errorOrientation: 'left',
         cellStyle: OB.Styles.OBMyOBAdminModeDialog.cellStyle,
         titleStyle: OB.Styles.OBMyOBAdminModeDialog.titleStyle,
         textBoxStyle: OB.Styles.OBMyOBAdminModeDialog.textBoxStyle,
+        pendingTextBoxStyle: OB.Styles.OBFormField.DefaultComboBox.pendingTextBoxStyle,
         controlStyle: OB.Styles.OBMyOBAdminModeDialog.controlStyle,
         pickListBaseStyle: OB.Styles.OBMyOBAdminModeDialog.pickListBaseStyle,
+        pickListTallBaseStyle: OB.Styles.OBMyOBAdminModeDialog.pickListTallBaseStyle,
         pickerIconSrc: OB.Styles.OBMyOBAdminModeDialog.pickerIconSrc,
         height: OB.Styles.OBMyOBAdminModeDialog.height,
+        pickListCellHeight: OB.Styles.OBMyOBAdminModeDialog.pickListCellHeight,
         pickerIconWidth: OB.Styles.OBMyOBAdminModeDialog.pickerIconWidth,
         pickListProperties: {
           bodyStyleName: OB.Styles.OBMyOBAdminModeDialog.pickListProperties.bodyStyleName
         },
-        addUnknownValues: false
+        addUnknownValues: false,
+        setDisabled: function(value) {
+          if (value) {
+            this.title = '';
+          } else {
+            this.title = OB.I18N.getLabel('OBKMO_AdminValueLabel');
+          }
+          this.Super('setDisabled', arguments);
+        },
+        init: function() {
+          this.Super('init', arguments);
+          if (!this.getValue()) {
+            this.setDisabled(true);
+          }
+        },
+        changed: function(form, item, value){
+          if (value) {
+            form.parentElement.parentElement.buttonsLayout.getMember(0).setDisabled(false);
+          }
+        }
       });
     }
 
     this.form = isc.DynamicForm.create({
       width: '100%',
-      height: '100%',
+      height: 1,
       titleSuffix: '',
       requiredTitleSuffix: '',
       numCols: 1,
@@ -1059,9 +1152,15 @@ isc.defineClass('OBMyOBAdminModeDialog', isc.OBMyOBDialog).addProperties({
     this.addItem(this.form);
 
     this.buttonsLayout.addMember(isc.OBFormButton.create({
-      title: 'Edit', // FIXME
+      title: OB.I18N.getLabel('OBKMO_AdminEdit'),
       form: this.form,
       dialog: this,
+      draw: function() {
+        if (!this.form.getItem('level').getValue()) {
+          this.setDisabled(true);
+        }
+        this.Super('draw', arguments);
+      },
       click: function(){
         var level = this.form.getField('level'), levelValue = this.form.getField('levelValue');
 
@@ -1085,6 +1184,7 @@ isc.defineClass('OBMyOBAdminModeDialog', isc.OBMyOBDialog).addProperties({
 isc.defineClass('OBMyOBPublishChangesDialog', isc.OBMyOBDialog).addProperties({
   levelLabel: '',
   levelValueLabel: '',
+  canDragReposition: false,
   
   initWidget: function(){
     var htmlContents = '', label = OB.I18N.getLabel('OBKMO_PublishLabel');
@@ -1103,12 +1203,13 @@ isc.defineClass('OBMyOBPublishChangesDialog', isc.OBMyOBDialog).addProperties({
     }
 
 
-    htmlContents = '<p>' + label + '</p>' +
-    '<p style=\'color:red\'>' +
+    htmlContents = '<p style=\'padding: 2px 3px 5px 3px; margin: 0px;\'>' + label + '</p>' +
+    '<p style=\'color:red; padding: 7px 3px 5px 3px; margin: 0px;\'>' +
     OB.I18N.getLabel('OBKMO_PublishWarning') +
     '</p>';
 
     this.form = isc.HTMLFlow.create({
+      height: 1,
       width: '100%',
       styleName: OB.Styles.OBMyOBPublishChangesDialog.form.styleName,
       contents: htmlContents
@@ -1124,6 +1225,10 @@ isc.defineClass('OBMyOBPublishChangesDialog', isc.OBMyOBDialog).addProperties({
       click: function(){
         OB.MyOB.notifyEvent('PUBLISH_CHANGES');
       }
+    }));
+
+    this.buttonsLayout.addMember(isc.VLayout.create({
+      height: 5
     }));
 
     this.buttonsLayout.addMember(isc.OBFormButton.create({

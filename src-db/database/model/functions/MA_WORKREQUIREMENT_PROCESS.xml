@@ -42,12 +42,15 @@
     v_Multiplier NUMBER;
     v_Processed CHAR;
     v_LaunchDate DATE;
+    v_Startdate DATE;
+    v_Enddate DATE;
     -- WRPhases to process
     Cur_WRPhase RECORD;
     --  Sequence Products to process
     Cur_SeqProduct RECORD;
     --ptr_sp  Cur_SeqProduct%ROWTYPE;
     FINISH_PROCESS BOOLEAN:=false;
+    v_count NUMBER;
   BEGIN
     --  Process Parameters
     IF(p_PInstance_ID IS NOT NULL) THEN
@@ -88,13 +91,17 @@
       Processed,
       ExplodePhases,
       LaunchDate,
-      AD_Org_ID
+      AD_Org_ID,
+      Startdate,
+      Enddate
     INTO v_ProcessPlan_ID,
       v_Quantity,
       v_Processed,
       v_ExplodePhases,
       v_LaunchDate,
-      v_Org_ID
+      v_Org_ID,
+      v_Startdate,
+      v_Enddate
     FROM MA_WorkRequirement
     WHERE MA_WorkRequirement_ID=v_Record_ID;
     --Check if it hasn't already been processed
@@ -123,7 +130,9 @@
             s.SeqNo,
             s.NoQty,
             s.GroupUse,
-            s.Outsourced
+            s.Outsourced,
+            s.Estimatedtime,
+            s.Usedmaterial
           FROM MA_Sequence s,
             MA_ProcessPlan_Version p
           WHERE s.MA_PROCESSPLAN_VERSION_ID=p.MA_PROCESSPLAN_VERSION_ID
@@ -144,7 +153,8 @@
               AD_Org_ID, Isactive, Created, Createdby,
               Updated, Updatedby, MA_Process_ID, CostCenterUse,
               Preptime, Quantity, Donequantity,
-              SeqNo, Closed, NoQty, GroupUse, Outsourced
+              SeqNo, Closed, NoQty, GroupUse, Outsourced,
+              Startdate, Enddate, Estimatedtime, Usedmaterial
             )
             VALUES
             (
@@ -152,7 +162,8 @@
               v_Org_ID, 'Y', now(), v_User_ID,
               now(), v_User_ID, Cur_Sequence.MA_Process_ID, Cur_Sequence.CostCenterUse,
               Cur_Sequence.Preptime, v_Multiplier*v_Quantity, 0,
-              Cur_Sequence.SeqNo, 'N', Cur_Sequence.NoQty, Cur_Sequence.GroupUse, Cur_Sequence.Outsourced
+              Cur_Sequence.SeqNo, 'N', Cur_Sequence.NoQty, Cur_Sequence.GroupUse, Cur_Sequence.Outsourced,
+              v_Startdate, v_Enddate, v_Multiplier*v_Quantity*Cur_Sequence.Estimatedtime, Cur_Sequence.Usedmaterial
             )
             ;
           FOR Cur_SeqProduct IN
@@ -172,7 +183,7 @@
                 Isactive, Created, Createdby, Updated,
                 Updatedby, M_Product_ID, Productiontype, MovementQty,
                 ComponentCost, C_UOM_ID,
-                quantityorder, M_Product_UOM_ID
+                quantityorder, M_Product_UOM_ID, MA_SequenceProduct_ID
               )
               VALUES
               (
@@ -180,7 +191,7 @@
                  'Y', now(), v_User_ID, now(),
                 v_User_ID, Cur_SeqProduct.M_Product_ID, Cur_SeqProduct.Productiontype, Cur_SeqProduct.Quantity,
                 Cur_SeqProduct.ComponentCost, Cur_SeqProduct.C_UOM_ID,
-                Cur_SeqProduct.quantityorder, Cur_SeqProduct.M_Product_UOM_ID
+                Cur_SeqProduct.quantityorder, Cur_SeqProduct.M_Product_UOM_ID, Cur_SeqProduct.MA_SequenceProduct_ID
               )
               ;
           END LOOP;
@@ -212,7 +223,7 @@
                 Isactive, Created, Createdby, Updated,
                 Updatedby, M_Product_ID, Productiontype, MovementQty,
                 ComponentCost, C_UOM_ID,
-                QUANTITYORDER, M_PRODUCT_UOM_ID
+                QUANTITYORDER, M_PRODUCT_UOM_ID, MA_SequenceProduct_ID
               )
               VALUES
               (
@@ -220,7 +231,7 @@
                  'Y', now(), v_User_ID, now(),
                 v_User_ID, Cur_SeqProduct.M_Product_ID, Cur_SeqProduct.Productiontype, Cur_SeqProduct.Quantity,
                 Cur_SeqProduct.ComponentCost, Cur_SeqProduct.C_UOM_ID,
-                Cur_SeqProduct.quantityorder, Cur_SeqProduct.M_Product_UOM_ID
+                Cur_SeqProduct.quantityorder, Cur_SeqProduct.M_Product_UOM_ID, Cur_SeqProduct.MA_SequenceProduct_ID
               )
               ;
           END LOOP;
@@ -232,6 +243,33 @@
         SET Processed='Y', updated = now(), updatedby = v_User_ID
       WHERE MA_WorkRequirement_ID=v_Record_ID;
     END IF; --FINISH_PROCESS
+    
+	--MA_Workrequirement_Process - Finish Process Extension Point
+	SELECT count(*) INTO v_count
+	FROM DUAL
+	where exists (select 1 from ad_ep_procedures where ad_extension_points_id = 'FF80818132FDD74F0132FDE095B10019');
+	IF (v_count=1) THEN
+	  DECLARE
+	    v_ep_instance VARCHAR2(32);
+	    v_extension_point_id VARCHAR2(32) := 'FF80818132FDD74F0132FDE095B10019';
+	  BEGIN
+	    v_ep_instance := get_uuid();
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+	      v_Record_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+	      v_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+	    AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+	      NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+	    AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+	    SELECT p_text INTO v_Message
+	    FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance
+	    AND parametername LIKE 'Message';
+		  
+	    DELETE FROM ad_ep_instance_para
+	    WHERE ad_ep_instance_id = v_ep_instance;
+	  END;
+	END IF;
     --<<FINISH_PROCESS>>
     --v_Message := v_Message || '@Created@: ' || v_NoRecords;
     IF(p_PInstance_ID IS NOT NULL) THEN

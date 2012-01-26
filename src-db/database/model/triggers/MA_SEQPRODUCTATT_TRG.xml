@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+  <database name="TRIGGER MA_SEQPRODUCTATT_TRG">
+    <trigger name="MA_SEQPRODUCTATT_TRG" table="MA_SEQUENCEPRODUCTATT" fires="before" insert="true" update="true" delete="false" foreach="row">
+      <body><![CDATA[
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2011 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+
+  v_Productiontype VARCHAR2(32) ;
+
+BEGIN
+
+  IF AD_isTriggerEnabled()='N' THEN RETURN;
+  END IF;
+
+  IF (UPDATING OR INSERTING) THEN
+
+    SELECT PRODUCTIONTYPE
+      INTO v_Productiontype
+    FROM MA_SEQUENCEPRODUCT
+    WHERE MA_SEQUENCEPRODUCT_ID = :NEW.MA_SEQUENCEPRODUCT_ID;
+
+    IF (v_Productiontype = '-') THEN
+      RAISE_APPLICATION_ERROR(-20000, '@NotPossibleCreateAtt@');
+    END IF;
+
+    IF ((:NEW.ISSPECIALATT = 'Y' AND :NEW.SPECIALATT IS NULL) OR
+        (:NEW.ISSPECIALATT = 'N' AND (:NEW.M_ATTRIBUTEUSE_ID IS NULL OR :NEW.M_ATTRIBUTEUSETO_ID IS NULL))) THEN
+      RAISE_APPLICATION_ERROR(-20000, '@NeccesaryFillAtt@');
+    END IF;
+
+    IF (:NEW.ISSPECIALATT = 'Y' AND
+        (:NEW.M_ATTRIBUTEUSE_ID IS NOT NULL OR :NEW.M_ATTRIBUTEUSETO_ID IS NOT NULL)) THEN
+      :NEW.M_ATTRIBUTEUSETO_ID :=NULL;
+      :NEW.M_ATTRIBUTEUSE_ID := NULL;
+    ELSIF(:NEW.ISSPECIALATT = 'N' AND :NEW.SPECIALATT IS NOT NULL) THEN
+      :NEW.SPECIALATT := NULL;
+    END IF;
+  END IF;
+
+END MA_SEQPRODUCTATT_TRG
+]]></body>
+    </trigger>
+  </database>

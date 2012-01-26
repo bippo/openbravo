@@ -63,6 +63,7 @@ class WADValidator {
     validateColumnNaming(result);
     validateAuxiliarInput(result);
     validateReferences(result);
+    validateProcessWithoutClass(result);
     return result;
   }
 
@@ -192,4 +193,21 @@ class WADValidator {
 
   }
 
+  /**
+   * Validates all UI Standard processes define a process class to execute
+   * 
+   * @param result
+   */
+  private void validateProcessWithoutClass(WADValidationResult result) {
+    try {
+      WADValidatorData data[] = WADValidatorData.checkProcessClasses(conn, modules, checkAll);
+      for (WADValidatorData issue : data) {
+        result.addError(issue.moduleid, issue.modulename, WADValidationType.PROCESS_WITHOUT_CLASS,
+            issue.objectname + " process does not define a Java class to implement it.");
+      }
+    } catch (Exception e) {
+      result.addWarning(WADValidationType.SQL,
+          "Error when executing query for validating references: " + e.getMessage());
+    }
+  }
 }

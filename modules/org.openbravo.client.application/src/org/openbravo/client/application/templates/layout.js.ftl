@@ -112,6 +112,10 @@ OB.Layout.initialize = function() {
       }
   });
   OB.TestRegistry.register('org.openbravo.client.application.openbravologo', OB.TopLayout.OpenbravoLogo);    
+
+  if (OB.Styles && OB.Styles.hideOpenbravoLogo) {
+    OB.TopLayout.OpenbravoLogo.hide();
+  }
   
   OB.TopLayout.addMember(OB.NavBar);
   OB.TopLayout.addMember(

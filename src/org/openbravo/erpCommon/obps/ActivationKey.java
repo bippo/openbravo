@@ -26,10 +26,13 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.math.BigInteger;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -44,11 +47,13 @@ import java.util.zip.CRC32;
 
 import javax.crypto.Cipher;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Appender;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.Query;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.exception.OBException;
@@ -60,6 +65,7 @@ import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.obps.DisabledModules.Artifacts;
+import org.openbravo.erpCommon.utility.HttpsUtils;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.SystemInfo;
 import org.openbravo.erpCommon.utility.Utility;
@@ -74,6 +80,8 @@ import org.openbravo.service.db.DalConnectionProvider;
 public class ActivationKey {
   private final static String OB_PUBLIC_KEY = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCPwCM5RfisLvWhujHajnLEjEpLC7DOXLySuJmHBqcQ8AQ63yZjlcv3JMkHMsPqvoHF3s2ztxRcxBRLc9C2T3uXQg0PTH5IAxsV4tv05S+tNXMIajwTeYh1LCoQyeidiid7FwuhtQNQST9/FqffK1oVFBnWUfgZKLMO2ZSHoEAORwIDAQAB";
   private final static String OB_PUBLIC_KEY2 = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCeivfuzeE+hdv7mXEyOWTpGglsT1J+UHcp9RrHydgLgccPdQ5EjqtKVSc/jzzJV5g+9XaSxz9pK5TuzzdN4fJHPCnuO0EiwWI2dxS/t1Boo+gGageGZyFRMhMsULU4902gzmw1qugEskUSKONJcR65H06HYRn2fTgVbGvEhFMASwIDAQAB";
+
+  private static final String HEARTBEAT_URL = "https://butler.openbravo.com:443/heartbeat-server/heartbeat";
 
   private boolean isActive = false;
   private boolean hasActivationKey = false;
@@ -97,15 +105,22 @@ public class ActivationKey {
   private boolean golden = false;
   private Date startDate;
   private Date endDate;
+  private boolean limitedWsAccess = true;
 
   private boolean notActiveYet = false;
   private boolean inconsistentInstance = false;
+
+  private long maxWsCalls;
+  private long wsDayCounter;
+  private Date initWsCountTime;
+  private List<Date> exceededInLastDays;
 
   private static final Logger log4j = Logger.getLogger(ActivationKey.class);
 
   private static final String TIER_1_PREMIUM_FEATURE = "T1P";
   private static final String TIER_2_PREMIUM_FEATURE = "T2P";
   private static final String GOLDEN_EXCLUDED = "GOLDENEXCLUDED";
+  private static final SimpleDateFormat sDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
   /**
    * Number of minutes since last license refresh to wait before doing it again
@@ -135,6 +150,10 @@ public class ActivationKey {
     public String toString() {
       return msg;
     }
+  }
+
+  public enum WSRestriction {
+    NO_RESTRICTION, EXCEEDED_MAX_WS_CALLS, EXCEEDED_WARN_WS_CALLS, EXPIRED;
   }
 
   public enum LicenseClass {
@@ -172,14 +191,36 @@ public class ActivationKey {
   private static final Long EXPIRATION_BASIC_DAYS = 30L;
   private static final Long EXPIRATION_PROF_DAYS = 30L;
 
+  private final static int WS_DAYS_EXCEEDING_ALLOWED = 5;
+  private final static long WS_DAYS_EXCEEDING_ALLOWED_PERIOD = 30L;
+  private final static long WS_MS_EXCEEDING_ALLOWED_PERIOD = MILLSECS_PER_DAY
+      * WS_DAYS_EXCEEDING_ALLOWED_PERIOD;
+
   private static ActivationKey instance = new ActivationKey();
+
+  /**
+   * @see ActivationKey#getInstance(boolean)
+   * 
+   */
+  public static synchronized ActivationKey getInstance() {
+    return getInstance(false);
+  }
 
   /**
    * Obtains the ActivationKey instance. Instances should be get in this way, rather than creating a
    * new one.
    * 
+   * If refreshIfNeeded parameter is true, license is tried to be refreshed if it is needed to.
+   * 
+   * @param refreshIfNeeded
+   *          refresh license if needed to
+   * 
    */
-  public static synchronized ActivationKey getInstance() {
+  public static synchronized ActivationKey getInstance(boolean refreshIfNeeded) {
+    if (refreshIfNeeded) {
+      instance.refreshIfNeeded();
+    }
+
     if (instance.startDate != null) {
       // check dates in case there is a license with dates
       instance.checkDates();
@@ -217,12 +258,17 @@ public class ActivationKey {
    * @deprecated
    */
   public ActivationKey() {
-    org.openbravo.model.ad.system.System sys = OBDal.getInstance().get(
-        org.openbravo.model.ad.system.System.class, "0");
-    strPublicKey = sys.getInstanceKey();
-    String activationKey = sys.getActivationKey();
-    loadInfo(activationKey);
-    loadRestrictions();
+    OBContext.setAdminMode();
+    try {
+      org.openbravo.model.ad.system.System sys = OBDal.getInstance().get(
+          org.openbravo.model.ad.system.System.class, "0");
+      strPublicKey = sys.getInstanceKey();
+      String activationKey = sys.getActivationKey();
+      loadInfo(activationKey);
+      loadRestrictions();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 
   public ActivationKey(String publicKey, String activationKey) {
@@ -251,6 +297,7 @@ public class ActivationKey {
     startDate = null;
     endDate = null;
     pendingTime = null;
+    limitedWsAccess = false;
 
     if (strPublicKey == null || activationKey == null || strPublicKey.equals("")
         || activationKey.equals("")) {
@@ -328,17 +375,53 @@ public class ActivationKey {
     }
 
     // Check for dates to know if the instance is active
-    SimpleDateFormat sd = new SimpleDateFormat("yyyy-MM-dd");
     subscriptionConvertedProperty = "true".equals(getProperty("subscriptionConverted"));
 
     trial = "true".equals(getProperty("trial"));
     golden = "true".equals(getProperty("golden"));
 
+    String strUnlimitedWsAccess = getProperty("unlimitedWsAccess");
+
+    if (StringUtils.isEmpty(strUnlimitedWsAccess)) {
+      // old license, setting defaults
+      if (trial || golden) {
+        limitedWsAccess = true;
+        maxWsCalls = 500L;
+        instanceProperties.put("wsPacks", "1");
+        instanceProperties.put("wsUnitsPerUnit", "500");
+        initializeWsCounter();
+      } else {
+        limitedWsAccess = false;
+      }
+    } else {
+      limitedWsAccess = "false".equals(getProperty("unlimitedWsAccess"));
+      if (limitedWsAccess) {
+        String packs = getProperty("wsPacks");
+        String unitsPack = getProperty("wsUnitsPerUnit");
+
+        if (StringUtils.isEmpty(packs) || StringUtils.isEmpty(unitsPack)) {
+          log.warn("Couldn't determine ws call limitation, setting unlimited.");
+          limitedWsAccess = false;
+        } else {
+          try {
+            Integer nPacks = Integer.parseInt(packs);
+            Integer nUnitsPack = Integer.parseInt(unitsPack);
+            maxWsCalls = nPacks * nUnitsPack;
+            log.debug("Maximum ws calls: " + maxWsCalls);
+            initializeWsCounter();
+          } catch (Exception e) {
+            log.error("Error setting ws call limitation, setting unlimited.", e);
+            limitedWsAccess = false;
+          }
+        }
+      }
+    }
+
     try {
-      startDate = sd.parse(getProperty("startdate"));
+      startDate = sDateFormat.parse(getProperty("startdate"));
 
       if (getProperty("enddate") != null) {
-        endDate = sd.parse(getProperty("enddate"));
+        endDate = sDateFormat.parse(getProperty("enddate"));
       }
     } catch (Exception e) {
       errorMessage = "@ErrorReadingDates@";
@@ -772,12 +855,14 @@ public class ActivationKey {
             .append("</td><td>").append(outputFormat.format(startDate)).append("</td></tr>");
       }
 
-      sb.append("<tr><td>")
-          .append(Utility.messageBD(conn, "OPSEndDate", lang))
-          .append("</td><td>")
-          .append(
-              (getProperty("enddate") == null ? Utility.messageBD(conn, "OPSNoEndDate", lang)
-                  : outputFormat.format(endDate))).append("</td></tr>");
+      if (endDate != null) {
+        sb.append("<tr><td>")
+            .append(Utility.messageBD(conn, "OPSEndDate", lang))
+            .append("</td><td>")
+            .append(
+                (getProperty("enddate") == null ? Utility.messageBD(conn, "OPSNoEndDate", lang)
+                    : outputFormat.format(endDate))).append("</td></tr>");
+      }
 
       sb.append("<tr><td>")
           .append(Utility.messageBD(conn, "OPSConcurrentUsers", lang))
@@ -799,6 +884,11 @@ public class ActivationKey {
           .append(Utility.getListValueName("InstancePurpose", getProperty("purpose"), lang))
           .append("</td></tr>");
 
+      sb.append("<tr><td>").append(Utility.messageBD(conn, "OPSWSLimitation", lang))
+          .append("</td><td>");
+      sb.append(getWSExplanation(conn, lang));
+      sb.append("</td></tr>");
+
     } else {
       sb.append(Utility.messageBD(conn, "OPSNonActiveInstance", lang));
     }
@@ -815,6 +905,20 @@ public class ActivationKey {
 
     } else {
       return Utility.getListValueName("OPSLicenseType", getProperty("lincensetype"), lang);
+    }
+  }
+
+  /**
+   * Returns a message explaining WS call limitations
+   */
+  public String getWSExplanation(ConnectionProvider conn, String lang) {
+    if (!limitedWsAccess) {
+      return Utility.messageBD(conn, "OPSWSUnlimited", lang);
+    } else {
+      String packs = getProperty("wsPacks");
+      String unitsPack = getProperty("wsUnitsPerUnit");
+      return Utility.messageBD(conn, "OPWSLimited", lang).replace("@packs@", packs)
+          .replace("@unitsPerPack@", unitsPack);
     }
   }
 
@@ -973,57 +1077,87 @@ public class ActivationKey {
         return CommercialModuleStatus.NO_SUBSCRIBED;
       }
 
-      Date timeToRefresh = null;
-      if (lastRefreshTime != null) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(lastRefreshTime);
-        calendar.add(Calendar.MINUTE, REFRESH_MIN_TIME);
-        timeToRefresh = calendar.getTime();
-      }
+      boolean refreshed = refreshLicense(REFRESH_MIN_TIME);
 
-      if (timeToRefresh == null || new Date().after(timeToRefresh)) {
-        log4j.debug("Trying to refresh license, last refresh "
-            + (lastRefreshTime == null ? "never" : lastRefreshTime.toString()));
-
-        Map<String, Object> params = new HashMap<String, Object>();
-        params.put("publicKey", strPublicKey);
-        params.put("purpose", getProperty("purpose"));
-        params.put("instanceNo", getProperty("instanceno"));
-        params.put("activate", true);
-        ProcessBundle pb = new ProcessBundle(null, new VariablesSecureApp("0", "0", "0"));
-        pb.setParams(params);
-
-        boolean refreshed = false;
-        try {
-          new ActiveInstanceProcess().execute(pb);
-          OBError msg = (OBError) pb.getResult();
-          refreshed = msg.getType().equals("Success");
-          if (refreshed) {
-            log4j.debug("Instance refreshed");
-          } else {
-            log4j.info("Problem refreshing instance " + msg.getMessage());
-          }
-        } catch (Exception e) {
-          log4j.error("Error refreshing instance", e);
-          refreshed = false;
-        }
-
-        if (refreshed) {
-          return ActivationKey.instance.isModuleSubscribed(moduleId);
-        } else {
-          // Even license couldn't be refreshed, set lastRefreshTime not to try to refresh in the
-          // following period of time
-          lastRefreshTime = new Date();
-          return CommercialModuleStatus.NO_SUBSCRIBED;
-        }
+      if (refreshed) {
+        return ActivationKey.instance.isModuleSubscribed(moduleId);
       } else {
-        log4j.debug("Not refreshing, last refresh was " + lastRefreshTime.toString()
-            + ". Next time to refresh " + timeToRefresh.toString());
         return CommercialModuleStatus.NO_SUBSCRIBED;
       }
     }
 
     return moduleList.get(moduleId);
+  }
+
+  /**
+   * Refreshes license online in case of:
+   * <ul>
+   * <li>It expired
+   * <li>Maximum number of WS calls has been reached during last 30 days
+   * <li>Maximum number of concurrent users has been reached
+   * </ul>
+   */
+  private void refreshIfNeeded() {
+    if (hasActivationKey
+        && !subscriptionConvertedProperty
+        && !golden
+        && !trial
+        && (hasExpired || checkNewWSCall(false) != WSRestriction.NO_RESTRICTION || checkOPSLimitations(null) == LicenseRestriction.NUMBER_OF_CONCURRENT_USERS_REACHED)) {
+      refreshLicense(24 * 60);
+    }
+  }
+
+  private synchronized boolean refreshLicense(int minutesToRefresh) {
+    Date timeToRefresh = null;
+    if (lastRefreshTime != null) {
+      Calendar calendar = Calendar.getInstance();
+      calendar.setTime(lastRefreshTime);
+      calendar.add(Calendar.MINUTE, minutesToRefresh);
+      timeToRefresh = calendar.getTime();
+    }
+
+    if (timeToRefresh == null || new Date().after(timeToRefresh)) {
+      log4j.debug("Trying to refresh license, last refresh "
+          + (lastRefreshTime == null ? "never" : lastRefreshTime.toString()));
+
+      Map<String, Object> params = new HashMap<String, Object>();
+      params.put("publicKey", strPublicKey);
+      params.put("purpose", getProperty("purpose"));
+      params.put("instanceNo", getProperty("instanceno"));
+      params.put("activate", true);
+      ProcessBundle pb = new ProcessBundle(null, new VariablesSecureApp("0", "0", "0"));
+      pb.setParams(params);
+
+      boolean refreshed = false;
+      OBContext.setAdminMode();
+      try {
+        new ActiveInstanceProcess().execute(pb);
+        OBError msg = (OBError) pb.getResult();
+        refreshed = msg.getType().equals("Success");
+        if (refreshed) {
+          OBDal.getInstance().flush();
+          log4j.debug("Instance refreshed");
+        } else {
+          log4j.info("Problem refreshing instance " + msg.getMessage());
+        }
+      } catch (Exception e) {
+        log4j.error("Error refreshing instance", e);
+        refreshed = false;
+      } finally {
+        OBContext.restorePreviousMode();
+      }
+
+      if (!refreshed) {
+        // Even license couldn't be refreshed, set lastRefreshTime not to try to refresh in the
+        // following period of time
+        lastRefreshTime = new Date();
+      }
+      return refreshed;
+    } else {
+      log4j.debug("Not refreshing, last refresh was " + lastRefreshTime.toString()
+          + ". Next time to refresh " + timeToRefresh.toString());
+      return false;
+    }
   }
 
   /**
@@ -1245,5 +1379,171 @@ public class ActivationKey {
       log4j.error("Error calculating expiration message", e);
     }
     return result;
+  }
+
+  /**
+   * This method checks web service can be called. If <code>updateCounter</code> parameter is
+   * <code>true</code> number of daily calls is increased by one.
+   * 
+   * @param updateCounter
+   *          daily calls should be updated
+   */
+  public synchronized WSRestriction checkNewWSCall(boolean updateCounter) {
+    if (!limitedWsAccess) {
+      return WSRestriction.NO_RESTRICTION;
+    }
+
+    if (hasExpired) {
+      return WSRestriction.EXPIRED;
+    }
+    Date today = getDayAt0(new Date());
+
+    if (initWsCountTime == null || today.getTime() != initWsCountTime.getTime()) {
+      initializeWsDayCounter();
+    }
+
+    long checkCalls = maxWsCalls;
+    if (updateCounter) {
+      wsDayCounter += 1;
+      // Adding 1 to maxWsCalls because session is already saved in DB
+      checkCalls += 1;
+    }
+
+    if (wsDayCounter > checkCalls) {
+      // clean up old days
+      while (!exceededInLastDays.isEmpty()
+          && exceededInLastDays.get(0).getTime() < today.getTime() - WS_MS_EXCEEDING_ALLOWED_PERIOD) {
+        Date removed = exceededInLastDays.remove(0);
+        log.info("Removed date from exceeded days " + removed);
+      }
+
+      if (!exceededInLastDays.contains(today)) {
+        exceededInLastDays.add(today);
+
+        // Adding a new failing day, send a new beat to butler
+        Runnable sendBeatProcess = new Runnable() {
+          @Override
+          public void run() {
+            try {
+              String content = "beatType=CWSR";
+              content += "&systemIdentifier="
+                  + URLEncoder.encode(SystemInfo.getSystemIdentifier(), "utf-8");
+              content += "&dbIdentifier="
+                  + URLEncoder.encode(SystemInfo.getDBIdentifier(), "utf-8");
+              content += "&macId=" + URLEncoder.encode(SystemInfo.getMacAddress(), "utf-8");
+              content += "&obpsId=" + URLEncoder.encode(SystemInfo.getOBPSInstance(), "utf-8");
+              content += "&instanceNo="
+                  + URLEncoder.encode(SystemInfo.getOBPSIntanceNumber(), "utf-8");
+
+              URL url = new URL(HEARTBEAT_URL);
+              HttpsUtils.sendSecure(url, content);
+              log.info("Sending CWSR beat");
+            } catch (Exception e) {
+              log.error("Error connecting server", e);
+            }
+
+          }
+        };
+        Thread sendBeat = new Thread(sendBeatProcess);
+        sendBeat.start();
+      }
+
+      if (exceededInLastDays.size() > WS_DAYS_EXCEEDING_ALLOWED) {
+        return WSRestriction.EXCEEDED_MAX_WS_CALLS;
+      } else {
+        return WSRestriction.EXCEEDED_WARN_WS_CALLS;
+      }
+    }
+    return WSRestriction.NO_RESTRICTION;
+  }
+
+  private Date getDayAt0(Date date) {
+    try {
+      return sDateFormat.parse(sDateFormat.format(date));
+    } catch (ParseException e) {
+      log.error("Error getting day " + date + " at 0:00", e);
+      return new Date();
+    }
+  }
+
+  private void initializeWsDayCounter() {
+    initWsCountTime = getDayAt0(new Date());
+    OBContext.setAdminMode();
+    try {
+      OBCriteria<Session> qLogins = OBDal.getInstance().createCriteria(Session.class);
+      qLogins.add(Restrictions.eq(Session.PROPERTY_LOGINSTATUS, "WS"));
+      qLogins.add(Restrictions.ge(Session.PROPERTY_CREATIONDATE, initWsCountTime));
+      wsDayCounter = qLogins.count();
+      log.info("Initialized ws count to " + wsDayCounter + " from " + initWsCountTime);
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  private void initializeWsCounter() {
+    StringBuilder hql = new StringBuilder();
+    hql.append("select min(creationDate)\n");
+    hql.append("  from ADSession\n");
+    hql.append(" where loginStatus = 'WS'\n");
+    hql.append("   and creationDate > :firstDay\n");
+    hql.append(" group by day(creationDate), month(creationDate), year(creationDate)\n");
+    hql.append("having count(*) > :maxWsPerDay\n");
+    hql.append(" order by 1\n");
+
+    Query qExceededDays = OBDal.getInstance().getSession().createQuery(hql.toString());
+    qExceededDays.setParameter("firstDay", new Date(getDayAt0(new Date()).getTime()
+        - WS_MS_EXCEEDING_ALLOWED_PERIOD));
+    qExceededDays.setParameter("maxWsPerDay", maxWsCalls);
+
+    exceededInLastDays = new ArrayList<Date>();
+
+    for (Object d : qExceededDays.list()) {
+      Date day = getDayAt0((Date) d);
+      exceededInLastDays.add(day);
+      log.info("Addind exceeded ws calls day " + day);
+    }
+    initializeWsDayCounter();
+  }
+
+  /**
+   * Returns the number of days during last 30 days exceeding the maximum allowed number of calls
+   */
+  public int getWsCallsExceededDays() {
+    if (exceededInLastDays == null) {
+      return 0;
+    }
+    return exceededInLastDays.size();
+  }
+
+  /**
+   * Returns the number of days that can exceed the maximum number of ws calls taking into account
+   * the ones that exceeded it during last 30 days.
+   */
+  public int getExtraWsExceededDaysAllowed() {
+    return WS_DAYS_EXCEEDING_ALLOWED - getWsCallsExceededDays();
+  }
+
+  /**
+   * Returns the number of days pending till the end of ws calls verification period.
+   */
+  public int getNumberOfDaysLeftInPeriod() {
+    if (exceededInLastDays == null || exceededInLastDays.size() == 0) {
+      return (int) WS_DAYS_EXCEEDING_ALLOWED_PERIOD;
+    }
+
+    Date today = getDayAt0(new Date());
+    Date firstDayOfPeriod = exceededInLastDays.get(0);
+
+    long lastDayOfPeriod;
+    if (today.getTime() + (getExtraWsExceededDaysAllowed() * MILLSECS_PER_DAY) < firstDayOfPeriod
+        .getTime() + WS_MS_EXCEEDING_ALLOWED_PERIOD) {
+      lastDayOfPeriod = firstDayOfPeriod.getTime() + WS_MS_EXCEEDING_ALLOWED_PERIOD;
+    } else {
+      lastDayOfPeriod = today.getTime() + WS_MS_EXCEEDING_ALLOWED_PERIOD;
+    }
+    new Date(lastDayOfPeriod);
+    long pendingMs = lastDayOfPeriod - today.getTime()
+        - (exceededInLastDays.size() * MILLSECS_PER_DAY);
+    return (int) (pendingMs / MILLSECS_PER_DAY);
   }
 }

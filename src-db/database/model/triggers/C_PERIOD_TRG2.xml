@@ -28,18 +28,22 @@
     V_COUNT NUMBER:= 0;
 
 BEGIN
-    
+
     IF AD_isTriggerEnabled()='N' THEN RETURN;
     END IF;
 
    IF(UPDATING) THEN
      IF COALESCE(:old.StartDate, v_DateNull) <> COALESCE(:NEW.StartDate, v_DateNull) THEN
-	:new.EndDate:= ADD_MONTHS(TRUNC(:new.StartDate, 'MM'), 1) -1;
+        IF (:new.EndDate IS NULL) THEN
+           :new.EndDate:= ADD_MONTHS(TRUNC(:new.StartDate, 'MM'), 1) -1;
+	END If;
      END IF;
    END IF;
 
    IF(INSERTING) THEN
-        :new.EndDate:= ADD_MONTHS(TRUNC(:new.StartDate, 'MM'), 1) -1;
+	IF (:new.EndDate IS NULL) THEN
+           :new.EndDate:= ADD_MONTHS(TRUNC(:new.StartDate, 'MM'), 1) -1;
+	END If;
    END IF;
 
    -- Validating dates period

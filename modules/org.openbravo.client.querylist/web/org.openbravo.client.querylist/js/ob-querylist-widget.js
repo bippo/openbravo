@@ -96,13 +96,12 @@ isc.defineClass('OBQueryListWidget', isc.OBWidget).addProperties({
       height: '100%',
       width: '100%',
       styleName: ''
-    }), url, params = {};
+    }), url, params = {},
+    showFilter = (this.viewMode === 'maximized');
     
-    if (this.viewMode === 'maximized') {
-      isc.addProperties(this.gridProperties, {
-        showFilterEditor: true
-      });
-    }
+    isc.addProperties(this.gridProperties, {
+      showFilterEditor: showFilter
+    });
     
     this.grid = isc.OBQueryListGrid.create(isc.addProperties({
       dataSource: this.gridDataSource,
