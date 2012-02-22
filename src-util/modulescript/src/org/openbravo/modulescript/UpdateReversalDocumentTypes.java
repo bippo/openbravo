@@ -35,6 +35,7 @@ public class UpdateReversalDocumentTypes extends ModuleScript {
     try {
       ConnectionProvider cp = getConnectionProvider();
       UpdateReversalDocumentTypesData.update(cp);
+      UpdateReversalDocumentTypesData.updateIssue19541(cp);
 
     } catch (Exception e) {
       handleError(e);
