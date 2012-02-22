@@ -142,7 +142,7 @@ public class AttributeSetInstance extends HttpSecureAppServlet {
         if (attrUse.isActive() && attrUse.getAttribute().isActive()) {
           if (attrUse.getAttribute().isMandatory()) {
             attValues.put(replace(elementName),
-                vars.getRequiredStringParameter("inp" + elementName));
+                vars.getRequiredStringParameter("inp" + replace(elementName)));
           } else {
             attValues.put(replace(elementName),
                 vars.getStringParameter("inp" + replace(elementName)));
