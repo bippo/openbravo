@@ -1,0 +1,110 @@
+h1. Openbravo ERP
+
+This is the *Bippo* development version of *Openbravo ERP*.
+
+More info: "ERP Development Setup | Bippo Development Guide":https://sites.google.com/a/bippo.co.id/dev/erp/development
+
+Useful references:
+* "Tomcat reference":https://sites.google.com/a/bippo.co.id/ref/tomcat
+* "PostgreSQL reference":https://sites.google.com/a/bippo.co.id/ref/postgresql
+
+
+h2. Preparation
+
+h3. Tomcat Setup
+
+Install "Tomcat 6.0.x binary distribution":http://tomcat.apache.org/download-60.cgi (don't use its Ubuntu package). 
+Do NOT use Apache 7.0!
+(Hendy's note: maybe should try to use JBoss AS)
+
+a. Extract Tomcat distribution as @$HOME/openbravo-tomcat@ (do not use the @apache-tomcat-x.x.x@ folder)
+   This folder will be referred to as @$CATALINA_HOME@.
+b. Set @CATALINA_HOME@ environment variable in @~/.bashrc@ because it will be used by Openbravo Setup Ant script
+c. Set @CATALINA_OPTS@ environment variable in @~/.bashrc@ as follows: (to fix PermGen error)
+
+bc. export CATALINA_OPTS="-Djava.awt.headless=true -Xms384M -Xmx512M -XX:MaxPermSize=256M"
+
+d. Copy the @tools.jar@ file (from JDK in @/usr/lib/jvm/java-1.6.0-openjdk/lib@) to Tomcat's @lib/@ folder. 
+e. In order to avoid Tomcat from auto-reloading itself, comment the @<WatchedResource>@ line in @$CATALINA_HOME/conf/context.xml@
+f. Create administrator user
+g. Start Tomcat
+
+
+h3. PostgreSQL Setup
+
+Install PostgreSQL 8.4 "with UUID support":http://forge.openbravo.com/plugins/espforum/view.php?group_id=100&forumid=549511&topicid=6993892#6993961 : install Ubuntu packages @postgresql-8.4@, @postgresql-contrib-8.4@
+Do NOT use PostgreSQL 9.1 with Openbravo (yet)!
+
+a. Check if @8.4 main@ cluster exists. If not, create @8.4 main@ cluster at port @5433@.
+b. Start PostgreSQL 8.4
+c. Set password for @postgres@ user in the @8.4 main@ cluster
+
+
+h2. Installation
+
+1. Download the setup binary (@config/setup-properties-linux-x64.bin@) corresponding to your system.
+   It is available at Bippo intranet Nexus, search for @setup-properties-linux-x64@.
+
+_Internal note:_ If you want to download @setup-properties@ directly from Openbravo upstream, run:
+
+bc. ant setup
+
+2. Run the downloaded file in the @config@ directory. For example in
+@amd64@ Linux:
+
+bc. config/setup-properties-linux-x64.bin
+
+_Internal note:_ If there is no setup binary for your operating system and architecture,
+send a request to @<staff.rm at openbravo dot com>@.
+
+3. To install it run:
+
+bc. ant install.source
+
+It creates the database structure, builds the core, compiles
+Openbravo and generates a war file.
+
+Deploy this war file into the @tomcat/webapps@ directory.
+
+
+h2. Eclipse Projects Setup
+
+1. Copy @classpath.sample@ to @.classpath@
+2. Do a Git Import from each of these folders in @~/git/openbravo@ :
+ 
+a. @/@
+b. @src-core/@
+c. @src-trl/@
+d. @src-wad/@
+
+You should get 4 Eclipse projects named:
+
+a. @openbravo@
+b. @OpenbravoCore@
+c. @OpenbravoTrl@
+d. @OpenbravoWAD@
+
+Reference: "How to setup Eclipse IDE":http://wiki.openbravo.com/wiki/How_to_setup_Eclipse_IDE
+
+
+h2. Documentation
+
+See "Openbravo Wiki":http://wiki.openbravo.com for more documentation.
+
+
+h2. Helping out
+
+If you'd like to help out, great!
+
+Have a look to our "Contributor's Guide":http://wiki.openbravo.com/wiki/Contributor%27s_Guide
+
+There is also a list of "on-going community projects":http://wiki.openbravo.com/wiki/Community_Projects
+
+Please share your changes so others can benefit.
+
+Please use @svn diff@ to prepare patches.
+
+
+h2. Contact
+
+IRC: @#openbravo@ in freenode
