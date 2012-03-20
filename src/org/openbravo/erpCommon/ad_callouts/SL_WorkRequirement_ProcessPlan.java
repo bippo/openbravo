@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -26,6 +26,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang.StringUtils;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.utils.FormatUtilities;
@@ -73,8 +74,10 @@ public class SL_WorkRequirement_ProcessPlan extends HttpSecureAppServlet {
     if (data != null && data.length > 0) {
       resultado.append("new Array(\"inpexplodephases\", \""
           + FormatUtilities.replaceJS(data[0].explodephases) + "\"),");
-      resultado.append("new Array(\"inpconversionrate\", \""
-          + FormatUtilities.replaceJS(data[0].conversionrate) + "\"),");
+
+      final String conversionRate = StringUtils.isNotEmpty(data[0].conversionrate) ? FormatUtilities
+          .replaceJS(data[0].conversionrate) : "\"\"";
+      resultado.append("new Array(\"inpconversionrate\", " + conversionRate + "),");
       resultado.append("new Array(\"inpsecondaryunit\", \""
           + FormatUtilities.replaceJS(data[0].secondaryunit) + "\")");
     } else {

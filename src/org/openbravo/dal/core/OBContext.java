@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -526,8 +526,9 @@ public class OBContext implements OBNotSingleton {
   private void setWritableOrganizations(Role role) {
     writableOrganizations = new HashSet<String>();
     final String localUserLevel = getUserLevel();
-    if (localUserLevel.contains("S") || localUserLevel.equals("C")) {
-      writableOrganizations.add("0"); // force org *
+    if (localUserLevel.contains("S") || localUserLevel.contains("C")) {
+      // Force org * in case of System, Client or Client/Organization
+      writableOrganizations.add("0");
     }
 
     final List<Organization> os = getOrganizationList(role);

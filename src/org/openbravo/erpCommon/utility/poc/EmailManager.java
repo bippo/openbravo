@@ -9,7 +9,7 @@
  * either express or implied. See the License for the specific language
  * governing rights and limitations under the License. The Original Code is
  * Openbravo ERP. The Initial Developer of the Original Code is Openbravo SLU All
- * portions are Copyright (C) 2001-2010 Openbravo SLU All Rights Reserved.
+ * portions are Copyright (C) 2001-2012 Openbravo SLU All Rights Reserved.
  * Contributor(s): ______________________________________.
  * ***********************************************************************
  */
@@ -54,24 +54,36 @@ public class EmailManager {
     PocConfigurationData configuration = null;
     if (configurations.length > 0) {
       configuration = configurations[0];
-      if (log4j.isDebugEnabled())
+      if (log4j.isDebugEnabled()) {
         log4j.debug("Crm configuration, smtp server: " + configuration.smtpserver);
-      if (log4j.isDebugEnabled())
         log4j.debug("Crm configuration, smtp server auth: " + configuration.issmtpauthorization);
-      if (log4j.isDebugEnabled())
         log4j.debug("Crm configuration, smtp server account: " + configuration.smtpserveraccount);
-      if (log4j.isDebugEnabled())
         log4j.debug("Crm configuration, smtp server password: " + configuration.smtpserverpassword);
+        log4j.debug("Crm configuration, smtp server connection security: "
+            + configuration.smtpconnectionsecurity);
+        log4j.debug("Crm configuration, smtp server port: " + configuration.smtpport);
+      }
     } else {
       throw new ServletException("No Poc configuration found for this client.");
     }
 
     Properties props = new Properties();
-    props.put("mail.debug", "true");
-    props.put("mail.smtp.auth", (configuration.issmtpauthorization.equals("Y") ? "true" : "false"));
+
+    if (log4j.isDebugEnabled()) {
+      props.put("mail.debug", "true");
+    }
     props.put("mail.transport.protocol", "smtp");
-    props.put("mail.smtp.mail.sender", "email_admin@openbravo.com");
     props.put("mail.host", configuration.smtpserver);
+    props.put("mail.smtp.auth", (configuration.issmtpauthorization.equals("Y") ? "true" : "false"));
+    props.put("mail.smtp.mail.sender", "email_admin@openbravo.com");
+    props.put("mail.smtp.port", configuration.smtpport);
+    if (configuration.smtpconnectionsecurity.equals("STARTTLS")) {
+      props.put("mail.smtp.starttls.enable", "true");
+    } else if (configuration.smtpconnectionsecurity.equals("SSL")) {
+      props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+      props.put("mail.smtp.socketFactory.fallback", "false");
+      props.put("mail.smtp.socketFactory.port", configuration.smtpport);
+    }
 
     ClientAuthenticator authenticator = null;
     if (configuration.smtpserveraccount != null) {

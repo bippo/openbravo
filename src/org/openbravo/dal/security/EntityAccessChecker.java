@@ -167,7 +167,7 @@ public class EntityAccessChecker implements OBNotSingleton {
       }
 
       // and compute the derived readable
-      for (final Entity e : readableEntities) {
+      for (final Entity e : new ArrayList<Entity>(readableEntities)) {
         for (final Property p : e.getProperties()) {
           if (p.getTargetEntity() != null && !readableEntities.contains(p.getTargetEntity())) {
             derivedReadableEntities.add(p.getTargetEntity());

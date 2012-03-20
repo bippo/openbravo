@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -597,7 +597,7 @@ isc.OBPersonalizeFormLayout.addProperties({
   save: function(callback) {
     var params, me = this, newDataFields, 
       formPers = this.form.view.getFormPersonalization();
-
+    
     // if there is a personalization id then use that
     // this ensures that a specific record will be updated
     // on the server
@@ -671,12 +671,6 @@ isc.OBPersonalizeFormLayout.addProperties({
           if (callback) {
             callback();
           }
-          
-          // update the information in the global class
-          // so that the settings are maintained when the window
-          // is re-opened
-          personalization = me.getStandardWindow().getClass().personalization;
-          personalization[me.tabId] = me.personalizationData;          
         });
   },
 

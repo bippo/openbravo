@@ -48,6 +48,7 @@ import org.openbravo.model.financialmgmt.payment.FIN_FinancialAccount;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentMethod;
+import org.openbravo.model.financialmgmt.payment.FIN_Payment_Credit;
 import org.openbravo.model.financialmgmt.payment.FinAccPaymentMethod;
 import org.openbravo.service.db.DalConnectionProvider;
 
@@ -333,12 +334,28 @@ public class DocFINPayment extends AcctServer {
       // credit is generated
       if (new BigDecimal(usedAmount).compareTo(ZERO) != 0
           && new BigDecimal(generatedAmount).compareTo(ZERO) == 0) {
-        // FIXME: WHEN RELATION BETWEEN GENERATION OF CREDIT AND CONSUMPTION IS CREATED IN DATABASE
-        // THEN I CAN CONVERT TO CALCULATE DIFFERENCES
-        fact.createLine(null,
-            getAccountBPartner(C_BPartner_ID, as, payment.isReceipt(), true, conn), C_Currency_ID,
-            (payment.isReceipt() ? usedAmount : ""), (payment.isReceipt() ? "" : usedAmount),
-            Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        List<FIN_Payment_Credit> creditPayments = payment.getFINPaymentCreditList();
+        for (FIN_Payment_Credit creditPayment : creditPayments) {
+          String creditAmountConverted = convertAmount(creditPayment.getAmount(),
+              creditPayment.getCreditPaymentUsed().isReceipt(), DateAcct, TABLEID_Payment,
+              creditPayment.getCreditPaymentUsed().getId(),
+              creditPayment.getCreditPaymentUsed().getCurrency().getId(), as.m_C_Currency_ID, null,
+              as, fact, Fact_Acct_Group_ID, nextSeqNo(SeqNo), conn).toString();
+          fact.createLine(
+              null,
+              getAccountBPartner(C_BPartner_ID, as, creditPayment.getCreditPaymentUsed()
+                  .isReceipt(), true, conn), creditPayment.getCreditPaymentUsed().getCurrency()
+                  .getId(),
+              (creditPayment.getCreditPaymentUsed().isReceipt() ? creditAmountConverted : ""),
+              (creditPayment.getCreditPaymentUsed().isReceipt() ? "" : creditAmountConverted),
+              Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        }
+        if (creditPayments.isEmpty()) {
+          fact.createLine(null,
+              getAccountBPartner(C_BPartner_ID, as, payment.isReceipt(), true, conn),
+              C_Currency_ID, (payment.isReceipt() ? usedAmount : ""), (payment.isReceipt() ? ""
+                  : usedAmount), Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        }
       }
     } finally {
       OBContext.restorePreviousMode();

@@ -173,42 +173,45 @@
             Cur_Product.Divisiongroupqty, Cur_Product.Line
           )
           ;
-	FOR Cur_ProductAtt IN
-	(SELECT *
-	FROM MA_SequenceProductAtt
-	WHERE MA_SequenceProduct_ID=Cur_Product.MA_SequenceProduct_ID
-	)
-	LOOP
-		v_ResultStr:='InsertProductsCopyFromAttribute';
-		v_ProductAtt_ID := get_uuid();
+        FOR Cur_ProductAtt IN
+            (SELECT *
+            FROM MA_SequenceProductAtt
+            WHERE MA_SequenceProduct_ID=Cur_Product.MA_SequenceProduct_ID
+            )
+        LOOP
+          v_ResultStr:='InsertProductsCopyFromAttribute';
+          v_ProductAtt_ID := get_uuid();
 
-		SELECT MA_SequenceProduct_ID
-		INTO v_MASequenceProductFrom_ID
-		FROM MA_SequenceProduct
-		WHERE MA_Sequence_ID = v_Sequence_ID
-		AND LINE = (SELECT LINE 
-				FROM MA_SequenceProduct
-				WHERE MA_SequenceProduct_ID = Cur_ProductAtt.MA_Sequenceproductfrom_id);
+          SELECT MAX(MA_SequenceProduct_ID)
+            INTO v_MASequenceProductFrom_ID
+          FROM MA_SequenceProduct
+          WHERE MA_Sequence_ID = v_Sequence_ID
+            AND isactive = 'Y'
+            AND LINE = (SELECT LINE 
+                        FROM MA_SequenceProduct
+                        WHERE MA_SequenceProduct_ID = Cur_ProductAtt.MA_Sequenceproductfrom_id
+                          AND isactive = 'Y')
+            AND m_product_id = (SELECT m_product_id
+                        FROM MA_SequenceProduct
+                        WHERE MA_SequenceProduct_ID = Cur_ProductAtt.MA_Sequenceproductfrom_id
+                          AND isactive = 'Y');
 
-		IF (v_MASequenceProductFrom_ID IS NOT NULL) THEN
-			INSERT
-			INTO MA_SequenceProductatt
-			  (
-			    MA_SequenceProductatt_ID, AD_Client_ID, AD_Org_ID, Isactive,
-			    Created, Createdby, Updated, Updatedby,
-			    MA_Sequenceproduct_id, MA_Sequenceproductfrom_id, M_Attributeuseto_id, M_Attributeuse_id, 
-			    Isspecialatt, Specialatt
-			  )
-			  VALUES
-			  (
-			    v_ProductAtt_ID, v_Client_ID, v_Org_ID, 'Y',
-			    now(), COALESCE(v_User_ID, '0'), now(), COALESCE(v_User_ID, '0'),
-			    v_Product_ID, v_MASequenceProductFrom_ID, Cur_ProductAtt.M_Attributeuseto_id, Cur_ProductAtt.M_Attributeuse_id, 
-			    Cur_ProductAtt.Isspecialatt, Cur_ProductAtt.Specialatt
-			  )
-			  ;
-		END IF;
-	END LOOP;
+          IF (v_MASequenceProductFrom_ID IS NOT NULL) THEN
+            INSERT
+            INTO MA_SequenceProductatt (
+              MA_SequenceProductatt_ID, AD_Client_ID, AD_Org_ID, Isactive,
+              Created, Createdby, Updated, Updatedby,
+              MA_Sequenceproduct_id, MA_Sequenceproductfrom_id, M_Attributeuseto_id, M_Attributeuse_id, 
+              Isspecialatt, Specialatt
+            ) VALUES (
+              v_ProductAtt_ID, v_Client_ID, v_Org_ID, 'Y',
+              now(), COALESCE(v_User_ID, '0'), now(), COALESCE(v_User_ID, '0'),
+              v_Product_ID, v_MASequenceProductFrom_ID, Cur_ProductAtt.M_Attributeuseto_id, Cur_ProductAtt.M_Attributeuse_id,
+              Cur_ProductAtt.Isspecialatt, Cur_ProductAtt.Specialatt
+            )
+            ;
+          END IF;
+        END LOOP;
       END LOOP;
     END LOOP;
     --MA_Copy_Version - Finish Process

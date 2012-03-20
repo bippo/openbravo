@@ -13,7 +13,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -84,6 +84,7 @@
 		
 	}
 	function onLoadDo(){
+    modifyInputFile('inpFile');
 		if (document.getElementById("paramArchive").value == "Y"){
 			document.getElementById("paramcheck").checked=true
 		}
@@ -93,7 +94,7 @@
 			closeThisPage();
 		}
 		this.windowTables = new Array(
-		  new windowTableId('client', 'buttonOK')
+		  new windowTableId('client')
 		);
 		setWindowTableParentElement();
 		enableShortcuts('popup');
@@ -113,7 +114,7 @@
 	}
 
 	function onResizeDo(){
-		resizeArea();
+		//resizeArea(); // Removed to avoid double-scroll problems, since the html is not built using 2.50 standards
 	}
 	function storeDoc(){
 		if (document.getElementById("paramArchive").value=='' || document.getElementById("paramArchive").value=='N') {
@@ -123,9 +124,46 @@
 			}
 	}
 	
+  function modifyInputFile(id) {
+    var object = document.getElementById(id);
+    if (getBrowserInfo('name').toUpperCase().indexOf('CHROME') !== -1) {
+      object.style.padding = '0px';
+      object.style.margin = '0px';
+      object.style.height = '23px';
+      object.style.background = 'none !important';
+      object.style.border = 'none';
+    }
+    object.style.display = '';
+  }
 
-	
-  </script>
+  function templateChanged() {
+    var callback = function (paramXMLParticular, XMLHttpRequestObj) {
+        var o, fileName;
+        if (getReadyStateHandler(XMLHttpRequestObj)) {
+          try {
+            if (XMLHttpRequestObj.responseText) {
+              strText = XMLHttpRequestObj.responseText;
+            }
+          } catch (e) {}
+          o = eval('('+strText+')');
+          if (!o.error) {
+            document.getElementById('emailSubject').value = o.subject;
+            document.getElementById('emailBody').innerHTML = o.body;
+
+            if (o.filename){
+              fileName = document.getElementById('fileDocName');
+              fileName.removeChild(fileName.childNodes[0]);
+              fileName.appendChild(document.createTextNode(o.filename));
+            }
+          }
+        }
+        return true;
+      },
+    frm = document.frmMain;
+
+    return submitXmlHttpRequest(callback, frm, 'UPDATE_TEMPLATE', 'PrintOptions.html', false);
+  }
+</script>
 
 </head>
 
@@ -181,7 +219,7 @@
 	<tr>
 		<td>
 
-		<div style="margin: 10px;">
+		<div style="margin: 10px;" id="client">
 
 		<table cellspacing="0" cellpadding="0 style="height: 150px; overflow: auto;" class="form_table">
 
@@ -199,7 +237,7 @@
 							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
 									class="dojoValidateValid required TextBox_btn_TwoCells_width"
 									maxlength="200" name="contactEmail" id="contactEmail" value=""
-									required="true" onkeyup="validateTextBox(this.id);"><span class="LabelText" name="contactName" id="contactName" value="" style="padding-left: 10px"></span>
+									required="true"><span class="LabelText" name="contactName" id="contactName" value="" style="padding-left: 10px"></span>
 									
 						</td>
 					</tr>
@@ -208,13 +246,13 @@
 
 					<tr id="salesRep">
 						<td style="width: 1%; text-align: right;">
-							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">From</span>
+							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">Reply-to</span>
 						</td>						
 						<td id="salesrepEmailArea" colspan="2">
 							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
 									class="dojoValidateValid required TextBox_btn_TwoCells_width"
 									maxlength="200" name="salesrepEmail" id="salesrepEmail" value=""
-									required="true" onkeyup="validateTextBox(this.id);"><span class="LabelText" name="salesrepName" id="salesrepName" value="" style="padding-left: 10px"></span>
+									required="true"><span class="LabelText" name="salesrepName" id="salesrepName" value="" style="padding-left: 10px"></span>
 									
 						</td>
 					</tr>
@@ -229,7 +267,7 @@
 							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
 										class="dojoValidateValid required TextBox_btn_TwoCells_width"
 										maxlength="200" name="emailSubject" id="emailSubject" value=""
-										required="true" onkeyup="validateTextBox(this.id);">
+										required="true">
 						</td>
 						
 					</tr>
@@ -258,7 +296,7 @@
 					<tr id="discardSelect">
  						<td class="TitleCell"><span class="LabelText">Template to use</span></td>
 						<td colspan="2">
-	    					<select style="width: 55%;" name="templates" id="templates" class="ComboKey Combo_TwoCells_width" required="true" onchange="displayLogic();return true;">
+	    					<select style="width: 55%;" name="templates" id="templates" class="ComboKey Combo_TwoCells_width" required="true" onchange="templateChanged();return true;">
 	                    	<div id="reportEmail"></div>
 	        			</select>
 						</td>
@@ -279,11 +317,11 @@
         					<div id="sectionDetail2">
         					<tr id="funcEvenOddRowxx" class="DataGrid_Body_Row DataGrid_Body_Row_xx">
       							<td class="DataGrid_Body_Cell" id="fileDocName" value="tt">xx</td>
-								<td width="20" class="DataGrid_Body_Cell">  <span class="Checkbox_container_NOT_Focused" style="text-align: center;"><input type="checkbox" id="paramcheck" name="paramcheck" onclick="javascript:storeDoc();"/></span></td>
+								<td width="20" class="DataGrid_Body_Cell" style="text-align: center;"><span class="Checkbox_container_NOT_Focused"><input type="checkbox" id="paramcheck" name="paramcheck" onclick="javascript:storeDoc();"/></span></td>
          					</tr>
     						<div id="sectionDetail">
       						<tr id="view" class="DataGrid_Body_Row DataGrid_Body_Row_xx">
-      							<td class="DataGrid_Body_Cell" id="paramName">xx<a type="hidden" id="linkLocator" href="#" onclick="javascript:doDelete('yy');return true;"> remove</a> </td>
+      							<td class="DataGrid_Body_Cell" id="paramName">xx<span>&nbsp;&nbsp;</span><a type="hidden" id="linkLocator" href="#" class="LabelLink_noicon" onclick="javascript:doDelete('yy');return true;">[ Remove ]</a></td>
 								<td width="20" class="DataGrid_Body_Cell"><span class="Checkbox_container_NOT_Focused"><input type="hidden" id="paramId" name="field-xx"/></span></td>
          					</tr>
     					</div>
@@ -297,7 +335,7 @@
 					</td>
 					<td colspan="2" class="TextBox_ContentCell">
                     	<input type="text" onblur="isInputFile=false;" onfocus="isInputFile=true;" style="border: 0pt none ; margin: 0pt; padding: 0pt; font-size: 0pt; width: 0px; height: 0px;"/>
-                    	<input type="file" size="32px" name="inpFile" class="dojoValidateValid TextBox_TwoCells_width" style="width: 100px"/>
+                    	<input type="file" size="32px" name="inpFile" id="inpFile" class="dojoValidateValid TextBox_TwoCells_width" style="display: none;"/>
                     	<input type="text" onblur="isInputFile=false;" onfocus="isInputFile=true;" style="border: 0pt none ; margin: 0pt; padding: 0pt; font-size: 0pt; width: 0px; height: 0px;"/>
    	 				</td>
 				</tr>

@@ -1,6 +1,6 @@
 /*
  ************************************************************************************
- * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Copyright (C) 2001-2012 Openbravo S.L.U.
  * Licensed under the Apache Software License version 2.0
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to  in writing,  software  distributed
@@ -80,7 +80,7 @@ public class DefaultAuthenticationManager extends AuthenticationManager {
       OBError errorMsg = new OBError();
       errorMsg.setType("Error");
 
-      if (LoginUtils.checkUserPassword(conn, strUser, "") == null) {
+      if (LoginUtils.checkUserPassword(conn, strUser, strPass) == null) {
         log4j.debug("Failed user/password. Username: " + strUser + " - Session ID:" + sessionId);
         errorMsg.setTitle("IDENTIFICATION_FAILURE_TITLE");
         errorMsg.setMessage("IDENTIFICATION_FAILURE_MSG");

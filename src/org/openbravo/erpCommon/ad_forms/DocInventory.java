@@ -24,9 +24,11 @@ import javax.servlet.ServletException;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.SequenceIdData;
+import org.openbravo.model.common.plm.Product;
 
 public class DocInventory extends AcctServer {
   private static final long serialVersionUID = 1L;
@@ -161,28 +163,44 @@ public class DocInventory extends AcctServer {
       String costs = line.getProductCosts(DateAcct, as, conn, con);
       log4jDocInventory.debug("CreateFact - before DR - Costs: " + costs);
       BigDecimal b_Costs = new BigDecimal(costs);
-      if (b_Costs.compareTo(BigDecimal.ZERO) == 0) {
+      Account assetAccount = line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn);
+      if (assetAccount == null) {
+        Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
+        org.openbravo.model.financialmgmt.accounting.coa.AcctSchema schema = OBDal.getInstance()
+            .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                as.m_C_AcctSchema_ID);
+        log4j.error("No Account Asset for product: " + product.getName()
+            + " in accounting schema: " + schema.getName());
+      }
+      if (b_Costs.compareTo(BigDecimal.ZERO) == 0
+          && DocInOutData.existsCost(conn, DateAcct, line.m_M_Product_ID).equals("0")) {
+        Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
+        log4j.error("No Cost Associated to product: " + product.getName());
         setStatus(STATUS_InvalidCost);
-        continue;
-      } else
-        setStatus(STATUS_NotPosted);// Default status. LoadDocument
+        break;
+      }
       // Inventory DR CR
-      dr = fact.createLine(line, line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn),
-          as.getC_Currency_ID(), costs, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+      dr = fact.createLine(line, assetAccount, as.getC_Currency_ID(), costs, Fact_Acct_Group_ID,
+          nextSeqNo(SeqNo), DocumentType, conn);
       // may be zero difference - no line created.
-      if (dr == null)
+      if (dr == null) {
         continue;
+      }
       dr.setM_Locator_ID(line.m_M_Locator_ID);
       log4jDocInventory.debug("CreateFact - before CR");
       // InventoryDiff DR CR
       // or Charge
       Account invDiff = line.getChargeAccount(as, b_Costs.negate(), conn);
       log4jDocInventory.debug("CreateFact - after getChargeAccount");
-      if (invDiff == null)
+      if (invDiff == null) {
         invDiff = getAccount(AcctServer.ACCTTYPE_InvDifferences, as, conn);
+      }
       log4jDocInventory.debug("CreateFact - after getAccount - invDiff; " + invDiff);
       cr = fact.createLine(line, invDiff, as.getC_Currency_ID(), (b_Costs.negate()).toString(),
           Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+      if (cr == null) {
+        continue;
+      }
       cr.setM_Locator_ID(line.m_M_Locator_ID);
     }
     log4jDocInventory.debug("CreateFact - after loop");

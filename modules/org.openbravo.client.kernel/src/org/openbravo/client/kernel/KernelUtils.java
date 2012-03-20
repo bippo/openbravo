@@ -37,9 +37,12 @@ import org.openbravo.dal.core.DalUtil;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.dal.service.OBQuery;
 import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.module.ModuleDependency;
+import org.openbravo.model.ad.ui.Message;
+import org.openbravo.model.ad.ui.MessageTrl;
 import org.openbravo.model.ad.ui.Tab;
 
 /**
@@ -71,6 +74,47 @@ public class KernelUtils {
   }
 
   private List<Module> sortedModules = null;
+
+  public String getI18N(String key, String[] params) {
+    OBContext.setAdminMode();
+    try {
+
+      // first read the labels from the base table
+      final OBQuery<Message> messages = OBDal.getInstance().createQuery(Message.class,
+          Message.PROPERTY_SEARCHKEY + "=:key");
+      messages.setNamedParameter("key", key);
+      if (messages.list().isEmpty()) {
+        return null;
+      }
+
+      if (messages.list().size() > 1) {
+        log.warn("More than one message found using key " + key);
+      }
+
+      // pick the first one
+      final Message message = messages.list().get(0);
+      String label = message.getMessageText();
+      final String languageId = OBContext.getOBContext().getLanguage().getId();
+      for (MessageTrl messageTrl : message.getADMessageTrlList()) {
+        if (DalUtil.getId(messageTrl.getLanguage()).equals(languageId)) {
+          label = messageTrl.getMessageText();
+          break;
+        }
+      }
+      // parameter substitution
+      if (params != null && params.length > 0) {
+        int cnt = 0;
+        for (String param : params) {
+          label = label.replace("%" + cnt++, param);
+        }
+      }
+      return label;
+    } catch (Exception e) {
+      throw new OBException("Exception when getting message for key: " + key, e);
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
 
   public Property getPropertyFromColumn(Column column) {
     return getPropertyFromColumn(column, true);

@@ -13,7 +13,7 @@
 * under the License. 
 * The Original Code is Openbravo ERP. 
 * The Initial Developer of the Original Code is Openbravo SL 
-* All portions are Copyright (C) 2009-2011 Openbravo SL 
+* All portions are Copyright (C) 2009-2012 Openbravo SL 
 * All Rights Reserved. 
 * Contributor(s):  ______________________________________.
 ************************************************************************
@@ -56,15 +56,17 @@
 function printPDF()
 {
     initialize_MessageBox('messageBoxID');
-    if (validate())
+    if (validate()){
         openPDFFiltered("PaymentReport.html?Command=PDF","PDF");
+    }
     return true;
 }
 function printXLS()
 {
     initialize_MessageBox('messageBoxID');
-    if (validate())
+    if (validate()){
         openPDFFiltered("PaymentReport.html?Command=XLS","EXCEL");
+    }
     return true;
 }
 </script>
@@ -78,19 +80,19 @@ function onloadFunctions() {
     function validate()
     {
         var frm=document.frmMain;
-        if (inputValue(frm.inpOrg)==null || inputValue(frm.inpOrg)=="") {
+        if (inputValue(frm.inpOrg)===null || inputValue(frm.inpOrg)==="") {
           setWindowElementFocus(frm.inpOrg);
           showJSMessage(7);
           return false;
-        }  else if (inputValue(frm.inpConvertCurrencyId)==null || inputValue(frm.inpConvertCurrencyId)=="") {
+        }  else if (inputValue(frm.inpConvertCurrencyId)===null || inputValue(frm.inpConvertCurrencyId)==="") {
           setWindowElementFocus(frm.inpConvertCurrencyId);
           showJSMessage(7);
           return false;
-        }  else if (inputValue(frm.inpConversionDate)==null || inputValue(frm.inpConversionDate)=="") {
+        }  else if (inputValue(frm.inpConversionDate)===null || inputValue(frm.inpConversionDate)==="") {
           setWindowElementFocus(frm.inpConversionDate);
           showJSMessage(7);
           return false;
-        }  else if (inputValue(frm.inpPaymType)==null || inputValue(frm.inpPaymType)=="") {
+        }  else if (inputValue(frm.inpPaymType)===null || inputValue(frm.inpPaymType)==="") {
           setWindowElementFocus(frm.inpPaymType);
           showJSMessage(7);
           return false;
@@ -103,6 +105,10 @@ function onloadFunctions() {
         return true;
     }
     function onLoadDo(){
+      
+        var selectedGroupBy = null;
+        var groupby = null;
+        
         this.windowTables = new Array(
           new windowTableId('client', 'buttonHTML')
         );
@@ -113,6 +119,14 @@ function onloadFunctions() {
         setTabTableParentElement();
         enableShortcuts('edition');
         setBrowserAutoComplete(false);
+        
+        selectedGroupBy = document.getElementById('paramcNoBPartner').value;
+        groupby = document.getElementById('inpcNoBPartner');
+        for (i=0;i<groupby.length;i++){
+          if (groupby[i].value === selectedGroupBy){
+            groupby[i].selected = true;
+          }
+        }
         
         try {
           onloadFunctions();
@@ -140,7 +154,7 @@ function onloadFunctions() {
         
         // Ordering criteria left: The option in grouping criteria gets hidden and it is put at the end.
         for (i = 0; i < ord.length; i++){
-            if (gro.options[gro.selectedIndex].value == ord.options[i].value){
+            if (gro.options[gro.selectedIndex].value === ord.options[i].value){
                 ord[i].style.visibility = "hidden";
                 lastOrd = ord[i];
             }
@@ -157,7 +171,7 @@ function onloadFunctions() {
         
         // Ordering criteria right: The option in grouping criteria gets hidden and it is put at the end.
         for (i = 0; i < sho.length ; i++){
-            if (gro.options[gro.selectedIndex].value == sho.options[i].value){
+            if (gro.options[gro.selectedIndex].value === sho.options[i].value){
                 sho[i].style.visibility = "hidden";
                 lastSho = sho[i];
             }
@@ -185,14 +199,14 @@ function onloadFunctions() {
         for (i = 0; i < ord.length; i++){
             // Duplicates between left and right.
             for (j = 0; j < sho.length; j++){
-                if (ord.options[i].value == sho.options[j].value){
+                if (ord.options[i].value === sho.options[j].value){
                     elementsToRemove.push(i);
                 }
             }
             // Duplicates in left part.
             for (j = 0; j < ord.length; j++){
-                if (ord.options[i].value == ord.options[j].value && i != j){
-                    if (ord.options[i].style.visibility == "hidden"){
+                if (ord.options[i].value === ord.options[j].value && i != j){
+                    if (ord.options[i].style.visibility === 'hidden'){
                         elementsToRemove.push(i);
                     } else {
                         elementsToRemove.push(j);
@@ -208,7 +222,7 @@ function onloadFunctions() {
 
         // Ordering criteria left: Moving to last position intermediate hidden objects.
         for (i = 0; i < ord.length; i++){
-            if (ord.options[i].style.visibility == "hidden"){
+            if (ord.options[i].style.visibility === 'hidden'){
                 hiddenElement = ord[i];
                 ord.remove(i);
                 ord.add(hiddenElement, null);
@@ -217,7 +231,7 @@ function onloadFunctions() {
 
         // Ordering criteria right: Moving to last position intermediate hidden objects.
         for (i = 0; i < sho.length; i++){
-            if (sho.options[i].style.visibility == "hidden"){
+            if (sho.options[i].style.visibility === 'hidden'){
                 hiddenElement = sho[i];
                 sho.remove(i);
                 sho.add(hiddenElement, null);
@@ -243,7 +257,7 @@ function onloadFunctions() {
         
         for (i = 0; i < arrSelStatus.length; i++ ){
             for (j = 0; j < status.options.length; j++){
-                if (arrSelStatus[i] == status.options[j].value){
+                if (arrSelStatus[i] === status.options[j].value){
                     status.options[j].selected = true;
                 }
             }
@@ -252,7 +266,7 @@ function onloadFunctions() {
     function openPaymentTab(isReceipt, recordId) {
        var myframe = getFrame('LayoutMDI') || top.opener;
        if (myframe) {
-           if (isReceipt=="Y") {
+           if (isReceipt==='Y') {
               myframe.OB.Utilities.openDirectTab('C4B6506838E14A349D6717D6856F1B56', recordId);
            } else {
               myframe.OB.Utilities.openDirectTab('F7A52FDAAA0346EFA07D53C125B40404', recordId);
@@ -262,7 +276,7 @@ function onloadFunctions() {
     function openInvoiceTab(isReceipt, recordId) {
         var myframe = getFrame('LayoutMDI') || top.opener;
         if (myframe) {
-            if (isReceipt=="Y") {
+            if (isReceipt==='Y') {
                myframe.OB.Utilities.openDirectTab('EB0466B2A22343F28773B356D292BC7E', recordId);
             } else {
                myframe.OB.Utilities.openDirectTab('A94442B27F664A41BF64735DFA76FB4D', recordId);
@@ -457,13 +471,13 @@ function onloadFunctions() {
                 </tr>
                 <tr>
                   <td class="TitleCell"><span class="LabelText">Due Date From</span></td>
-                  <td class="TextBox_ContentCell">
+                  <td class="TextBox_btn_ContentCell">
                     <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
                       <tr>
                         <td class="TextBox_ContentCell">
                           <input dojoType="openbravo:DateTextbox" lowerThan="paramDueDateTo" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpDueDateFrom" id="paramDueDateFrom" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDueDateFrom");</script>
                         </td>
-                        <td class="FieldButton_bg">
+                        <td class="FieldButton_ContentCell">
                           <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDueDateFrom', document.frmMain.inpDueDateFrom.value, false);return false;">
                           <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
                             <tr>
@@ -486,7 +500,7 @@ function onloadFunctions() {
                         <td class="TextBox_ContentCell">
                           <input dojoType="openbravo:DateTextbox" greaterThan="paramDueDateFrom" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpDueDateTo" id="paramDueDateTo" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDueDateTo");</script>
                         </td>
-                        <td class="FieldButton_bg">
+                        <td class="FieldButton_ContentCell">
                           <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDueDateTo', document.frmMain.inpDueDateTo.value, false);return false;" >
                           <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
                             <tr>
@@ -501,6 +515,99 @@ function onloadFunctions() {
                     </table>
                   </td>
                 </tr>               
+                <tr>
+                  <td class="TitleCell"><span class="LabelText">Document Date From</span></td>
+                  
+                  <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input dojoType="openbravo:DateTextbox" lowerThan="paramDocumentDateTo" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpDocumentDateFrom" id="paramDocumentDateFrom" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDocumentDateFrom");</script>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDocumentDateFrom', document.frmMain.inpDocumentDateFrom.value, false);return false;" >
+                          <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="ContentCell"></td>
+                  <td class="ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText">Document Date To</span></td>
+                  <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input dojoType="openbravo:DateTextbox" greaterThan="paramDocumentDateFrom" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpDocumentDateTo" id="paramDocumentDateTo" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDocumentDateTo");</script>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDocumentDateTo', document.frmMain.inpDocumentDateTo.value, false);return false;" >
+                          <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                <td class="TitleCell"><span class="LabelText">Payment Date From</span></td>
+                 <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input dojoType="openbravo:DateTextbox" lowerThan="paramPaymentDateTo" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpPaymentDateFrom" id="paramPaymentDateFrom" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramPaymentDateFrom");</script>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpPaymentDateFrom', document.frmMain.inpPaymentDateFrom.value, false);return false;" >
+                          <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="ContentCell"></td>
+                  <td class="ContentCell"></td>
+                  <td class="TitleCell"><span class="LabelText">Payment Date To</span></td>
+                  <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input dojoType="openbravo:DateTextbox" greaterThan="paramPaymentDateFrom" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpPaymentDateTo" id="paramPaymentDateTo" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramPaymentDateTo");</script>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpPaymentDateTo', document.frmMain.inpPaymentDateTo.value, false);return false;" >
+                          <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
                 <tr>
                   <td class="TitleCell"><span class="LabelText">Amount From</span></td>
                   <td class="TextBox_btn_ContentCell">
@@ -541,52 +648,6 @@ function onloadFunctions() {
                                 </td>
                               </tr>
                             </table>
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                <tr>
-                  <td class="TitleCell"><span class="LabelText">Document Date From</span></td>
-                  
-                  <td class="TextBox_btn_ContentCell">
-                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
-                      <tr>
-                        <td class="TextBox_ContentCell">
-                          <input dojoType="openbravo:DateTextbox" lowerThan="paramDocumentDateTo" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpDocumentDateFrom" id="paramDocumentDateFrom" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDocumentDateFrom");</script>
-                        </td>
-                        <td class="FieldButton_bg">
-                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDocumentDateFrom', document.frmMain.inpDocumentDateFrom.value, false);return false;" >
-                          <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
-                            <tr>
-                              <td class="FieldButton_bg">
-                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
-                              </td>
-                            </tr>
-                          </table>
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td class="ContentCell"></td>
-                  <td class="ContentCell"></td>
-                  <td class="TitleCell"><span class="LabelText">Document Date To</span></td>
-                  <td class="TextBox_btn_ContentCell">
-                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
-                      <tr>
-                        <td class="TextBox_ContentCell">
-                          <input dojoType="openbravo:DateTextbox" greaterThan="paramDocumentDateFrom" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpDocumentDateTo" id="paramDocumentDateTo" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramDocumentDateTo");</script>
-                        </td>
-                        <td class="FieldButton_bg">
-                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpDocumentDateTo', document.frmMain.inpDocumentDateTo.value, false);return false;" >
-                          <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
-                            <tr>
-                              <td class="FieldButton_bg">
-                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
-                              </td>
-                            </tr>
-                          </table>
                           </a>
                         </td>
                       </tr>
@@ -683,12 +744,21 @@ function onloadFunctions() {
                       </tr>
                     </table>
                   </td>
-                  <td class="TitleCell"><span class="LabelText">Business Partner Category</span></td>
-                  <td class="Combo_ContentCell" colspan="2">
-                    <select  name="inpcBPGroupId_IN" id="paramcBPGroupId_IN" class="Combo Combo_TwoCells_width">
+                  <td><table>
+                    <tr rowspan="2"><td class="TitleCell"><span class="LabelText">Business Partner Category</span></td></tr>
+          <tr rowspan="3"><td class="TitleCell"><span class="LabelText">Empty Business Partner</span></td></tr>
+          </table></td>
+                  <td colspan="3"><table>
+                    <tr rowspan="2"><td class="Combo_ContentCell"><select  name="inpcBPGroupId_IN" id="paramcBPGroupId_IN" class="Combo Combo_TwoCells_width">
                        <option value=""><div id="reportBPGroupId_IN"></div></option>
+                    </select></td></tr>
+          <tr rowspan="3"><td class="Combo_ContentCell"><select  name="inpcNoBPartner" id="inpcNoBPartner" class="ComboKey Combo_TwoCells_width" required="true">
+                       <option value="include">Include empty Business Partner</option>
+             <option value="exclude">Exclude empty Business Partner</option>
+             <option value="only">Only empty Business Partner</option>
                     </select>
-                  </td>
+                    <input type="hidden" value="" id="paramcNoBPartner"/></td></tr>
+                  </table></td>
                 </tr>
                 <tr>
                   <td class="TitleCell"><span class="LabelText">Project</span></td>
@@ -834,7 +904,7 @@ function onloadFunctions() {
                         <td class="TextBox_ContentCell">
                           <input dojoType="openbravo:DateTextbox" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width required" required="true" type="text" name="inpConversionDate" id="paramConversionDate" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramConversionDate");</script>
                         </td>
-                        <td class="FieldButton_bg">
+                        <td class="FieldButton_ContentCell">
                           <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpConversionDate', document.frmMain.inpConversionDate.value, false);return false;" >
                           <table class="FieldButton"onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
                             <tr>

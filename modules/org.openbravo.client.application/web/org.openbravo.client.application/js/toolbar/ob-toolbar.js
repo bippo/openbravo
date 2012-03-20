@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):   Sreedhar Sirigiri (TDS), Mallikarjun M (TDS)
  ************************************************************************
@@ -1067,7 +1067,7 @@ isc.OBToolbar.addProperties({
   //
   refreshCustomButtons: function(noSetSession){
     var selectedRecords, multipleSelectedRowIds, allProperties, i;
-    function doRefresh(buttons, currentValues, hideAllButtons, me) {
+    function doRefresh(buttons, currentValues, hideAllButtons, noneOrMultipleRecordsSelected, me) {
       var i, length = me.rightMembers.length;
       for (i = 0; i < length; i++) { // To disable any button previous defined keyboard shortcut
         me.rightMembers[i].disableShortcut();
@@ -1075,7 +1075,7 @@ isc.OBToolbar.addProperties({
       length = buttons.length;
       for (i = 0; i < length; i++) {
         if (buttons[i].updateState) {
-          buttons[i].updateState(currentValues, hideAllButtons);
+          buttons[i].updateState(currentValues, hideAllButtons, null, !noneOrMultipleRecordsSelected);
         }
       }
       length = me.leftMembers.length;
@@ -1134,7 +1134,7 @@ isc.OBToolbar.addProperties({
           }
         }
         currentContext.viewForm.view.attachmentExists = attachmentExists;
-        doRefresh(buttonsByContext[currentContext], currentContext.getCurrentValues() || {}, noneOrMultipleRecordsSelected, me);
+        doRefresh(buttonsByContext[currentContext], currentContext.getCurrentValues() || {}, noneOrMultipleRecordsSelected, noneOrMultipleRecordsSelected, me);
       };
     };
 
@@ -1158,10 +1158,11 @@ isc.OBToolbar.addProperties({
         this.hideShowRightMembers(false);
       }
       
-      var noneOrMultipleRecordsSelected = currentContext.viewGrid.getSelectedRecords().length !== 1 && !isNew;
       if (currentContext.viewGrid.getSelectedRecords()) {
         numOfSelRecords = currentContext.viewGrid.getSelectedRecords().length;
       }
+
+      var noneOrMultipleRecordsSelected = numOfSelRecords !== 1 && !isNew;
 
       if (currentValues && !noSetSession && !currentContext.isShowingForm && !isNew && !hideAllButtons) {
         if(this.view.tabId===currentContext.tabId){
@@ -1184,7 +1185,7 @@ isc.OBToolbar.addProperties({
         allProperties = currentContext.getContextInfo(false, true, false, true);
         OB.RemoteCallManager.call('org.openbravo.client.application.window.FormInitializationComponent', allProperties, requestParams, callbackHandler(currentContext, me));
       } else {
-        doRefresh(buttonsByContext[currentContext], currentValues || {}, hideAllButtons || noneOrMultipleRecordsSelected, this);
+        doRefresh(buttonsByContext[currentContext], currentValues || {}, hideAllButtons || noneOrMultipleRecordsSelected, numOfSelRecords !== 1,this);
       }
     }
 
@@ -1221,13 +1222,20 @@ isc.OBToolbar.addProperties({
   },
   
   hideShowRightMembers: function(show) {
-    var i;
+    var i, button, context;
     // if showing make sure that they are not always shown
     if (show) {
       this.refreshCustomButtons(false);
     } else {
       for (i = 0; i < this.rightMembers.length; i++) {
-        this.rightMembers[i].hide();
+        button = this.rightMembers[i];
+        if (button.autosave) {
+          button.hide();
+        } else{
+          // do not hide non autosave buttons, keep them in case display logic allows it
+          context = button.contextView;
+          button.updateState(context.getCurrentValues(), false, context.getContextInfo(false, true, true));
+        }
       }
     }
   },

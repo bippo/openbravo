@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -66,6 +66,7 @@ public class EnumUIDefinition extends UIDefinition {
     try {
       value = new JSONObject(super.getFieldProperties(field, getValueFromSession));
       if (!getSafeBoolean(field.isDisplayed()) && !getSafeBoolean(field.isShowInGridView())
+          && !getSafeBoolean(field.isShownInStatusBar())
           && field.getColumn().getDefaultValue() == null
           && !getSafeBoolean(field.getColumn().isMandatory())) {
         return value.toString();

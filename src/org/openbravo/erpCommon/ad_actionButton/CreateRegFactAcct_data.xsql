@@ -54,7 +54,7 @@
       <![CDATA[
         SELECT (CASE SIGN(SUM(AMTACCTDR)-SUM(AMTACCTCR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTDR)-SUM(AMTACCTCR)) END) AS TOTALAMTCR,
         (CASE SIGN(SUM(AMTACCTCR)-SUM(AMTACCTDR)) WHEN -1 THEN 0 ELSE (SUM(AMTACCTCR)-SUM(AMTACCTDR)) END) AS TOTALAMTDR, ACCOUNT_ID, ACCTDESCRIPTION, ACCTVALUE,
-        RECORD_ID2, C_BPARTNER_ID, M_PRODUCT_ID, A_ASSET_ID
+        RECORD_ID2, C_BPARTNER_ID, M_PRODUCT_ID, A_ASSET_ID,C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID
         FROM FACT_ACCT
         WHERE EXISTS (SELECT 1 FROM C_PERIOD P
                       WHERE P.C_YEAR_ID = ?
@@ -64,7 +64,8 @@
                 WHERE C_ELEMENTVALUE.ACCOUNTTYPE = ?)
         AND AD_ORG_ID = ?
         AND C_ACCTSCHEMA_ID = ?
-        GROUP BY ACCOUNT_ID, ACCTDESCRIPTION, ACCTVALUE, RECORD_ID2, C_BPARTNER_ID, M_PRODUCT_ID, A_ASSET_ID
+        GROUP BY ACCOUNT_ID, ACCTDESCRIPTION, ACCTVALUE, RECORD_ID2, C_BPARTNER_ID, M_PRODUCT_ID, A_ASSET_ID,
+                 C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID
       ]]>
     </Sql>
     <Parameter name="c_year_id"/>
@@ -112,7 +113,8 @@
            FACT_ACCT_GROUP_ID,SEQNO, FACTACCTTYPE,
            ACCTDESCRIPTION, ACCTVALUE, C_BPARTNER_ID,
            RECORD_ID2, M_PRODUCT_ID, A_ASSET_ID,
-           DESCRIPTION)
+           DESCRIPTION,C_TAX_ID,C_PROJECT_ID,C_ACTIVITY_ID,
+           USER1_ID,USER2_ID,C_CAMPAIGN_ID,C_SALESREGION_ID)
         VALUES
           ( ?,?,?,
            'Y',now(),?,now(),?,
@@ -123,7 +125,8 @@
            ?,TO_NUMBER(?), 'R',
            ?, ?, ?,
            ?, ?, ?,
-           ?)
+           ?,?,?,?,
+           ?,?,?,?)
       ]]>
     </Sql>
     <Parameter name="fact_acct_id"/>
@@ -153,6 +156,13 @@
     <Parameter name="product"/>
     <Parameter name="asset"/>
     <Parameter name="description"/>
+    <Parameter name="c_tax_id"/>
+    <Parameter name="c_project_id"/>
+    <Parameter name="c_activity_id"/>
+    <Parameter name="user1_id"/>
+    <Parameter name="user2_id"/>
+    <Parameter name="c_campaign_id"/>
+    <Parameter name="c_salesregion_id"/>
   </SqlMethod>
   <SqlMethod name="getEndDate" type="preparedStatement" return="Date">
     <SqlMethodComment></SqlMethodComment>

@@ -25,12 +25,7 @@ import javax.enterprise.context.ApplicationScoped;
 import org.apache.log4j.Logger;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.dal.core.DalUtil;
 import org.openbravo.dal.core.OBContext;
-import org.openbravo.dal.service.OBDal;
-import org.openbravo.dal.service.OBQuery;
-import org.openbravo.model.ad.ui.Message;
-import org.openbravo.model.ad.ui.MessageTrl;
 
 /**
  * Retrieves a label from the server.
@@ -52,29 +47,12 @@ public class GetLabelActionHandler extends BaseActionHandler {
     final JSONObject result = new JSONObject();
     OBContext.setAdminMode();
     try {
-
-      // first read the labels from the base table
-      final OBQuery<Message> messages = OBDal.getInstance().createQuery(Message.class,
-          Message.PROPERTY_SEARCHKEY + "=:key");
-      messages.setNamedParameter("key", key);
-      if (messages.list().isEmpty()) {
+      final String label = KernelUtils.getInstance().getI18N(key, null);
+      if (label == null) {
         // not found, will result in a strange label on the client
         return result;
       }
-
-      if (messages.list().size() > 1) {
-        log.warn("More than one message found using key " + key);
-      }
-
-      // pick the first one
-      final Message message = messages.list().get(0);
-      result.put(LABEL_PROPERTY, message.getMessageText());
-      final String languageId = OBContext.getOBContext().getLanguage().getId();
-      for (MessageTrl messageTrl : message.getADMessageTrlList()) {
-        if (DalUtil.getId(messageTrl.getLanguage()).equals(languageId)) {
-          result.put(LABEL_PROPERTY, messageTrl.getMessageText());
-        }
-      }
+      result.put(LABEL_PROPERTY, label);
     } catch (Exception e) {
       throw new OBException("Exception when getting message for key: " + key, e);
     } finally {

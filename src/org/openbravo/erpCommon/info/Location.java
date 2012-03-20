@@ -51,7 +51,11 @@ public class Location extends HttpSecureAppServlet {
       // String strcLocationId =
       // vars.getRequestGlobalVariable("inpNameValue",
       // "Location.inpcLocationId");
-      vars.getRequestGlobalVariable("inpwindowId", "Location.inpwindowId");
+      String windowId = vars.getRequestGlobalVariable("WindowID", "Location.inpwindowId");
+      String adOrgId = vars.getGlobalVariable("inpadOrgId", windowId + "|AD_Org_ID", "");
+      if (!"".equals(adOrgId)) {
+        vars.setSessionValue("Location.inpadOrgId", adOrgId);
+      }
       printPageFS(response, vars);
     } else if (vars.commandIn("KEY")) {
       String strcLocationId = vars.getStringParameter("inpIDValue");
@@ -72,7 +76,9 @@ public class Location extends HttpSecureAppServlet {
       vars.removeSessionValue("Location.inpcLocationId");
       String strWindow = vars.getSessionValue("Location.inpwindowId");
       vars.removeSessionValue("Location.inpwindowId");
-      printPageSheet(response, vars, strcLocationId, strWindow);
+      String stradOrgId = vars.getSessionValue("Location.inpadOrgId");
+      vars.removeSessionValue("Location.inpadOrgId");
+      printPageSheet(response, vars, strcLocationId, strWindow, stradOrgId);
     } else if (vars.commandIn("SAVE_NEW")) {
       LocationSearchData data = getEditVariables(vars);
       String strSequence = SequenceIdData.getUUID();
@@ -97,7 +103,10 @@ public class Location extends HttpSecureAppServlet {
     LocationSearchData data = new LocationSearchData();
     data.cLocationId = vars.getStringParameter("inpCLocationId");
     data.adClientId = vars.getClient();
-    data.adOrgId = vars.getOrg();
+    data.adOrgId = vars.getStringParameter("inpadOrgId");
+    if ("".equals(data.adOrgId)) {
+      data.adOrgId = vars.getOrg();
+    }
     data.createdby = vars.getUser();
     data.updatedby = vars.getUser();
     data.cCountryId = vars.getStringParameter("inpcCountryId");
@@ -150,7 +159,8 @@ public class Location extends HttpSecureAppServlet {
   }
 
   private void printPageSheet(HttpServletResponse response, VariablesSecureApp vars,
-      String strcLocationId, String strWindow) throws IOException, ServletException {
+      String strcLocationId, String strWindow, String stradOrgId) throws IOException,
+      ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: F1 Locations seeker");
     XmlDocument xmlDocument;
@@ -179,6 +189,7 @@ public class Location extends HttpSecureAppServlet {
         log4j.debug("2 Location: " + strcLocationId);
       data = LocationSearchData.select(this, vars.getLanguage(), strcLocationId);
     }
+    xmlDocument.setParameter("inpadOrgId", stradOrgId);
     xmlDocument.setParameter("directory", "var baseDirectory = \"" + strReplaceWith + "/\";\n");
     xmlDocument.setParameter("language", "defaultLang=\"" + vars.getLanguage() + "\";");
     xmlDocument.setParameter("theme", vars.getTheme());

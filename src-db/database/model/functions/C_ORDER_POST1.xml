@@ -421,39 +421,38 @@
         -- Cancel undelivered Items
         IF (v_isSoTrx='Y') THEN --Sales orders
           UPDATE C_ORDERLINE
-          SET QtyOrdered=QtyDelivered,
+          SET QtyOrdered=GREATEST(QtyDelivered, qtyinvoiced),
               --MODIFIED BY P.SAROBE
-              linenetamt=QtyDelivered*priceactual,
+              linenetamt=GREATEST(QtyDelivered, qtyinvoiced)*priceactual,
               --MODIFIED BY F.IRIAZABAL
               QuantityOrder=QuantityOrder,
               Updated=now()
           WHERE C_Order_ID=v_Record_ID
-            AND QtyOrdered<>QtyDelivered;
+            AND QtyOrdered<>GREATEST(QtyDelivered, qtyinvoiced);
           -- For Purchase orders, M_MatchPO table used. Notice that only delivered lines(C_Invoiceline_Id is null) using
         ELSE
           UPDATE C_ORDERLINE
-          SET QTYORDERED=COALESCE
-                (
-                  (SELECT SUM(M_MATCHPO.QTY)
+          SET QTYORDERED=COALESCE((
+                  SELECT GREATEST(SUM(CASE WHEN M_MATCHPO.C_INVOICELINE_ID IS NULL THEN M_MATCHPO.QTY ELSE 0 END),
+                               SUM(CASE WHEN M_MATCHPO.M_INOUTLINE_ID IS NULL THEN M_MATCHPO.QTY ELSE 0 END))
                   FROM M_MATCHPO
                   WHERE M_MATCHPO.C_ORDERLINE_ID=C_ORDERLINE.C_ORDERLINE_ID
-                    AND M_MATCHPO.C_INVOICELINE_ID IS NULL
-                  )
-                  , 0
-                ),
+                  ), 0),
               QuantityOrder=C_ORDERLINE.QuantityOrder,
               Updated=now(),
-              linenetamt=COALESCE
-                (
-                  (SELECT SUM(M_MATCHPO.QTY)
+              linenetamt=COALESCE((
+                  SELECT GREATEST(SUM(CASE WHEN M_MATCHPO.C_INVOICELINE_ID IS NULL THEN M_MATCHPO.QTY ELSE 0 END),
+                               SUM(CASE WHEN M_MATCHPO.M_INOUTLINE_ID IS NULL THEN M_MATCHPO.QTY ELSE 0 END))
                   FROM M_MATCHPO
                   WHERE M_MATCHPO.C_ORDERLINE_ID=C_ORDERLINE.C_ORDERLINE_ID
-                    AND M_MATCHPO.C_INVOICELINE_ID IS NULL
-                  )
-                  , 0
-                )
-                *priceactual
-          WHERE C_ORDERLINE.C_ORDER_ID=v_Record_ID;
+                  ), 0)*priceactual
+          WHERE C_ORDERLINE.C_ORDER_ID=v_Record_ID
+            AND qtyordered <> COALESCE((
+                  SELECT GREATEST(SUM(CASE WHEN M_MATCHPO.C_INVOICELINE_ID IS NULL THEN M_MATCHPO.QTY ELSE 0 END),
+                               SUM(CASE WHEN M_MATCHPO.M_INOUTLINE_ID IS NULL THEN M_MATCHPO.QTY ELSE 0 END))
+                  FROM M_MATCHPO
+                  WHERE M_MATCHPO.C_ORDERLINE_ID=C_ORDERLINE.C_ORDERLINE_ID
+                  ), 0);
         END IF;
         -- if there is no change, the tax calculation, etc. is not needed.
         -- potential problem, if posted (i.e. encumbered) for full amount

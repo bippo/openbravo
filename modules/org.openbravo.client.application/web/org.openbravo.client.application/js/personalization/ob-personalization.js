@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s): ___________
  ************************************************************************
@@ -180,7 +180,6 @@ OB.Personalization.updatePersonalizationDataFromFields = function(dataFields, fi
     if (dataField) {
       // will be corrected in a later loop
       delete dataField.isStatusBarField;
-      delete dataField.parentName;
       continue;
     }
 
@@ -233,7 +232,7 @@ OB.Personalization.updatePersonalizationDataFromFields = function(dataFields, fi
       for (j = 0; j < dataFields[i].childNames.length; j++) {
         // find is a smartclient extension
         record = dataFields.find('name', dataFields[i].childNames[j]);
-        if (record) {
+        if (record && !record.parentName) {
           record.parentName = dataFields[i].name;
         }
       }

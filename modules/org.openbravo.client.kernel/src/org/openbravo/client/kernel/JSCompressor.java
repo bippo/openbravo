@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -27,7 +27,8 @@ import org.apache.log4j.Logger;
 import org.openbravo.base.provider.OBProvider;
 
 /**
- * Compresses a JavaScript source using Closure Compiler http://code.google.com/p/closure-compiler/
+ * Compresses a JavaScript source using JSMin <br>
+ * http://code.google.com/p/jsmin-ant-task/
  * 
  * @author mtaal
  * @author iperdomo

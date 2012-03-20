@@ -461,7 +461,7 @@ class WadActionButton {
             html.append("    Utility.fillSQLParameters(this, vars, ")
                 .append(
                     genericActionButton ? "null" : "(FieldProvider) vars.getSessionObject(\"button"
-                        + processId + ".originalParams\")").append(", comboTableData, \"\", ")
+                        + processId + ".originalParams\")").append(", comboTableData, windowId, ")
                 .append(strDefault).append(");\n");
             html.append("    xmlDocument.setData(\"report");
             // html.append(Sqlc.TransformaNombreColumna(data[i].columnname));

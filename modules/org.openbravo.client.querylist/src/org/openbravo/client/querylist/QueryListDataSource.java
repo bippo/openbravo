@@ -28,9 +28,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -47,6 +49,7 @@ import org.openbravo.base.model.domaintype.LongDomainType;
 import org.openbravo.base.model.domaintype.PrimitiveDomainType;
 import org.openbravo.client.application.Parameter;
 import org.openbravo.client.application.ParameterUtils;
+import org.openbravo.client.kernel.reference.EnumUIDefinition;
 import org.openbravo.client.kernel.reference.ForeignKeyUIDefinition;
 import org.openbravo.client.kernel.reference.NumberUIDefinition;
 import org.openbravo.client.kernel.reference.UIDefinition;
@@ -170,13 +173,14 @@ public class QueryListDataSource extends ReadOnlyDataSourceService {
             if (queryAliases[i].equals(column.getDisplayExpression())
                 || (!isExport && queryAliases[i].equals(column.getLinkExpression()))) {
               Object value = resultList[i];
-              if (value instanceof Date) {
-                value = xmlDateFormat.format(value);
-              }
               if (value instanceof Timestamp) {
                 value = xmlDateTimeFormat.format(value);
                 value = JsonUtils.convertToCorrectXSDFormat((String) value);
               }
+              if (value instanceof Date) {
+                value = xmlDateFormat.format(value);
+              }
+
               data.put(queryAliases[i], value);
             }
           }
@@ -327,6 +331,29 @@ public class QueryListDataSource extends ReadOnlyDataSourceService {
             dsProperty.setPrimitiveObjectType(((PrimitiveDomainType) uiDefinition.getDomainType())
                 .getPrimitiveType());
             dsProperty.setNumericType(uiDefinition instanceof NumberUIDefinition);
+
+            if (uiDefinition instanceof EnumUIDefinition) {
+              if (column.getReferenceSearchKey() == null) {
+                log.warn("In widget " + column.getWidgetQuery().getWidgetClass().getWidgetTitle()
+                    + " column " + column.getDisplayExpression()
+                    + " is of enum type but does not define sub reference.");
+              } else {
+                Set<String> allowedValues = new HashSet<String>();
+
+                final String hql = "select al.searchKey from ADList al"
+                    + " where al.reference=:ref";
+                final Query qry = OBDal.getInstance().getSession().createQuery(hql);
+                qry.setParameter("ref", column.getReferenceSearchKey());
+                for (Object o : qry.list()) {
+                  final String value = (String) o;
+                  allowedValues.add(value);
+                }
+
+                dsProperty.setAllowedValues(allowedValues);
+                dsProperty.setValueMap(DataSourceProperty.createValueMap(allowedValues, column
+                    .getReferenceSearchKey().getId()));
+              }
+            }
           } else {
           }
           dsProperties.add(dsProperty);

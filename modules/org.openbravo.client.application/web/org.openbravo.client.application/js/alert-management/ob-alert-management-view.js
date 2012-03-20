@@ -165,8 +165,11 @@ isc.OBUIAPP_AlertManagement.addProperties({
   
   setTotalRows: function(totalRows, status) {
     if (OB.AlertManagement.sections[status]) {
+      if(OB.AlertManagement.grids[status] && OB.AlertManagement.grids[status].dataPageSize < totalRows){
+        totalRows = '>'+ OB.AlertManagement.grids[status].dataPageSize;
+      }
       OB.AlertManagement.sections[status].getSectionHeader()
-          .setTitle(OB.I18N.getLabel('OBUIAPP_AlertSectionHeader', [OB.AlertManagement.translatedStatus[status], totalRows]));
+      .setTitle(OB.I18N.getLabel('OBUIAPP_AlertSectionHeader', [OB.AlertManagement.translatedStatus[status], totalRows]));
     }
   },
   

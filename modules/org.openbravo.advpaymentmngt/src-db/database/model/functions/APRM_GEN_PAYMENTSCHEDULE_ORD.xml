@@ -38,6 +38,7 @@ v_paymentmethod_id c_order.fin_paymentmethod_id%TYPE;
 v_bpartner_id c_order.c_bpartner_id%TYPE;
 v_docSubType c_doctype.docsubtypeso%TYPE;
 v_PaymentPriority VARCHAR(32);
+v_count NUMBER;
 
 TYPE RECORD IS REF CURSOR;
 Cur_Params RECORD;
@@ -75,13 +76,25 @@ BEGIN
   FROM c_order
   WHERE c_order_id = p_record_id;
 
-  SELECT docsubtypeso
-  INTO v_docSubType
+  SELECT COALESCE(docsubtypeso, '---') INTO v_docSubType
   FROM c_doctype
   WHERE c_doctype_id = v_C_Doctype_ID;
   
-  IF(v_docSubType is null or v_docSubType not in ('OB', 'ON')) THEN
-    IF (p_docaction = 'CO') THEN
+  SELECT count(*) INTO v_count
+  FROM fin_payment_schedule
+  WHERE c_order_id = p_record_id
+    -- Migrated orders with related debt-payments have an additional fin_payment_schedule with the paid amount.
+    -- These additional fin_payment_schedules do not have fin_payment_scheduledetail records.
+    AND EXISTS (SELECT 1 FROM fin_payment_scheduledetail
+                WHERE fin_payment_schedule_order = fin_payment_schedule.fin_payment_schedule_id);
+  IF (v_count > 1) THEN
+    RAISE_APPLICATION_ERROR(-20000, '@APRM_Multiple_Payment_Schedules@');
+  END IF;
+  
+  IF(v_docSubType in ('OB', 'ON')) THEN
+    RETURN;
+  END IF;
+  IF (p_docaction = 'CO') THEN
     -- Checking Payment Method ID is available
     IF(v_paymentmethod_id IS NULL) THEN
       RAISE_APPLICATION_ERROR(-20000, '@APRM_PAYMENTMETHOD_MISSING@');
@@ -166,7 +179,6 @@ BEGIN
   ELSIF (p_docaction = 'RE') THEN
     -- check there is not any paid payment
     DECLARE
-      v_count NUMBER;
       Cur_PaymentScheduleDetail RECORD;
     BEGIN
       SELECT count(*) INTO v_count
@@ -200,21 +212,58 @@ BEGIN
   ELSIF (p_docaction = 'CL') THEN
     DECLARE
       v_difference NUMBER;
+      v_FinPaymentScheduleId VARCHAR2(32);
+      v_FinPaymentScheduleDetailId VARCHAR2(32);
+      v_psd_amt NUMBER;
     BEGIN
-      SELECT sum(amount) - v_grandtotal INTO v_difference
+      SELECT v_grandtotal - sum(amount) INTO v_difference
       FROM fin_payment_schedule
       WHERE c_order_id = p_record_id;
+
+      SELECT ps.fin_payment_schedule_id INTO v_finpaymentscheduleid
+      FROM fin_payment_schedule ps
+      WHERE ps.c_order_id=p_record_id
+        AND EXISTS (SELECT 1 FROM fin_payment_scheduledetail WHERE fin_payment_schedule_order = ps.fin_payment_schedule_id);
+
       IF (v_difference <> 0) THEN
-        UPDATE fin_payment_schedule
-        SET amount = amount - v_difference,
-        outstandingamt = outstandingamt - v_difference,
-        updated = now(),
-        updatedby = p_user
-        WHERE c_order_id = p_record_id
-          AND outstandingamt > v_difference;
+        --Get fin_payment_scheduledetail not related to payments nor invoices.
+        SELECT fin_payment_scheduledetail_id, amount
+          INTO v_finpaymentscheduledetailid, v_psd_amt
+        FROM fin_payment_scheduledetail
+        WHERE fin_payment_schedule_order = v_finpaymentscheduleid
+          AND fin_payment_schedule_invoice IS NULL
+          AND fin_payment_detail_id IS NULL;
+        IF (v_finpaymentscheduledetailid IS NOT NULL) THEN
+          --If exists a psd not related to any invoice nor invoice update its amount with the difference.
+          IF (v_psd_amt * -1 = v_difference) THEN
+            -- If amounts are equal we delete the psd
+            DELETE FROM fin_payment_scheduledetail
+            WHERE fin_payment_scheduledetail_id = v_finpaymentscheduledetailid;
+          ELSE 
+            UPDATE fin_payment_scheduledetail
+            SET amount = amount + v_difference
+            WHERE fin_payment_scheduledetail_id = v_finpaymentscheduledetailid;
+          END IF;
+        ELSE
+          -- If not exists a psd to update create one with the difference
+          INSERT INTO fin_payment_scheduledetail (
+              fin_payment_scheduledetail_id, ad_client_id, ad_org_id, isactive,
+              created, createdby, updated, updatedby,
+              fin_payment_detail_id, fin_payment_schedule_order, fin_payment_schedule_invoice,
+              amount, writeoffamt, iscanceled
+          ) VALUES (
+              get_uuid(), v_Client_ID, v_Org_ID,'Y',
+              now(), p_user, now(), p_user,
+              null, v_FinPaymentScheduleId, null,
+              v_difference, 0 ,'N'
+          );
+        END IF;
+        UPDATE fin_payment_schedule 
+        SET amount = amount + v_difference,
+            outstandingamt = outstandingamt + v_difference
+        WHERE fin_payment_schedule_id = v_FinPaymentScheduleId;
       END IF;
     END;
-  END IF;
   END IF;
 EXCEPTION
 WHEN OTHERS THEN

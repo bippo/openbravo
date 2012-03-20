@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -20,6 +20,9 @@
 /**
 * @fileoverview Contains methods for manage ajax in generic trees
 */
+
+  var OB = OB || {};
+  OB.GenericTree = OB.GenericTree || {};
 
   //Functions for ajax tree control
   function gt_callback(paramXMLParticular, XMLHttpRequestObj) {
@@ -100,6 +103,10 @@
   }
   
   function gt_getDescription(id) {
+    if (OB.GenericTree.doNotUpdateTreeInfo){
+      return;
+    }
+
     var frm = document.frmMain;
     frm.inpNodeId.value = id;
     var paramXMLReq = new Array('begin');

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s): Valery Lezhebokov.
  ************************************************************************
@@ -177,14 +177,14 @@ isc.OBNoteLayout.addProperties({
         });
         noteSection.setNoteCount(noteSection.noteCount - 1);
       }
-    },{title: OB.I18N.getLabel('OBUIAPP_ConfirmRemoveTitle')});
+    },{title: OB.I18N.getLabel('OBUIAPP_DialogTitle_DeleteNote')});
   },
 
   /**
    * Returns Notes data source.
    */
   getNoteDataSource : function() {
-    return isc.DataSource.getDataSource(this.noteDSId);
+    return this.noteListGrid.dataSource;
   },
 
   /**
@@ -192,9 +192,6 @@ isc.OBNoteLayout.addProperties({
    */
   initWidget : function() {
     this.Super('initWidget', arguments);
-
-    // register note DS
-    OB.Datasource.get(this.noteDSId);
 
     var hLayout = isc.HLayout.create({
       width : '50%',
@@ -260,7 +257,6 @@ isc.OBNoteLayout.addProperties({
       alternateRecordStyles : false,
       autoFetchData : true,
       baseStyle : 'OBNoteListGridCell',
-      dataSource : this.noteDSId,
       fixedRecordHeights : false,
       filterOnKeypress : true,
       headerHeight : 0,
@@ -272,6 +268,10 @@ isc.OBNoteLayout.addProperties({
       showEmptyMessage : false,
       styleName : 'OBNoteListGrid',
       wrapCells : true,
+      
+      setDataSource: function (dataSource, fields) {
+        this.Super('setDataSource', [dataSource, this.fields]);
+      },
 
       fetchData : function(criteria, callback, requestProperties) {
         if (this.layout.getForm() && this.layout.getForm().noteSection && 
@@ -363,7 +363,9 @@ isc.OBNoteLayout.addProperties({
     });
     
     this.addMember(this.noteListGrid);
-
+    
+    // register note DS
+    OB.Datasource.get(this.noteDSId, this.noteListGrid, null, true);
   },
 
   /**

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2011 Openbravo SLU 
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -25,6 +25,7 @@ import javax.enterprise.event.Event;
 import javax.inject.Inject;
 
 import org.hibernate.EmptyInterceptor;
+import org.hibernate.Transaction;
 import org.hibernate.type.Type;
 import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.base.structure.Traceable;
@@ -47,6 +48,12 @@ public class PersistenceEventOBInterceptor extends EmptyInterceptor {
 
   @Inject
   private Event<EntityDeleteEvent> entityDeleteEventProducer;
+
+  @Inject
+  private Event<TransactionBeginEvent> transactionBeginEventProducer;
+
+  @Inject
+  private Event<TransactionCompletedEvent> transactionCompletedEventProducer;
 
   public void onDelete(Object entity, Serializable id, Object[] state, String[] propertyNames,
       Type[] types) {
@@ -103,6 +110,20 @@ public class PersistenceEventOBInterceptor extends EmptyInterceptor {
   private boolean isNew(Object entity) {
     final Traceable t = (Traceable) entity;
     return t.getCreatedBy() == null;
+  }
+
+  @Override
+  public void afterTransactionBegin(Transaction tx) {
+    final TransactionBeginEvent event = new TransactionBeginEvent();
+    event.setTransaction(tx);
+    transactionBeginEventProducer.fire(event);
+  }
+
+  @Override
+  public void afterTransactionCompletion(Transaction tx) {
+    final TransactionCompletedEvent event = new TransactionCompletedEvent();
+    event.setTransaction(tx);
+    transactionCompletedEventProducer.fire(event);
   }
 
 }

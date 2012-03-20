@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -283,11 +283,14 @@ isc.OBViewGrid.addProperties({
   
     var ret = this.Super('initWidget', arguments);
     
-    vwState = this.view.standardWindow.getDefaultGridViewState(this.view.tabId);
-    if (vwState) {
-      this.setViewState(vwState);
+    // only personalize if there is a professional license
+    if (!OB.Utilities.checkProfessionalLicense(null, true)) {
+      vwState = this.view.standardWindow.getDefaultGridViewState(this.view.tabId);
+      if (vwState) {
+        this.setViewState(vwState);
+      }
     }
-
+    
     this.noDataEmptyMessage = '<span class="OBGridNotificationText">' + OB.I18N.getLabel('OBUISC_ListGrid.loadingDataMessage') + '</span>'; // OB.I18N.getLabel('OBUIAPP_GridNoRecords')
     this.filterNoRecordsEmptyMessage = '<span class="OBGridNotificationText">' + OB.I18N.getLabel('OBUIAPP_GridFilterNoResults') + '</span>' +
     '<span onclick="window[\'' +
@@ -424,9 +427,33 @@ isc.OBViewGrid.addProperties({
     delete this.inCellHoverHTML;
     return ret;
   },
- 
+  
+  reorderField: function(fieldNum, moveToPosition){
+    var res = this.Super('reorderField', arguments);
+    this.view.standardWindow.storeViewState();
+    return res;
+  },
+
+  hideField: function(field, suppressRelayout){
+    var res = this.Super('hideField', arguments);
+    this.view.standardWindow.storeViewState();
+    return res;
+  },
+
+  showField: function(field, suppressRelayout){
+    var res = this.Super('showField', arguments);
+    this.view.standardWindow.storeViewState();
+    return res;
+  },
+
+  resizeField: function(fieldNum, newWidth, storeWidth){
+    var res = this.Super('resizeField', arguments);
+    this.view.standardWindow.storeViewState();
+    return res;
+  },
+  
   // also store the filter criteria
-  getViewState : function (returnObject, includeFilter) {
+  getViewState: function (returnObject, includeFilter) {
     var state = this.Super('getViewState', [returnObject || true]);
 
     if (includeFilter) {
@@ -436,6 +463,9 @@ isc.OBViewGrid.addProperties({
         state.noFilterClause = true;
       }
     }
+    
+    // get rid of the selected state
+    delete state.selected;
     
     if (returnObject) {
       return state;
@@ -1705,7 +1735,8 @@ isc.OBViewGrid.addProperties({
   },
   
   createNewRecordForEditing: function(rowNum){
-    // note: the id is dummy, will be replaced when the save succeeds 
+    // note: the id is dummy, will be replaced when the save succeeds, 
+    // it MUST start with _ to identify it is a temporary id 
     var record = {
       _new: true,
       id: '_' + new Date().getTime()
@@ -2466,30 +2497,6 @@ isc.OBViewGrid.addProperties({
   
   isEditLinkColumn: function(colNum){
     return this.editLinkColNum === colNum;
-  },
-  
-  reorderField: function(fieldNum, moveToPosition){
-    var res = this.Super('reorderField', arguments);
-    this.view.standardWindow.storeViewState();
-    return res;
-  },
-  
-  hideField: function(field, suppressRelayout){
-    var res = this.Super('hideField', arguments);
-    this.view.standardWindow.storeViewState();
-    return res;
-  },
-  
-  showField: function(field, suppressRelayout){
-    var res = this.Super('showField', arguments);
-    this.view.standardWindow.storeViewState();
-    return res;
-  },
-  
-  resizeField: function(fieldNum, newWidth, storeWidth){
-    var res = this.Super('resizeField', arguments);
-    this.view.standardWindow.storeViewState();
-    return res;
   }
   
 });

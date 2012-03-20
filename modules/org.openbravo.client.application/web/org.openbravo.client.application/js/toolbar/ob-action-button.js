@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -48,13 +48,18 @@ isc.OBToolbarActionButton.addProperties({
       parameters: [rowNum]
     };
 
-    theView.standardWindow.doActionAfterAutoSave(actionObject);
+    if (this.autosave) {
+      theView.standardWindow.doActionAfterAutoSave(actionObject);
+    } else {
+      OB.Utilities.callAction(actionObject);
+    }
   },
 
   doAction: function (rowNum) {
     var theView = this.contextView,
         me = this,
         standardWindow = this.view.standardWindow,
+        autosaveButton = this.autosave,
         param, allProperties, sessionProperties, callbackFunction, popupParams;
 
     if (rowNum && !theView.viewGrid.getSelectedRecord()) {
@@ -97,9 +102,12 @@ isc.OBToolbarActionButton.addProperties({
     // ad_process definition handling
     if (this.modal) {
       allProperties.Command = this.command;
-      callbackFunction = function(){
+      callbackFunction = function () {
         var popup = OB.Layout.ClassicOBCompatibility.Popup.open('process', 900, 600, OB.Utilities.applicationUrl(me.obManualURL), '', null, false, false, true, allProperties);
-        popup.activeViewWhenClosed = theView;
+        if (autosaveButton) {
+          // Back to header if autosave button
+          popup.activeViewWhenClosed = theView;
+        }
       };
     } else {
       popupParams = {
@@ -127,7 +135,10 @@ isc.OBToolbarActionButton.addProperties({
     //Keep current view for the callback function. Refresh and look for tab message.
     var contextView = OB.ActionButton.executingProcess.contextView,
         currentView = this.view,
-        afterRefresh = function(){
+        afterRefresh = function (doRefresh) {
+          var undef,
+              refresh = (doRefresh === undef || doRefresh);
+
           // Refresh context view
           contextView.getTabMessage();
           currentView.toolBar.refreshCustomButtons();
@@ -139,21 +150,28 @@ isc.OBToolbarActionButton.addProperties({
           }
 
           // Refresh in order to show possible new records
-          currentView.refresh(null, false, true);
+          if (refresh) {
+            currentView.refresh(null, false, true);
+          }
         };
 
-    if (currentView.parentView) {
-      currentView.parentView.setChildsToRefresh();
+    if (this.autosave) {
+      if (currentView.parentView) {
+        currentView.parentView.setChildsToRefresh();
+      } else {
+        currentView.setChildsToRefresh();
+      }
+
+      if (currentView.viewGrid.getSelectedRecord()) {
+        // There is a record selected, refresh it and its parent
+        currentView.refreshCurrentRecord(afterRefresh);
+      } else {
+        // No record selected, refresh parent
+        currentView.refreshParentRecord(afterRefresh);
+      }
     } else {
-      currentView.setChildsToRefresh();
-    }
-        
-    if (currentView.viewGrid.getSelectedRecord()) {
-      // There is a record selected, refresh it and its parent
-      currentView.refreshCurrentRecord(afterRefresh);
-    } else {
-      // No record selected, refresh parent
-      currentView.refreshParentRecord(afterRefresh);
+      // If the button is not autosave, do not refresh but get message.
+      afterRefresh(false);
     }
 
     OB.ActionButton.executingProcess = null;
@@ -180,9 +198,12 @@ isc.OBToolbarActionButton.addProperties({
     }
   },
   
-  updateState: function(record, hide, context) {
-    var currentValues = record || this.contextView.getCurrentValues() || {};
-    if (hide || !record) {
+  updateState: function(record, hide, context, keepNonAutosave) {
+    var currentValues = record || this.contextView.getCurrentValues() || {},
+        // do not hide non autosave buttons when hidding the rest if keepNonAutosave === true
+        hideButton = hide && (!keepNonAutosave || this.autosave);
+
+    if (hideButton || !record) {
       this.hide();
       return;
     }

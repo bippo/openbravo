@@ -78,7 +78,7 @@
                     FROM AD_Module_Dependency
                    WHERE AD_Module_ID = M.AD_Module_ID
                      AND IsIncluded = 'Y')                as display, m.Status, m.help, m.author, m.url,
-                     CASE WHEN COALESCE(AD_ORGMODULE.VERSION,M.VERSION) <> M.VERSION THEN 'Y' ELSE '' END AS Update_Available,
+                     CASE WHEN AD_ORGMODULE.CHECKSUM NOT LIKE '%'|| AD_DATASET.CHECKSUM  ||'%' THEN 'Y' ELSE '' END AS Update_Available,
                      m.seqno
            FROM AD_Module M left join AD_DATASET on M.ad_module_id = AD_DATASET.ad_module_id
 			    LEFT JOIN AD_ORGMODULE ON M.AD_MODULE_ID = AD_ORGMODULE.AD_MODULE_ID
@@ -97,8 +97,14 @@
                             AND OM.AD_CLIENT_ID = ?
                             AND (AD_IsOrgIncluded(?, OM.AD_Org_ID, OM.AD_Client_ID)<>-1
                             OR AD_IsOrgIncluded(OM.AD_Org_ID, ?, OM.AD_Client_ID)<>-1)
-                            AND OM.VERSION = M.VERSION)
-            AND (((? <> '0') AND AD_DATASET.ACCESSLEVEL IN ('1'))
+                            AND OM.CHECKSUM LIKE '%'|| AD_DATASET.CHECKSUM  ||'%')
+            AND NOT EXISTS (SELECT 1 FROM AD_ORGMODULE OM
+                            WHERE OM.ad_module_id = M.ad_module_id
+                            AND OM.AD_CLIENT_ID = ?
+                            AND (AD_IsOrgIncluded(OM.AD_Org_ID, ?, OM.AD_Client_ID)<>-1
+                            OR AD_IsOrgIncluded(?, OM.AD_Org_ID, OM.AD_Client_ID)<>-1)
+                            AND OM.ad_org_id <> ?)                            
+            AND (((? <> '0') AND AD_DATASET.ACCESSLEVEL IN ('1', '3'))
                 OR ((? = '0') AND AD_DATASET.ACCESSLEVEL IN ('3', '6')))) A
           ORDER BY A.SeqNo
           ]]>
@@ -108,6 +114,10 @@
       <Parameter name="client"/>
       <Parameter name="org"/>
       <Parameter name="org"/>
+      <Parameter name="client"/>
+      <Parameter name="org"/>
+      <Parameter name="org"/>      
+      <Parameter name="org"/>      
       <Parameter name="org"/>
       <Parameter name="org"/>
    </SqlMethod>

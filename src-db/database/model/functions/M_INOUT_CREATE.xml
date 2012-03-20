@@ -572,19 +572,17 @@
             END;--END DECLARE VARIABLES FOR ORDER LINE LOOP
           END IF;--Next_Order
           -- Validate result message for user
-          IF (Cur_Order.DeliveryRule='O' AND v_lines <= 10) THEN
+          IF (v_lines <= 10) THEN
               DELETE FROM M_INOUTLINE
               WHERE M_INOUT_ID  = p_InOut_ID;
               DELETE FROM M_INOUT
               WHERE M_INOUT_ID = p_InOut_ID;
               next_order := TRUE;
-            result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ': ' || '@ShipmentError@. @notEnoughStockDeliveryRuleOrder@.';
-          ELSIF (v_lines <= 10) THEN
-              DELETE FROM M_INOUTLINE
-              WHERE M_INOUT_ID  = p_InOut_ID;
-              DELETE FROM M_INOUT
-              WHERE M_INOUT_ID = p_InOut_ID;
-            result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ': ' || '@ShipmentError@.' || v_resultlinesstr;
+              IF (Cur_Order.DeliveryRule='O') THEN
+                result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ': ' || '@ShipmentError@. @notEnoughStockDeliveryRuleOrder@.';
+              ELSE
+                result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ': ' || '@ShipmentError@.' || v_resultlinesstr;
+              END IF;
           ELSIF (v_hasPartial) THEN
             v_order_partial_count := v_order_partial_count +1;
             result_String := '@OrderDocumentno@ ' || cur_order.DocumentNo || ' @InoutDocumentno@ ' || v_DocumentNo || ': @ShipmentPartial@.' || v_resultlinesstr;

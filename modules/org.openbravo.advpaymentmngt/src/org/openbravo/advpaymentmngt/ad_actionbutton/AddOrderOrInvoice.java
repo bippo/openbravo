@@ -23,7 +23,10 @@ import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.StringTokenizer;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -32,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
 import org.openbravo.advpaymentmngt.dao.AdvPaymentMngtDao;
 import org.openbravo.advpaymentmngt.process.FIN_AddPayment;
 import org.openbravo.advpaymentmngt.utility.FIN_Utility;
@@ -41,6 +45,7 @@ import org.openbravo.base.filter.ValueListFilter;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.erpCommon.utility.ComboTableData;
@@ -90,7 +95,7 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
       String strDueDateTo = vars.getStringParameter("inpDueDateTo", "");
       String strDocumentType = vars.getStringParameter("inpDocumentType", "");
       String strSelectedPaymentDetails = vars.getInStringParameter("inpScheduledPaymentDetailId",
-          IsIDFilter.instance);
+          "", null);
       boolean isReceipt = vars.getRequiredStringParameter("isReceipt").equals("Y");
       Boolean showAlternativePM = "Y".equals(vars.getStringParameter("inpAlternativePaymentMethod",
           filterYesNo));
@@ -107,8 +112,8 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
         strAction = vars.getRequiredStringParameter("inpActionDocument");
       }
       String strPaymentId = vars.getRequiredStringParameter("inpfinPaymentId");
-      String strSelectedScheduledPaymentDetailIds = vars.getInParameter(
-          "inpScheduledPaymentDetailId", "", IsIDFilter.instance);
+      String strSelectedScheduledPaymentDetailIds = vars.getInStringParameter(
+          "inpScheduledPaymentDetailId", "", null);
       String strAddedGLItems = vars.getStringParameter("inpGLItems");
       JSONArray addedGLITemsArray = null;
       try {
@@ -128,7 +133,6 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
       }
       String strTabId = vars.getRequiredStringParameter("inpTabId");
       String strPaymentAmount = vars.getRequiredNumericParameter("inpActualPayment");
-      String strDocumentType = vars.getStringParameter("inpDocumentType", "");
       String paymentCurrencyId = vars.getRequiredStringParameter("inpCurrencyId");
       BigDecimal exchangeRate = new BigDecimal(vars.getRequiredNumericParameter("inpExchangeRate",
           "1"));
@@ -142,8 +146,8 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
 
         List<FIN_PaymentScheduleDetail> selectedPaymentDetails = FIN_Utility.getOBObjectList(
             FIN_PaymentScheduleDetail.class, strSelectedScheduledPaymentDetailIds);
-        HashMap<String, BigDecimal> selectedPaymentDetailAmounts = FIN_AddPayment
-            .getSelectedPaymentDetailsAndAmount(vars, selectedPaymentDetails);
+        HashMap<String, BigDecimal> selectedPaymentDetailAmounts = getSelectedPaymentDetailsAndAmount(
+            vars, strSelectedScheduledPaymentDetailIds);
 
         FIN_Payment payment = dao.getObject(FIN_Payment.class, strPaymentId);
         BigDecimal newPaymentAmount = new BigDecimal(strPaymentAmount);
@@ -292,8 +296,10 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
     if (payment.getBusinessPartner() != null) {
       xmlDocument.setParameter("businessPartner", payment.getBusinessPartner().getIdentifier());
       xmlDocument.setParameter("businessPartnerId", payment.getBusinessPartner().getId());
-      xmlDocument.setParameter("credit",
-          dao.getCustomerCredit(payment.getBusinessPartner(), payment.isReceipt()).toString());
+      xmlDocument.setParameter(
+          "credit",
+          dao.getCustomerCredit(payment.getBusinessPartner(), payment.isReceipt(),
+              payment.getOrganization()).toString());
       xmlDocument.setParameter("customerBalance",
           payment.getBusinessPartner().getCreditUsed() != null ? payment.getBusinessPartner()
               .getCreditUsed().toString() : BigDecimal.ZERO.toString());
@@ -410,8 +416,9 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
             showAlternativePM ? null : payment.getPaymentMethod(), selectedScheduledPaymentDetails,
             isReceipt);
 
-    final FieldProvider[] data = FIN_AddPayment.getShownScheduledPaymentDetails(vars,
+    FieldProvider[] data = FIN_AddPayment.getShownScheduledPaymentDetails(vars,
         selectedScheduledPaymentDetails, filteredScheduledPaymentDetails, false, null);
+    data = groupPerDocumentType(data, strDocumentType);
     xmlDocument.setData("structure", (data == null) ? set() : data);
 
     response.setContentType("text/html; charset=UTF-8");
@@ -432,6 +439,157 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
     ArrayList<HashMap<String, String>> result = new ArrayList<HashMap<String, String>>();
     result.add(empty);
     return FieldProviderFactory.getFieldProviderArray(result);
+  }
+
+  private FieldProvider[] groupPerDocumentType(FieldProvider[] data, String strDocumenType) {
+    ArrayList<FieldProvider> gridLines = new ArrayList<FieldProvider>();
+    HashMap<String, Integer> amountsPerGroupingField = new HashMap<String, Integer>();
+    String groupingField = "finScheduledPaymentDetailId";
+    if ("I".equals(strDocumenType)) {
+      groupingField = "invoicePaymentScheduleId";
+    } else if ("O".equals(strDocumenType)) {
+      groupingField = "orderPaymentScheduleId";
+    }
+    for (int i = 0; i < data.length; i++) {
+      if (!amountsPerGroupingField.containsKey(data[i].getField(groupingField))
+          || "".equals(data[i].getField(groupingField))) {
+        amountsPerGroupingField.put(data[i].getField(groupingField), gridLines.size());
+        FieldProviderFactory.setField(data[i], "rownum", String.valueOf(gridLines.size()));
+        gridLines.add(data[i]);
+      } else {
+        Integer listIndex = amountsPerGroupingField.get(data[i].getField(groupingField));
+        FieldProvider row = gridLines.get(listIndex);
+        FieldProviderFactory.setField(
+            row,
+            "finScheduledPaymentDetailId",
+            row.getField("finScheduledPaymentDetailId") + ","
+                + data[i].getField("finScheduledPaymentDetailId"));
+        FieldProviderFactory.setField(
+            row,
+            "finSelectedPaymentDetailId",
+            row.getField("finSelectedPaymentDetailId") + ","
+                + data[i].getField("finScheduledPaymentDetailId"));
+        FieldProviderFactory.setField(
+            row,
+            "outstandingAmount",
+            new BigDecimal(row.getField("outstandingAmount")).add(
+                new BigDecimal(data[i].getField("outstandingAmount"))).toString());
+        BigDecimal payAmount = BigDecimal.ZERO;
+        if (!"".equals(row.getField("paymentAmount"))) {
+          payAmount = new BigDecimal(row.getField("paymentAmount"));
+        }
+        FieldProviderFactory.setField(
+            row,
+            "paymentAmount",
+            !"".equals(data[i].getField("paymentAmount")) ? payAmount.add(
+                new BigDecimal(data[i].getField("paymentAmount"))).toString() : (payAmount
+                .compareTo(BigDecimal.ZERO) == 0 ? "" : payAmount.toString()));
+        if ("O".equals(strDocumenType)) {
+          String strGroupedInvoicesNr = row.getField("invoiceNr");
+          FieldProviderFactory.setField(row, "invoiceNr", (strGroupedInvoicesNr.isEmpty() ? ""
+              : strGroupedInvoicesNr + ", ") + data[i].getField("invoiceNr"));
+          String invoiceNumber = row.getField("invoiceNr");
+          String invoiceNumberTrunc = (invoiceNumber.length() > 17) ? invoiceNumber
+              .substring(0, 14).concat("...").toString() : invoiceNumber;
+          FieldProviderFactory.setField(row, "invoiceNrTrunc", invoiceNumberTrunc);
+        } else if ("I".equals(strDocumenType)) {
+          String strGroupedOrdersNr = row.getField("orderNr");
+          FieldProviderFactory.setField(row, "orderNr", (strGroupedOrdersNr.isEmpty() ? ""
+              : strGroupedOrdersNr + ", ") + data[i].getField("orderNr"));
+          String orderNumber = row.getField("orderNr");
+          String orderNumberTrunc = (orderNumber.length() > 17) ? orderNumber.substring(0, 14)
+              .concat("...").toString() : orderNumber;
+          FieldProviderFactory.setField(row, "orderNrTrunc", orderNumberTrunc);
+        }
+      }
+    }
+    FieldProvider[] result = new FieldProvider[gridLines.size()];
+    gridLines.toArray(result);
+    return result;
+  }
+
+  /**
+   * Creates a HashMap with the FIN_PaymentScheduleDetail id's and the amount gotten from the
+   * Session.
+   * 
+   * The amounts are stored in Session like "inpPaymentAmount"+paymentScheduleDetail.Id
+   * 
+   * @param vars
+   *          VariablseSecureApp with the session data.
+   * @param selectedPaymentScheduleDetails
+   *          List of FIN_PaymentScheduleDetails that need to be included in the HashMap.
+   * @return A HashMap mapping the FIN_PaymentScheduleDetail's Id with the corresponding amount.
+   */
+  private HashMap<String, BigDecimal> getSelectedPaymentDetailsAndAmount(VariablesSecureApp vars,
+      String _strSelectedScheduledPaymentDetailIds) throws ServletException {
+    String strSelectedScheduledPaymentDetailIds = _strSelectedScheduledPaymentDetailIds;
+    // Remove "(" ")"
+    strSelectedScheduledPaymentDetailIds = strSelectedScheduledPaymentDetailIds.replace("(", "");
+    strSelectedScheduledPaymentDetailIds = strSelectedScheduledPaymentDetailIds.replace(")", "");
+    HashMap<String, BigDecimal> selectedPaymentScheduleDetailsAmounts = new HashMap<String, BigDecimal>();
+    // As selected items may contain records with multiple IDs we as well need the records list as
+    // amounts are related to records
+    StringTokenizer records = new StringTokenizer(strSelectedScheduledPaymentDetailIds, "'");
+    Set<String> recordSet = new LinkedHashSet<String>();
+    while (records.hasMoreTokens()) {
+      recordSet.add(records.nextToken());
+    }
+    for (String record : recordSet) {
+      if (", ".equals(record)) {
+        continue;
+      }
+      Set<String> psdSet = new LinkedHashSet<String>();
+      StringTokenizer psds = new StringTokenizer(record, ",");
+      while (psds.hasMoreTokens()) {
+        psdSet.add(psds.nextToken());
+      }
+      BigDecimal recordAmount = new BigDecimal(vars.getNumericParameter(
+          "inpPaymentAmount" + record, ""));
+      HashMap<String, BigDecimal> recordsAmounts = calculateAmounts(recordAmount, psdSet);
+      selectedPaymentScheduleDetailsAmounts.putAll(recordsAmounts);
+    }
+    return selectedPaymentScheduleDetailsAmounts;
+  }
+
+  /**
+   * This method returns a HashMap with pairs of UUID of payment schedule details and amounts
+   * related to those ones.
+   * 
+   * @param recordAmount
+   *          : amount to split among the set
+   * @param psdSet
+   *          : set of payment schedule details where to allocate the amount
+   * @return
+   */
+  private HashMap<String, BigDecimal> calculateAmounts(BigDecimal recordAmount, Set<String> psdSet) {
+    BigDecimal remainingAmount = recordAmount;
+    HashMap<String, BigDecimal> recordsAmounts = new HashMap<String, BigDecimal>();
+    // PSD needs to be properly ordered to ensure negative amounts are processed first
+    List<FIN_PaymentScheduleDetail> psds = getOrderedPaymentScheduleDetails(psdSet);
+    for (FIN_PaymentScheduleDetail paymentScheduleDetail : psds) {
+      BigDecimal outstandingAmount = paymentScheduleDetail.getAmount();
+      // Manage negative amounts
+      if ((remainingAmount.compareTo(BigDecimal.ZERO) > 0 && remainingAmount
+          .compareTo(outstandingAmount) >= 0)
+          || ((remainingAmount.compareTo(BigDecimal.ZERO) == -1 && outstandingAmount
+              .compareTo(BigDecimal.ZERO) == -1) && (remainingAmount.compareTo(outstandingAmount) <= 0))) {
+        recordsAmounts.put(paymentScheduleDetail.getId(), outstandingAmount);
+        remainingAmount = remainingAmount.subtract(outstandingAmount);
+      } else {
+        recordsAmounts.put(paymentScheduleDetail.getId(), remainingAmount);
+        remainingAmount = BigDecimal.ZERO;
+      }
+
+    }
+    return recordsAmounts;
+  }
+
+  private List<FIN_PaymentScheduleDetail> getOrderedPaymentScheduleDetails(Set<String> psdSet) {
+    OBCriteria<FIN_PaymentScheduleDetail> orderedPSDs = OBDal.getInstance().createCriteria(
+        FIN_PaymentScheduleDetail.class);
+    orderedPSDs.add(Restrictions.in(FIN_PaymentScheduleDetail.PROPERTY_ID, psdSet));
+    orderedPSDs.addOrderBy(FIN_PaymentScheduleDetail.PROPERTY_AMOUNT, true);
+    return orderedPSDs.list();
   }
 
   public String getServletInfo() {

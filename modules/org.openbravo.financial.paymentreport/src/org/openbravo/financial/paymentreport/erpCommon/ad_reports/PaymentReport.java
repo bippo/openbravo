@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SL 
- * All portions are Copyright (C) 2009-2011 Openbravo SL 
+ * All portions are Copyright (C) 2009-2012 Openbravo SL 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -28,6 +28,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.filter.IsIDFilter;
 import org.openbravo.base.filter.ValueListFilter;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
@@ -80,10 +81,16 @@ public class PaymentReport extends HttpSecureAppServlet {
           "PaymentReport|DocumentDateFrom", "");
       String strDocumentDateTo = vars.getGlobalVariable("inpDocumentDateTo",
           "PaymentReport|DocumentDateTo", "");
+      String strPaymentDateFrom = vars.getGlobalVariable("inpPaymentDateFrom",
+          "PaymentReport|PaymentDateFrom", "");
+      String strPaymentDateTo = vars.getGlobalVariable("inpPaymentDateTo",
+          "PaymentReport|PaymentDateTo", "");
       String strcBPartnerIdIN = vars.getInGlobalVariable("inpcBPartnerId_IN",
           "PaymentReport|BusinessPartner", "", IsIDFilter.instance);
       String strcBPGroupIdIN = vars.getGlobalVariable("inpcBPGroupId_IN",
           "PaymentReport|BusinessPartnerCategory", "");
+      String strcNoBusinessPartner = vars.getGlobalVariable("inpcNoBPartner",
+          "PaymentReport|noBusinessPartner", "include");
       String strcProjectIdIN = vars.getInGlobalVariable("inpcProjectId_IN",
           "PaymentReport|Project", "", IsIDFilter.instance);
       dao = new PaymentReportDao();
@@ -96,9 +103,14 @@ public class PaymentReport extends HttpSecureAppServlet {
       String strcCurrency = vars.getGlobalVariable("inpcCurrencyId", "PaymentReport|Currency", "",
           IsIDFilter.instance);
       String strConvertCurrency = null;
-      strConvertCurrency = vars.getGlobalVariable("inpConvertCurrencyId",
-          "PaymentReport|ConvertCurrency",
-          (String) DalUtil.getId(OBContext.getOBContext().getCurrentClient().getCurrency()));
+      OBContext.setAdminMode(true);
+      try {
+        strConvertCurrency = vars.getGlobalVariable("inpConvertCurrencyId",
+            "PaymentReport|ConvertCurrency",
+            (String) DalUtil.getId(OBContext.getOBContext().getCurrentClient().getCurrency()));
+      } finally {
+        OBContext.restorePreviousMode();
+      }
       if (strConvertCurrency == null) {
         strConvertCurrency = vars.getGlobalVariable("inpConvertCurrencyId",
             "PaymentReport|ConvertCurrency", "");
@@ -116,10 +128,12 @@ public class PaymentReport extends HttpSecureAppServlet {
           "PaymentReport|IncludePaymentUsingCredit", "Y");
       printPageDataSheet(response, vars, strOrg, strInclSubOrg, strDueDateFrom, strDueDateTo,
           strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo, strcBPartnerIdIN,
-          strcBPGroupIdIN, strcProjectIdIN, strfinPaymSt, strPaymentMethodId,
-          strFinancialAccountId, strcCurrency, strConvertCurrency, strConversionDate, strPaymType,
-          strOverdue, strGroupCrit, strOrdCrit, strInclPaymentUsingCredit);
-    } else if (vars.commandIn("FIND")) {
+          strcBPGroupIdIN, strcNoBusinessPartner, strcProjectIdIN, strfinPaymSt,
+          strPaymentMethodId, strFinancialAccountId, strcCurrency, strConvertCurrency,
+          strConversionDate, strPaymType, strOverdue, strGroupCrit, strOrdCrit,
+          strInclPaymentUsingCredit, strPaymentDateFrom, strPaymentDateTo);
+      // DIRECT is used when coming from Aging Balance Report
+    } else if (vars.commandIn("FIND", "DIRECT")) {
       String strOrg = vars.getRequestGlobalVariable("inpOrg", "PaymentReport|Organization");
       String strInclSubOrg = vars.getRequestGlobalVariable("inpInclSubOrg",
           "PaymentReport|IncludeSubOrganization");
@@ -141,15 +155,31 @@ public class PaymentReport extends HttpSecureAppServlet {
           "PaymentReport|DocumentDateFrom");
       String strDocumentDateTo = vars.getRequestGlobalVariable("inpDocumentDateTo",
           "PaymentReport|DocumentDateTo");
-      String strcBPartnerIdIN = vars.getRequestInGlobalVariable("inpcBPartnerId_IN",
-          "PaymentReport|BusinessPartner", IsIDFilter.instance);
+      String strPaymentDateFrom = vars.getRequestGlobalVariable("inpPaymentDateFrom",
+          "PaymentReport|PaymentDateFrom");
+      String strPaymentDateTo = vars.getRequestGlobalVariable("inpPaymentDateTo",
+          "PaymentReport|PaymentDateTo");
+      String strcBPartnerIdIN = "";
+      if (vars.commandIn("FIND")) {
+        strcBPartnerIdIN = vars.getRequestInGlobalVariable("inpcBPartnerId_IN",
+            "PaymentReport|BusinessPartner", IsIDFilter.instance);
+      } else {// vars.commandIn("DIRECT")
+        strcBPartnerIdIN = vars.getRequestGlobalVariable("inpcBPartnerId_IN", "");
+      }
       String strcBPGroupIdIN = vars.getRequestGlobalVariable("inpcBPGroupId_IN",
           "PaymentReport|BusinessPartnerCategory");
+      String strcNoBusinessPartner = vars.getGlobalVariable("inpcNoBPartner",
+          "PaymentReport|noBusinessPartner");
       String strcProjectIdIN = vars.getRequestInGlobalVariable("inpcProjectId_IN",
           "PaymentReport|Project", IsIDFilter.instance);
       dao = new PaymentReportDao();
-      String strfinPaymSt = vars.getRequestInGlobalVariable("inpfinPaymSt", "",
-          new ValueListFilter(dao.getReferenceListValues("FIN_Payment status", true)));
+      String strfinPaymSt = "";
+      if (vars.commandIn("FIND")) {
+        strfinPaymSt = vars.getRequestInGlobalVariable("inpfinPaymSt", "",
+            new ValueListFilter(dao.getReferenceListValues("FIN_Payment status", true)));
+      } else {// vars.commandIn("DIRECT")
+        strfinPaymSt = vars.getRequestGlobalVariable("inpFinPaymSt", "");
+      }
       String strPaymentMethodId = vars.getRequestGlobalVariable("inpPaymentMethodId",
           "PaymentReport|PaymentMethodId", IsIDFilter.instance);
       String strFinancialAccountId = vars.getRequestGlobalVariable("inpFinancialAccountId",
@@ -173,9 +203,10 @@ public class PaymentReport extends HttpSecureAppServlet {
       vars.setSessionValue("PaymentReport|IncludePaymentUsingCredit", strInclPaymentUsingCredit);
       printPageDataSheet(response, vars, strOrg, strInclSubOrg, strDueDateFrom, strDueDateTo,
           strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo, strcBPartnerIdIN,
-          strcBPGroupIdIN, strcProjectIdIN, strfinPaymSt, strPaymentMethodId,
-          strFinancialAccountId, strcCurrency, strConvertCurrency, strConversionDate, strPaymType,
-          strOverdue, strGroupCrit, strOrdCrit, strInclPaymentUsingCredit);
+          strcBPGroupIdIN, strcNoBusinessPartner, strcProjectIdIN, strfinPaymSt,
+          strPaymentMethodId, strFinancialAccountId, strcCurrency, strConvertCurrency,
+          strConversionDate, strPaymType, strOverdue, strGroupCrit, strOrdCrit,
+          strInclPaymentUsingCredit, strPaymentDateFrom, strPaymentDateTo);
     } else if (vars.commandIn("PDF", "XLS")) {
       String strOrg = vars.getRequestGlobalVariable("inpOrg", "PaymentReport|Organization");
       String strInclSubOrg = vars.getRequestGlobalVariable("inpInclSubOrg",
@@ -192,10 +223,16 @@ public class PaymentReport extends HttpSecureAppServlet {
           "PaymentReport|DocumentDateFrom");
       String strDocumentDateTo = vars.getRequestGlobalVariable("inpDocumentDateTo",
           "PaymentReport|DocumentDateTo");
+      String strPaymentDateFrom = vars.getRequestGlobalVariable("inpPaymentDateFrom",
+          "PaymentReport|PaymentDateFrom");
+      String strPaymentDateTo = vars.getRequestGlobalVariable("inpPaymentDateTo",
+          "PaymentReport|PaymentDateTo");
       String strcBPartnerIdIN = vars.getRequestInGlobalVariable("inpcBPartnerId_IN",
           "PaymentReport|BusinessPartner", IsIDFilter.instance);
       String strcBPGroupIdIN = vars.getRequestGlobalVariable("inpcBPGroupId_IN",
           "PaymentReport|BusinessPartnerCategory");
+      String strcNoBusinessPartner = vars.getGlobalVariable("inpcNoBPartner",
+          "PaymentReport|noBusinessPartner");
       String strcProjectIdIN = vars.getRequestInGlobalVariable("inpcProjectId_IN",
           "PaymentReport|Project", IsIDFilter.instance);
       dao = new PaymentReportDao();
@@ -230,9 +267,10 @@ public class PaymentReport extends HttpSecureAppServlet {
 
       printPage(request, response, vars, strOrg, strInclSubOrg, strDueDateFrom, strDueDateTo,
           strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo, strcBPartnerIdIN,
-          strcBPGroupIdIN, strcProjectIdIN, strfinPaymSt, strPaymentMethodId,
-          strFinancialAccountId, strcCurrency, strConvertCurrency, strConversionDate, strPaymType,
-          strOverdue, strOutput, strGroupCrit, strOrdCrit, strInclPaymentUsingCredit);
+          strcBPGroupIdIN, strcNoBusinessPartner, strcProjectIdIN, strfinPaymSt,
+          strPaymentMethodId, strFinancialAccountId, strcCurrency, strConvertCurrency,
+          strConversionDate, strPaymType, strOverdue, strOutput, strGroupCrit, strOrdCrit,
+          strInclPaymentUsingCredit, strPaymentDateFrom, strPaymentDateTo);
 
     } else if (vars.commandIn("LINK")) {
       String strTableId = vars.getRequiredStringParameter("inpAdTableId", IsIDFilter.instance);
@@ -259,10 +297,11 @@ public class PaymentReport extends HttpSecureAppServlet {
       String strOrg, String strInclSubOrg, String strDueDateFrom, String strDueDateTo,
       String strAmountFrom, String strAmountTo, String strDocumentDateFrom,
       String strDocumentDateTo, String strcBPartnerIdIN, String strcBPGroupIdIN,
-      String strcProjectIdIN, String strfinPaymSt, String strPaymentMethodId,
-      String strFinancialAccountId, String strcCurrency, String strConvertCurrency,
-      String strConversionDate, String strPaymType, String strOverdue, String strGroupCrit,
-      String strOrdCrit, String strInclPaymentUsingCredit) throws IOException, ServletException {
+      String strcNoBusinessPartner, String strcProjectIdIN, String strfinPaymSt,
+      String strPaymentMethodId, String strFinancialAccountId, String strcCurrency,
+      String strConvertCurrency, String strConversionDate, String strPaymType, String strOverdue,
+      String strGroupCrit, String strOrdCrit, String strInclPaymentUsingCredit,
+      String strPaymentDateFrom, String strPaymentDateTo) throws IOException, ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: dataSheet");
     XmlDocument xmlDocument = null;
@@ -270,16 +309,39 @@ public class PaymentReport extends HttpSecureAppServlet {
     FieldProvider[] data = null;
     String[] discard = null;
 
-    if (vars.commandIn("FIND")) {
+    if (vars.commandIn("FIND", "DIRECT")) {
       dao = new PaymentReportDao();
 
-      data = dao.getPaymentReport(vars, strOrg, strInclSubOrg, strDueDateFrom, strDueDateTo,
-          strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo, strcBPartnerIdIN,
-          strcBPGroupIdIN, strcProjectIdIN, strfinPaymSt, strPaymentMethodId,
-          strFinancialAccountId, strcCurrency, strConvertCurrency, strConversionDate, strPaymType,
-          strOverdue, strGroupCrit, strOrdCrit, strInclPaymentUsingCredit);
+      try {
+        data = dao.getPaymentReport(vars, strOrg, strInclSubOrg, strDueDateFrom, strDueDateTo,
+            strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo, strcBPartnerIdIN,
+            strcBPGroupIdIN, strcNoBusinessPartner, strcProjectIdIN, strfinPaymSt,
+            strPaymentMethodId, strFinancialAccountId, strcCurrency, strConvertCurrency,
+            strConversionDate, strPaymType, strOverdue, strGroupCrit, strOrdCrit,
+            strInclPaymentUsingCredit, strPaymentDateFrom, strPaymentDateTo);
+      } catch (OBException e) {
+        discardAL.add("sectionGroupCrit");
+        discardAL.add("sectionStatus");
+        discardAL.add("sectionTotal");
+        discardAL.add("sectionTotal2");
+        discardAL.add("sectionSubtotalGroupCrit");
+        discard = new String[discardAL.size()];
 
-      if (data.length == 0) {
+        xmlDocument = xmlEngine.readXmlTemplate(
+            "org/openbravo/financial/paymentreport/erpCommon/ad_reports/PaymentReport",
+            discardAL.toArray(discard)).createXmlDocument();
+
+        xmlDocument.setParameter("messageType", "WARNING");
+        xmlDocument.setParameter("messageTitle",
+            Utility.messageBD(this, "ProcessStatus-W", vars.getLanguage()));
+        xmlDocument
+            .setParameter(
+                "messageMessage",
+                Utility.messageBD(this, "FINPR_NoConversionFound", vars.getLanguage())
+                    + e.getMessage());
+      }
+
+      if (data != null && data.length == 0) {
 
         discardAL.add("sectionGroupCrit");
         discardAL.add("sectionStatus");
@@ -298,7 +360,7 @@ public class PaymentReport extends HttpSecureAppServlet {
         xmlDocument.setParameter("messageMessage",
             Utility.messageBD(this, "FINPR_NoDataFound", vars.getLanguage()));
 
-      } else if (data.length == 1 && data[0].getField("conversionDate") != null) {
+      } else if (data != null && data.length == 1 && data[0].getField("conversionDate") != null) {
 
         String transCurrency = OBDal.getInstance()
             .get(Currency.class, data[0].getField("transCurrency")).getISOCode();
@@ -325,7 +387,7 @@ public class PaymentReport extends HttpSecureAppServlet {
         xmlDocument.setParameter("messageMessage",
             Utility.messageBD(this, "FINPR_NoConversionFound", vars.getLanguage()) + message);
 
-      } else {
+      } else if (data != null) {
 
         if (strGroupCrit.isEmpty()) {
           discardAL.add("sectionGroupCrit");
@@ -420,6 +482,11 @@ public class PaymentReport extends HttpSecureAppServlet {
     xmlDocument.setParameter("documentDateTo", strDocumentDateTo);
     xmlDocument
         .setParameter("documentDateTodisplaySave", vars.getSessionValue("#AD_SqlDateFormat"));
+    xmlDocument.setParameter("paymentDateFrom", strPaymentDateFrom);
+    xmlDocument.setParameter("paymentDateFromdisplaySave",
+        vars.getSessionValue("#AD_SqlDateFormat"));
+    xmlDocument.setParameter("paymentDateTo", strPaymentDateTo);
+    xmlDocument.setParameter("paymentDateTodisplaySave", vars.getSessionValue("#AD_SqlDateFormat"));
 
     xmlDocument.setData(
         "paramcBPartnerId_IN",
@@ -439,6 +506,8 @@ public class PaymentReport extends HttpSecureAppServlet {
     } catch (Exception ex) {
       throw new ServletException(ex);
     }
+
+    xmlDocument.setParameter("noBusinessPartner", strcNoBusinessPartner);
 
     xmlDocument.setData(
         "paramcProjectId_IN",
@@ -641,28 +710,36 @@ public class PaymentReport extends HttpSecureAppServlet {
       VariablesSecureApp vars, String strOrg, String strInclSubOrg, String strDueDateFrom,
       String strDueDateTo, String strAmountFrom, String strAmountTo, String strDocumentDateFrom,
       String strDocumentDateTo, String strcBPartnerIdIN, String strcBPGroupIdIN,
-      String strcProjectIdIN, String strfinPaymSt, String strPaymentMethodId,
-      String strFinancialAccountId, String strcCurrency, String strConvertCurrency,
-      String strConversionDate, String strPaymType, String strOverdue, String strOutput,
-      String strGroupCrit, String strOrdCrit, String strInclPaymentUsingCredit) throws IOException,
-      ServletException {
+      String strcNoBusinessPartner, String strcProjectIdIN, String strfinPaymSt,
+      String strPaymentMethodId, String strFinancialAccountId, String strcCurrency,
+      String strConvertCurrency, String strConversionDate, String strPaymType, String strOverdue,
+      String strOutput, String strGroupCrit, String strOrdCrit, String strInclPaymentUsingCredit,
+      String strPaymentDateFrom, String strPaymentDateTo) throws IOException, ServletException {
 
     response.setContentType("text/html; charset=UTF-8");
 
     dao = new PaymentReportDao();
-    FieldProvider[] data = dao.getPaymentReport(vars, strOrg, strInclSubOrg, strDueDateFrom,
-        strDueDateTo, strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo,
-        strcBPartnerIdIN, strcBPGroupIdIN, strcProjectIdIN, strfinPaymSt, strPaymentMethodId,
-        strFinancialAccountId, strcCurrency, strConvertCurrency, strConversionDate, strPaymType,
-        strOverdue, strGroupCrit, strOrdCrit, strInclPaymentUsingCredit);
+    FieldProvider[] data = null;
+    try {
+      data = dao.getPaymentReport(vars, strOrg, strInclSubOrg, strDueDateFrom, strDueDateTo,
+          strAmountFrom, strAmountTo, strDocumentDateFrom, strDocumentDateTo, strcBPartnerIdIN,
+          strcBPGroupIdIN, strcNoBusinessPartner, strcProjectIdIN, strfinPaymSt,
+          strPaymentMethodId, strFinancialAccountId, strcCurrency, strConvertCurrency,
+          strConversionDate, strPaymType, strOverdue, strGroupCrit, strOrdCrit,
+          strInclPaymentUsingCredit, strPaymentDateFrom, strPaymentDateTo);
+    } catch (OBException e) {
+      advisePopUp(request, response, "WARNING",
+          Utility.messageBD(this, "ProcessStatus-W", vars.getLanguage()),
+          Utility.messageBD(this, "FINPR_NoConversionFound", vars.getLanguage()) + e.getMessage());
+    }
 
-    if (data.length == 1 && data[0] == null) {
+    if (data != null && data.length == 1 && data[0] == null) {
 
       advisePopUp(request, response, "WARNING",
           Utility.messageBD(this, "ProcessStatus-W", vars.getLanguage()),
           Utility.messageBD(this, "FINPR_NoDataFound", vars.getLanguage()));
 
-    } else if (data.length == 1 && data[0].getField("conversionDate") != null) {
+    } else if (data != null && data.length == 1 && data[0].getField("conversionDate") != null) {
 
       String transCurrency = OBDal.getInstance()
           .get(Currency.class, data[0].getField("transCurrency")).getISOCode();
@@ -808,6 +885,8 @@ public class PaymentReport extends HttpSecureAppServlet {
     parameters.put("AMTTO_SHOW", strAmountTo);
     parameters.put("DOCDATEFROM_SHOW", strDocumentDateFrom);
     parameters.put("DOCDATETO_SHOW", strDocumentDateTo);
+    parameters.put("PAYDATEFROM_SHOW", strPaymentDateFrom);
+    parameters.put("PAYDATETO_SHOW", strPaymentDateTo);
     parameters.put("BPARTNER_SHOW", strBPartnerShow);
     parameters.put("BPGROUP_SHOW", strBPGroupShow);
     parameters.put("PROJECT_SHOW", strProjectShow);
@@ -833,7 +912,9 @@ public class PaymentReport extends HttpSecureAppServlet {
     parameters.put("ONE_ASTERISK_SHOW", new Boolean(showAsterisk(data, "*")));
     parameters.put("TWO_ASTERISK_SHOW", new Boolean(showAsterisk(data, "**")));
 
-    renderJR(vars, response, strReportName, strOutput, parameters, data, null);
+    if (data != null) {
+      renderJR(vars, response, strReportName, strOutput, parameters, data, null);
+    }
   }
 
   public String getServletInfo() {
