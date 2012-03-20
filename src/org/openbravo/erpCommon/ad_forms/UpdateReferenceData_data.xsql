@@ -61,11 +61,12 @@
       FROM AD_MODULE, AD_DATASET
       WHERE AD_MODULE.AD_MODULE_ID = AD_DATASET.AD_MODULE_ID      
       AND AD_MODULE.AD_MODULE_ID IN ('1')
-      AND (AD_DATASET.ACCESSLEVEL IN ('3','1') OR (? = '0' AND AD_DATASET.ACCESSLEVEL IN ('3','6')))
+      AND ((? <> '0' AND AD_DATASET.ACCESSLEVEL IN ('3','1')) OR (? = '0' AND AD_DATASET.ACCESSLEVEL IN ('3','6')))
       ORDER BY AD_MODULE.AD_MODULE_ID, AD_DATASET.SEQNO, AD_DATASET.AD_DATASET_ID
       ]]>
     </Sql>
     <Parameter name="modules" optional="true" type="replace" after="AD_MODULE_ID IN " text="('1')"/>
+    <Parameter name="organization"/>
     <Parameter name="organization"/>
   </SqlMethod>
   <SqlMethod name="selectRegister" type="preparedStatement" return="string">

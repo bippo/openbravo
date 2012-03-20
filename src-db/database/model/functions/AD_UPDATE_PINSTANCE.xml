@@ -16,6 +16,9 @@
       <parameter name="p_message" type="VARCHAR" mode="in">
         <default/>
       </parameter>
+      <parameter name="p_docommit" type="VARCHAR" mode="in">
+        <default><![CDATA[Y]]></default>
+      </parameter>
       <body><![CDATA[/*************************************************************************
 * The contents of this file are subject to the Openbravo  Public  License
 * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
@@ -28,7 +31,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -42,7 +45,9 @@ BEGIN
     Result=p_Result, -- 1=success
     ErrorMsg=p_Message
   WHERE AD_PInstance_ID=p_PInstance_ID;
-  COMMIT;
+  IF (p_doCommit = 'Y') THEN
+    COMMIT;
+  END IF;
 END AD_UPDATE_PINSTANCE
 ]]></body>
     </function>

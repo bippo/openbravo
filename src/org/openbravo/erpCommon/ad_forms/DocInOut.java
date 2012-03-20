@@ -19,15 +19,20 @@ package org.openbravo.erpCommon.ad_forms;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
 import javax.servlet.ServletException;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.session.OBPropertiesProvider;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.SequenceIdData;
+import org.openbravo.model.common.plm.Product;
+import org.openbravo.model.materialmgmt.transaction.ShipmentInOut;
 
 public class DocInOut extends AcctServer {
   private static final long serialVersionUID = 1L;
@@ -161,6 +166,24 @@ public class DocInOut extends AcctServer {
     if (DocumentType.equals(AcctServer.DOCTYPE_MatShipment)) {
       for (int i = 0; p_lines != null && i < p_lines.length; i++) {
         DocLine_Material line = (DocLine_Material) p_lines[i];
+        Account cogsAccount = line.getAccount(ProductInfo.ACCTTYPE_P_Cogs, as, conn);
+        if (cogsAccount == null) {
+          Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
+          org.openbravo.model.financialmgmt.accounting.coa.AcctSchema schema = OBDal.getInstance()
+              .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                  as.m_C_AcctSchema_ID);
+          log4j.error("No Account COGS for product: " + product.getName()
+              + " in accounting schema: " + schema.getName());
+        }
+        Account assetAccount = line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn);
+        if (assetAccount == null) {
+          Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
+          org.openbravo.model.financialmgmt.accounting.coa.AcctSchema schema = OBDal.getInstance()
+              .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                  as.m_C_AcctSchema_ID);
+          log4j.error("No Account Asset for product: " + product.getName()
+              + " in accounting schema: " + schema.getName());
+        }
         String costs = line.getProductCosts(DateAcct, as, conn, con);
         log4jDocInOut.debug("(MatShipment) - DR account: "
             + line.getAccount(ProductInfo.ACCTTYPE_P_Cogs, as, conn));
@@ -168,32 +191,34 @@ public class DocInOut extends AcctServer {
         BigDecimal b_Costs = new BigDecimal(costs).setScale(new Integer(strScale),
             RoundingMode.HALF_UP);
         String strCosts = b_Costs.toString();
-        if (b_Costs.compareTo(BigDecimal.ZERO) == 0) {
+        if (b_Costs.compareTo(BigDecimal.ZERO) == 0
+            && DocInOutData.existsCost(conn, DateAcct, line.m_M_Product_ID).equals("0")) {
           setStatus(STATUS_InvalidCost);
-          continue;
-        } else
-          setStatus(STATUS_NotPosted);// Default status. LoadDocument
+          break;
+        }
         // CoGS DR
-        dr = fact.createLine(line, line.getAccount(ProductInfo.ACCTTYPE_P_Cogs, as, conn),
-            as.getC_Currency_ID(), strCosts, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-            DocumentType, conn);
-        dr.setM_Locator_ID(line.m_M_Locator_ID);
-        dr.setLocationFromLocator(line.m_M_Locator_ID, true, conn); // from
-        // Loc
-        dr.setLocationFromBPartner(C_BPartner_Location_ID, false, conn); // to
+        dr = fact.createLine(line, cogsAccount, as.getC_Currency_ID(), strCosts, "",
+            Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        if (dr != null) {
+          dr.setM_Locator_ID(line.m_M_Locator_ID);
+          dr.setLocationFromLocator(line.m_M_Locator_ID, true, conn); // from
+          // Loc
+          dr.setLocationFromBPartner(C_BPartner_Location_ID, false, conn); // to
+        }
         // Loc
         log4jDocInOut.debug("(MatShipment) - CR account: "
             + line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn));
         log4jDocInOut.debug("(MatShipment) - CR costs: " + strCosts);
         // Inventory CR
-        cr = fact.createLine(line, line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn),
-            as.getC_Currency_ID(), "", strCosts, Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-            DocumentType, conn);
-        cr.setM_Locator_ID(line.m_M_Locator_ID);
-        cr.setLocationFromLocator(line.m_M_Locator_ID, true, conn); // from
-        // Loc
-        cr.setLocationFromBPartner(C_BPartner_Location_ID, false, conn); // to
-        // Loc
+        cr = fact.createLine(line, assetAccount, as.getC_Currency_ID(), "", strCosts,
+            Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        if (cr != null) {
+          cr.setM_Locator_ID(line.m_M_Locator_ID);
+          cr.setLocationFromLocator(line.m_M_Locator_ID, true, conn); // from
+          // Loc
+          cr.setLocationFromBPartner(C_BPartner_Location_ID, false, conn); // to
+          // Loc
+        }
       }
     }
     // Purchasing
@@ -204,44 +229,62 @@ public class DocInOut extends AcctServer {
         BigDecimal b_Costs = new BigDecimal(costs).setScale(new Integer(strScale),
             RoundingMode.HALF_UP);
         String strCosts = b_Costs.toString();
-        if (b_Costs.compareTo(BigDecimal.ZERO) == 0) {
+        if (b_Costs.compareTo(BigDecimal.ZERO) == 0
+            && DocInOutData.existsCost(conn, DateAcct, line.m_M_Product_ID).equals("0")) {
           setStatus(STATUS_InvalidCost);
-          continue;
-        } else
-          setStatus(STATUS_NotPosted);// Default status. LoadDocument
-
+          break;
+        }
+        Account notInvoicedReceiptsAccount = getAccount(AcctServer.ACCTTYPE_NotInvoicedReceipts,
+            as, conn);
+        if (notInvoicedReceiptsAccount == null) {
+          Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
+          org.openbravo.model.financialmgmt.accounting.coa.AcctSchema schema = OBDal.getInstance()
+              .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                  as.m_C_AcctSchema_ID);
+          log4j.error("No Account Not Invoiced Receipts for product: " + product.getName()
+              + " in accounting schema: " + schema.getName());
+        }
+        Account assetAccount = line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn);
+        if (assetAccount == null) {
+          Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
+          org.openbravo.model.financialmgmt.accounting.coa.AcctSchema schema = OBDal.getInstance()
+              .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                  as.m_C_AcctSchema_ID);
+          log4j.error("No Account Asset for product: " + product.getName()
+              + " in accounting schema: " + schema.getName());
+        }
         // If there exists cost for the product, but it is equals to zero, then no line is added,
         // but no error is thrown. If this is the only line in the document, yes an error will be
         // thrown
         if (!costs.equals("0")
             || DocInOutData.existsCost(conn, DateAcct, line.m_M_Product_ID).equals("0")) {
 
-          log4jDocInOut.debug("(matReceipt) - DR account: "
-              + line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn));
+          log4jDocInOut.debug("(matReceipt) - DR account: " + assetAccount);
           log4jDocInOut.debug("(matReceipt) - DR costs: " + strCosts);
           // Inventory DR
-          dr = fact.createLine(line, line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn),
-              as.getC_Currency_ID(), strCosts, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-              DocumentType, conn);
+          dr = fact.createLine(line, assetAccount, as.getC_Currency_ID(), strCosts, "",
+              Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
           if (!getStatus().equals("i")) {
-            dr.setM_Locator_ID(line.m_M_Locator_ID);
-            dr.setLocationFromBPartner(C_BPartner_Location_ID, true, conn); // from
-            // Loc
-            dr.setLocationFromLocator(line.m_M_Locator_ID, false, conn); // to
-            // Loc
+            if (dr != null) {
+              dr.setM_Locator_ID(line.m_M_Locator_ID);
+              dr.setLocationFromBPartner(C_BPartner_Location_ID, true, conn); // from
+              // Loc
+              dr.setLocationFromLocator(line.m_M_Locator_ID, false, conn); // to
+              // Loc
+            }
             log4jDocInOut.debug("(matReceipt) - CR account: "
                 + line.getAccount(AcctServer.ACCTTYPE_NotInvoicedReceipts, as, conn));
             log4jDocInOut.debug("(matReceipt) - CR costs: " + strCosts);
             // NotInvoicedReceipt CR
-            cr = fact.createLine(line,
-                getAccount(AcctServer.ACCTTYPE_NotInvoicedReceipts, as, conn),
-                as.getC_Currency_ID(), "", strCosts, Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-                DocumentType, conn);
-            cr.setM_Locator_ID(line.m_M_Locator_ID);
-            cr.setLocationFromBPartner(C_BPartner_Location_ID, true, conn); // from
-            // Loc
-            cr.setLocationFromLocator(line.m_M_Locator_ID, false, conn); // to
-            // Loc
+            cr = fact.createLine(line, notInvoicedReceiptsAccount, as.getC_Currency_ID(), "",
+                strCosts, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+            if (cr != null) {
+              cr.setM_Locator_ID(line.m_M_Locator_ID);
+              cr.setLocationFromBPartner(C_BPartner_Location_ID, true, conn); // from
+              // Loc
+              cr.setLocationFromLocator(line.m_M_Locator_ID, false, conn); // to
+              // Loc
+            }
           }
         }
       }
@@ -305,10 +348,36 @@ public class DocInOut extends AcctServer {
    * not used
    */
   public boolean getDocumentConfirmation(ConnectionProvider conn, String strRecordId) {
+    try {
+      DocLineInOutData[] data = DocLineInOutData.select(conn, Record_ID);
+      ShipmentInOut inOut = OBDal.getInstance().get(ShipmentInOut.class, strRecordId);
+      String dateFormat = OBPropertiesProvider.getInstance().getOpenbravoProperties()
+          .getProperty("dateFormat.java");
+      SimpleDateFormat outputFormat = new SimpleDateFormat(dateFormat);
+      String strDateAcct = outputFormat.format(inOut.getAccountingDate());
+      int validLines = 0;
+      for (int i = 0; i < data.length; i++) {
+        if (DocInOutData.existsCost(conn, strDateAcct, data[i].getField("mProductId")).equals("0")) {
+          setStatus(STATUS_InvalidCost);
+          return false;
+        } else if (!ProductInfoData.selectProductAverageCost(conn, data[i].getField("mProductId"),
+            strDateAcct).equals("0")) {
+          validLines++;
+        }
+      }
+      if (validLines == 0) {
+        setStatus(STATUS_DocumentDisabled);
+        return false;
+      }
+    } catch (ServletException e) {
+      log4j.error("Servlet Exception in document confirmation", e);
+      return false;
+    }
     return true;
   }
 
   public String getServletInfo() {
     return "Servlet for the accounting";
   } // end of getServletInfo() method
+
 }

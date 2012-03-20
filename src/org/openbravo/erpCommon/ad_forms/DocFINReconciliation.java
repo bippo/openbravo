@@ -24,7 +24,9 @@ import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 
@@ -58,6 +60,7 @@ import org.openbravo.model.financialmgmt.payment.FIN_FinaccTransaction;
 import org.openbravo.model.financialmgmt.payment.FIN_FinancialAccount;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentDetail;
+import org.openbravo.model.financialmgmt.payment.FIN_Payment_Credit;
 import org.openbravo.model.financialmgmt.payment.FIN_Reconciliation;
 import org.openbravo.model.financialmgmt.payment.FIN_ReconciliationLine_v;
 import org.openbravo.model.financialmgmt.payment.FinAccPaymentMethod;
@@ -661,17 +664,33 @@ public class DocFINReconciliation extends AcctServer {
         && !getDocumentTransactionConfirmation(transaction)) {
       // Pre-payment is consumed when Used Credit Amount not equals Zero. When consuming Credit no
       // credit is generated
-      // FIXME: WHEN RELATION BETWEEN GENERATION OF CREDIT AND CONSUMPTION IS CREATED IN DATABASE
-      // THEN I CAN CONVERT TO CALCULATE DIFFERENCES
       if (payment.getUsedCredit().compareTo(ZERO) != 0
           && payment.getGeneratedCredit().compareTo(ZERO) == 0) {
-        fact.createLine(
-            line,
-            getAccountBPartner(payment.getBusinessPartner().getId(), as, payment.isReceipt(), true,
-                conn), payment.getCurrency().getId(), (payment.isReceipt() ? payment
-                .getUsedCredit().toString() : ""), (payment.isReceipt() ? "" : payment
-                .getUsedCredit().toString()), Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
-            conn);
+        List<FIN_Payment_Credit> creditPayments = transaction.getFinPayment()
+            .getFINPaymentCreditList();
+        for (FIN_Payment_Credit creditPayment : creditPayments) {
+          boolean isReceiptPayment = creditPayment.getCreditPaymentUsed().isReceipt();
+          String creditAmountConverted = convertAmount(creditPayment.getAmount(), isReceiptPayment,
+              DateAcct, TABLEID_Payment, creditPayment.getCreditPaymentUsed().getId(),
+              creditPayment.getCreditPaymentUsed().getCurrency().getId(), as.m_C_Currency_ID, line,
+              as, fact, Fact_Acct_Group_ID, nextSeqNo(SeqNo), conn).toString();
+          fact.createLine(
+              line,
+              getAccountBPartner(creditPayment.getCreditPaymentUsed().getBusinessPartner().getId(),
+                  as, isReceiptPayment, true, conn), creditPayment.getCreditPaymentUsed()
+                  .getCurrency().getId(), (isReceiptPayment ? creditAmountConverted : ""),
+              (isReceiptPayment ? "" : creditAmountConverted), Fact_Acct_Group_ID,
+              nextSeqNo(SeqNo), DocumentType, conn);
+        }
+        if (creditPayments.isEmpty()) {
+          fact.createLine(
+              line,
+              getAccountBPartner(payment.getBusinessPartner().getId(), as, payment.isReceipt(),
+                  true, conn), payment.getCurrency().getId(), (payment.isReceipt() ? payment
+                  .getUsedCredit().toString() : ""), (payment.isReceipt() ? "" : payment
+                  .getUsedCredit().toString()), Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
+              conn);
+        }
       }
     }
 
@@ -1151,14 +1170,29 @@ public class DocFINReconciliation extends AcctServer {
       accounts.setFilterOnReadableClients(false);
       accounts.setFilterOnReadableOrganization(false);
       List<FIN_FinancialAccountAccounting> accountList = accounts.list();
-      if (accountList == null || accountList.size() == 0)
-        return null;
-      if (bIsReceipt)
+      if (accountList == null || accountList.size() == 0) {
+        return account;
+      }
+      if (bIsReceipt) {
         account = new Account(conn, accountList.get(0).getDepositAccount().getId());
-      else
+      } else {
         account = new Account(conn, accountList.get(0).getWithdrawalAccount().getId());
+      }
     } finally {
       OBContext.restorePreviousMode();
+      if (account == null) {
+        Map<String, String> parameters = new HashMap<String, String>();
+        parameters.put("Account", bIsReceipt ? "@DepositAccount@" : "@WithdrawalAccount@");
+        parameters.put("Entity", finAccount.getIdentifier());
+        parameters.put(
+            "AccountingSchema",
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return account;
   }
@@ -1189,8 +1223,9 @@ public class DocFINReconciliation extends AcctServer {
       obCriteria.setFilterOnReadableClients(false);
       obCriteria.setFilterOnReadableOrganization(false);
       List<FinAccPaymentMethod> lines = obCriteria.list();
-      if (accountList == null || accountList.size() == 0)
-        return null;
+      if (accountList == null || accountList.size() == 0) {
+        return account;
+      }
       AccountingCombination result = null;
       if (payment.isReceipt()) {
         if (lines.get(0).getUponDepositUse().equals("INT"))
@@ -1211,6 +1246,21 @@ public class DocFINReconciliation extends AcctServer {
         account = new Account(conn, result.getId());
     } finally {
       OBContext.restorePreviousMode();
+      if (account == null) {
+        Map<String, String> parameters = new HashMap<String, String>();
+        parameters.put("Account", payment.isReceipt() ? "@UponDepositAccount@"
+            : "@UponWithdrawalAccount@");
+        parameters.put("Entity", payment.getAccount().getIdentifier() + " - "
+            + payment.getPaymentMethod().getIdentifier());
+        parameters.put(
+            "AccountingSchema",
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return account;
   }
@@ -1250,10 +1300,22 @@ public class DocFINReconciliation extends AcctServer {
         account = new Account(conn, accountList.get(0).getClearedPaymentAccountOUT().getId());
     } finally {
       OBContext.restorePreviousMode();
+      if (account == null) {
+        Map<String, String> parameters = getInvalidAccountParameters(
+            (bIsReceipt ? "@ClearedPaymentAccount@" : "@ClearedPaymentAccountOUT@"),
+            finAccount.getIdentifier(),
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return account;
   }
 
+  @Deprecated
   public Account getAccountPayment(ConnectionProvider conn, FIN_FinancialAccount finAccount,
       AcctSchema as, boolean bIsReceipt) throws ServletException {
     OBContext.setAdminMode();
@@ -1271,14 +1333,27 @@ public class DocFINReconciliation extends AcctServer {
       accounts.setFilterOnReadableClients(false);
       accounts.setFilterOnReadableOrganization(false);
       List<FIN_FinancialAccountAccounting> accountList = accounts.list();
-      if (accountList == null || accountList.size() == 0)
-        return null;
-      if (bIsReceipt)
+      if (accountList == null || accountList.size() == 0) {
+        return account;
+      }
+      if (bIsReceipt) {
         account = new Account(conn, accountList.get(0).getReceivePaymentAccount().getId());
-      else
+      } else {
         account = new Account(conn, accountList.get(0).getMakePaymentAccount().getId());
+      }
     } finally {
       OBContext.restorePreviousMode();
+      if (account == null) {
+        Map<String, String> parameters = getInvalidAccountParameters(
+            (bIsReceipt ? "ReceivePayment" : "MakePayment"),
+            finAccount.getIdentifier(),
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return account;
   }
@@ -1329,6 +1404,21 @@ public class DocFINReconciliation extends AcctServer {
         account = new Account(conn, result.getId());
     } finally {
       OBContext.restorePreviousMode();
+      if (account == null) {
+        Map<String, String> parameters = getInvalidAccountParameters(
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier(),
+            payment.getAccount().getIdentifier() + " - "
+                + payment.getPaymentMethod().getIdentifier(),
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return account;
   }
@@ -1379,6 +1469,18 @@ public class DocFINReconciliation extends AcctServer {
         account = new Account(conn, result.getId());
     } finally {
       OBContext.restorePreviousMode();
+      if (account == null) {
+        Map<String, String> parameters = getInvalidAccountParameters(
+            payment.isReceipt() ? "@INUponClearingUse@" : "@OUTUponClearingUse@",
+            payment.getAccount().getIdentifier() + " - "
+                + payment.getPaymentMethod().getIdentifier(),
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return account;
   }
@@ -1419,6 +1521,7 @@ public class DocFINReconciliation extends AcctServer {
   private Account getAccountWriteOffBPartner(String AcctType, String strBPartnerId, AcctSchema as,
       ConnectionProvider conn) {
     AcctServerData[] data = null;
+    Account acct = null;
     try {
       if (AcctType.equals(ACCTTYPE_WriteOff)) {
         data = AcctServerData.selectWriteOffAcct(conn, strBPartnerId, as.getC_AcctSchema_ID());
@@ -1426,27 +1529,35 @@ public class DocFINReconciliation extends AcctServer {
         data = AcctServerData.selectWriteOffAcctRevenue(conn, strBPartnerId,
             as.getC_AcctSchema_ID());
       }
-    } catch (ServletException e) {
-      log4j.warn(e);
-      e.printStackTrace();
-    }
-    // Get Acct
-    String Account_ID = "";
-    if (data != null && data.length != 0) {
-      Account_ID = data[0].accountId;
-    } else
-      return null;
-    // No account
-    if (Account_ID.equals("")) {
-      log4j.warn("AcctServer - getAccount - NO account Type=" + AcctType + ", Record=" + Record_ID);
-      return null;
-    }
-    Account acct = null;
-    try {
+      // Get Acct
+      String Account_ID = "";
+      if (data != null && data.length != 0) {
+        Account_ID = data[0].accountId;
+      } else
+        return acct;
+      // No account
+      if (Account_ID.equals("")) {
+        log4j.warn("AcctServer - getAccount - NO account Type=" + AcctType + ", Record="
+            + Record_ID);
+        return acct;
+      }
       acct = Account.getAccount(conn, Account_ID);
     } catch (ServletException e) {
       log4j.warn(e);
       e.printStackTrace();
+    } finally {
+      if (acct == null) {
+        BusinessPartner bp = OBDal.getInstance().get(BusinessPartner.class, strBPartnerId);
+        Map<String, String> parameters = getInvalidAccountParameters(
+            AcctType.equals(ACCTTYPE_WriteOff) ? "@WriteOffAccount@" : "@WriteOff_RevenueAccount@",
+            bp != null ? bp.getIdentifier() : "",
+            OBDal
+                .getInstance()
+                .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                    as.getC_AcctSchema_ID()).getIdentifier());
+        setMessageResult(conn, STATUS_InvalidAccount, "error", parameters);
+        throw new IllegalStateException();
+      }
     }
     return acct;
   }

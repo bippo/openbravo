@@ -101,7 +101,7 @@ public abstract class SimpleCallout extends HttpSecureAppServlet {
     XmlDocument xmlDocument = xmlEngine.readXmlTemplate(
         "org/openbravo/erpCommon/ad_callouts/CallOut").createXmlDocument();
 
-    CalloutInfo info = new CalloutInfo(vars, getSimpleClassName());
+    CalloutInfo info = new CalloutInfo(vars, getSimpleClassName(), getServletConfig());
 
     execute(info);
 
@@ -131,13 +131,16 @@ public abstract class SimpleCallout extends HttpSecureAppServlet {
     private StringBuilder result;
     private int rescounter;
     private int selectcounter;
+    private final ServletConfig config;
     /**
      * Provides the coder friendly methods to retrieve certain environment, session and servlet call
      * variables.
      */
     public VariablesSecureApp vars;
 
-    private CalloutInfo(VariablesSecureApp vars, String classname) {
+
+    private CalloutInfo(VariablesSecureApp vars, String classname, ServletConfig config) {
+      this.config = config;
       this.vars = vars;
 
       result = new StringBuilder();
@@ -156,6 +159,19 @@ public abstract class SimpleCallout extends HttpSecureAppServlet {
 
     /**
      * 
+     * Invokes another SimpleCallout. This method allows to divide callouts functionality into
+     * several callout classes
+     *
+     * @param callout
+     *          SimpleCallout instance to invoke
+     */
+    public void executeCallout(SimpleCallout callout) throws ServletException {
+      callout.init(config);
+      callout.execute(this);
+    }
+
+    /**
+     *
      * @return The name of field that triggered the callout.
      */
     public String getLastFieldChanged() {

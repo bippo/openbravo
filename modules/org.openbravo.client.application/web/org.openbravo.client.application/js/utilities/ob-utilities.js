@@ -26,16 +26,18 @@ OB.Utilities = {};
 // (!= community). If the instance has a community instance then 
 // a popup message is shown and false is returned.
 // The parameter can be used to add a custom message to the popup.
-OB.Utilities.checkProfessionalLicense = function(msg) {
+OB.Utilities.checkProfessionalLicense = function(msg, doNotShowMessage) {
   if(OB.Application.licenseType === 'C') {
-    if (!msg) {
-      msg = '';
-    }
-    isc.warn(OB.I18N.getLabel('OBUIAPP_ActivateMessage', [msg]), {
+    if (!doNotShowMessage) {
+      if (!msg) {
+        msg = '';
+      }
+      isc.warn(OB.I18N.getLabel('OBUIAPP_ActivateMessage', [msg]), {
         isModal: true,
         showModalMask: true,
         toolbarButtons: [isc.Dialog.OK]
-    });
+      });      
+    }
     return false;
   }
   return true;

@@ -533,9 +533,7 @@ public class FIN_AddPayment {
     shownScheduledPaymentDetails.addAll(filteredScheduledPaymentDetails);
     FIN_PaymentScheduleDetail[] FIN_PaymentScheduleDetails = new FIN_PaymentScheduleDetail[0];
     FIN_PaymentScheduleDetails = shownScheduledPaymentDetails.toArray(FIN_PaymentScheduleDetails);
-    // FieldProvider[] data = FieldProviderFactory.getFieldProviderArray(FIN_PaymentSchedules);
 
-    // FieldProvider[] data = new FieldProviderFactory[selectedScheduledPayments.size()];
     FieldProvider[] data = FieldProviderFactory.getFieldProviderArray(shownScheduledPaymentDetails);
     String dateFormat = OBPropertiesProvider.getInstance().getOpenbravoProperties()
         .getProperty("dateFormat.java");
@@ -552,16 +550,30 @@ public class FIN_AddPayment {
                 : "");
         FieldProviderFactory.setField(data[i], "finScheduledPaymentDetailId",
             FIN_PaymentScheduleDetails[i].getId());
-        if (FIN_PaymentScheduleDetails[i].getOrderPaymentSchedule() != null)
+        if (FIN_PaymentScheduleDetails[i].getOrderPaymentSchedule() != null) {
           FieldProviderFactory.setField(data[i], "orderNr", FIN_PaymentScheduleDetails[i]
               .getOrderPaymentSchedule().getOrder().getDocumentNo());
-        else
+          FieldProviderFactory.setField(data[i], "orderNrTrunc", FIN_PaymentScheduleDetails[i]
+              .getOrderPaymentSchedule().getOrder().getDocumentNo());
+          FieldProviderFactory.setField(data[i], "orderPaymentScheduleId",
+              FIN_PaymentScheduleDetails[i].getOrderPaymentSchedule().getId());
+        } else {
           FieldProviderFactory.setField(data[i], "orderNr", "");
-        if (FIN_PaymentScheduleDetails[i].getInvoicePaymentSchedule() != null)
+          FieldProviderFactory.setField(data[i], "orderNrTrunc", "");
+          FieldProviderFactory.setField(data[i], "orderPaymentScheduleId", "");
+        }
+        if (FIN_PaymentScheduleDetails[i].getInvoicePaymentSchedule() != null) {
           FieldProviderFactory.setField(data[i], "invoiceNr", FIN_PaymentScheduleDetails[i]
               .getInvoicePaymentSchedule().getInvoice().getDocumentNo());
-        else
+          FieldProviderFactory.setField(data[i], "invoiceNrTrunc", FIN_PaymentScheduleDetails[i]
+              .getInvoicePaymentSchedule().getInvoice().getDocumentNo());
+          FieldProviderFactory.setField(data[i], "invoicePaymentScheduleId",
+              FIN_PaymentScheduleDetails[i].getInvoicePaymentSchedule().getId());
+        } else {
           FieldProviderFactory.setField(data[i], "invoiceNr", "");
+          FieldProviderFactory.setField(data[i], "invoiceNrTrunc", "");
+          FieldProviderFactory.setField(data[i], "invoicePaymentScheduleId", "");
+        }
         if (FIN_PaymentScheduleDetails[i].getInvoicePaymentSchedule() != null) {
           FieldProviderFactory.setField(
               data[i],
@@ -656,15 +668,17 @@ public class FIN_AddPayment {
         String strPaymentAmt = "";
         String strDifference = "";
         if (firstLoad && (selectedScheduledPaymentDetails.contains(FIN_PaymentScheduleDetails[i]))
-            && paymentProposal != null)
+            && paymentProposal != null) {
           strPaymentAmt = dao.getPaymentProposalDetailAmount(FIN_PaymentScheduleDetails[i],
               paymentProposal);
-        else
+        } else {
           strPaymentAmt = vars.getNumericParameter("inpPaymentAmount"
               + FIN_PaymentScheduleDetails[i].getId(), "");
-        if (!"".equals(strPaymentAmt))
+        }
+        if (!"".equals(strPaymentAmt)) {
           strDifference = FIN_PaymentScheduleDetails[i].getAmount()
               .subtract(new BigDecimal(strPaymentAmt)).toString();
+        }
         FieldProviderFactory.setField(data[i], "paymentAmount", strPaymentAmt);
         FieldProviderFactory.setField(data[i], "difference", strDifference);
         FieldProviderFactory.setField(data[i], "rownum", String.valueOf(i));

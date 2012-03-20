@@ -114,6 +114,7 @@ public class PersonalizationActionHandler extends BaseActionHandler {
     } catch (Exception e) {
       throw new OBException(e);
     } finally {
+      OBDal.getInstance().flush();
       OBContext.restorePreviousMode();
     }
   }

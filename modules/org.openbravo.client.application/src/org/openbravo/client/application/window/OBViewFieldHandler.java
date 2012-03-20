@@ -905,7 +905,9 @@ public class OBViewFieldHandler {
     }
 
     public void setReadOnlyIf(String readOnlyExpression) {
-      this.readOnlyIf = readOnlyExpression;
+      if (!this.getReadOnly()) {
+        this.readOnlyIf = readOnlyExpression;
+      }
     }
 
     public String getReadOnlyIf() {
@@ -1259,7 +1261,9 @@ public class OBViewFieldHandler {
     }
 
     public void setReadOnlyIf(String readOnlyExpression) {
-      this.readOnlyIf = readOnlyExpression;
+      if (!this.getReadOnly()) {
+        this.readOnlyIf = readOnlyExpression;
+      }
     }
 
     public String getReadOnlyIf() {

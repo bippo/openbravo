@@ -8,7 +8,7 @@
  * either express or implied. See the License for the specific language
  * governing rights and limitations under the License. The Original Code is
  * Openbravo ERP. The Initial Developer of the Original Code is Openbravo SLU All
- * portions are Copyright (C) 2008-2010 Openbravo SLU All Rights Reserved.
+ * portions are Copyright (C) 2008-2012 Openbravo SLU All Rights Reserved.
  * Contributor(s): ______________________________________.
  */
 package org.openbravo.erpCommon.utility.reporting.printing;
@@ -54,6 +54,8 @@ import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperPrint;
 
 import org.apache.commons.fileupload.FileItem;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
@@ -334,8 +336,13 @@ public class PrintController extends HttpSecureAppServlet {
           if (log4j.isDebugEnabled())
             log4j.debug("Processing document with id: " + documentId);
 
+          String templateInUse = "default";
+          if (differentDocTypes.size() == 1) {
+            templateInUse = vars.getRequestGlobalVariable("templates", "templates");
+          }
+
           final Report report = buildReport(response, vars, documentId, reportManager,
-              documentType, OutputTypeEnum.EMAIL);
+              documentType, OutputTypeEnum.EMAIL, templateInUse);
 
           // if there is only one document type id the user should be
           // able to choose between different templates
@@ -349,6 +356,7 @@ public class PrintController extends HttpSecureAppServlet {
               throw new ServletException("Error trying to get template information", e);
             }
           }
+
           if (report == null)
             throw new ServletException(Utility.messageBD(this, "NoDataReport", vars.getLanguage())
                 + documentId);
@@ -387,6 +395,39 @@ public class PrintController extends HttpSecureAppServlet {
         }
         request.getSession().removeAttribute("files");
         createPrintStatusPage(response, vars, nrOfEmailsSend);
+      } else if (vars.commandIn("UPDATE_TEMPLATE")) {
+        JSONObject o = new JSONObject();
+        try {
+          final String templateId = vars.getRequestGlobalVariable("templates", "templates");
+          final String documentId = pocData[0].documentId;
+          for (final PocData documentData : pocData) {
+            final Report report = new Report(this, documentType, documentId, vars.getLanguage(),
+                templateId, multiReports, OutputTypeEnum.DEFAULT);
+            o.put("templateId", templateId);
+            o.put("subject", report.getEmailDefinition().getSubject());
+            o.put("body", report.getEmailDefinition().getBody());
+            if (!multiReports) {
+              o.put("filename", report.getFilename());
+            }
+            reports = new HashMap<String, Report>();
+            reports.put(documentId, report);
+          }
+          vars.setSessionObject(sessionValuePrefix + ".Documents", reports);
+
+        } catch (Exception e) {
+          log4j.error("Error in change template ajax", e);
+          o = new JSONObject();
+          try {
+            o.put("error", true);
+          } catch (JSONException e1) {
+            log4j.error("Error in change template ajax", e1);
+          }
+        }
+
+        response.setContentType("application/json");
+        final PrintWriter out = response.getWriter();
+        out.println(o.toString());
+        out.close();
       }
 
       pageError(response);
@@ -508,12 +549,19 @@ public class PrintController extends HttpSecureAppServlet {
   private Report buildReport(HttpServletResponse response, VariablesSecureApp vars,
       String strDocumentId, final ReportManager reportManager, DocumentType documentType,
       OutputTypeEnum outputType) {
+    return buildReport(response, vars, strDocumentId, reportManager, documentType, outputType,
+        "default");
+  }
+
+  private Report buildReport(HttpServletResponse response, VariablesSecureApp vars,
+      String strDocumentId, final ReportManager reportManager, DocumentType documentType,
+      OutputTypeEnum outputType, String templateId) {
     Report report = null;
     if (strDocumentId != null) {
       strDocumentId = strDocumentId.replaceAll("\\(|\\)|'", "");
     }
     try {
-      report = new Report(this, documentType, strDocumentId, vars.getLanguage(), "default",
+      report = new Report(this, documentType, strDocumentId, vars.getLanguage(), templateId,
           multiReports, outputType);
     } catch (final ReportingException e) {
       log4j.error(e);
@@ -747,7 +795,8 @@ public class PrintController extends HttpSecureAppServlet {
 
         EmailData.insertEmail(conn, this, newEmailId, clientId, organizationId, userId,
             EmailType.OUTGOING.getStringValue(), from, to, cc, bcc, dateOfEmail, subject, body,
-            bPartnerId);
+            bPartnerId, ToolsData.getTableId(this, report.getDocumentType().getTableName()),
+            documentData.documentId);
 
         releaseCommitConnection(conn);
       } catch (final NoConnectionAvailableException exception) {

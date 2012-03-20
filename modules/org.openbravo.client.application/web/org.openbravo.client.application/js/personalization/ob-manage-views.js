@@ -142,6 +142,12 @@ OB.Personalization.applyViewDefinition = function(persId, viewDefinition, standa
       if (view.childTabSet && viewTabDefinition.selectedTab >= 0) {
         view.childTabSet.selectTab(viewTabDefinition.selectedTab);
       }
+
+      // never show the form as this gives unpredictable results 
+      // if there is no record selected etc.
+      if (view.isShowingForm) {
+        view.switchFormGridVisibility();
+      }
       
       if (viewTabDefinition.grid) {
         view.viewGrid.setViewState(viewTabDefinition.grid);

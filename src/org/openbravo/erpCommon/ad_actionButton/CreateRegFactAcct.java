@@ -182,7 +182,9 @@ public class CreateRegFactAcct extends HttpSecureAppServlet {
             expense[i].totalamtcr, expense[i].totalamtdr, expense[i].totalamtcr,
             Fact_Acct_Group_ID, Integer.toString((i + 3) * 10), expense[i].acctdescription,
             expense[i].acctvalue, expense[i].cBpartnerId, expense[i].recordId2,
-            expense[i].mProductId, expense[i].aAssetId, strRegEntry);
+            expense[i].mProductId, expense[i].aAssetId, strRegEntry, expense[i].cTaxId,
+            expense[i].cProjectId, expense[i].cActivityId, expense[i].user1Id, expense[i].user2Id,
+            expense[i].cCampaignId, expense[i].cSalesregionId);
     }
     for (int j = 0; j < revenue.length; j++) {
       BigDecimal totalRevenueAmountDr = new BigDecimal(revenue[j].totalamtdr);
@@ -200,21 +202,27 @@ public class CreateRegFactAcct extends HttpSecureAppServlet {
             revenue[j].totalamtcr, revenue[j].totalamtdr, revenue[j].totalamtcr,
             Fact_Acct_Group_ID, Integer.toString((i + j + 3) * 10), revenue[j].acctdescription,
             revenue[j].acctvalue, revenue[j].cBpartnerId, revenue[j].recordId2,
-            revenue[j].mProductId, revenue[j].aAssetId, strRegEntry);
+            revenue[j].mProductId, revenue[j].aAssetId, strRegEntry, revenue[j].cTaxId,
+            revenue[j].cProjectId, revenue[j].cActivityId, revenue[j].user1Id, revenue[j].user2Id,
+            revenue[j].cCampaignId, revenue[j].cSalesregionId);
     }
     CreateRegFactAcctData[] account = CreateRegFactAcctData.incomesummary(this, strAcctSchema);
     if (ExpenseAmtDr.add(RevenueAmtDr).subtract(RevenueAmtCr).subtract(ExpenseAmtCr).signum() > 0) {
       Fact_Acct_ID = SequenceIdData.getUUID();
-      CreateRegFactAcctData.insert(conn, this, Fact_Acct_ID, vars.getClient(), stradOrgId,
-          vars.getUser(), strAcctSchema, account[0].accountId,
-          CreateRegFactAcctData.getEndDate(this, strPediodId), strPediodId,
-          CreateRegFactAcctData.adTableId(this), "A",
-          CreateRegFactAcctData.cCurrencyId(this, strAcctSchema), "0",
-          ExpenseAmtDr.add(RevenueAmtDr).subtract(RevenueAmtCr).subtract(ExpenseAmtCr).toString(),
-          "0", ExpenseAmtDr.add(RevenueAmtDr).subtract(RevenueAmtCr).subtract(ExpenseAmtCr)
-              .toString(), Fact_Acct_Group_ID, "10", account[0].name, account[0].value,
-          account[0].cBpartnerId, account[0].recordId2, account[0].mProductId, account[0].aAssetId,
-          strRegEntry);
+      CreateRegFactAcctData
+          .insert(conn, this, Fact_Acct_ID, vars.getClient(), stradOrgId, vars.getUser(),
+              strAcctSchema, account[0].accountId,
+              CreateRegFactAcctData.getEndDate(this, strPediodId), strPediodId,
+              CreateRegFactAcctData.adTableId(this), "A",
+              CreateRegFactAcctData.cCurrencyId(this, strAcctSchema), "0",
+              ExpenseAmtDr.add(RevenueAmtDr).subtract(RevenueAmtCr).subtract(ExpenseAmtCr)
+                  .toString(), "0",
+              ExpenseAmtDr.add(RevenueAmtDr).subtract(RevenueAmtCr).subtract(ExpenseAmtCr)
+                  .toString(), Fact_Acct_Group_ID, "10", account[0].name, account[0].value,
+              account[0].cBpartnerId, account[0].recordId2, account[0].mProductId,
+              account[0].aAssetId, strRegEntry, account[0].cTaxId, account[0].cProjectId,
+              account[0].cActivityId, account[0].user1Id, account[0].user2Id,
+              account[0].cCampaignId, account[0].cSalesregionId);
     } else if (ExpenseAmtDr.add(RevenueAmtDr).subtract(RevenueAmtCr).subtract(ExpenseAmtCr)
         .signum() < 0) {
       Fact_Acct_ID = SequenceIdData.getUUID();
@@ -226,7 +234,9 @@ public class CreateRegFactAcct extends HttpSecureAppServlet {
               .subtract(RevenueAmtDr).subtract(ExpenseAmtDr).toString(), "0",
           ExpenseAmtCr.add(RevenueAmtCr).subtract(RevenueAmtDr).subtract(ExpenseAmtDr).toString(),
           "0", Fact_Acct_Group_ID, "10", account[0].name, account[0].value, account[0].cBpartnerId,
-          account[0].recordId2, account[0].mProductId, account[0].aAssetId, strRegEntry);
+          account[0].recordId2, account[0].mProductId, account[0].aAssetId, strRegEntry,
+          account[0].cTaxId, account[0].cProjectId, account[0].cActivityId, account[0].user1Id,
+          account[0].user2Id, account[0].cCampaignId, account[0].cSalesregionId);
     }
     return "Success";
   }

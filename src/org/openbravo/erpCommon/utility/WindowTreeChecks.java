@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -60,6 +60,9 @@ class WindowTreeChecks {
       String table = WindowTreeData.selectTableName(conn, tabId);
       String key = WindowTreeData.selectKey(conn, tabId);
       String TreeType = WindowTreeUtility.getTreeType(key);
+      String isReady = WindowTreeData.selectIsReady(conn, nodeId);
+      if ("Y".equals(isReady))
+        return Utility.messageBD(conn, "OrgIsReady", vars.getLanguage());
       if (isChild && !topNodeId.equals("0")
           && WindowTreeChecksData.selectIsSummary(conn, table, key, topNodeId).equals("N"))
         return Utility.messageBD(conn, "NotIsSummary", vars.getLanguage());

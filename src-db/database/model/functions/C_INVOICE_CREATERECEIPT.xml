@@ -41,6 +41,7 @@
     --
     v_DocStatus VARCHAR2(60) ;
     v_InOut_ID VARCHAR2(32);
+    v_DocumentNo M_INOUT.DocumentNo%TYPE;
     FINISH_PROCESS BOOLEAN:=false;
   BEGIN
     --  Update AD_PInstance
@@ -104,6 +105,8 @@
       -- Create (and post) the shipment
       v_ResultStr:='Create Shipment';
       M_InOut_Create(NULL, v_InOut_ID, NULL, v_Record_ID, 'Y', v_M_Locator_ID) ;
+      SELECT DocumentNo INTO v_DocumentNo FROM M_InOut WHERE M_Inout_ID = v_InOut_ID;
+      v_Message := '@DocumentNo@ = ' || v_DocumentNo;
       DBMS_OUTPUT.PUT_LINE('  Shipment - ' || v_InOut_ID) ;
       IF(v_InOut_ID='0') THEN
         RAISE_APPLICATION_ERROR(-20000, '@InOutCreateFailed@');

@@ -505,6 +505,7 @@ public class InitialOrgSetup {
               + fileCoAFilePath.getName(), e);
     }
     try {
+      OBContext.setAdminMode(true);
       obResult = coaUtility.createAccounting(vars, istrFileCoA, partner, product, project,
           campaign, salesRegion,
           InitialSetupUtility.getTranslatedColumnName(language, "Account_ID"), "US", "A",
@@ -515,6 +516,8 @@ public class InitialOrgSetup {
     } catch (final Exception err) {
       return logErrorAndRollback("@CreateAccountingFailed@",
           "createAccounting() - Create Accounting Failed", err);
+    } finally {
+      OBContext.restorePreviousMode();
     }
     log4j.debug("createAccounting() - Accounting creation finished correctly.");
     strLog.append(coaUtility.getLog());
@@ -529,12 +532,15 @@ public class InitialOrgSetup {
     obResult.setType(ERRORTYPE);
     if (client.getClientInformationList().get(0).getYourCompanyDocumentImage() != null)
       try {
+        OBContext.setAdminMode(true);
         InitialSetupUtility.setOrgImage(client, org, client.getClientInformationList().get(0)
             .getYourCompanyDocumentImage().getBindaryData(),
             client.getClientInformationList().get(0).getYourCompanyDocumentImage().getName());
       } catch (final Exception err) {
         obResult.setMessage(err.getMessage());
         return obResult;
+      } finally {
+        OBContext.restorePreviousMode();
       }
     obResult.setType(OKTYPE);
     return obResult;

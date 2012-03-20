@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SL 
- * All portions are Copyright (C) 2010-2011 Openbravo SL 
+ * All portions are Copyright (C) 2010-2012 Openbravo SL 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -176,9 +176,6 @@ public class UserLock {
   }
 
   public boolean isLockedUser() {
-    if (lockAfterTrials == 0) {
-      return false;
-    }
     return user != null && user.isLocked();
   }
 

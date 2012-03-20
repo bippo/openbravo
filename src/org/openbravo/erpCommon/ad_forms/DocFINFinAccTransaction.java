@@ -51,6 +51,7 @@ import org.openbravo.model.financialmgmt.payment.FIN_FinancialAccount;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentMethod;
+import org.openbravo.model.financialmgmt.payment.FIN_Payment_Credit;
 import org.openbravo.model.financialmgmt.payment.FinAccPaymentMethod;
 import org.openbravo.service.db.DalConnectionProvider;
 
@@ -482,18 +483,33 @@ public class DocFINFinAccTransaction extends AcctServer {
       }
       // Pre-payment is consumed when Used Credit Amount not equals Zero. When consuming Credit no
       // credit is generated
-      // FIXME: WHEN RELATION BETWEEN GENERATION OF CREDIT AND CONSUMPTION IS CREATED IN DATABASE
-      // THEN I CAN CONVERT TO CALCULATE DIFFERENCES
       if (transaction.getFinPayment().getUsedCredit().compareTo(ZERO) != 0
           && transaction.getFinPayment().getGeneratedCredit().compareTo(ZERO) == 0) {
-        fact.createLine(
-            null,
-            getAccountBPartner(C_BPartner_ID, as, transaction.getFinPayment().isReceipt(), true,
-                conn), paymentCurrency.getId(),
-            (transaction.getFinPayment().isReceipt() ? transaction.getFinPayment().getUsedCredit()
-                .toString() : ""), (transaction.getFinPayment().isReceipt() ? "" : transaction
-                .getFinPayment().getUsedCredit().toString()), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-            DocumentType, conn);
+        List<FIN_Payment_Credit> creditPayments = transaction.getFinPayment()
+            .getFINPaymentCreditList();
+        for (FIN_Payment_Credit creditPayment : creditPayments) {
+          boolean isReceiptPayment = creditPayment.getCreditPaymentUsed().isReceipt();
+          String creditAmountConverted = convertAmount(creditPayment.getAmount(), isReceiptPayment,
+              DateAcct, TABLEID_Payment, creditPayment.getCreditPaymentUsed().getId(),
+              creditPayment.getCreditPaymentUsed().getCurrency().getId(), as.m_C_Currency_ID, null,
+              as, fact, Fact_Acct_Group_ID, nextSeqNo(SeqNo), conn).toString();
+          fact.createLine(null,
+              getAccountBPartner(C_BPartner_ID, as, isReceiptPayment, true, conn), creditPayment
+                  .getCreditPaymentUsed().getCurrency().getId(),
+              (isReceiptPayment ? creditAmountConverted : ""), (isReceiptPayment ? ""
+                  : creditAmountConverted), Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
+              conn);
+        }
+        if (creditPayments.isEmpty()) {
+          fact.createLine(
+              null,
+              getAccountBPartner(C_BPartner_ID, as, transaction.getFinPayment().isReceipt(), true,
+                  conn), paymentCurrency.getId(),
+              (transaction.getFinPayment().isReceipt() ? transaction.getFinPayment()
+                  .getUsedCredit().toString() : ""), (transaction.getFinPayment().isReceipt() ? ""
+                  : transaction.getFinPayment().getUsedCredit().toString()), Fact_Acct_Group_ID,
+              nextSeqNo(SeqNo), DocumentType, conn);
+        }
       }
     } else {
       BigDecimal convertedAmount = convertAmount(transaction.getFinPayment().getAmount(),

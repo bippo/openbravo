@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -149,8 +149,9 @@ public class Entity {
       if (p.isParent()) {
         parentProperties.add(p);
       }
-      if (p.isOrderByProperty())
+      if (p.isOrderByProperty()) {
         orderByProperties.add(p);
+      }
     }
 
     Collections.sort(identifierProperties, new Comparator<Property>() {
@@ -210,6 +211,19 @@ public class Entity {
       propertiesByColumnName.put(property.getColumnName().toLowerCase(), property);
     }
     if (property.isIdentifier()) {
+      // In case of id properties that are part of a foreign key, the property was already set as
+      // identifier. Remove it before adding current one.
+      Property duplicatedIdentifier = null;
+      for (Property i : identifierProperties) {
+        if (i.getColumnName().equalsIgnoreCase(property.getColumnName())) {
+          duplicatedIdentifier = i;
+          break;
+        }
+      }
+      if (duplicatedIdentifier != null) {
+        identifierProperties.remove(duplicatedIdentifier);
+        log.debug("Removed duplicated identifier property " + property);
+      }
       getIdentifierProperties().add(property);
     }
     if (property.isId()) {

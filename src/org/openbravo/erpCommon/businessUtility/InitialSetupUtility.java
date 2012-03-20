@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
@@ -107,8 +108,8 @@ public class InitialSetupUtility {
    * @throws Exception
    */
   public static boolean existsUserName(String strUser) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<User> obcUser = OBDal.getInstance().createCriteria(User.class);
       obcUser.setFilterOnReadableClients(false);
       obcUser.setFilterOnReadableOrganization(false);
@@ -472,8 +473,8 @@ public class InitialSetupUtility {
    */
   public static RoleOrganization insertRoleOrganization(Role role, Organization orgProvided,
       boolean isOrgAdmin) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       Organization organization = null;
       if (orgProvided == null) {
         if ((organization = getZeroOrg()) == null)
@@ -555,8 +556,8 @@ public class InitialSetupUtility {
    */
   public static UserRoles insertUserRole(Client client, User user, Organization orgProvided,
       Role role, boolean isRoleAdmin) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       Organization organization = null;
 
       if (orgProvided == null) {
@@ -714,9 +715,8 @@ public class InitialSetupUtility {
       String name, String value, String description, String accountType, String accountSign,
       boolean isDocControlled, boolean isSummary, String elementLevel, boolean doFlush,
       String showValueCond, String titleNode) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
-
       Organization organization = null;
       if (orgProvided == null) {
         if ((organization = getZeroOrg()) == null)
@@ -767,8 +767,8 @@ public class InitialSetupUtility {
     } else
       organization = orgProvided;
     List<TreeNode> lTreeNodes;
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<TreeNode> obcTreeNode = OBDal.getInstance().createCriteria(TreeNode.class);
       obcTreeNode.add(Restrictions.eq(TreeNode.PROPERTY_TREE, accountTree));
       obcTreeNode.add(Restrictions.eq(TreeNode.PROPERTY_CLIENT, client));
@@ -821,8 +821,8 @@ public class InitialSetupUtility {
   public static void updateAccountTree(List<TreeNode> treeNodes, HashMap<String, Long> mapSequence,
       HashMap<String, String> mapElementValueValue, HashMap<String, String> mapElementValueId,
       HashMap<String, String> mapParent, boolean doFlush) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       Iterator<TreeNode> iTreeNodes = treeNodes.listIterator();
       while (iTreeNodes.hasNext()) {
         try {
@@ -883,8 +883,8 @@ public class InitialSetupUtility {
    * @throws Exception
    */
   public static ElementValue getElementValue(Element element, String value) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<ElementValue> obcEV = OBDal.getInstance().createCriteria(ElementValue.class);
       if (obcEV == null)
         return null;
@@ -1476,8 +1476,8 @@ public class InitialSetupUtility {
         .getProperty("source.path");
     String strPath = "";
     File datasetFile;
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       if (dataset.getModule().getJavaPackage().equals("org.openbravo")) {
         strPath = strSourcePath + "/referencedata/standard";
       } else {
@@ -1493,17 +1493,51 @@ public class InitialSetupUtility {
       myResult = myData.importDataFromXML(client, organization, strXml, dataset.getModule());
 
       if (myResult.getErrorMessages() != null && !myResult.getErrorMessages().equals("")
-          && !myResult.getErrorMessages().equals("null"))
+          && !myResult.getErrorMessages().equals("null")) {
         return myResult;
-      if (organization.getId().equals(getZeroOrg().getId()))
+      }
+      if (organization.getId().equals(getZeroOrg().getId())
+          && getClientModuleList(client, dataset.getModule()).size() == 0) {
         insertClientModule(client, dataset.getModule());
-      else
+      } else if (getOrgModuleList(client, organization, dataset.getModule()).size() == 0) {
         insertOrgModule(client, organization, dataset.getModule());
+      }
     } finally {
       OBContext.restorePreviousMode();
     }
 
     return myResult;
+  }
+
+  private static List<ADClientModule> getClientModuleList(Client client, Module module) {
+    OBContext.setAdminMode();
+    try {
+      OBCriteria<ADClientModule> clientModules = OBDal.getInstance().createCriteria(
+          ADClientModule.class);
+      clientModules.add(Restrictions.eq(ADClientModule.PROPERTY_CLIENT, client));
+      clientModules.add(Restrictions.eq(ADClientModule.PROPERTY_MODULE, module));
+      clientModules.setFilterOnReadableOrganization(false);
+      clientModules.setFilterOnReadableClients(false);
+      return clientModules.list();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  private static List<ADOrgModule> getOrgModuleList(Client client, Organization organization,
+      Module module) {
+    OBContext.setAdminMode();
+    try {
+      OBCriteria<ADOrgModule> orgModules = OBDal.getInstance().createCriteria(ADOrgModule.class);
+      orgModules.add(Restrictions.eq(ADOrgModule.PROPERTY_CLIENT, client));
+      orgModules.add(Restrictions.eq(ADOrgModule.PROPERTY_ORGANIZATION, organization));
+      orgModules.add(Restrictions.eq(ADOrgModule.PROPERTY_MODULE, module));
+      orgModules.setFilterOnReadableOrganization(false);
+      orgModules.setFilterOnReadableClients(false);
+      return orgModules.list();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 
   /**
@@ -1607,15 +1641,16 @@ public class InitialSetupUtility {
    * @throws Exception
    */
   public static List<DataSet> getDataSets(Module module, List<String> accessLevel) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<DataSet> obcDataSets = OBDal.getInstance().createCriteria(DataSet.class);
       obcDataSets.add(Restrictions.eq(DataSet.PROPERTY_MODULE, module));
       obcDataSets.add(Restrictions.in(DataSet.PROPERTY_DATAACCESSLEVEL, accessLevel));
-      if (obcDataSets.list().size() > 0)
+      if (obcDataSets.list().size() > 0) {
         return obcDataSets.list();
-      else
+      } else {
         return null;
+      }
     } finally {
       OBContext.restorePreviousMode();
     }
@@ -1629,17 +1664,17 @@ public class InitialSetupUtility {
    * @throws Exception
    */
   public static List<org.openbravo.model.ad.domain.List> getAcctSchemaElements() throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
-
       final OBCriteria<org.openbravo.model.ad.domain.List> obcRefList = OBDal.getInstance()
           .createCriteria(org.openbravo.model.ad.domain.List.class);
       obcRefList.add(Restrictions.eq(org.openbravo.model.ad.domain.List.PROPERTY_REFERENCE, OBDal
           .getInstance().get(Reference.class, "181")));
-      if (obcRefList.list().size() > 0)
+      if (obcRefList.list().size() > 0) {
         return obcRefList.list();
-      else
+      } else {
         return null;
+      }
 
     } finally {
       OBContext.restorePreviousMode();
@@ -1659,18 +1694,21 @@ public class InitialSetupUtility {
       throws Exception {
     Organization org;
     if (orgProvided == null) {
-      if ((org = getZeroOrg()) == null)
+      if ((org = getZeroOrg()) == null) {
         return null;
-    } else
+      }
+    } else {
       org = orgProvided;
+    }
 
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final ADOrgModule newADOrgModule = OBProvider.getInstance().get(ADOrgModule.class);
       newADOrgModule.setClient(client);
       newADOrgModule.setOrganization(org);
       newADOrgModule.setModule(module);
       newADOrgModule.setVersion(module.getVersion());
+      newADOrgModule.setChecksum(getModuleDatasetsChechsum(module));
 
       OBDal.getInstance().save(newADOrgModule);
       OBDal.getInstance().flush();
@@ -1678,6 +1716,37 @@ public class InitialSetupUtility {
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private static String getModuleDatasetsChechsum(Module module) {
+    String checksum = "";
+    OBContext.setAdminMode();
+    try {
+      OBCriteria<DataSet> obc = OBDal.getInstance().createCriteria(DataSet.class);
+      obc.createAlias(DataSet.PROPERTY_MODULE, "m");
+      obc.add(Restrictions.eq(DataSet.PROPERTY_MODULE, module));
+      String[] organizationAccessLevel = { "3", "1" };
+      String[] systemAccessLevel = { "3", "6" };
+      obc.add(Restrictions.or(Restrictions.and(
+          Restrictions.ne(DataSet.PROPERTY_ORGANIZATION, getZeroOrg()),
+          Restrictions.in(DataSet.PROPERTY_DATAACCESSLEVEL, organizationAccessLevel)), Restrictions
+          .and(Restrictions.eq(DataSet.PROPERTY_ORGANIZATION, getZeroOrg()),
+              Restrictions.in(DataSet.PROPERTY_DATAACCESSLEVEL, systemAccessLevel))));
+      obc.addOrder(Order.asc("m." + Module.PROPERTY_ID));
+      obc.addOrder(Order.asc(DataSet.PROPERTY_SEQUENCENUMBER));
+      obc.addOrder(Order.asc(DataSet.PROPERTY_ID));
+      obc.setFilterOnReadableClients(false);
+      obc.setFilterOnReadableOrganization(false);
+      for (DataSet dataset : obc.list()) {
+        if (checksum.length() > 0 && !StringUtils.isEmpty(dataset.getChecksum())) {
+          checksum = checksum + ",";
+        }
+        checksum = checksum + (dataset.getChecksum() == null ? "" : dataset.getChecksum());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+    return checksum;
   }
 
   /**
@@ -1688,14 +1757,13 @@ public class InitialSetupUtility {
    * @throws Exception
    */
   public static ADClientModule insertClientModule(Client client, Module module) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final ADClientModule newADClientModule = OBProvider.getInstance().get(ADClientModule.class);
       newADClientModule.setClient(client);
       newADClientModule.setOrganization(getZeroOrg());
       newADClientModule.setModule(module);
       newADClientModule.setVersion(module.getVersion());
-
       OBDal.getInstance().save(newADClientModule);
       OBDal.getInstance().flush();
       return newADClientModule;
@@ -1705,8 +1773,8 @@ public class InitialSetupUtility {
   }
 
   public static boolean existsOrgName(Client client, String strOrgName) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<Organization> obcOrg = OBDal.getInstance()
           .createCriteria(Organization.class);
       obcOrg.setFilterOnReadableOrganization(false);
@@ -1721,8 +1789,8 @@ public class InitialSetupUtility {
   public static Organization insertOrganization(String strOrgName, OrganizationType orgType,
       String strcLocationId, Client client) throws Exception {
     log4j.debug("InitialSetupUtility - insertOrganization() - name = " + strOrgName);
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final Organization newOrg = OBProvider.getInstance().get(Organization.class);
       newOrg.setClient(client);
       newOrg.setName(strOrgName);
@@ -1745,8 +1813,8 @@ public class InitialSetupUtility {
   }
 
   public static TreeNode getTreeNode(Organization org, Tree tree, Client client) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<TreeNode> obcTreeNode = OBDal.getInstance().createCriteria(TreeNode.class);
       obcTreeNode.setFilterOnReadableOrganization(false);
       obcTreeNode.add(Restrictions.eq(TreeNode.PROPERTY_TREE, tree));
@@ -1762,8 +1830,8 @@ public class InitialSetupUtility {
       throws Exception {
     Long lSeqNo = 0L;
     orgNode.setReportSet(parentOrg.getId());
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       final OBCriteria<TreeNode> obcTreeNodes = OBDal.getInstance().createCriteria(TreeNode.class);
       obcTreeNodes.setFilterOnReadableClients(false);
       obcTreeNodes.setFilterOnReadableOrganization(false);
@@ -1781,8 +1849,8 @@ public class InitialSetupUtility {
   }
 
   public static void updateOrgLocation(Organization org, Location location) throws Exception {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       location.setOrganization(getZeroOrg());
       org.getOrganizationInformationList().get(0).setLocationAddress(location);
     } finally {
@@ -1791,8 +1859,8 @@ public class InitialSetupUtility {
   }
 
   public static String getTranslatedMessage(Language language, String msgId) {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
       Message msg = OBDal.getInstance().get(Message.class, msgId);
       OBCriteria<MessageTrl> obcMsgTrl = OBDal.getInstance().createCriteria(MessageTrl.class);
       obcMsgTrl.setFilterOnReadableClients(false);
@@ -1810,9 +1878,8 @@ public class InitialSetupUtility {
   }
 
   public static String getTranslatedColumnName(Language language, String columnName) {
+    OBContext.setAdminMode();
     try {
-      OBContext.setAdminMode();
-
       OBCriteria<org.openbravo.model.ad.ui.Element> obcElement = OBDal.getInstance()
           .createCriteria(org.openbravo.model.ad.ui.Element.class);
       obcElement.setFilterOnReadableClients(false);

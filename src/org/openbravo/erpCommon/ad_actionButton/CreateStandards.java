@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2011 Openbravo SLU 
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -48,6 +48,7 @@ import org.openbravo.model.materialmgmt.transaction.ProductionLine;
 import org.openbravo.model.materialmgmt.transaction.ProductionPlan;
 import org.openbravo.scheduling.ProcessBundle;
 import org.openbravo.service.db.CallProcess;
+import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.utils.Replace;
 
 public class CreateStandards implements org.openbravo.scheduling.Process {
@@ -115,8 +116,8 @@ public class CreateStandards implements org.openbravo.scheduling.Process {
       if (pInstance.getResult() == 0) {
         // error processing
         OBError myMessage = Utility.getProcessInstanceMessage(conn, vars,
-            PInstanceProcessData.select(conn, pInstance.getId()));
-        throw new OBException("ERROR: " + myMessage.getMessage());
+            PInstanceProcessData.select(new DalConnectionProvider(), pInstance.getId()));
+        throw new OBException(myMessage.getMessage());
       }
     } finally {
       OBContext.restorePreviousMode();

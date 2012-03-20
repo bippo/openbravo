@@ -305,7 +305,8 @@ public class DocInvoice extends AcctServer {
           fact.createLine(m_payments[i], getAccountBPartner(C_BPartner_ID, as, true, false, conn),
               this.C_Currency_ID, m_payments[i].Amount, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo),
               DocumentType, conn);
-          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)) {
+          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)
+              && new BigDecimal(m_payments[i].PrepaidAmount).compareTo(ZERO) != 0) {
             fact.createLine(m_payments[i], getAccountBPartner(C_BPartner_ID, as, true, true, conn),
                 this.C_Currency_ID, m_payments[i].PrepaidAmount, "", Fact_Acct_Group_ID,
                 nextSeqNo(SeqNo), DocumentType, conn);
@@ -406,7 +407,8 @@ public class DocInvoice extends AcctServer {
               nextSeqNo(SeqNo), DocumentType, conn);
           // Pre-payment: Probably not needed as at this point we can not generate pre-payments
           // against ARC. Amount is negated
-          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)) {
+          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)
+              && prepaidAmount.compareTo(ZERO) != 0) {
             fact.createLine(m_payments[i], getAccountBPartner(C_BPartner_ID, as, true, true, conn),
                 this.C_Currency_ID, "", prepaidAmount.negate().toString(), Fact_Acct_Group_ID,
                 nextSeqNo(SeqNo), DocumentType, conn);
@@ -493,7 +495,8 @@ public class DocInvoice extends AcctServer {
           fact.createLine(m_payments[i], getAccountBPartner(C_BPartner_ID, as, false, false, conn),
               this.C_Currency_ID, "", m_payments[i].Amount, Fact_Acct_Group_ID, nextSeqNo(SeqNo),
               DocumentType, conn);
-          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)) {
+          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)
+              && new BigDecimal(m_payments[i].PrepaidAmount).compareTo(ZERO) != 0) {
             fact.createLine(m_payments[i],
                 getAccountBPartner(C_BPartner_ID, as, false, true, conn), this.C_Currency_ID, "",
                 m_payments[i].PrepaidAmount, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
@@ -597,7 +600,8 @@ public class DocInvoice extends AcctServer {
               nextSeqNo(SeqNo), DocumentType, conn);
           // Pre-payment: Probably not needed as at this point we can not generate pre-payments
           // against APC. Amount is negated
-          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)) {
+          if (m_payments[i].C_Currency_ID_From.equals(as.m_C_Currency_ID)
+              && prepaidAmount.compareTo(ZERO) != 0) {
             fact.createLine(m_payments[i],
                 getAccountBPartner(C_BPartner_ID, as, false, true, conn), this.C_Currency_ID,
                 prepaidAmount.negate().toString(), "", Fact_Acct_Group_ID, nextSeqNo(SeqNo),

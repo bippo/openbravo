@@ -24,6 +24,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.hibernate.criterion.Criterion;
@@ -1407,6 +1408,7 @@ public class AdvPaymentMngtDao {
     return ppfiCriteria.list();
   }
 
+  @Deprecated
   public BigDecimal getCustomerCredit(BusinessPartner bp, boolean isReceipt) {
     BigDecimal creditAmount = BigDecimal.ZERO;
     for (FIN_Payment payment : getCustomerPaymentsWithCredit(bp, isReceipt))
@@ -1415,6 +1417,15 @@ public class AdvPaymentMngtDao {
     return creditAmount;
   }
 
+  public BigDecimal getCustomerCredit(BusinessPartner bp, boolean isReceipt, Organization Org) {
+    BigDecimal creditAmount = BigDecimal.ZERO;
+    for (FIN_Payment payment : getCustomerPaymentsWithCredit(Org, bp, isReceipt))
+      creditAmount = creditAmount.add(payment.getGeneratedCredit()).subtract(
+          payment.getUsedCredit());
+    return creditAmount;
+  }
+
+  @Deprecated
   public List<FIN_Payment> getCustomerPaymentsWithCredit(BusinessPartner bp, boolean isReceipt) {
     OBCriteria<FIN_Payment> obcPayment = OBDal.getInstance().createCriteria(FIN_Payment.class);
     obcPayment.add(Restrictions.eq(FIN_Payment.PROPERTY_BUSINESSPARTNER, bp));
@@ -1451,8 +1462,10 @@ public class AdvPaymentMngtDao {
       obcPayment.add(Restrictions.neProperty(FIN_Payment.PROPERTY_GENERATEDCREDIT,
           FIN_Payment.PROPERTY_USEDCREDIT));
       final Organization legalEntity = FIN_Utility.getLegalEntityOrg(org);
-      obcPayment.add(Restrictions.in("organization.id", OBContext.getOBContext()
-          .getOrganizationStructureProvider().getNaturalTree(legalEntity.getId())));
+      Set<String> orgIds = OBContext.getOBContext().getOrganizationStructureProvider()
+          .getChildOrg(legalEntity.getId());
+      orgIds.add(legalEntity.getId());
+      obcPayment.add(Restrictions.in("organization.id", orgIds));
       obcPayment.addOrderBy(FIN_Payment.PROPERTY_PAYMENTDATE, true);
       obcPayment.addOrderBy(FIN_Payment.PROPERTY_DOCUMENTNO, true);
       return obcPayment.list();

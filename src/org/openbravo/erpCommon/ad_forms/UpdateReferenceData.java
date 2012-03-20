@@ -55,7 +55,12 @@ public class UpdateReferenceData extends HttpSecureAppServlet {
       throws ServletException, IOException {
     VariablesSecureApp vars = new VariablesSecureApp(request);
     if (vars.commandIn("DEFAULT")) {
-      String strOrganization = vars.getStringParameter("inpOrganization", "0");
+      // If no organization is retrieved then first organization displayed in the mandatory combo is
+      // takes as default
+      UpdateReferenceDataData[] data = UpdateReferenceDataData.selectOrganization(this,
+          vars.getRole(), vars.getUserOrg());
+      String strOrganization = vars.getStringParameter("inpOrganization",
+          data.length > 0 ? data[0].id : "");
       printPage(response, vars, strOrganization);
     } else if (vars.commandIn("OK")) {
       StringBuffer m_info = new StringBuffer();

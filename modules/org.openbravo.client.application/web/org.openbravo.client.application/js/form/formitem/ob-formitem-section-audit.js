@@ -21,6 +21,14 @@
 isc.ClassFactory.defineClass('OBAuditSectionItem', isc.OBSectionItem);
 
 isc.OBAuditSectionItem.addProperties({
+
+  init : function() {
+    /* tell the form who we are */
+    this.form.auditSection = this;
+
+    this.Super('init', arguments);
+  },
+  
   // this field group does not participate in formbuilding
   personalizable: false,
   

@@ -60,7 +60,7 @@ public class SE_CalculateExchangeRate extends SimpleCallout {
         String strfinTransactionId = info.vars.getStringParameter("inpaprmFinaccTransactionVId");
         APRM_FinaccTransactionV transaction = OBDal.getInstance().get(
             APRM_FinaccTransactionV.class, strfinTransactionId);
-        originalAmt = transaction.getForeignAmount();
+        originalAmt = transaction.getDepositAmount().subtract(transaction.getWithdrawalAmount());
       }
       if (strLastFieldChanged.equals("inprate")) {
         foreignAmt = originalAmt.multiply(rate);

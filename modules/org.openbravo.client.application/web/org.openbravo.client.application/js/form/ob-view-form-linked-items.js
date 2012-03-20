@@ -165,7 +165,8 @@ isc.OBLinkedItemLayout.addProperties({
       useSimpleHttp: true,
       actionURL: actionURL
     };
-    
+    this.linkedItemCategoryListGrid.setData([]);
+    this.linkedItemCategoryListGrid.showLoadingMessage();
     isc.RPCManager.sendRequest(reqObj);
   },
   
@@ -215,6 +216,8 @@ isc.OBLinkedItemLayout.addProperties({
       useSimpleHttp: true,
       actionURL: actionURL
      };
+    this.linkedItemListGrid.setData([]);
+    this.linkedItemListGrid.showLoadingMessage();
     isc.RPCManager.sendRequest(reqObj);
     }
   },
@@ -261,6 +264,8 @@ isc.OBLinkedItemLayout.addProperties({
       showFilterEditor: true,
       selectionType: 'single',
       filterOnKeypress: true,
+      loadingDataMessage: OB.I18N.getLabel('OBUISC_ListGrid.loadingDataMessage'),
+      emptyDataMessage: OB.I18N.getLabel('OBUIAPP_LinkedItemsEmptyMessage'),
       emptyMessage: OB.I18N.getLabel('OBUIAPP_LinkedItemsEmptyMessage'),
       layout: this,
       recordClick: 'this.layout.openLinkedItemInNewWindow(record)',
@@ -271,6 +276,18 @@ isc.OBLinkedItemLayout.addProperties({
       filterData: function(criteria, callback, requestProperties){
         this.checkShowFilterFunnelIcon(criteria);
         return this.Super('filterData', arguments);
+      },
+      showLoadingMessage: function () {
+        this.emptyMessage = this.loadingDataMessage;
+      },
+      showNoRowsMessage: function () {
+                this.emptyMessage = this.emptyDataMessage;
+      },
+      dataArrived: function (startRow, endRow) {
+        if (startRow === 0 && endRow === -1) {
+          this.showNoRowsMessage();
+        }
+        return this.Super('dataArrived', arguments);
       }
     });
     
@@ -293,6 +310,8 @@ isc.OBLinkedItemLayout.addProperties({
       height: 300,
       dataSource: this.linkedItemCategoryDS,
       layout: this,
+      emptyDataMessage: this.emptyMessage,
+      loadingDataMessage: OB.I18N.getLabel('OBUISC_ListGrid.loadingDataMessage'),
       recordClick: 'this.layout.loadLinkedItems(record)',
       showFilterEditor: true,
       selectionType: 'single',
@@ -305,6 +324,18 @@ isc.OBLinkedItemLayout.addProperties({
       filterData: function(criteria, callback, requestProperties){
         this.checkShowFilterFunnelIcon(criteria);
         return this.Super('filterData', arguments);
+      },
+      showLoadingMessage: function () {
+        this.emptyMessage = this.loadingDataMessage;
+      },
+      showNoRowsMessage: function () {
+        this.emptyMessage = this.emptyDataMessage;
+      },
+      dataArrived: function (startRow, endRow) {
+        if (startRow === 0 && endRow === -1) {
+          this.showNoRowsMessage();
+        }
+        return this.Super('dataArrived', arguments);
       }
     });
     

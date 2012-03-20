@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import org.openbravo.base.filter.RequestFilter;
 import org.openbravo.base.filter.ValueListFilter;
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
@@ -126,8 +128,16 @@ public class AddPaymentFromTransaction extends HttpSecureAppServlet {
     } else if (vars.commandIn("LOADCREDIT")) {
       final String strBusinessPartnerId = vars.getRequiredStringParameter("inpcBpartnerId");
       final boolean isReceipt = "Y".equals(vars.getRequiredStringParameter("isReceipt"));
-      BigDecimal customerCredit = dao.getCustomerCredit(
-          OBDal.getInstance().get(BusinessPartner.class, strBusinessPartnerId), isReceipt);
+      final String strOrgId = vars.getRequiredStringParameter("inpadOrgId");
+      BigDecimal customerCredit;
+      try {
+        OBContext.setAdminMode(true);
+        customerCredit = dao.getCustomerCredit(
+            OBDal.getInstance().get(BusinessPartner.class, strBusinessPartnerId), isReceipt, OBDal
+                .getInstance().get(Organization.class, strOrgId));
+      } finally {
+        OBContext.restorePreviousMode();
+      }
       response.setContentType("text/html; charset=UTF-8");
       response.setHeader("Cache-Control", "no-cache");
       PrintWriter out = response.getWriter();
@@ -545,7 +555,9 @@ public class AddPaymentFromTransaction extends HttpSecureAppServlet {
 
     // If business partner and document number are empty search for all filtered scheduled payments
     // list
-    if (!"".equals(strBusinessPartnerId) || !"".equals(strDocumentNo)) {
+    if (!"".equals(strBusinessPartnerId) || !"".equals(strDocumentNo)
+        || isValidJSDate(strDueDateFrom) || isValidJSDate(strDueDateTo)
+        || isValidJSDate(strTransDateFrom) || isValidJSDate(strTransDateTo)) {
       Currency paymentCurrency;
       if (strCurrencyId == null || strCurrencyId.isEmpty()) {
         paymentCurrency = financialAccount.getCurrency();
@@ -570,6 +582,28 @@ public class AddPaymentFromTransaction extends HttpSecureAppServlet {
     PrintWriter out = response.getWriter();
     out.println(xmlDocument.print());
     out.close();
+  }
+
+  /**
+   * Returns true in case the provided string is well formed JS-formated date
+   */
+  private boolean isValidJSDate(String strDate) {
+    if ("".equals(strDate)) {
+      return false;
+    }
+    try {
+      OBContext.setAdminMode(true);
+      String dateFormat = OBPropertiesProvider.getInstance().getOpenbravoProperties()
+          .getProperty("dateFormat.java");
+
+      Date date = new SimpleDateFormat(dateFormat).parse(strDate);
+      Date year1000 = new SimpleDateFormat("yyyy-MM-dd").parse("999-12-31");
+      return date.after(year1000);
+    } catch (Exception e) {
+      return false;
+    } finally {
+      OBContext.restorePreviousMode();
+    }
   }
 
   private void refreshPaymentMethod(HttpServletResponse response, String strBusinessPartnerId,

@@ -12,7 +12,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -36,7 +36,7 @@
         c_invoice_id as record_id 
         from c_invoice
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and issotrx = 'Y'
         and docstatus <> 'VO'
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='318' and ad_client_id=?)
@@ -51,7 +51,7 @@
         m_inout_id as record_id
         from m_inout
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and issotrx = 'Y'
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='319' and ad_client_id=?)
         union all
@@ -65,7 +65,7 @@
         m_inout_id as record_id
         from m_inout
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and issotrx = 'N'
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='319' and ad_client_id=?)
         union all
@@ -79,7 +79,7 @@
         c_invoice_id as record_id
         from c_invoice
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and issotrx = 'N'
         and docstatus <> 'VO'
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='318' and ad_client_id=?)
@@ -97,7 +97,7 @@
         c_cash_id as record_id
         from C_Cash
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='407' and ad_client_id=?)
         union all
         select ad_client_id, TO_CHAR(name) AS DOCUMENTNO, statementdate, 'C_Bankstatement' as tablename, C_bankstatement_id as id, STATEMENTDIFFERENCE, 
@@ -113,7 +113,7 @@
         c_bankstatement_id as record_id
         from c_bankstatement
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='392' and ad_client_id=?)
         union all
         select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct, 'C_Settlement' as tablename, C_Settlement_id as id, generatedamt, 
@@ -126,7 +126,7 @@
         c_Settlement_id as record_id
         from c_Settlement s
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and settlementtype = 'I'
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800019' and ad_client_id=?)
         and exists (select 1
@@ -144,7 +144,7 @@
         c_Settlement_id as record_id
         from c_Settlement
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and settlementtype <> 'I'
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800019' and ad_client_id=?)
         union all
@@ -158,7 +158,7 @@
         GL_Journal_id as record_id
         from GL_Journal
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='224' and ad_client_id=?)
         union all
         select ad_client_id, TO_CHAR(name) AS DOCUMENTNO, movementdate , 'M_INVENTORY' as tablename, m_inventory_id as id, 0 as GRANDTOTAL, 
@@ -170,11 +170,11 @@
             where ad_client_id=?
             and docbasetype='MMI') 
         and ad_language=? 
-        and ad_client_id=?)), 'Physical Inventory') as document, '225' as tab_id, 'MMI' as docbasetype,
+        and ad_client_id=?)), 'Physical Inventory') as document, '255' as tab_id, 'MMI' as docbasetype,
         m_inventory_id as record_id
         from m_inventory
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='321' and ad_client_id=?)
         union all
         select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, paymentdate , 'C_Bpartner' as tablename, c_bpartner_id as id, amount as GRANDTOTAL, 
@@ -256,7 +256,7 @@
         m_movement_id as record_id
         from m_movement
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='323' and ad_client_id=?)
         union all
         select ad_client_id, TO_CHAR(documentno) AS DOCUMENTNO, dateacct , 'C_DP_MANAGEMENT' as tablename, c_dp_management_id as id, 0 as GRANDTOTAL,
@@ -272,7 +272,7 @@
         c_dp_management_id as record_id
         from c_dp_management
         where processed = 'Y'
-        and posted <> 'Y'
+        and posted not in ('Y', 'D')
         and 'Y'=(select max(isactive) from c_acctschema_table where ad_table_id='800176' and ad_client_id=?)
         ) AAA
         where ad_client_id = ?

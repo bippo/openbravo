@@ -48,4 +48,5 @@ isc.OBPAttributeSearchItem.addProperties({
     parameters[index++] = values.inpmProductId;
     this.openSearchWindow('/info/AttributeSetInstance.html', parameters, this.getValue());
   }
+
 });
