@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -27,10 +27,18 @@ isc.OBTextAreaItem.addProperties({
   validateOnExit: true,
 
   selectOnFocus: false,
-  
-  isDisabled: function() {
+  rowSpan: 2,
+
+  init: function () {
+    if (this.initStyle) {
+      this.initStyle();
+    }
+    this.Super('init', arguments);
+  },
+
+  isDisabled: function () {
     var ret = this.Super('isDisabled', arguments);
-    if (ret) {
+    if (ret && this.showDisabled) {
       this.readOnly = true;
       if (this.cellStyle.indexOf('Disabled') === -1 || (this.cellStyle.indexOf('Disabled') !== -1 && this.cellStyle.lastIndexOf('Disabled') !== this.cellStyle.length - 8)) {
         this.cellStyle = this.cellStyle + 'Disabled';
@@ -56,7 +64,7 @@ isc.OBTextAreaItem.addProperties({
     return false;
   },
 
-  itemHoverHTML: function(item, form) {
+  itemHoverHTML: function (item, form) {
     if (this.isDisabled()) {
       return this.getValue();
     }
@@ -79,6 +87,5 @@ if (isc.ListGrid.getPrototype()._popUpTextAreaEditorTypes) {
   // handle case when loading source code
   isc.ListGrid.getPrototype()._popUpTextAreaEditorTypes.OBPopUpTextAreaItem = true;
 } else if (isc.ListGrid.getPrototype().$309) {
-  isc.ListGrid.getPrototype().$309.OBPopUpTextAreaItem = true;  
+  isc.ListGrid.getPrototype().$309.OBPopUpTextAreaItem = true;
 }
-

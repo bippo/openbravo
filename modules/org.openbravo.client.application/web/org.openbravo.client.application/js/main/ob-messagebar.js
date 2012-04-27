@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -24,7 +24,7 @@ isc.ClassFactory.defineClass('OBMessageBarCloseIcon', isc.ImgButton);
 
 isc.OBMessageBarCloseIcon.addProperties({
   messageBar: null,
-  action: function(){
+  action: function () {
     this.messageBar.hide(true);
   }
 });
@@ -44,8 +44,8 @@ isc.OBMessageBar.addProperties({
   mainIcon: null,
   text: null,
   closeIcon: null,
-  
-  initWidget: function(){
+
+  initWidget: function () {
     this.mainIcon = isc.OBMessageBarMainIcon.create({});
     this.text = isc.OBMessageBarDescriptionText.create({
       contents: ''
@@ -53,35 +53,35 @@ isc.OBMessageBar.addProperties({
     this.closeIcon = isc.OBMessageBarCloseIcon.create({
       messageBar: this
     });
-    
+
     this.addMembers([this.mainIcon, this.text, this.closeIcon]);
   },
 
-  hideCloseIcon: function() {
+  hideCloseIcon: function () {
     this.closeIcon.hide();
   },
 
-  showCloseIcon: function() {
+  showCloseIcon: function () {
     this.closeIcon.show();
   },
 
-  setType: function(type){
+  setType: function (type) {
     if (this.setTypeStyle) {
       this.setTypeStyle(type);
     }
     this.type = type;
   },
-  
-  setText: function(title, text){
+
+  setText: function (title, text) {
     if (!title) {
       this.text.setContents(text);
     } else {
       // TODO: low-prio, move styling to a css class
-      this.text.setContents('<b>' + title + '</b>' + (text? '<br/>'+ text:''));
+      this.text.setContents('<b>' + title + '</b>' + (text ? '<br/>' + text : ''));
     }
   },
-  
-  getDefaultTitle: function(type){
+
+  getDefaultTitle: function (type) {
     if (type === isc.OBMessageBar.TYPE_SUCCESS) {
       return OB.I18N.getLabel('OBUIAPP_Success');
     } else if (type === isc.OBMessageBar.TYPE_ERROR) {
@@ -93,8 +93,8 @@ isc.OBMessageBar.addProperties({
     }
     return null;
   },
-  
-  setMessage: function(type, title, text){
+
+  setMessage: function (type, title, text) {
     var i, length, newText, form, grid;
     if (this.view && this.view.viewForm) {
       form = this.view.viewForm;
@@ -113,7 +113,7 @@ isc.OBMessageBar.addProperties({
       text = newText + '</ul>';
     }
 
-    if((form && form.isSaving) || (grid && grid.isSaving)) {
+    if ((form && form.isSaving) || (grid && grid.isSaving)) {
       text = OB.I18N.getLabel('OBUIAPP_ErrorSavingFailed') + ' ' + text;
     }
 
@@ -121,19 +121,19 @@ isc.OBMessageBar.addProperties({
     delete this.hasFilterMessage;
     this.show();
   },
-  
+
   // calls te OB.I18N.getLabel to asynchronously get a label
   // and display it  
-  setLabel: function(type, title, label, params){
+  setLabel: function (type, title, label, params) {
     var me = this;
     OB.I18N.getLabel(label, params, {
-      setLabel: function(text){
+      setLabel: function (text) {
         me.setMessage(type, title, text);
       }
     }, 'setLabel');
   },
 
-  hide: function(force) {
+  hide: function (force) {
     // if hide is not forced, keep the message if marked as keepOnAutomaticRefresh
     if (force || !this.keepOnAutomaticRefresh) {
       delete this.keepOnAutomaticRefresh;

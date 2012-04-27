@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2008-2011 Openbravo SLU
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -21,14 +21,19 @@ package org.openbravo.erpCommon.ad_forms;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.SequenceIdData;
+import org.openbravo.model.ad.system.Client;
+import org.openbravo.model.common.plm.Product;
 
 public class DocProduction extends AcctServer {
   private static final long serialVersionUID = 1L;
@@ -144,33 +149,38 @@ public class DocProduction extends AcctServer {
     Fact fact = null;
     String Fact_Acct_Group_ID = SequenceIdData.getUUID();
     log4jDocProduction.debug("createFact - object created");
+    String costCurrencyId = as.getC_Currency_ID();
+    OBContext.setAdminMode(false);
+    try {
+      costCurrencyId = OBDal.getInstance().get(Client.class, AD_Client_ID).getCurrency().getId();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
     // Lines
     fact = new Fact(this, as, Fact.POST_Actual);
     for (int i = 0; p_lines != null && i < p_lines.length; i++) {
       DocLine_Material line = (DocLine_Material) p_lines[i];
       String costs = line.getProductCosts(DateAcct, as, conn, con);
       BigDecimal dCosts = new BigDecimal(costs);
-      if (dCosts.compareTo(BigDecimal.ZERO) == 0) {
-        setStatus(STATUS_InvalidCost);
-        continue;
-      } else
-        setStatus(STATUS_NotPosted);// Default status. LoadDocument
+      if (BigDecimal.ZERO.compareTo(dCosts) == 0
+          && DocInOutData.existsCost(conn, DateAcct, line.m_M_Product_ID).equals("0")) {
+        Map<String, String> parameters = getInvalidCostParameters(
+            OBDal.getInstance().get(Product.class, line.m_M_Product_ID).getIdentifier(), DateAcct);
+        setMessageResult(conn, STATUS_InvalidCost, "error", parameters);
+        throw new IllegalStateException();
+      }
       log4jDocProduction.debug("DocProduction - createFact - line.m_Productiontype - "
           + line.m_Productiontype);
       if (line.m_Productiontype.equals("+")) {
         fact.createLine(line, line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn),
-            as.getC_Currency_ID(), costs, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
-            conn);
-        fact.createLine(line, getAccountWarehouse(line.m_M_Warehouse_ID, as, conn),
-            as.getC_Currency_ID(), "", costs, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
-            conn);
+            costCurrencyId, costs, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        fact.createLine(line, getAccountWarehouse(line.m_M_Warehouse_ID, as, conn), costCurrencyId,
+            "", costs, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
       } else {
         fact.createLine(line, line.getAccount(ProductInfo.ACCTTYPE_P_Asset, as, conn),
-            as.getC_Currency_ID(), "", costs, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
-            conn);
-        fact.createLine(line, getAccountWarehouse(line.m_M_Warehouse_ID, as, conn),
-            as.getC_Currency_ID(), costs, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
-            conn);
+            costCurrencyId, "", costs, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+        fact.createLine(line, getAccountWarehouse(line.m_M_Warehouse_ID, as, conn), costCurrencyId,
+            costs, "", Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
       }
     }
     SeqNo = "0";

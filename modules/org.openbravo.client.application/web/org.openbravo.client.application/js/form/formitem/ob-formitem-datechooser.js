@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -29,19 +29,18 @@ isc.OBDateChooser.addProperties({
   todayButtonTitle: OB.I18N.getLabel('OBUISC_DateChooser.todayButtonTitle'),
   cancelButtonTitle: OB.I18N.getLabel('OBUISC_DateChooser.cancelButtonTitle'),
 
-  initWidget: function() {
+  initWidget: function () {
     this.Super('initWidget', arguments);
-    
+
     // Force associated date text box to have the same enable status as the picker has
     if (this.callingFormItem) {
       this.callingFormItem.disabled = this.disabled;
     }
-  }  
+  }
 });
 
-if (isc.OBDateChooser) {  // To force SC to load OBDateChooser instead of DateChooser
-  isc.DateChooser.getSharedDateChooser = function(properties) {
+if (isc.OBDateChooser) { // To force SC to load OBDateChooser instead of DateChooser
+  isc.DateChooser.getSharedDateChooser = function (properties) {
     return isc.OBDateChooser.create(properties);
   };
 }
-

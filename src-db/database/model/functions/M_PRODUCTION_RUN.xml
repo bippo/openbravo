@@ -19,7 +19,7 @@
   * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
   * All Rights Reserved.
   * Contributor(s): Openbravo SLU
-  * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+  * Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
   *
   * Specifically, this derivative work is based upon the following Compiere
   * file and version.
@@ -230,6 +230,9 @@
               M_PRODUCTIONPLAN.M_Product_ID
             )
           LOOP
+            IF (CUR_PP.M_Locator_ID IS NULL) THEN
+		RAISE_APPLICATION_ERROR(-20000, '@ProductionPlanLocatorNeeded@');
+            END IF;
             -- Delete prior lines
             DELETE
             FROM M_PRODUCTIONLINE
@@ -380,7 +383,7 @@
               --<<NEXT_PRODUCT>>
               NEXT_PRODUCT:=false;
               v_Line:=v_Line;
-              IF (v_QtyAcumulated < CUR_BOM.BOMQTY*CUR_BOM.ProductionQty) THEN
+              IF (v_QtyAcumulated < CUR_BOM.BOMQTY*CUR_BOM.ProductionQty) AND MustBeStocked='Y' THEN
                 v_Message := '@NotEnoughStocked@: ' || CUR_BOM.pname || ' ' || v_QtyAcumulated || ' / '|| CUR_BOM.BOMQTY*CUR_BOM.ProductionQty;
                 ROLLBACK;
                 RAISE_APPLICATION_ERROR(-20000, v_Message);

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -43,6 +43,7 @@ import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.DalUtil;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.datamodel.Table;
 import org.openbravo.model.ad.domain.Reference;
@@ -291,11 +292,7 @@ public class AdvancedQueryBuilder {
     String fieldName = jsonCriteria.getString("fieldName");
     Object value = jsonCriteria.has("value") ? jsonCriteria.get("value") : null;
 
-    if (operator.equals(OPERATOR_ISNULL)) {
-      operator = OPERATOR_EQUALS;
-      value = null;
-    } else if (operator.equals(OPERATOR_NOTNULL)) {
-      operator = OPERATOR_NOTEQUAL;
+    if (operator.equals(OPERATOR_ISNULL) || operator.equals(OPERATOR_NOTNULL)) {
       value = null;
     }
 
@@ -388,7 +385,24 @@ public class AdvancedQueryBuilder {
       final List<Property> properties = JsonUtils
           .getPropertiesOnPath(getEntity(), value.toString());
       if (properties.isEmpty()) {
-        return null;
+        // invalid property, report it with a listing of allowed names
+        final StringBuilder sb = new StringBuilder();
+        for (Property prop : getEntity().getProperties()) {
+          if (prop.isId() || prop.isOneToMany() || prop.isBoolean() || prop.isDate()
+              || prop.isDatetime() || prop.getAllowedValues().size() > 0 || prop.isInactive()
+              || prop.isEncrypted() || prop.isOneToOne()) {
+            continue;
+          }
+          if (!prop.isPrimitive()) {
+            continue;
+          }
+          if (sb.length() > 0) {
+            sb.append(", ");
+          }
+          sb.append(prop.getName());
+        }
+        throw new OBException(OBMessageUtils.getI18NMessage("OBJSON_InvalidProperty",
+            new String[] { value.toString(), sb.toString() }));
       }
       final Property fieldProperty = properties.get(properties.size() - 1);
       if (property == null) {
@@ -455,7 +469,12 @@ public class AdvancedQueryBuilder {
     // Within the if the leftWherePart is used because it contains the join aliases
     if (useFieldName.equals(JsonConstants.IDENTIFIER)
         || useFieldName.endsWith("." + JsonConstants.IDENTIFIER)) {
-      clause = computeLeftWhereClauseForIdentifier(useProperty, useFieldName, clause);
+      if (useFieldName.endsWith("." + JsonConstants.IDENTIFIER)
+          && (operator.equals(OPERATOR_ISNULL) || operator.equals(OPERATOR_NOTNULL))) {
+        clause = getMainAlias() + "." + useFieldName.replace("." + JsonConstants.IDENTIFIER, "");
+      } else {
+        clause = computeLeftWhereClauseForIdentifier(useProperty, useFieldName, clause);
+      }
     } else if (!useProperty.isPrimitive()) {
       clause = clause + ".id";
     }
@@ -506,9 +525,8 @@ public class AdvancedQueryBuilder {
     try {
       localValue = getTypeSafeValue(operator, property, localValue);
     } catch (IllegalArgumentException e) {
-      typedParameters.add(null);
-      // ignore errors in formatting etc to be robust
-      return null;
+      throw new OBException(OBMessageUtils.getI18NMessage("OBJSON_InvalidFilterValue",
+          new String[] { value != null ? value.toString() : "" }));
     }
     typedParameters.add(localValue);
     return clause;
@@ -604,7 +622,7 @@ public class AdvancedQueryBuilder {
         && (operator.equals(OPERATOR_GREATERTHAN) || operator.equals(OPERATOR_GREATEROREQUAL)
             || operator.equals(OPERATOR_IGREATERTHAN) || operator.equals(OPERATOR_IGREATEROREQUAL)
             || operator.equals(OPERATOR_GREATERTHANFIElD) || operator
-              .equals(OPERATOR_GREATEROREQUALFIELD));
+            .equals(OPERATOR_GREATEROREQUALFIELD));
   }
 
   private boolean isLesserOperator(String operator) {
@@ -612,7 +630,7 @@ public class AdvancedQueryBuilder {
         && (operator.equals(OPERATOR_LESSTHAN) || operator.equals(OPERATOR_LESSOREQUAL)
             || operator.equals(OPERATOR_ILESSTHAN) || operator.equals(OPERATOR_ILESSOREQUAL)
             || operator.equals(OPERATOR_LESSTHANFIELD) || operator
-              .equals(OPERATOR_LESSOREQUALFIElD));
+            .equals(OPERATOR_LESSOREQUALFIElD));
   }
 
   private String computeLeftWhereClauseForIdentifier(Property property, String key,
@@ -818,6 +836,10 @@ public class AdvancedQueryBuilder {
       return "like";
     } else if (operator.equals(OPERATOR_ENDSWITHFIELD)) {
       return "like";
+    } else if (operator.equals(OPERATOR_ISNULL)) {
+      return "is";
+    } else if (operator.equals(OPERATOR_NOTNULL)) {
+      return "is not";
     }
     // todo throw exception
     return null;

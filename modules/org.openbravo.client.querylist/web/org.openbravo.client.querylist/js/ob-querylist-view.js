@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -33,7 +33,7 @@ isc.OBQueryListView.addProperties({
   showColumnMenus: false,
   canDropComponents: false,
 
-  initWidget: function(args){
+  initWidget: function (args) {
     this.Super('initWidget', arguments);
 
     this.widgetInstanceId = args.widgetInstanceId;
@@ -41,23 +41,23 @@ isc.OBQueryListView.addProperties({
     this.gridDataSource = args.gridDataSource;
     this.widgetId = args.widgetId;
 
-    var widgetInstance = isc['_'+this.widgetId].create(isc.addProperties({
-        viewMode: 'maximized',
-        fields: this.fields,
-        widgetInstanceId: this.widgetInstanceId,
-        widgetId: this.widgetId,
-        dbInstanceId: this.widgetInstanceId,
-        gridDataSource: this.gridDataSource,
-        title: args.tabTitle,
-        menuItems: args.menuItems,
-        parameters: args.parameters,
-        fieldDefinitions: args.fieldDefinitions,
-        canDelete: false
-      }));
+    var widgetInstance = isc['_' + this.widgetId].create(isc.addProperties({
+      viewMode: 'maximized',
+      fields: this.fields,
+      widgetInstanceId: this.widgetInstanceId,
+      widgetId: this.widgetId,
+      dbInstanceId: this.widgetInstanceId,
+      gridDataSource: this.gridDataSource,
+      title: args.tabTitle,
+      menuItems: args.menuItems,
+      parameters: args.parameters,
+      fieldDefinitions: args.fieldDefinitions,
+      canDelete: false
+    }));
     this.addPortlet(widgetInstance);
   },
 
-  isSameTab: function(viewName, params){
+  isSameTab: function (viewName, params) {
     return this.widgetInstanceId === params.widgetInstanceId;
   }
 });

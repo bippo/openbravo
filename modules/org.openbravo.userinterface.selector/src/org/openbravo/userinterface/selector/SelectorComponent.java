@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2009-2011 Openbravo SLU
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -25,10 +25,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Inject;
 
 import org.apache.log4j.Logger;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.base.model.Entity;
@@ -38,6 +41,7 @@ import org.openbravo.base.model.Reference;
 import org.openbravo.base.model.domaintype.DomainType;
 import org.openbravo.base.model.domaintype.ForeignKeyDomainType;
 import org.openbravo.base.model.domaintype.PrimitiveDomainType;
+import org.openbravo.base.model.domaintype.StringEnumerateDomainType;
 import org.openbravo.base.util.Check;
 import org.openbravo.client.kernel.BaseTemplateComponent;
 import org.openbravo.client.kernel.Component;
@@ -54,11 +58,14 @@ import org.openbravo.dal.service.OBDal;
 import org.openbravo.dal.service.OBDao;
 import org.openbravo.dal.service.OBQuery;
 import org.openbravo.data.Sqlc;
+import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.service.datasource.DataSource;
 import org.openbravo.service.datasource.DataSourceConstants;
+import org.openbravo.service.datasource.DataSourceProperty;
+import org.openbravo.service.datasource.DataSourceProperty.RefListEntry;
 import org.openbravo.service.datasource.DatasourceField;
 import org.openbravo.service.json.JsonConstants;
 
@@ -815,6 +822,41 @@ public class SelectorComponent extends BaseTemplateComponent {
       }
       if (domainType instanceof ForeignKeyDomainType) {
         result.add(createLocalSelectorFieldProperty("displayField", displayField));
+      }
+
+      if (domainType instanceof StringEnumerateDomainType) {
+        Column column = null;
+        if (selectorField.getObuiselSelector().getTable() != null
+            && selectorField.getProperty() != null) {
+          final String entityName = selectorField.getObuiselSelector().getTable().getName();
+          final Entity entity = ModelProvider.getInstance().getEntity(entityName);
+          final Property property = DalUtil
+              .getPropertyFromPath(entity, selectorField.getProperty());
+          if (property != null) {
+            column = OBDal.getInstance().get(Column.class, property.getColumnId());
+          }
+        }
+        if (column != null && column.getReferenceSearchKey() != null) {
+          Set<String> allowedValues = DataSourceProperty.getAllowedValues(column
+              .getReferenceSearchKey());
+          List<RefListEntry> entries = DataSourceProperty.createValueMap(allowedValues, column
+              .getReferenceSearchKey().getId());
+          JSONObject jsonValueMap = new JSONObject();
+          for (RefListEntry entry : entries) {
+            try {
+              jsonValueMap.put(entry.getValue(), entry.getLabel());
+            } catch (JSONException e) {
+              log.error("Error generating value map for " + name, e);
+            }
+          }
+          LocalSelectorFieldProperty valueMap = new LocalSelectorFieldProperty();
+          valueMap.setName("valueMap");
+          valueMap.setValue(jsonValueMap.toString());
+          result.add(valueMap);
+        } else {
+          log.warn("Cannot set value map for selector enum " + name);
+        }
+
       }
       return result;
     }

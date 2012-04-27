@@ -69,18 +69,18 @@ isc.OBPersonalizeFormLayout.addProperties({
 
   // the datastructure with personalization information
   personalizationData: null,
-  
+
   // identifiers displayed in the statusbar of the form personalizer
   tabIdentifier: null,
   clientIdentifier: null,
   orgIdentifier: null,
   roleIdentifier: null,
   userIdentifier: null,
-  
+
   // are used to set a personalization record on the most
   // detailed user level, is not used if personalizationId
   // is set
-  clientId:null,
+  clientId: null,
   orgId: null,
   roleId: null,
   userId: null,
@@ -89,20 +89,20 @@ isc.OBPersonalizeFormLayout.addProperties({
   isNew: false,
   isChanged: false,
   isSaved: false,
-  
+
   // should the caller be refreshed or not
   hasBeenSaved: false,
-  
+
   // the form instance shown to the user
   previewForm: null,
-  
+
   // retrieved from the server
   previewFormProperties: null,
-  
-  initWidget: function() {
-    
+
+  initWidget: function () {
+
     this.initializing = true;
-    
+
     this.createAddToolbar();
     this.createAddStatusbar();
     this.createAddMainLayout();
@@ -111,42 +111,50 @@ isc.OBPersonalizeFormLayout.addProperties({
 
   // everything except the toolbar and statusbar in the top, some inner 
   // parts are created later (see buildPreviewForm)
-  createAddMainLayout: function() {
-    var me = this, fieldsTabSet, leftLayout, mainLayout = isc.VLayout.create({}, OB.Styles.Personalization.MainLayout);
-    
-    this.fieldsLayout = isc.Layout.create({height: '100%'}, OB.Styles.Personalization.FieldsLayout);
-    
+  createAddMainLayout: function () {
+    var me = this,
+        fieldsTabSet, leftLayout, mainLayout = isc.VLayout.create({}, OB.Styles.Personalization.MainLayout);
+
+    this.fieldsLayout = isc.Layout.create({
+      height: '100%'
+    }, OB.Styles.Personalization.FieldsLayout);
+
     fieldsTabSet = isc.OBTabSet.create({
-        height: '*',
-          
-        initWidget: function(){
-          // copy the tabBarProperties as it is coming from
-          // OB.Styles.Personalization.TabSet which is also used
-          // by the other tabsets
-          this.tabBarProperties = isc.addProperties({}, this.tabBarProperties);
-          this.tabBarProperties.tabSet = this;
-          this.tabBarProperties.itemClick = function(item, itemNum){
-            me.propertiesTabSet.toggleVisualState();
-          };
-          this.Super('initWidget', arguments);
-        }
-      }, OB.Styles.Personalization.TabSet);
+      height: '*',
+
+      initWidget: function () {
+        // copy the tabBarProperties as it is coming from
+        // OB.Styles.Personalization.TabSet which is also used
+        // by the other tabsets
+        this.tabBarProperties = isc.addProperties({}, this.tabBarProperties);
+        this.tabBarProperties.tabSet = this;
+        this.tabBarProperties.itemClick = function (item, itemNum) {
+          me.propertiesTabSet.toggleVisualState();
+        };
+        this.Super('initWidget', arguments);
+      }
+    }, OB.Styles.Personalization.TabSet);
 
     fieldsTabSet.addTab({
       title: OB.I18N.getLabel('OBUIAPP_Personalization_HeaderFields'),
       pane: this.fieldsLayout
     });
-    
+
     this.previewTabSet = isc.OBTabSet.create(OB.Styles.Personalization.TabSet);
     this.previewTabSet.addTab({
       title: OB.I18N.getLabel('OBUIAPP_Personalization_HeaderPreview')
     });
-    
-    leftLayout = isc.VLayout.create({height: '100%'}, OB.Styles.Personalization.FormPersonalizerLeftPane);
+
+    leftLayout = isc.VLayout.create({
+      height: '100%'
+    }, OB.Styles.Personalization.FormPersonalizerLeftPane);
     leftLayout.addMember(fieldsTabSet);
     leftLayout.addMember(this.createPropertiesLayout());
 
-    this.managementLayout = isc.HLayout.create({height: '100%', width: '100%'}, OB.Styles.Personalization.ManagementLayout);
+    this.managementLayout = isc.HLayout.create({
+      height: '100%',
+      width: '100%'
+    }, OB.Styles.Personalization.ManagementLayout);
     this.managementLayout.addMember(leftLayout);
     this.managementLayout.addMember(this.previewTabSet);
     mainLayout.addMember(this.managementLayout);
@@ -156,15 +164,13 @@ isc.OBPersonalizeFormLayout.addProperties({
 
   // creates the properties layout which contains the form
   // with a few buttons
-  createPropertiesLayout: function() {
-    var NumericField, CheckboxField,
-      propertiesLayout = 
-        isc.Layout.create(OB.Styles.Personalization.PropertiesLayout);
-    
+  createPropertiesLayout: function () {
+    var NumericField, CheckboxField, propertiesLayout = isc.Layout.create(OB.Styles.Personalization.PropertiesLayout);
+
     // a backpointer
     propertiesLayout.personalizeForm = this;
-      
-    CheckboxField = function(props){
+
+    CheckboxField = function (props) {
       if (props) {
         isc.addProperties(this, props);
       }
@@ -177,13 +183,13 @@ isc.OBPersonalizeFormLayout.addProperties({
       // HACK: when a checkbox does not have focus and you click
       // the first click is lost, does not happen in normal OBViewForm
       // TODO: research why this happens
-      handleCellClick: function() {
+      handleCellClick: function () {
         this.fromCellClick = true;
         var ret = this.Super('handleClick', arguments);
         delete this.fromCellClick;
         return ret;
       },
-      handleClick: function() {
+      handleClick: function () {
         if (!this.fromCellClick) {
           // cellclick will also be called
           return true;
@@ -191,8 +197,8 @@ isc.OBPersonalizeFormLayout.addProperties({
         return this.Super('handleClick', arguments);
       }
     };
-    
-    NumericField = function(props){
+
+    NumericField = function (props) {
       if (props) {
         isc.addProperties(this, props);
       }
@@ -216,68 +222,64 @@ isc.OBPersonalizeFormLayout.addProperties({
     };
 
     propertiesLayout.formLayout = isc.VStack.create({
-        align: 'center',
-        overflow: 'visible',
-        height: 1,
-        visible: false,
-        width: '100%'
-      });
+      align: 'center',
+      overflow: 'visible',
+      height: 1,
+      visible: false,
+      width: '100%'
+    });
 
     propertiesLayout.formLayout.form = isc.DynamicForm.create({
       personalizeForm: this,
       overflow: 'visible',
       numCols: 2,
       width: '100%',
-     
+
       titleSuffix: '</b>',
       titlePrefix: '<b>',
       requiredTitleSuffix: ' *</b>',
       requiredRightTitlePrefix: '<b>* ',
       rightTitlePrefix: '<b>',
       rightTitleSuffix: '</b>',
-     
+
       errorsPreamble: '',
       showErrorIcons: false,
       showErrorStyle: true,
       showInlineErrors: true,
-      
+
       fields: [
-         new NumericField({
-           name: 'colSpan',
-           keyPressFilter: '[1-4]',
-           min: 1,
-           max: 4,
-           title: OB.I18N.getLabel('OBUIAPP_Personalization_Colspan')
-         }),
-         new NumericField({
-           name: 'rowSpan',
-           keyPressFilter: '[1-9]',
-           min: 1,
-           max: 9,
-           required: true,
-           title: OB.I18N.getLabel('OBUIAPP_Personalization_Rowspan')
-         }),
-         new CheckboxField({
-           name: 'startRow',
-           startRow: true,
-           title: OB.I18N.getLabel('OBUIAPP_Personalization_Startrow')
-         }),
-        new CheckboxField({
-          name: 'displayed',
-          startRow: true,
-          title: OB.I18N.getLabel('OBUIAPP_Personalization_Displayed')
-        }),
-        new CheckboxField({
-          name: 'firstFocus',
-          startRow: true,
-          title: OB.I18N.getLabel('OBUIAPP_Personalization_FirstFocus')
-        })
-      ],
-      
+      new NumericField({
+        name: 'colSpan',
+        keyPressFilter: '[1-4]',
+        min: 1,
+        max: 4,
+        title: OB.I18N.getLabel('OBUIAPP_Personalization_Colspan')
+      }), new NumericField({
+        name: 'rowSpan',
+        keyPressFilter: '[1-9]',
+        min: 1,
+        max: 9,
+        required: true,
+        title: OB.I18N.getLabel('OBUIAPP_Personalization_Rowspan')
+      }), new CheckboxField({
+        name: 'startRow',
+        startRow: true,
+        title: OB.I18N.getLabel('OBUIAPP_Personalization_Startrow')
+      }), new CheckboxField({
+        name: 'displayed',
+        startRow: true,
+        title: OB.I18N.getLabel('OBUIAPP_Personalization_Displayed')
+      }), new CheckboxField({
+        name: 'firstFocus',
+        startRow: true,
+        title: OB.I18N.getLabel('OBUIAPP_Personalization_FirstFocus')
+      })],
+
       // is called when a field in the tree is clicked
-      setRecord: function(record) {
-        var fld, i = 0, length = this.getFields().length;
-        
+      setRecord: function (record) {
+        var fld, i = 0,
+            length = this.getFields().length;
+
         this.record = record;
 
         for (i = 0; i < length; i++) {
@@ -289,7 +291,7 @@ isc.OBPersonalizeFormLayout.addProperties({
             this.setValue(fld.name, record[fld.name]);
           }
         }
-        
+
         // hide some fields, static status bar fields only need the
         // hidden fields and not the other ones
         if (record.isStatusBarField) {
@@ -303,27 +305,27 @@ isc.OBPersonalizeFormLayout.addProperties({
           this.showItem('firstFocus');
           this.showItem('startRow');
         }
-        
+
         if (!record.wasOnStatusBarField && !record.isStatusBarField && record.required && !record.hasDefaultValue) {
           this.hideItem('displayed');
         } else {
           this.showItem('displayed');
         }
-        
+
         this.rememberValues();
       },
-      
+
       // store the values in the record
-      doSave: function() {
+      doSave: function () {
         var i, allNodes, length;
-        
+
         // don't save if there are errors
         // could be an idea to disable the save button
         this.validate();
         if (this.hasErrors()) {
           return;
         }
-        
+
         // only one field may have first focus
         // first get rid of all first focus if it was set now
         if (this.getValue('firstFocus')) {
@@ -335,7 +337,7 @@ isc.OBPersonalizeFormLayout.addProperties({
             }
           }
         }
-        
+
         // now it will be set, maximum one field will have 
         // the focus now
         this.record.hiddenInForm = !this.getValue('displayed');
@@ -346,7 +348,7 @@ isc.OBPersonalizeFormLayout.addProperties({
 
         this.rememberValues();
         this.focus();
-        
+
         // items may have been hidden, which changes their colour
         // so rebuild the tree
         this.personalizeForm.fieldsTreeGrid.markForRedraw();
@@ -354,48 +356,46 @@ isc.OBPersonalizeFormLayout.addProperties({
         // this will reset everything
         this.personalizeForm.changed();
       },
-      
-      doCancel: function() {
+
+      doCancel: function () {
         this.reset();
         this.focus();
       },
-      
+
       // called when a field in the form changes
       // enable the apply/cancel buttons
-      itemChanged: function(item, newValue) {
+      itemChanged: function (item, newValue) {
         this.doSave();
       }
     });
-    
+
     propertiesLayout.formLayout.addMembers(propertiesLayout.formLayout.form);
-    
+
     // the empty message is shown when no field is selected on the left
-    propertiesLayout.emptyMessage = 
-      isc.Layout.create({
-        margin: 5,
-        members: [
-          isc.Label.create({
-            width: '100%',
-            height: 1,
-            overflow: 'visible',
-            contents: OB.I18N.getLabel('OBUIAPP_Personalization_PropertiesFormEmptyMessage')
-          })
-        ]
-      });
-    
+    propertiesLayout.emptyMessage = isc.Layout.create({
+      margin: 5,
+      members: [
+      isc.Label.create({
+        width: '100%',
+        height: 1,
+        overflow: 'visible',
+        contents: OB.I18N.getLabel('OBUIAPP_Personalization_PropertiesFormEmptyMessage')
+      })]
+    });
+
     propertiesLayout.addMember(propertiesLayout.formLayout);
     propertiesLayout.addMember(propertiesLayout.emptyMessage);
     propertiesLayout.hideMember(propertiesLayout.formLayout);
     propertiesLayout.showMember(propertiesLayout.emptyMessage);
-        
+
     this.propertiesLayout = propertiesLayout;
-    
+
     // put it all in a tabset...    
     this.propertiesTabSet = isc.OBTabSet.create(OB.Styles.Personalization.TabSet, {
       height: OB.Styles.Personalization.PropertiesTabSet.expandedHeight,
       expanded: true,
-      
-      toggleVisualState: function() {
+
+      toggleVisualState: function () {
         if (this.expanded) {
           this.setHeight(OB.Styles.Personalization.PropertiesTabSet.collapsedHeight);
           this.expanded = false;
@@ -404,10 +404,10 @@ isc.OBPersonalizeFormLayout.addProperties({
           this.expanded = true;
         }
       },
-      
-      initWidget: function(){
+
+      initWidget: function () {
         this.tabBarProperties.tabSet = this;
-        this.tabBarProperties.itemClick = function(item, itemNum){
+        this.tabBarProperties.itemClick = function (item, itemNum) {
           this.tabSet.toggleVisualState();
         };
         this.Super('initWidget', arguments);
@@ -417,9 +417,9 @@ isc.OBPersonalizeFormLayout.addProperties({
       title: OB.I18N.getLabel('OBUIAPP_Personalization_HeaderProperties'),
       pane: propertiesLayout
     });
-    
+
     // is called when a field in the tree is selected or unselected
-    propertiesLayout.updatePropertiesDisplay = function(record) {
+    propertiesLayout.updatePropertiesDisplay = function (record) {
       var newRecord;
       if (!record) {
         this.hideMember(this.formLayout);
@@ -435,20 +435,20 @@ isc.OBPersonalizeFormLayout.addProperties({
       }
     };
     propertiesLayout.propertiesTabSet = this.propertiesTabSet;
-    
+
     return this.propertiesTabSet;
   },
-  
+
   // the status bar shows information about the personalization record
   // and it has the close button
-  createAddStatusbar: function() {
+  createAddStatusbar: function () {
     var owner = this;
     this.statusBar = isc.OBStatusBar.create({
       view: this,
       buttonBarProperties: OB.Styles.Personalization.buttonBarProperties,
-      
+
       // add the close button
-      addCreateButtons: function() {
+      addCreateButtons: function () {
         this.buttonBar.setWidth(1);
         this.buttonBar.setOverflow('visible');
         this.buttonBar.defaultLayoutAlign = 'center';
@@ -456,12 +456,11 @@ isc.OBPersonalizeFormLayout.addProperties({
           view: this.view,
           buttonType: 'close',
           keyboardShortcutId: 'StatusBar_Close',
-          prompt: OB.I18N
-              .getLabel('OBUIAPP_Personalization_Statusbar_Close'),
-          action: function() {
+          prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Statusbar_Close'),
+          action: function () {
             var clz = (owner.getWindow() ? owner.getWindow().getClass() : null);
             if (!clz) {
-              owner.doClose();              
+              owner.doClose();
             } else if (!clz.autoSave) {
               owner.doClose();
             } else if (clz.showAutoSaveConfirmation) {
@@ -471,41 +470,39 @@ isc.OBPersonalizeFormLayout.addProperties({
             }
           }
         }, OB.Styles.Personalization.closeButtonProperties);
-        this.buttonBar.addMembers([ closeButton ]);
+        this.buttonBar.addMembers([closeButton]);
       }
     });
     this.addMember(this.statusBar);
   },
 
   // the toolbar shows the save, delete and undo button
-  createAddToolbar: function() {
-    var saveButtonProperties, saveCloseButtonProperties, 
-      deleteButtonProperties, cancelButtonProperties,
-      restoreButtonProperties, restoreLayout;
+  createAddToolbar: function () {
+    var saveButtonProperties, saveCloseButtonProperties, deleteButtonProperties, cancelButtonProperties, restoreButtonProperties, restoreLayout;
 
     saveButtonProperties = {
-      action: function() {
+      action: function () {
         this.view.save();
       },
       disabled: true,
       buttonType: 'save',
       prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_Save'),
-      updateState: function() {
+      updateState: function () {
         this.setDisabled(this.view.hasNotChanged());
       },
       keyboardShortcutId: 'ToolBar_Save'
     };
 
     saveCloseButtonProperties = {
-      action: function() {
+      action: function () {
         this.view.saveAndClose();
       },
       saveDisabled: true,
       buttonType: 'savecloseX',
       prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_SaveClose'),
-      updateState: function() {
+      updateState: function () {
         this.saveDisabled = this.view.hasNotChanged();
-        
+
         if (this.saveDisabled) {
           this.buttonType = 'savecloseX';
           this.prompt = OB.I18N.getLabel('OBUIAPP_Personalization_Statusbar_Close');
@@ -519,74 +516,70 @@ isc.OBPersonalizeFormLayout.addProperties({
     };
 
     deleteButtonProperties = {
-        action: function(){
-          this.view.deletePersonalization();
-        },
-        disabled: true,
-        buttonType: 'eliminate',
-        prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_Delete'),
-        updateState: function(){
-          // never allow delete when opened from the maintenance window
-          this.setDisabled(this.openedFromMaintenanceWindow || 
-              !this.view.form.view.getFormPersonalization(false) || 
-              !this.view.form.view.getFormPersonalization(false).canDelete);
-        },
-        keyboardShortcutId: 'ToolBar_Eliminate'
-      };
-    
+      action: function () {
+        this.view.deletePersonalization();
+      },
+      disabled: true,
+      buttonType: 'eliminate',
+      prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_Delete'),
+      updateState: function () {
+        // never allow delete when opened from the maintenance window
+        this.setDisabled(this.openedFromMaintenanceWindow || !this.view.form.view.getFormPersonalization(false) || !this.view.form.view.getFormPersonalization(false).canDelete);
+      },
+      keyboardShortcutId: 'ToolBar_Eliminate'
+    };
+
     cancelButtonProperties = {
-      action: function() {
+      action: function () {
         this.view.cancel();
       },
       disabled: true,
       buttonType: 'undo',
       prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_CancelEdit'),
-      updateState: function() {
+      updateState: function () {
         this.setDisabled(this.view.hasNotChanged());
       },
       keyboardShortcutId: 'ToolBar_Undo'
     };
-    
+
     restoreButtonProperties = {
-      action: function() {
+      action: function () {
         var i, standardWindow = this.view.getStandardWindow(),
-          viewDefinitions = standardWindow.getClass().originalView.viewDefinition,
-          length = standardWindow.views.length, view, viewTabDefinition;
+            viewDefinitions = standardWindow.getClass().originalView.viewDefinition,
+            length = standardWindow.views.length,
+            view, viewTabDefinition;
         for (i = 0; i < length; i++) {
           view = standardWindow.views[i];
           if (view.tabId !== this.view.tabId) {
             continue;
           }
           viewTabDefinition = viewDefinitions[view.tabId];
-          
+
           this.view.initializing = true;
-          
+
           this.view.destroyAndRemoveMembers(this.view.mainLayout);
           this.view.mainLayout = null;
           this.view.createAddMainLayout();
-          
+
           this.view.buildFieldsTreeGrid(viewTabDefinition);
           this.view.buildPreviewForm();
           this.view.fieldsTreeGrid.openFolders();
-          
+
           delete this.view.initializing;
           this.view.changed();
         }
       },
       title: OB.I18N.getLabel('OBUIAPP_RestoreDefaults'),
-      updateState: function() {
-//        this.setDisabled(this.view.hasNotChanged());
+      updateState: function () {
+        //        this.setDisabled(this.view.hasNotChanged());
       }
     };
-   
+
     this.toolBar = isc.OBToolbar.create({
       view: this,
-      leftMembers: [ isc.OBToolbarIconButton.create(saveButtonProperties),
-                     isc.OBToolbarIconButton.create(saveCloseButtonProperties),
-                     isc.OBToolbarIconButton.create(cancelButtonProperties),
-                     isc.OBToolbarIconButton.create(deleteButtonProperties)],
+      leftMembers: [isc.OBToolbarIconButton.create(saveButtonProperties), isc.OBToolbarIconButton.create(saveCloseButtonProperties), isc.OBToolbarIconButton.create(cancelButtonProperties), isc.OBToolbarIconButton.create(deleteButtonProperties)],
       rightMembers: [isc.OBToolbarTextButton.create(restoreButtonProperties)],
-      refreshCustomButtons: function(){
+      refreshCustomButtons: function () {
         this.rightMembers[0].updateState();
       }
     });
@@ -594,10 +587,10 @@ isc.OBPersonalizeFormLayout.addProperties({
   },
 
   // save the new form layout to the server and updates the preview form
-  save: function(callback) {
-    var params, me = this, newDataFields, 
-      formPers = this.form.view.getFormPersonalization();
-    
+  save: function (callback) {
+    var params, me = this,
+        newDataFields, formPers = this.form.view.getFormPersonalization();
+
     // if there is a personalization id then use that
     // this ensures that a specific record will be updated
     // on the server
@@ -607,77 +600,75 @@ isc.OBPersonalizeFormLayout.addProperties({
     // personalization data) and not the other parts
     if (formPers && formPers.personalizationId) {
       params = {
-          action: 'store',
-          target: 'form',
-          personalizationId: formPers.personalizationId
+        action: 'store',
+        target: 'form',
+        personalizationId: formPers.personalizationId
       };
-      
+
     } else {
       // this case is used if there is no personalization record
       // it will be created at the most detailed level: client, org, role and user
       params = {
-          action: 'store',
-          target: 'form',
-          clientId: this.clientId,
-          orgId: this.orgId,
-          roleId: this.roleId,
-          userId: this.userId,
-          tabId: this.tabId
+        action: 'store',
+        target: 'form',
+        clientId: this.clientId,
+        orgId: this.orgId,
+        roleId: this.roleId,
+        userId: this.userId,
+        tabId: this.tabId
       };
     }
 
     newDataFields = this.getPersonalizationFields();
-    
+
     // store the data, the reply can contain an id and also if the current
     // user may delete the record, this is allowed if the record is on
     // user level
-    OB.RemoteCallManager.call(
-        'org.openbravo.client.application.personalization.PersonalizationActionHandler', 
-        this.getPersonalizationFields(), params,
-        function(resp, data, req){
-          var personalization;
-          
-          // if there is no personalization data then create it
-          if (!me.personalizationData) {
-            me.personalizationData = {};
-          }
-          
-          // as the user can save, the user can also delete it
-          me.personalizationData.canDelete = true;          
-            
-          if (data && data.personalizationId) {
-            me.personalizationData.personalizationId = data.personalizationId;            
-          }
-          if (!me.personalizationData.form) {
-            me.personalizationData.form = {};
-          }
-          // overwrite what we have
-          me.personalizationData.form = newDataFields;
+    OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', this.getPersonalizationFields(), params, function (resp, data, req) {
+      var personalization;
 
-          me.form.view.standardWindow.updateFormPersonalization(me.form.view, me.personalizationData);
-          
-          me.initializing = true;
-          me.isNew = false;
-          me.isSaved = true;
-          me.isChanged = false;
-          me.hasBeenSaved = true;
-          me.setStatusBarInformation();
-          
-          // update the save, delete, undo buttons 
-          // delete can get enabled if canDelete was set to true
-          me.toolBar.updateButtonState();
-          
-          delete me.initializing;
-          if (callback) {
-            callback();
-          }
-        });
+      // if there is no personalization data then create it
+      if (!me.personalizationData) {
+        me.personalizationData = {};
+      }
+
+      // as the user can save, the user can also delete it
+      me.personalizationData.canDelete = true;
+
+      if (data && data.personalizationId) {
+        me.personalizationData.personalizationId = data.personalizationId;
+      }
+      if (!me.personalizationData.form) {
+        me.personalizationData.form = {};
+      }
+      // overwrite what we have
+      me.personalizationData.form = newDataFields;
+
+      me.form.view.standardWindow.updateFormPersonalization(me.form.view, me.personalizationData);
+
+      me.initializing = true;
+      me.isNew = false;
+      me.isSaved = true;
+      me.isChanged = false;
+      me.hasBeenSaved = true;
+      me.setStatusBarInformation();
+
+      // update the save, delete, undo buttons 
+      // delete can get enabled if canDelete was set to true
+      me.toolBar.updateButtonState();
+
+      delete me.initializing;
+      if (callback) {
+        callback();
+      }
+    });
   },
 
   // called when the delete button is called
-  deletePersonalization: function(confirmed) {
-    var me = this, callback;
-    
+  deletePersonalization: function (confirmed) {
+    var me = this,
+        callback;
+
     // only delete if we have a personalization id
     // this should always be the case
     if (!this.personalizationData.personalizationId) {
@@ -685,59 +676,55 @@ isc.OBPersonalizeFormLayout.addProperties({
     }
 
     if (!confirmed) {
-      callback = function(ok) {
+      callback = function (ok) {
         if (ok) {
           me.deletePersonalization(true);
         }
       };
-      
+
       isc.ask(OB.I18N.getLabel('OBUIAPP_Personalization_ConfirmDelete'), callback);
       return;
     }
 
-    OB.RemoteCallManager.call(
-        'org.openbravo.client.application.personalization.PersonalizationActionHandler', 
-        {}, 
-        { 
-          personalizationId: this.personalizationData.personalizationId,
-          action: 'delete'
-        },
-        function(resp, data, req){
-          var personalization;
-          
-          me.hasBeenDeleted = true;
-          // close when returned
-          me.doClose(true);
-          
-          personalization = me.getStandardWindow().getClass().personalization;
-          personalization[me.tabId] = null;          
-        }
-     );
+    OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', {}, {
+      personalizationId: this.personalizationData.personalizationId,
+      action: 'delete'
+    }, function (resp, data, req) {
+      var personalization;
+
+      me.hasBeenDeleted = true;
+      // close when returned
+      me.doClose(true);
+
+      personalization = me.getStandardWindow().getClass().personalization;
+      personalization[me.tabId] = null;
+    });
   },
-  
+
   // the undo action, resets everything to the loaded, last-saved state
-  cancel: function(confirmed) {
-    var me = this, callback;
+  cancel: function (confirmed) {
+    var me = this,
+        callback;
     if (!confirmed) {
-      callback = function(ok) {
+      callback = function (ok) {
         if (ok) {
           me.cancel(true);
         }
       };
-      
+
       isc.ask(OB.I18N.getLabel('OBUIAPP_Personalization_ConfirmCancel'), callback);
       return;
     }
-    
+
     this.initializing = true;
     this.isChanged = false;
     this.isSaved = false;
     this.isNew = !this.personalizationData.personalizationId;
-    
+
     this.destroyAndRemoveMembers(this.mainLayout);
     this.mainLayout = null;
     this.createAddMainLayout();
-    
+
     this.buildFieldsTreeGrid();
     this.buildPreviewForm();
     this.setStatusBarInformation();
@@ -747,14 +734,14 @@ isc.OBPersonalizeFormLayout.addProperties({
   },
 
   // shows the settings in the preview form
-  refresh: function() {
+  refresh: function () {
     this.buildPreviewForm();
   },
 
   // called when something changes in properties, ordering of fields
   // field in a different group etc.
   // will set the changed state which enables buttons
-  changed: function() {
+  changed: function () {
     // nothing to do when we are building everything
     // then changed is fired a few times
     if (this.initializing) {
@@ -765,25 +752,27 @@ isc.OBPersonalizeFormLayout.addProperties({
     this.setStatusBarInformation();
     this.buildPreviewForm();
   },
-  
+
   // used by buttons to check if the state has changed
-  hasNotChanged: function() {
+  hasNotChanged: function () {
     return !this.isChanged;
   },
-  
+
   // creates the preview form and displays it
-  buildPreviewForm: function() {
+  buildPreviewForm: function () {
     var statusBar, currentPane, i, fld, itemClick, me = this;
-    
-    this.formLayout = isc.VLayout.create({ height: '100%', width: '100%'}, OB.Styles.Personalization.Preview);
-    
+
+    this.formLayout = isc.VLayout.create({
+      height: '100%',
+      width: '100%'
+    }, OB.Styles.Personalization.Preview);
+
     // add a status bar to the formlayout
     statusBar = isc.OBStatusBar.create({
-      addCreateButtons: function() {
-      }
+      addCreateButtons: function () {}
     });
     this.formLayout.addMember(statusBar);
-    
+
     // create the form and add it to the formLayout
     this.previewForm = isc.OBViewForm.create(isc.clone(OB.ViewFormProperties), this.previewFormProperties, {
       preventAllEvents: true,
@@ -791,36 +780,39 @@ isc.OBPersonalizeFormLayout.addProperties({
       personalizeForm: this,
       isPreviewForm: true,
       autoFocus: false,
-      
+
       // overridden to prevent js errors when switching views
-      visibilityChanged: function() {}, 
-      
-      titleHoverHTML: function(item){
+      visibilityChanged: function () {},
+
+      titleHoverHTML: function (item) {
         return this.personalizeForm.getHoverHTML(null, item);
       },
-      
-      itemHoverHTML: function(item){
+
+      itemHoverHTML: function (item) {
         return this.personalizeForm.getHoverHTML(null, item);
       },
-      
+
       // overridden to always show a statusbar field with some spaces
       // even if the status bar field does not have a value (which it
       // does not have in the form preview)
-      getStatusBarFields: function() {
-        var statusBarFields = [[],[]], i, 
-          item, value, tmpValue, length = this.statusBarFields.length;
-        
-        for(i = 0; i < length; i++) {
+      getStatusBarFields: function () {
+        var statusBarFields = [
+          [],
+          []
+        ],
+            i, item, value, tmpValue, length = this.statusBarFields.length;
+
+        for (i = 0; i < length; i++) {
           item = this.getItem(this.statusBarFields[i]);
           statusBarFields[0].push(item.getTitle());
           statusBarFields[1].push('&nbsp;&nbsp&nbsp;');
-       }
+        }
         return statusBarFields;
       }
 
     });
-    
-    itemClick = function(item) {
+
+    itemClick = function (item) {
       // disabled clicking in the form itself as multiple things need to be 
       // solved:
       // - the cursor needs to become a pointer
@@ -829,25 +821,28 @@ isc.OBPersonalizeFormLayout.addProperties({
       // - when the field is not in the viewport on the left then 
       //    it needs to be scrolled there
       // - we also need to support clicking in the status bar
-//      if (item.parentItem) {
-//        me.doHandlePreviewFormItemClick(item.parentItem);
-//      } else {
-//        me.doHandlePreviewFormItemClick(item);
-//      }
+      //      if (item.parentItem) {
+      //        me.doHandlePreviewFormItemClick(item.parentItem);
+      //      } else {
+      //        me.doHandlePreviewFormItemClick(item);
+      //      }
     };
-    
-    var persFields = this.getPersonalizationFields(), length;
+
+    var persFields = this.getPersonalizationFields(),
+        length;
     if (persFields) {
-      OB.Personalization.personalizeForm({form: persFields}, this.previewForm);
+      OB.Personalization.personalizeForm({
+        form: persFields
+      }, this.previewForm);
     }
-    
+
     // expand by default
     length = this.previewForm.getFields().length;
     for (i = 0; i < length; i++) {
       fld = this.previewForm.getFields()[i];
-      
+
       fld.showFocused = false;
-      
+
       // the personalizable is set in freemarker templates, for example
       // the audit and notes section are not personalizable and not shown
       // in the form preview
@@ -865,23 +860,23 @@ isc.OBPersonalizeFormLayout.addProperties({
         }
       }
     }
-    
+
     this.formLayout.addMember(this.previewForm);
-    
+
     if (this.previewTabSet.getTab(0).pane) {
       currentPane = this.previewTabSet.getTab(0).pane;
-    }    
+    }
     this.previewTabSet.updateTab(this.previewTabSet.getTab(0), this.formLayout);
     if (currentPane) {
       currentPane.destroy();
     }
   },
-  
-  buildFormAndTree: function() {
+
+  buildFormAndTree: function () {
     var computedPersonalizationData;
-    
+
     this.buildPreviewForm();
-    
+
     // if no personalization data then we need to compute it from the form
     // the personalization data can also be set directly (when called from 
     // the maintenance window)
@@ -895,62 +890,54 @@ isc.OBPersonalizeFormLayout.addProperties({
       if (!this.personalizationData) {
         this.personalizationData = {};
       }
-      
+
       // and copy over what got computed
       isc.addProperties(this.personalizationData, computedPersonalizationData);
     }
-    
+
     // personalize the preview form, this will remove any non-personalized
     // fields, which are also present in the preview form original field
     // list. Maybe in the future we can personalize these fields also
-    OB.Personalization.personalizeForm(this.personalizationData, 
-        this.previewForm);
-    
+    OB.Personalization.personalizeForm(this.personalizationData, this.previewForm);
+
     // new if no id
     this.isNew = !this.personalizationData.personalizationId;
 
     // handle changes in the AD, needs to be done before building the tree
-    OB.Personalization.updatePersonalizationDataFromFields(this.personalizationData.form.fields, 
-        this.previewForm.getFields(), this.previewForm.statusBarFields || []);
-    
+    OB.Personalization.updatePersonalizationDataFromFields(this.personalizationData.form.fields, this.previewForm.getFields(), this.previewForm.statusBarFields || []);
+
     this.buildFieldsTreeGrid();
-    
+
     this.setStatusBarInformation();
     this.fieldsTreeGrid.openFolders();
   },
-  
-  buildFieldsTreeGrid: function(personalizationData) {
+
+  buildFieldsTreeGrid: function (personalizationData) {
     var i, prop, fld, length;
-    
+
     personalizationData = personalizationData || this.personalizationData;
-    
+
     this.fieldsLayout.destroyAndRemoveMembers(this.fieldsLayout.getMembers());
     if (this.fieldsTreeGrid) {
       this.fieldsTreeGrid.destroy();
     }
-    
+
     // the tree will add properties to the objects as fieldData
     // when retrieving the data from the tree (getPersonalizationFields)
     // we only want these properties and not the original ones.
     // see the function getPersonalizationFields
     // add some default fields
-    this.personalizationDataProperties = [
-      'isStatusBarField', 'displayed', 'isSection',
-      'parentName', 'title', 'hiddenInForm',
-      'colSpan', 'rowSpan', 'required', 'sectionExpanded',
-      'startRow', 'name', 'hasDisplayLogic'
-    ];
+    this.personalizationDataProperties = ['isStatusBarField', 'displayed', 'isSection', 'parentName', 'title', 'hiddenInForm', 'colSpan', 'rowSpan', 'required', 'sectionExpanded', 'startRow', 'name', 'hasDisplayLogic'];
     length = personalizationData.form.fields.length;
     for (i = 0; i < length; i++) {
       fld = personalizationData.form.fields[i];
       for (prop in fld) {
-        if (fld.hasOwnProperty(prop) && 
-            !this.personalizationDataProperties.contains(prop)) {
+        if (fld.hasOwnProperty(prop) && !this.personalizationDataProperties.contains(prop)) {
           this.personalizationDataProperties.push(prop);
         }
       }
     }
-    
+
     // create the tree on the left, the tree only wants the fields
     // and nothing else
     this.fieldsTreeGrid = isc.OBPersonalizationTreeGrid.create({
@@ -958,17 +945,17 @@ isc.OBPersonalizeFormLayout.addProperties({
       // updated, when doing cancel, the original is restored
       fieldData: isc.shallowClone(personalizationData.form.fields),
       personalizeForm: this,
-      selectionUpdated: function(record, recordList) {
+      selectionUpdated: function (record, recordList) {
         this.personalizeForm.selectionUpdated(record, recordList);
       }
     });
-    
+
     this.fieldsLayout.addMember(this.fieldsTreeGrid);
 
   },
-  
+
   // is called when something is clicked in the form
-  doHandlePreviewFormItemClick: function(item) {
+  doHandlePreviewFormItemClick: function (item) {
     // select the node in the tree 
     var treeNode = this.fieldsTreeGrid.data.find('name', item.name);
     this.fieldsTreeGrid.deselectAllRecords();
@@ -976,68 +963,68 @@ isc.OBPersonalizeFormLayout.addProperties({
   },
 
   // is called when the selection changes in the tree
-  selectionUpdated: function(record, recordList) {
+  selectionUpdated: function (record, recordList) {
     if (record && !record.isSection && recordList.length === 1) {
       this.propertiesLayout.updatePropertiesDisplay(record);
     } else {
       this.propertiesLayout.updatePropertiesDisplay(null);
     }
   },
-  
-  saveAndClose: function() {
+
+  saveAndClose: function () {
     var view = this;
     if (this.hasNotChanged()) {
-      view.doClose(true);          
+      view.doClose(true);
     } else {
-      view.save(function() {
-        view.doClose(true);    
+      view.save(function () {
+        view.doClose(true);
       });
     }
   },
-  
-  getStandardWindow: function() {
+
+  getStandardWindow: function () {
     if (this.openedFromMaintenanceWindow) {
       return this.maintenanceView.standardWindow;
     } else {
       return this.form.view.standardWindow;
     }
   },
-  
+
   // close the form personalizer, refresh the existing form so that 
   // the changes are shown immediately, or if called from the 
   // maintenance window refresh the record there
-  doClose: function(confirmed) {
-    var callback, me = this, window;
-    
+  doClose: function (confirmed) {
+    var callback, me = this,
+        window;
+
     // ask for confirmation
     if (this.isChanged && !confirmed) {
-      callback = function(ok) {
+      callback = function (ok) {
         if (ok) {
           // do it with a small delay so that any mouse events are processed
           // by the button itself and not by the standard view below it
           me.delayCall('doClose', [true], 100);
         }
       };
-      
+
       isc.ask(OB.I18N.getLabel('OBUIAPP_Personalization_ConfirmClose'), callback);
       return;
     }
-    
+
     if (this.openedFromMaintenanceWindow) {
       window = this.maintenanceView.standardWindow;
     } else if (this.openedInForm) {
       if (this.hasBeenSaved || this.hasBeenDeleted) {
         // update the form in the view
-        OB.Personalization.personalizeForm(me.personalizationData, 
-            this.form.view.viewForm);
+        OB.Personalization.personalizeForm(me.personalizationData, this.form.view.viewForm);
       }
       window = this.form.view.standardWindow;
     }
     window.destroyAndRemoveMembers(this);
-    
+
     // restores the tabtitle
     window.view.updateTabTitle();
-    
+
     window.toolBarLayout.show();
     window.view.show();
 
@@ -1045,8 +1032,8 @@ isc.OBPersonalizeFormLayout.addProperties({
       this.maintenanceView.refresh();
     }
   },
-  
-  getWindow: function() {
+
+  getWindow: function () {
     if (this.openedFromMaintenanceWindow) {
       return this.maintenanceView.standardWindow;
     } else if (this.openedInForm) {
@@ -1056,25 +1043,28 @@ isc.OBPersonalizeFormLayout.addProperties({
   },
 
   // called by the buttons in the toolbar of the standard maintenance form/grid
-  doOpen: function(retrievedInitialData) {
-    var me = this, window, i, j, persField, fld, tabSet, tab;
-    
+  doOpen: function (retrievedInitialData) {
+    var me = this,
+        window, i, j, persField, fld, tabSet, tab;
+
     // first get the preview form data, continue after receiving it
     if (!retrievedInitialData) {
-      OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', {}, {action: 'getFormDefinition', tabId: this.tabId}, 
-          function(resp, data, req){
+      OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', {}, {
+        action: 'getFormDefinition',
+        tabId: this.tabId
+      }, function (resp, data, req) {
         me.previewFormProperties = data;
-        
+
         // copy some stuff
         me.previewFormProperties._originalFields = isc.clone(me.previewFormProperties.fields);
-        
+
         me.doOpen(true);
       });
       return;
     }
-    
+
     this.buildFormAndTree();
-    
+
     // depending on how we opened set the information here
     if (this.openedFromMaintenanceWindow) {
       window = this.maintenanceView.standardWindow;
@@ -1082,41 +1072,41 @@ isc.OBPersonalizeFormLayout.addProperties({
       // opened directly from the actual form itself
       // always work on user level then
       window = this.form.view.standardWindow;
-  
+
       this.roleId = OB.User.roleId;
       this.clientId = OB.User.clientId;
       this.orgId = OB.User.organizationId;
       this.userId = OB.User.id;
     }
-    
+
     // hide the part from which we were opened 
     window.toolBarLayout.hide();
     window.view.hide();
     window.addMember(this);
-    
+
     // change the tabtitle
     tabSet = OB.MainView.TabSet;
     tab = OB.MainView.TabSet.getTab(window.view.viewTabId);
-    tabSet.setTabTitle(tab, OB.I18N.getLabel('OBUIAPP_Personalize_TitlePrefix', [this.tabIdentifier])); 
+    tabSet.setTabTitle(tab, OB.I18N.getLabel('OBUIAPP_Personalize_TitlePrefix', [this.tabIdentifier]));
     delete this.initializing;
   },
-  
+
   // is called when hovering over tree fields and also 
   // when hovering over items in the preview form
-  getHoverHTML: function(record, item) {
+  getHoverHTML: function (record, item) {
     if ((record && record.hasDisplayLogic) || (item && item.showIf)) {
       return OB.I18N.getLabel('OBUIAPP_Personalization_DisplayLogicPrompt');
     }
     // TODO: show information about the item being hovered...
     return null;
-//    return title + '<br/>' + 'give me more!';
+    //    return title + '<br/>' + 'give me more!';
   },
-  
+
   // reads the data from the tree grid and returns it in the expected
   // format. Note may return null during initialization
-  getPersonalizationFields: function() {
-    var i, record, result = [], node, nodes, 
-      value, j, undef, length;
+  getPersonalizationFields: function () {
+    var i, record, result = [],
+        node, nodes, value, j, undef, length;
     if (!this.fieldsTreeGrid || !this.fieldsTreeGrid.data) {
       return null;
     }
@@ -1135,15 +1125,21 @@ isc.OBPersonalizeFormLayout.addProperties({
       }
       result.push(record);
     }
-    return {fields: result};
+    return {
+      fields: result
+    };
   },
-  
+
   // sets information about the current personalization record
   // in the status bar
-  setStatusBarInformation: function() {
+  setStatusBarInformation: function () {
     this.toolBar.updateButtonState();
-    
-    var statusBarFields = null, barFieldValues = [], barFieldTitles = [], label, icon = null, statusCode = null;
+
+    var statusBarFields = null,
+        barFieldValues = [],
+        barFieldTitles = [],
+        label, icon = null,
+        statusCode = null;
     if (this.isNew) {
       icon = this.statusBar.newIcon;
       label = 'OBUIAPP_New';
@@ -1151,10 +1147,10 @@ isc.OBPersonalizeFormLayout.addProperties({
       icon = this.statusBar.editIcon;
       label = 'OBUIAPP_Editing';
     } else if (this.isSaved) {
-      icon =  this.statusBar.savedIcon;
+      icon = this.statusBar.savedIcon;
       label = 'OBUIAPP_Saved';
     }
-    
+
     if (this.clientIdentifier) {
       barFieldTitles.push(OB.I18N.getLabel('OBUIAPP_Client'));
       barFieldValues.push(this.clientIdentifier);
@@ -1175,13 +1171,13 @@ isc.OBPersonalizeFormLayout.addProperties({
       barFieldTitles.push(OB.I18N.getLabel('OBUIAPP_Tab'));
       barFieldValues.push(this.tabIdentifier);
     }
-    
+
     if (barFieldTitles.length > 0) {
       statusBarFields = [];
       statusBarFields.push(barFieldTitles);
       statusBarFields.push(barFieldValues);
     }
-        
+
     this.statusBar.setContentLabel(icon, label, statusBarFields, OB.I18N.getLabel('OBUIAPP_WindowPersonalization_Guidance'));
   }
 });

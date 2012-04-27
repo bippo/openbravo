@@ -1,6 +1,6 @@
 /*
  ************************************************************************************
- * Copyright (C) 2010 Openbravo S.L.U.
+ * Copyright (C) 2012 Openbravo S.L.U.
  * Licensed under the Apache Software License version 2.0
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to  in writing,  software  distributed
@@ -15,6 +15,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.openbravo.database.CPStandAlone;
 import org.openbravo.database.ConnectionProvider;
 
@@ -24,6 +25,7 @@ import org.openbravo.database.ConnectionProvider;
  * 
  */
 public abstract class BuildValidation {
+  private static final Logger log4j = Logger.getLogger(BuildValidation.class);
 
   private ConnectionProvider cp;
 
@@ -64,6 +66,9 @@ public abstract class BuildValidation {
       fProp = new File("../config/Openbravo.properties");
     else if (new File("../../config/Openbravo.properties").exists())
       fProp = new File("../../config/Openbravo.properties");
+    if (fProp == null) {
+      log4j.error("Could not find Openbravo.properties");
+    }
     return fProp;
   }
 

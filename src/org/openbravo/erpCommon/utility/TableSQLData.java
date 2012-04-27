@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -2131,14 +2131,33 @@ public class TableSQLData implements Serializable {
         String rangeEnd = Integer.toString(startPosition + rangeLength);
         if (getPool().getRDBMS().equalsIgnoreCase("ORACLE")) {
           txtAuxWhere.append("A");
-          if (hasRangeLimit)
-            txtAuxWhere.append(" WHERE ROWNUM <= " + rangeEnd);
+          if (hasRangeLimit) {
+            txtAuxWhere.append(" WHERE ROWNUM <= ?");
+            addWrapperParameter("oraRangeEnd", "RANGE", "");
+            try {
+              setParameter("oraRangeEnd", rangeEnd);
+            } catch (Exception e) {
+              // This shouldn't happen as name parameter is not null nor empty
+              log4j.error("Error setting parameters ", e);
+            }
+          }
           txtAuxWhere.append(")\n");
           txtAuxWhere.append("  WHERE rn1 ");
-          if (hasRangeLimit)
-            txtAuxWhere.append("BETWEEN " + rangeStart + " AND " + rangeEnd);
-          else
+          if (hasRangeLimit) {
+            txtAuxWhere.append("BETWEEN ? AND ?");
+            addWrapperParameter("oraRangeBtw1", "RANGE", "");
+            addWrapperParameter("oraRangeBtw2", "RANGE", "");
+
+            try {
+              setParameter("oraRangeBtw1", rangeStart);
+              setParameter("oraRangeBtw2", rangeEnd);
+            } catch (Exception e) {
+              // This shouldn't happen as name parameter is not null nor empty
+              log4j.error("Error setting parameters ", e);
+            }
+          } else {
             txtAuxWhere.append(">= ?");
+          }
           txtAuxWhere.append(")\n");
         } else {
           if (hasRangeLimit)

@@ -3,7 +3,7 @@
 	<property name="ireport.scriptlethandling" value="0"/>
 	<property name="ireport.encoding" value="UTF-8"/>
 	<property name="ireport.zoom" value="1.0"/>
-	<property name="ireport.x" value="0"/>
+	<property name="ireport.x" value="734"/>
 	<property name="ireport.y" value="0"/>
 	<import value="net.sf.jasperreports.engine.*"/>
 	<import value="java.util.*"/>
@@ -83,6 +83,7 @@ FROM DUAL]]>
 	<field name="PAYMENT_DESC" class="java.lang.String"/>
 	<field name="PAYMENT_DATE" class="java.util.Date"/>
 	<field name="PAYMENT_DOCNO" class="java.lang.String"/>
+	<field name="DEPOSIT_WITHDRAW_DATE" class="java.util.Date"/>
 	<variable name="SUMSUBTOTALSTATUS" class="java.math.BigDecimal" calculation="Sum">
 		<variableExpression><![CDATA[$F{BASE_AMOUNT}]]></variableExpression>
 		<initialValueExpression><![CDATA[BigDecimal.ZERO]]></initialValueExpression>
@@ -133,8 +134,7 @@ FROM DUAL]]>
 				<textElement verticalAlignment="Middle">
 					<font size="8" isBold="false"/>
 				</textElement>
-				<text><![CDATA[Invoice
-Number]]></text>
+				<text><![CDATA[Invoice Number]]></text>
 			</staticText>
 			<staticText>
 				<reportElement key="staticText-7" style="Detail_Header" x="468" y="25" width="55" height="25"/>
@@ -157,16 +157,14 @@ Number]]></text>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="8" isBold="false"/>
 				</textElement>
-				<text><![CDATA[Planned
-DSO]]></text>
+				<text><![CDATA[PlannedDSO]]></text>
 			</staticText>
 			<staticText>
 				<reportElement key="staticText-10" style="Detail_Header" x="1162" y="25" width="33" height="25"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="8" isBold="false"/>
 				</textElement>
-				<text><![CDATA[Current
-DSO]]></text>
+				<text><![CDATA[CurrentDSO]]></text>
 			</staticText>
 			<staticText>
 				<reportElement key="staticText-11" style="Detail_Header" x="1195" y="25" width="36" height="25"/>
@@ -181,8 +179,7 @@ DSO]]></text>
 				<textElement textAlignment="Right">
 					<font size="8" isBold="false"/>
 				</textElement>
-				<text><![CDATA[Base
-Amount]]></text>
+				<text><![CDATA[Base Amount]]></text>
 			</staticText>
 			<staticText>
 				<reportElement key="staticText-14" style="Detail_Header" x="1451" y="25" width="46" height="25"/>
@@ -190,8 +187,7 @@ Amount]]></text>
 				<textElement textAlignment="Center">
 					<font size="8" isBold="false"/>
 				</textElement>
-				<text><![CDATA[Base
-Currency]]></text>
+				<text><![CDATA[Base Currency]]></text>
 			</staticText>
 			<staticText>
 				<reportElement key="staticText-15" style="Detail_Header" x="1231" y="25" width="80" height="25"/>
@@ -199,8 +195,7 @@ Currency]]></text>
 				<textElement textAlignment="Right">
 					<font size="8" isBold="false"/>
 				</textElement>
-				<text><![CDATA[Transactional
-Amount]]></text>
+				<text><![CDATA[Transactional Amount]]></text>
 			</staticText>
 			<staticText>
 				<reportElement key="staticText-16" style="Detail_Header" x="1311" y="25" width="60" height="25"/>
@@ -263,6 +258,14 @@ Amount]]></text>
 				</textElement>
 				<text><![CDATA[Payment Method]]></text>
 			</staticText>
+			<staticText>
+				<reportElement key="staticText-14" style="Detail_Header" x="1497" y="25" width="77" height="25"/>
+				<box leftPadding="2"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Deposit/Withdraw Date]]></text>
+			</staticText>
 		</band>
 	</pageHeader>
 	<columnHeader>
@@ -270,7 +273,7 @@ Amount]]></text>
 	</columnHeader>
 	<detail>
 		<band height="25" splitType="Stretch">
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-2" style="Report_Footer" x="0" y="0" width="99" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -278,7 +281,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{BPARTNER}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-4" style="Report_Footer" x="523" y="0" width="65" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -286,7 +289,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{PAYMENT_DOCNO}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-5" style="Report_Footer" x="335" y="0" width="78" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -294,7 +297,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{SALES_PERSON}==null ? " " : $F{SALES_PERSON})]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-6" style="Report_Footer" x="413" y="0" width="55" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -302,7 +305,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{INVOICE_NUMBER}==null ? " " : $F{INVOICE_NUMBER}.toString())]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-7" style="Report_Footer" x="468" y="0" width="55" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -310,7 +313,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{INVOICE_DATE}== null ? " " : $F{INVOICE_DATE})]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-8" style="Report_Footer" x="1067" y="0" width="62" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -318,58 +321,58 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{DUE_DATE}== null ? " " : $F{DUE_DATE})]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-9" style="Report_Footer" x="1129" y="0" width="33" height="25"/>
 				<textElement textAlignment="Center">
 					<font size="8"/>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{PLANNED_DSO}== null ? " " : $F{PLANNED_DSO}.toString())]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-10" style="Report_Footer" x="1162" y="0" width="33" height="25"/>
 				<textElement textAlignment="Center">
 					<font size="8"/>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{CURRENT_DSO}== null ? " " : $F{CURRENT_DSO}.toString())]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-11" style="Report_Footer" x="1195" y="0" width="36" height="25"/>
 				<textElement textAlignment="Center">
 					<font size="8"/>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[($F{OVERDUE}== null ? " " : $F{OVERDUE}.toString())]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-13" style="Report_Footer" x="1371" y="0" width="80" height="25"/>
 				<box rightPadding="2"/>
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression class="java.lang.String"><![CDATA[($F{BASE_AMOUNT}== null ? " " : $F{BASE_AMOUNT}.toString())]]></textFieldExpression>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{BASE_AMOUNT}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-14" style="Report_Footer" x="1451" y="0" width="46" height="25"/>
 				<textElement textAlignment="Center">
 					<font size="8"/>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{BASE_CURRENCY}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-15" style="Report_Footer" x="1231" y="0" width="80" height="25"/>
 				<box rightPadding="2"/>
 				<textElement textAlignment="Right">
 					<font size="8"/>
 				</textElement>
-				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANS_AMOUNT}.toString() + " "]]></textFieldExpression>
+				<textFieldExpression class="java.math.BigDecimal"><![CDATA[$F{TRANS_AMOUNT}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-16" style="Report_Footer" x="1311" y="0" width="60" height="25"/>
 				<textElement textAlignment="Center">
 					<font size="8"/>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{TRANS_CURRENCY}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-17" style="Report_Footer" x="99" y="0" width="76" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -377,7 +380,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{BP_GROUP}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-18" style="Report_Footer" x="175" y="0" width="76" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -385,7 +388,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{STATUS}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-19" style="Report_Footer" x="251" y="0" width="84" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -401,7 +404,7 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{PAYMENT_DESC}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-22" style="Report_Footer" x="987" y="0" width="80" height="25"/>
 				<box leftPadding="2"/>
 				<textElement>
@@ -409,12 +412,19 @@ Amount]]></text>
 				</textElement>
 				<textFieldExpression class="java.util.Date"><![CDATA[$F{PAYMENT_DATE}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement key="textField-14" style="Report_Footer" x="588" y="0" width="172" height="25"/>
 				<textElement textAlignment="Left">
 					<font size="8"/>
 				</textElement>
 				<textFieldExpression class="java.lang.String"><![CDATA[$F{PAYMENT_METHOD}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement key="textField-14" style="Report_Footer" x="1497" y="0" width="77" height="25"/>
+				<textElement textAlignment="Center">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression class="java.util.Date"><![CDATA[$F{DEPOSIT_WITHDRAW_DATE}]]></textFieldExpression>
 			</textField>
 		</band>
 	</detail>

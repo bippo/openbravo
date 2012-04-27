@@ -42,6 +42,10 @@ isc.OBPickAndExecuteGrid.addProperties({
   height: '100%',
   autoFitFieldsFillViewport: false,
   confirmDiscardEdits: false,
+  animateRemoveRecord: false,
+  removeFieldProperties: {
+    width: 32
+  },
 
   // default selection
   selectionProperty: 'obSelected',
@@ -91,6 +95,11 @@ isc.OBPickAndExecuteGrid.addProperties({
     this.filterClause = this.gridProperties.filterClause;
 
     this.orderByClause = this.gridProperties.orderByClause;
+
+    this.checkboxFieldDefaults = isc.addProperties(this.checkboxFieldDefaults, {
+      canFilter: true,
+      filterEditorType: 'StaticTextItem'
+    });
 
     this.Super('initWidget', arguments);
   },
@@ -360,15 +369,16 @@ isc.OBPickAndExecuteGrid.addProperties({
   },
 
   retrieveInitialValues: function (rowNum, colNum, newCell, newRow, suppressFocus) {
-    var requestParams, allProperties, i;
+    var requestParams, allProperties, i, record;
 
     allProperties = this.getContextInfo(rowNum);
+    record = this.getRecord(rowNum);
 
     requestParams = {
-      MODE: 'EDIT',
+      MODE: (newRow ? 'NEW' : 'EDIT'),
       PARENT_ID: null,
       TAB_ID: this.view.viewProperties.tabId,
-      ROW_ID: this.getRecord(rowNum)[OB.Constants.ID]
+      ROW_ID: (record ? record[OB.Constants.ID] : null)
     };
 
     OB.RemoteCallManager.call('org.openbravo.client.application.window.FormInitializationComponent', allProperties, requestParams, this.processFICReturn, {
@@ -384,5 +394,55 @@ isc.OBPickAndExecuteGrid.addProperties({
   showInlineEditor: function (rowNum, colNum, newCell, newRow, suppressFocus) {
     this.retrieveInitialValues(rowNum, colNum, newCell, newRow, suppressFocus);
     this.Super('showInlineEditor', arguments);
+  },
+
+  hideInlineEditor: function (focusInBody, suppressCMHide) {
+    var ret = this.Super('hideInlineEditor', arguments);
+    this.validateRows();
+    return ret;
+  },
+
+  validateRows: function () {
+    var i, row, field, errors;
+
+    if (!this.neverValidate) {
+      return;
+    }
+
+    for (i = 0; i < this.fields.length; i++) {
+      field = this.fields[i];
+
+      if (!field.validationFn) {
+        continue;
+      }
+
+      for (row = 0; row < this.data.length; row++) {
+        errors = this.validateCellValue(row, i, this.data[row][field.name]);
+        if (!errors || isc.isA.emptyArray(errors)) {
+          this.clearFieldError(row, field.name);
+        } else {
+          this.setFieldError(row, field.name, errors[0]);
+        }
+      }
+    }
+    this.recalculateSummaries();
+  },
+
+  removeRecord: function (rowNum, record) {
+    var remove = true,
+        removeFn = this.view.viewProperties && this.view.viewProperties.removeFn;
+
+    if (removeFn && isc.isA.Function(removeFn)) {
+      remove = removeFn(this, rowNum, record);
+    }
+
+    if (!remove) {
+      this.validateRows();
+      return;
+    }
+
+    this.Super('removeRecord', arguments);
+
+    this.validateRows();
   }
 });

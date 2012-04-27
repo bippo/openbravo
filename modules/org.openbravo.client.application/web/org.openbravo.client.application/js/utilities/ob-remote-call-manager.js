@@ -11,29 +11,31 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
+
 // = Remote Call Manager =
 //
 // The Remote Call Manager provides support for calling java from the client
 // and retrieving the result.
 //
-(function(OB, isc) {
+(function (OB, isc) {
 
   if (!OB || !isc) {
     throw {
-      name : 'ReferenceError',
-      message : 'openbravo and isc objects are required'
+      name: 'ReferenceError',
+      message: 'openbravo and isc objects are required'
     };
   }
 
   // cache object references locally
-  var ISC = isc, rcmgr; // Local reference to RemoveCallManager instance
-  function RemoteCallManager() {
-  }
+  var ISC = isc,
+      rcmgr; // Local reference to RemoveCallManager instance
+
+  function RemoteCallManager() {}
 
   RemoteCallManager.prototype = {
 
@@ -56,8 +58,7 @@
     // * {{{callerContext}}}: a context object which is available
     // (as rpcRequest.clientContext) when the callback gets called
     //
-    call : function(/* String */actionName, /* Object */data, /* Object */
-    requestParams, /* Function */callback, /* Object */callerContext) {
+    call: function (actionName, data, requestParams, callback, callerContext) {
 
       var requestParameters = {};
       ISC.addProperties(requestParameters, requestParams);

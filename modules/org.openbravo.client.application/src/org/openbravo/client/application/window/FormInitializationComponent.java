@@ -35,6 +35,7 @@ import org.apache.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.Query;
 import org.hibernate.criterion.Restrictions;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.NativeArray;
@@ -64,6 +65,7 @@ import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.dal.service.OBDao;
+import org.openbravo.dal.service.OBQuery;
 import org.openbravo.data.Sqlc;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.datamodel.Column;
@@ -73,7 +75,6 @@ import org.openbravo.model.ad.ui.AuxiliaryInput;
 import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.Window;
-import org.openbravo.model.ad.utility.Attachment;
 import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.service.json.JsonConstants;
 import org.openbravo.service.json.JsonToDataConverter;
@@ -113,18 +114,18 @@ public class FormInitializationComponent extends BaseActionHandler {
       // - EDIT: used when the user opens a record in form view
       // - CHANGE: used when the user changes a field which should fire callouts or comboreloads
       // - SETSESSION: used when the user calls a process
-      String mode = (String) parameters.get("MODE");
+      String mode = readParameter(parameters, "MODE");
       // ID of the parent record
-      String parentId = (String) parameters.get("PARENT_ID");
+      String parentId = readParameter(parameters, "PARENT_ID");
       // The ID of the tab
-      String tabId = (String) parameters.get("TAB_ID");
+      String tabId = readParameter(parameters, "TAB_ID");
       // The ID of the record. Only relevant on EDIT, CHANGE and SETSESSION modes
-      String rowId = (String) parameters.get("ROW_ID");
+      String rowId = readParameter(parameters, "ROW_ID");
       // The IDs of the selected records in case more than one
       String multipleRowIds[] = (String[]) parameters.get("MULTIPLE_ROW_IDS");
       // The column changed by the user. Only relevant on CHANGE mode
-      String changedColumn = (String) parameters.get("CHANGED_COLUMN");
-      Tab tab = OBDal.getInstance().get(Tab.class, tabId);
+      String changedColumn = readParameter(parameters, "CHANGED_COLUMN");
+      Tab tab = getTab(tabId);
       BaseOBObject row = null;
       BaseOBObject parentRecord = null;
       Map<String, JSONObject> columnValues = new HashMap<String, JSONObject>();
@@ -256,6 +257,7 @@ public class FormInitializationComponent extends BaseActionHandler {
       long t9 = System.currentTimeMillis();
       JSONObject finalObject = buildJSONObject(mode, tab, columnValues, row, changeEventCols,
           calloutMessages, attachments, jsExcuteCode, hiddenInputs, noteCount);
+      analyzeResponse(columnValues);
       long t10 = System.currentTimeMillis();
       log.debug("Elapsed time: " + (System.currentTimeMillis() - iniTime) + "(" + (t2 - t1) + ","
           + (t3 - t2) + "," + (t4 - t3) + "," + (t5 - t4) + "," + (t6 - t5) + "," + (t7 - t6) + ","
@@ -276,11 +278,41 @@ public class FormInitializationComponent extends BaseActionHandler {
     return null;
   }
 
+  private void analyzeResponse(Map<String, JSONObject> columnValues) {
+    int maxEntries = 1000;
+    int i = 0;
+    String heavyCols = "";
+    for (String col : columnValues.keySet()) {
+      if (columnValues.get(col).has("entries")) {
+        try {
+          JSONArray array = columnValues.get(col).getJSONArray("entries");
+          if (array.length() > maxEntries) {
+            if (i > 0) {
+              heavyCols += ",";
+            }
+            heavyCols += col;
+            i++;
+          }
+        } catch (JSONException e) {
+          log.error("There was an error while analyzing the response for field: " + col);
+        }
+      }
+    }
+    if (!"".equals(heavyCols)) {
+      log.warn("Warning: the combo fields "
+          + heavyCols
+          + " contain more than "
+          + maxEntries
+          + " entries, and this could cause bad performance in the application. Possible fixes include changing these columns from a combo into a Selector, or adding a validation to reduce the number of entries in the combo.");
+    }
+  }
+
   private int computeNoteCount(Tab tab, String rowId) {
-    OBCriteria<Note> criteria = OBDao.getFilteredCriteria(Note.class,
-        Restrictions.eq("table.id", (String) DalUtil.getId(tab.getTable())),
-        Restrictions.eq("record", rowId));
-    return criteria.count();
+    OBQuery<Note> obq = OBDal.getInstance().createQuery(Note.class,
+        " table.id=:tableId and record=:recordId");
+    obq.setNamedParameter("tableId", (String) DalUtil.getId(tab.getTable()));
+    obq.setNamedParameter("recordId", rowId);
+    return obq.count();
   }
 
   private List<String> convertJSONArray(JSONArray jsonArray) {
@@ -298,22 +330,27 @@ public class FormInitializationComponent extends BaseActionHandler {
   private List<JSONObject> attachmentForRows(Tab tab, String rowId, String[] multipleRowIds) {
     String tableId = (String) DalUtil.getId(tab.getTable());
     List<JSONObject> attachmentList = new ArrayList<JSONObject>();
-    OBCriteria<Attachment> attachments;
+    Query q;
     if (multipleRowIds == null) {
-      attachments = OBDao.getFilteredCriteria(Attachment.class,
-          Restrictions.eq("table.id", tableId), Restrictions.eq("record", rowId));
+      String hql = "select n.name, n.id, n.updated, n.updatedBy.name from org.openbravo.model.ad.utility.Attachment n where n.table.id=:tableId and n.record=:recordId";
+      q = OBDal.getInstance().getSession().createQuery(hql);
+      q.setParameter("tableId", tableId);
+      q.setParameter("recordId", rowId);
     } else {
-      attachments = OBDao.getFilteredCriteria(Attachment.class,
-          Restrictions.eq("table.id", tableId), Restrictions.in("record", multipleRowIds));
+
+      String hql = "select n.name, n.id, n.updated, n.updatedBy.name from org.openbravo.model.ad.utility.Attachment n where n.table.id=:tableId and n.record in :recordId";
+      q = OBDal.getInstance().getSession().createQuery(hql);
+      q.setParameter("tableId", tableId);
+      q.setParameterList("recordId", multipleRowIds);
     }
-    attachments.addOrderBy("creationDate", false);
-    for (Attachment attachment : attachments.list()) {
+    for (Object qobj : q.list()) {
+      Object[] array = (Object[]) qobj;
       JSONObject obj = new JSONObject();
       try {
-        obj.put("name", attachment.getName());
-        obj.put("id", attachment.getId());
-        obj.put("age", (new Date().getTime() - attachment.getUpdated().getTime()));
-        obj.put("updatedby", attachment.getUpdatedBy().getName());
+        obj.put("name", (String) array[0]);
+        obj.put("id", (String) array[1]);
+        obj.put("age", (new Date().getTime() - ((Date) array[2]).getTime()));
+        obj.put("updatedby", (String) array[3]);
       } catch (JSONException e) {
         log.error("Error while reading attachments", e);
       }
@@ -381,7 +418,7 @@ public class FormInitializationComponent extends BaseActionHandler {
           // This session attributes could be a preference
           if (field.getDisplayLogic() != null && field.isDisplayed() && field.isActive()) {
             final DynamicExpressionParser parser = new DynamicExpressionParser(
-                field.getDisplayLogic(), tab);
+                field.getDisplayLogic(), tab, cachedStructures);
             setSessionAttributesFromParserResult(parser, sessionAttributesMap, tab.getWindow()
                 .getId());
           }
@@ -389,7 +426,7 @@ public class FormInitializationComponent extends BaseActionHandler {
           if (field.getColumn().getReadOnlyLogic() != null && field.isDisplayed()
               && field.isActive()) {
             final DynamicExpressionParser parser = new DynamicExpressionParser(field.getColumn()
-                .getReadOnlyLogic(), tab);
+                .getReadOnlyLogic(), tab, cachedStructures);
             setSessionAttributesFromParserResult(parser, sessionAttributesMap, tab.getWindow()
                 .getId());
           }
@@ -435,6 +472,7 @@ public class FormInitializationComponent extends BaseActionHandler {
       if (!jsExcuteCode.isEmpty()) {
         finalObject.put("jscode", new JSONArray(jsExcuteCode));
       }
+
       log.debug(finalObject.toString(1));
       return finalObject;
     } catch (JSONException e) {
@@ -496,9 +534,10 @@ public class FormInitializationComponent extends BaseActionHandler {
             value = uiDef.getFieldProperties(field, true);
           } else {
             // Else, the default is used
-            if (visibleProperties != null && !field.getColumn().isMandatory()
-                && field.getColumn().getDefaultValue() == null
-                && !visibleProperties.contains("inp" + Sqlc.TransformaNombreColumna(col))) {
+            if (visibleProperties != null
+                && !visibleProperties.contains("inp" + Sqlc.TransformaNombreColumna(col))
+                && !field.isDisplayed() && !field.isShowInGridView() && !field.isShownInStatusBar()
+                && field.getColumn().getDefaultValue() == null && !field.getColumn().isMandatory()) {
               // If the column is not currently visible, and its not mandatory, we don't need to
               // compute the combo.
               // If a column is mandatory then the combo needs to be computed, because the selected
@@ -515,7 +554,9 @@ public class FormInitializationComponent extends BaseActionHandler {
           // previously set in the RequestContext)
           // This is also done this way on CHANGE mode where a combo reload is needed
           if (visibleProperties != null
-              && !visibleProperties.contains("inp" + Sqlc.TransformaNombreColumna(col))) {
+              && !visibleProperties.contains("inp" + Sqlc.TransformaNombreColumna(col))
+              && !field.isDisplayed() && !field.isShowInGridView() && !field.isShownInStatusBar()
+              && field.getColumn().getDefaultValue() == null && !field.getColumn().isMandatory()) {
             // If the column is not currently visible, and its not mandatory, we don't need to
             // compute the combo.
             // If a column is mandatory then the combo needs to be computed, because the selected
@@ -1385,7 +1426,7 @@ public class FormInitializationComponent extends BaseActionHandler {
     String initS = "id=\"paramArray\">";
     String resp = calloutResponse.substring(calloutResponse.indexOf(initS) + initS.length());
     resp = resp.substring(0, resp.indexOf("</")).trim();
-    if (!resp.contains("new Array(")) {
+    if (!resp.contains("new Array(") && !resp.contains("[[")) {
       return null;
     }
     try {
@@ -1543,6 +1584,10 @@ public class FormInitializationComponent extends BaseActionHandler {
     return null;
   }
 
+  private Tab getTab(String tabId) {
+    return cachedStructures.getTab(tabId);
+  }
+
   private List<Field> getADFieldList(String tabId) {
     return cachedStructures.getFieldsOfTab(tabId);
   }
@@ -1555,4 +1600,11 @@ public class FormInitializationComponent extends BaseActionHandler {
     return cachedStructures.getAuxiliarInputList(tabId);
   }
 
+  private String readParameter(Map<String, Object> parameters, String parameterName) {
+    String paramValue = (String) parameters.get(parameterName);
+    if (paramValue != null && paramValue.equalsIgnoreCase("null")) {
+      paramValue = null;
+    }
+    return paramValue;
+  }
 }

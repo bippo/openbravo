@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
   <database name="VIEW M_RM_SHIPMENT_PICK_EDIT">
-    <view name="M_RM_SHIPMENT_PICK_EDIT"><![CDATA[SELECT get_uuid() AS m_rm_shipment_pick_edit_id, ol.ad_client_id, COALESCE(iol.ad_org_id, ol.ad_org_id) AS ad_org_id, ol.isactive, ol.createdby, ol.created, ol.updatedby, ol.updated, o.documentno AS returnorderno, ol.m_product_id, ol.m_attributesetinstance_id, ol.c_uom_id, (-1) * ol.qtyordered AS returned, (-1) * iol.movementqty AS movementqty, sd.m_locator_id, COALESCE(sd.qtyonhand, 0) AS availableqty, (-1) * (ol.qtyordered - COALESCE((SELECT sum(iol3.movementqty) AS sum
+    <view name="M_RM_SHIPMENT_PICK_EDIT"><![CDATA[SELECT sd.m_storage_detail_id || ol.c_orderline_id AS m_rm_shipment_pick_edit_id, ol.ad_client_id, COALESCE(iol.ad_org_id, ol.ad_org_id) AS ad_org_id, ol.isactive, ol.createdby, ol.created, ol.updatedby, ol.updated, o.documentno AS returnorderno, ol.m_product_id, ol.m_attributesetinstance_id, ol.c_uom_id, (-1) * ol.qtyordered AS returned, (-1) * iol.movementqty AS movementqty, sd.m_locator_id, COALESCE(sd.qtyonhand, 0) AS availableqty, (-1) * (ol.qtyordered - COALESCE((SELECT sum(iol3.movementqty) AS sum
 FROM m_inoutline iol3
 JOIN m_inout io3 ON iol3.m_inout_id = io3.m_inout_id AND io3.processed = 'Y'
 WHERE iol3.c_orderline_id = ol.c_orderline_id), 0)) AS pendingqty, iol.m_inout_id, 

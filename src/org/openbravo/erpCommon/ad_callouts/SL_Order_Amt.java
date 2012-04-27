@@ -222,9 +222,20 @@ public class SL_Order_Amt extends HttpSecureAppServlet {
         priceActual = priceStd;
         resultado.append("new Array(\"inppriceactual\", " + priceActual.toString() + "),");
       } else {
-        priceActual = new BigDecimal(SLOrderProductData.getOffersPrice(this,
+        BigDecimal previousOffer = BigDecimal.ZERO;
+        if (priceActual.signum() != 0) {
+          previousOffer = new BigDecimal(SLOrderProductData.getOffersPrice(this,
+              dataOrder[0].dateordered, dataOrder[0].cBpartnerId, strProduct, priceStd.toString(),
+              (LineNetAmt.divide(priceActual)).toString(), dataOrder[0].mPricelistId,
+              dataOrder[0].id));
+        }
+        final BigDecimal actualOffer = new BigDecimal(SLOrderProductData.getOffersPrice(this,
             dataOrder[0].dateordered, dataOrder[0].cBpartnerId, strProduct, priceStd.toString(),
             strQty, dataOrder[0].mPricelistId, dataOrder[0].id));
+
+        if (!previousOffer.equals(actualOffer)) {
+          priceActual = actualOffer;
+        }
         if (priceActual.scale() > PricePrecision)
           priceActual = priceActual.setScale(PricePrecision, BigDecimal.ROUND_HALF_UP);
         resultado.append("new Array(\"inppriceactual\", " + priceActual.toString() + "),");

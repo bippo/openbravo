@@ -777,7 +777,7 @@ export.database: exports database structure and data to xml files.
     <taskdef name="applyModule" classname="org.openbravo.erpCommon.modules.ApplyModuleTask">
       <classpath refid="project.class.path" />
     </taskdef>
-    <applyModule userId="0" adminMode="true" propertiesFile="${base.config}/Openbravo.properties"/>
+    <applyModule userId="0" adminMode="true" forceRefData="${forceRefData}" propertiesFile="${base.config}/Openbravo.properties"/>
   </target>
   
   <target name="compile.apply.module" depends="init">
@@ -794,7 +794,7 @@ export.database: exports database structure and data to xml files.
   -->
   <target name="apply.module" depends="compile.apply.module">
     <java classname="org.openbravo.erpCommon.modules.ApplyModuleTask" fork="true" maxmemory="${build.maxmemory}" failonerror="true">
-      <arg line="'${base.src}' '${friendlyWarnings}'" />
+      <arg line="'${base.src}' '${friendlyWarnings}' '${forceRefData}'" />
       <classpath refid="apply.module.runtime.classpath" />
     </java>
    <delete includeEmptyDirs="true"  dir="${build.apply.module}" />
@@ -1066,11 +1066,18 @@ export.database: exports database structure and data to xml files.
       <arg value="id"/>
       <arg value="-n"/>
     </exec>
-    <taskdef name="CoreRevision" classname="org.openbravo.erpCommon.utility.CalculateCoreRevision">
-            <classpath refid="project.class.path" />
-          </taskdef>
-
-    <CoreRevision hgRevNo="${hg.idno}" revision="core.rev"/>
+        <propertyfile file="currentRevision.tmp">
+          <entry key="core.rev" value="3.0.${hg.idno}"/>
+        </propertyfile>
+        <replaceregexp file="currentRevision.tmp"
+                       match="\+"
+                       replace=""
+                       byline="true"
+        />
+        <loadproperties> 
+          <file file="currentRevision.tmp"/> 
+        </loadproperties>
+        <delete file="currentRevision.tmp"/>
   </target>
   
   <target name="set.version.from.file" if="xml.core.rev">

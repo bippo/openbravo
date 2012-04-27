@@ -30,15 +30,14 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 import org.openbravo.base.exception.OBException;
-import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.database.CPStandAlone;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.ad_forms.TranslationManager;
 import org.openbravo.erpCommon.reference.PInstanceProcessData;
+import org.openbravo.erpCommon.utility.BasicUtility;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.SequenceIdData;
-import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.module.Module;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.common.enterprise.Organization;
@@ -47,7 +46,8 @@ import org.openbravo.service.db.ImportResult;
 
 /**
  * ApplyModule processes all modules that are in status (I)Installed or (P)Pending but not
- * (A)Applied yet. This process is done by the execute method.
+ * (A)Applied yet (or all of them, if the property forceRefData is set to true). This process is
+ * done by the execute method.
  * 
  * 
  */
@@ -55,12 +55,21 @@ public class ApplyModule {
   private static ConnectionProvider pool;
   static Logger log4j = Logger.getLogger(ApplyModule.class);
   private String obDir;
+  private boolean forceRefData = false;
 
   public ApplyModule(ConnectionProvider cp, String dir) {
     pool = cp;
     obDir = dir;
     PropertyConfigurator.configure(obDir + "/src/log4j.lcf");
     log4j = Logger.getLogger(ApplyModule.class);
+  }
+
+  public ApplyModule(ConnectionProvider cp, String dir, boolean forceRefData) {
+    pool = cp;
+    obDir = dir;
+    PropertyConfigurator.configure(obDir + "/src/log4j.lcf");
+    log4j = Logger.getLogger(ApplyModule.class);
+    this.forceRefData = forceRefData;
   }
 
   /**
@@ -85,7 +94,12 @@ public class ApplyModule {
       // **************** Translation modules ************************
       // Check whether modules to install are translations
       log4j.info("Looking for translation modules");
-      final ApplyModuleData[] data = ApplyModuleData.selectTranslationModules(pool);
+      final ApplyModuleData[] data;
+      if (!forceRefData) {
+        data = ApplyModuleData.selectTranslationModules(pool);
+      } else {
+        data = ApplyModuleData.selectAllTranslationModules(pool);
+      }
 
       if (data != null && data.length > 0) {
         log4j.info(data.length + " translation modules found");
@@ -102,18 +116,15 @@ public class ApplyModule {
           final String pinstance = SequenceIdData.getUUID();
           PInstanceProcessData.insertPInstance(pool, pinstance, "179", "0", "N", "0", "0", "0");
 
-          final VariablesSecureApp vars = new VariablesSecureApp("0", "0", "0");
-
           ApplyModuleData.process179(pool, pinstance);
 
-          final PInstanceProcessData[] pinstanceData = PInstanceProcessData.select(pool, pinstance);
-          final OBError myMessage = Utility.getProcessInstanceMessage(pool, vars, pinstanceData);
+          final OBError myMessage = getProcessInstanceMessageSimple(pool, pinstance);
           if (myMessage.getType().equals("Error"))
             log4j.error(myMessage.getMessage());
           else
             log4j.info(myMessage.getMessage());
         } catch (final ServletException ex) {
-          ex.printStackTrace();
+          log4j.error("Error running verify language process", ex);
         }
 
         // Import language modules
@@ -127,10 +138,15 @@ public class ApplyModule {
 
       log4j.info("Looking for reference data modules");
 
-      final ApplyModuleData[] ds = ApplyModuleData.selectClientReferenceModules(pool);
+      final ApplyModuleData[] ds;
+      if (!forceRefData) {
+        ds = ApplyModuleData.selectClientReferenceModules(pool);
+      } else {
+        ds = ApplyModuleData.selectAllClientReferenceModules(pool);
+      }
 
       if (ds != null && ds.length > 0) {
-        ModuleUtiltiy.orderModuleByDependency(ds);
+        ModuleUtility.orderModuleByDependency(ds);
         // build list of reference data modules which have files to import
         List<ApplyModuleData> dsToImport = new ArrayList<ApplyModuleData>();
         for (ApplyModuleData amd : ds) {
@@ -149,10 +165,10 @@ public class ApplyModule {
 
           File datasetFile = new File(strImportFile);
           log4j.info("Importing data from " + amd.name + " module. Dataset: "
-              + Utility.wikifiedName(amd.dsName) + ".xml");
+              + BasicUtility.wikifiedName(amd.dsName) + ".xml");
 
           // Import data from the xml file
-          final String strXml = Utility.fileToString(datasetFile.getPath());
+          final String strXml = BasicUtility.fileToString(datasetFile.getPath());
           final DataImportService importService = DataImportService.getInstance();
           final ImportResult result = importService.importDataFromXML(
               OBDal.getInstance().get(Client.class, "0"),
@@ -187,6 +203,42 @@ public class ApplyModule {
   }
 
   /**
+   * Gets untranslated result of the 'ad_language_create' pl-function call.
+   * 
+   * This is a very much simplified version of the 'Utility.getProcesInstanceMessage' function
+   * suitable for the simple usecase as needed inside ApplyModule.
+   * 
+   * @param conn
+   *          Handler for the database connection.
+   * @param pinstance
+   *          ad_pinstance_id to look at
+   * @return Object with the message.
+   * @throws ServletException
+   */
+  private static OBError getProcessInstanceMessageSimple(ConnectionProvider conn, String pinstance)
+      throws ServletException {
+    PInstanceProcessData[] pinstanceData = PInstanceProcessData.select(pool, pinstance);
+
+    OBError myMessage = new OBError();
+    if (pinstanceData != null && pinstanceData.length > 0) {
+      String message = pinstanceData[0].errormsg;
+
+      String type = "Error";
+      if (pinstanceData[0].result.equals("1")) {
+        type = "Success";
+      }
+
+      int errorPos = message.indexOf("@ERROR=");
+      if (errorPos != -1) {
+        // skip the @ERROR= marker in output
+        myMessage.setMessage(message.substring(errorPos + 7));
+      }
+      myMessage.setType(type);
+    }
+    return myMessage;
+  }
+
+  /**
    * Helper function to construct the data-file name for a dataset.
    */
   private String dataSet2ImportFilename(ApplyModuleData ds) throws FileNotFoundException {
@@ -196,7 +248,7 @@ public class ApplyModule {
     else
       strPath = obDir + "/modules/" + ds.javapackage + "/referencedata/standard";
 
-    strPath = strPath + "/" + Utility.wikifiedName(ds.dsName) + ".xml";
+    strPath = strPath + "/" + BasicUtility.wikifiedName(ds.dsName) + ".xml";
     return strPath;
   }
 

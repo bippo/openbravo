@@ -37,18 +37,22 @@ public class ApplyModuleTask extends DalInitializingTask {
   // private String propertiesFile;
   private String obDir;
   private static final Logger log4j = Logger.getLogger(ApplyModuleTask.class);
+  private Boolean forceRefData = false;
 
   public static void main(String[] args) {
+    Boolean lforceRefData = false;
     final String srcPath = args[0];
     String friendlyWarnings = "false";
     if (args.length >= 2) {
       friendlyWarnings = args[1];
+      lforceRefData = args[2].equalsIgnoreCase("true") || args[2].equalsIgnoreCase("yes");
     }
     final File srcDir = new File(srcPath);
     final File baseDir = srcDir.getParentFile();
     try {
       final AntExecutor antExecutor = new AntExecutor(baseDir.getAbsolutePath());
       antExecutor.setProperty("friendlyWarnings", friendlyWarnings);
+      antExecutor.setProperty("forceRefData", lforceRefData.toString());
       antExecutor.runTask("apply.module.forked");
     } catch (final Exception e) {
       throw new OBException(e);
@@ -65,7 +69,11 @@ public class ApplyModuleTask extends DalInitializingTask {
     CPStandAlone pool = new CPStandAlone(propertiesFile);
     ApplyModuleData[] ds = null;
     try {
-      ds = ApplyModuleData.selectClientReferenceModules(pool);
+      if (!forceRefData) {
+        ds = ApplyModuleData.selectClientReferenceModules(pool);
+      } else {
+        ds = ApplyModuleData.selectAllClientReferenceModules(pool);
+      }
     } catch (Exception e) {
       log4j.error("Error checking modules with reference data", e);
     }
@@ -74,7 +82,11 @@ public class ApplyModuleTask extends DalInitializingTask {
       super.execute();
     } else {
       try {
-        ds = ApplyModuleData.selectTranslationModules(pool);
+        if (!forceRefData) {
+          ds = ApplyModuleData.selectTranslationModules(pool);
+        } else {
+          ds = ApplyModuleData.selectAllTranslationModules(pool);
+        }
       } catch (Exception e) {
         log4j.error("Error checking modules with translation data", e);
       }
@@ -101,7 +113,7 @@ public class ApplyModuleTask extends DalInitializingTask {
         obDir = getProject().getBaseDir().toString();
       if (propertiesFile == null || propertiesFile.equals(""))
         propertiesFile = obDir + "/config/Openbravo.properties";
-      final ApplyModule am = new ApplyModule(new CPStandAlone(propertiesFile), obDir);
+      final ApplyModule am = new ApplyModule(new CPStandAlone(propertiesFile), obDir, forceRefData);
       am.execute();
     } catch (final Exception e) {
       throw new BuildException(e);
@@ -113,5 +125,9 @@ public class ApplyModuleTask extends DalInitializingTask {
    */
   public void setObDir(String obDir) {
     this.obDir = obDir;
+  }
+
+  public void setForceRefData(boolean forceRefData) {
+    this.forceRefData = forceRefData;
   }
 }

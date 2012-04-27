@@ -17,7 +17,7 @@
     * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
     * All Rights Reserved.
     * Contributor(s): Openbravo SLU
-    * Contributions are Copyright (C) 2001-2009 Openbravo, S.L.U.
+    * Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
     *
     * Specifically, this derivative work is based upon the following Compiere
     * file and version.
@@ -68,12 +68,22 @@ BEGIN
      'Y', now(), '0',
     now(), '0',  'Y'
   FROM AD_Role r
-  where ismanual = 'N';
+  where ismanual = 'N'
+  AND (r.IsAdvanced = 'Y' OR :new.IsAdvancedFeature='N');
  END IF;
  -- Inserting
  -- AD_Form update trigger
  --  synchronize name,... with Field if not centrally maintained
  IF(UPDATING) THEN
+  IF (:new.IsAdvancedFeature ='Y' and :old.IsAdvancedFeature ='N') THEN
+    delete from ad_form_access a
+    where a.ad_form_id = :new.ad_form_id
+      and exists (select 1 
+                    from ad_role r
+                   where r.ad_role_id = a.ad_role_id
+                    and r.isManual = 'N'
+                    and r.IsAdvanced = 'N');
+  END IF;
   IF((COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
   OR COALESCE(:old.Help, '.') <> COALESCE(:NEW.Help, '.')
   OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')))

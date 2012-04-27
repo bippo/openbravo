@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -150,7 +150,9 @@ public abstract class UIDefinition {
       columnValue = rq.getRequestParameter("inp"
           + Sqlc.TransformaNombreColumna(field.getColumn().getDBColumnName()));
     } else {
-      if (field.getColumn().getDBColumnName().equalsIgnoreCase("documentno")) {
+      if (field.getColumn().getDBColumnName().equalsIgnoreCase("documentno")
+          || (field.getColumn().isUseAutomaticSequence() && field.getColumn().getDBColumnName()
+              .equals("Value"))) {
         String docTypeTarget = rq.getRequestParameter("inp"
             + Sqlc.TransformaNombreColumna("C_DocTypeTarget_ID"));
         if (docTypeTarget == null)

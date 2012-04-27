@@ -366,7 +366,10 @@ public class HttpSecureAppServlet extends HttpBaseServlet {
           SessionInfo.setModuleId(classInfo.adModuleId);
         }
 
-        UsageAudit.auditActionNoDal(this, vars1, this.getClass().getName());
+        if (SessionInfo.getCommand() == null) {
+          // Set command based on vars if it has not explicitly set
+          SessionInfo.setCommand(vars1.getCommand());
+        }
 
         // Autosave logic
         final Boolean saveRequest = (Boolean) request.getAttribute("autosave");
@@ -419,7 +422,10 @@ public class HttpSecureAppServlet extends HttpBaseServlet {
             }
           }
         }
+        long t = System.currentTimeMillis();
         super.serviceInitialized(request, response);
+        UsageAudit.auditActionNoDal(this, vars1, this.getClass().getName(),
+            System.currentTimeMillis() - t);
       } else {
         if ((strPopUp != null && !strPopUp.equals("")) || (classInfo.type.equals("S")))
           bdErrorGeneralPopUp(request, response,

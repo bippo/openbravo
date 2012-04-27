@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -125,32 +125,34 @@ public class UsageAudit {
    */
   public static void auditActionNoDal(ConnectionProvider conn, VariablesSecureApp vars,
       String javaClassName) {
-    auditActionNoDal(conn, vars.getSessionValue(SESSION_ID_ATTR), vars.getCommand(),
+    auditActionNoDal(conn, vars.getSessionValue(SESSION_ID_ATTR), SessionInfo.getCommand(),
         SessionInfo.getProcessType(), SessionInfo.getModuleId(), SessionInfo.getProcessId(),
-        javaClassName);
+        javaClassName, null);
+  }
+
+  public static void auditActionNoDal(ConnectionProvider conn, VariablesSecureApp vars,
+      String javaClassName, long time) {
+    auditActionNoDal(conn, vars.getSessionValue(SESSION_ID_ATTR), SessionInfo.getCommand(),
+        SessionInfo.getProcessType(), SessionInfo.getModuleId(), SessionInfo.getProcessId(),
+        javaClassName, Long.toString(time));
   }
 
   private static void auditActionNoDal(ConnectionProvider conn, String sessionId, String action,
-      String objectType, String moduleId, String objectId, String javaClassName) {
-
-    final boolean auditAction = sessionId != null && !sessionId.isEmpty() && objectType != null
-        && !objectType.isEmpty() && moduleId != null && !moduleId.isEmpty();
+      String objectType, String moduleId, String objectId, String javaClassName, String time) {
+    final boolean auditAction = SessionInfo.isUsageAuditActive() && sessionId != null
+        && !sessionId.isEmpty() && objectType != null && !objectType.isEmpty() && moduleId != null
+        && !moduleId.isEmpty() && action != null && !action.isEmpty();
     if (!auditAction) {
       return;
     }
 
     try {
-      final boolean usageAuditEnabled = SessionLoginData.isUsageAuditEnabled(conn);
-      if (!usageAuditEnabled) {
-        return;
-      }
-
       log4j.debug("Auditing sessionId: " + sessionId + " -  action:" + action + " - objectType:"
           + objectType + " - moduleId:" + moduleId + " - objectId:" + objectId
           + " - javaClassName:" + javaClassName);
       Connection con = conn.getTransactionConnection();
       SessionLoginData.insertUsageAudit(con, conn, SessionInfo.getUserId(), sessionId, objectId,
-          moduleId, action, javaClassName, objectType);
+          moduleId, action, javaClassName, objectType, time);
       conn.releaseCommitConnection(con);
     } catch (ServletException se) {
       log4j.error("Error inserting usage audit", se);

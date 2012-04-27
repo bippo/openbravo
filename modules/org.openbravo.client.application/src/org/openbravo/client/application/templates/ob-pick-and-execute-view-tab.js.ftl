@@ -48,6 +48,10 @@
     <#if tabComponent.allowDelete>
     allowDelete: true,
     </#if>
+    showSelect: ${tabComponent.showSelect?string},
+    <#if tabComponent.newFunction != ''>
+    newFn: ${tabComponent.newFunction},
+    </#if>
     
     standardProperties:{
 <@compress single_line=true>
@@ -79,6 +83,10 @@
 
     <#if tabComponent.selectionFunction != "">
     selectionFn: ${tabComponent.selectionFunction},
+    </#if>
+
+    <#if tabComponent.removeFunction != "">
+    removeFn: ${tabComponent.removeFunction},
     </#if>
 
     gridProperties: ${tabComponent.viewGrid},

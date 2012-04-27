@@ -11,11 +11,12 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
+
 // = Property Store =
 //
 // The Property Store maintains properties. A property can be anything from the width of a column to 
@@ -25,7 +26,7 @@
 // If a component requests a certain property then the local cache (OB.Properties) is checked. 
 // If no value can be found there then an undefined value is returned. 
 //
-(function(OB, isc){
+(function (OB, isc) {
 
   if (!OB || !isc) {
     throw {
@@ -33,18 +34,19 @@
       message: 'openbravo and isc objects are required'
     };
   }
-  
+
   // cache object references locally
-  var ISC = isc, pstore; // Local reference to RemoveCallManager instance
-  function PropertyStore(){
-  }
-  
+  var ISC = isc,
+      pstore; // Local reference to RemoveCallManager instance
+
+  function PropertyStore() {}
+
   PropertyStore.prototype = {
-  
+
     // array of functions which are called when a property change
     // occurs
     listeners: [],
-    
+
     // ** {{{ PropertyStore.get(propertyName) }}} **
     //
     // Retrieves the property from the local cache. If not found then null
@@ -54,7 +56,7 @@
     // * {{{propertyName}}}: the name of the property
     // * {{{windowId}}}: the system will first search for property on windowId level
     //
-    get: function(/* String */propertyName, windowId){
+    get: function (propertyName, windowId) {
       if (windowId && OB.Properties[propertyName + '_' + windowId]) {
         return OB.Properties[propertyName + '_' + windowId];
       }
@@ -63,7 +65,7 @@
       }
       return OB.Properties[propertyName];
     },
-    
+
     // ** {{{ PropertyStore.set(propertyName, value) }}} **
     //
     // Sets the property in the local cache. Also performs a server call to
@@ -74,21 +76,27 @@
     // * {{{propertyName}}}: the name of the property
     // * {{{value}}}: the value of the property
     //
-    set: function(/* String */propertyName, /* Object */ value, windowId, noSetInServer, setAsSystem) {
-      var currentValue = OB.Properties[propertyName], data={property: propertyName, system: setAsSystem?true:false},
-          localPropertyName=propertyName, i, length;
-      if(windowId){
-        data.windowId=windowId;
-        localPropertyName=propertyName + '_' + windowId;
+    set: function (propertyName, value, windowId, noSetInServer, setAsSystem) {
+      var currentValue = OB.Properties[propertyName],
+          localPropertyName = propertyName,
+          i, length, data;
+
+      data = {
+        property: propertyName,
+        system: setAsSystem ? true : false
+      };
+
+      if (windowId) {
+        data.windowId = windowId;
+        localPropertyName = propertyName + '_' + windowId;
       }
-      
+
       // set it locally
       OB.Properties[localPropertyName] = value;
 
       if (!noSetInServer) {
         // and set it in the server also
-        OB.RemoteCallManager.call('org.openbravo.client.application.StorePropertyActionHandler', value, data, function(){
-        });
+        OB.RemoteCallManager.call('org.openbravo.client.application.StorePropertyActionHandler', value, data, function () {});
       }
 
       // call the listeners
@@ -107,7 +115,7 @@
     // Parameters:
     // * {{{listener}}}: a function which is called when a new alert result is
     // received. The function will get three parameters: property name, old value, new value
-    addListener: function(/* function */listener){
+    addListener: function (listener) {
       this.listeners[this.listeners.length] = listener;
     }
   };

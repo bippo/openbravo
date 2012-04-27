@@ -74,13 +74,14 @@ v_finpayment_desc FIN_Payment.Description%TYPE;
 v_orderno_trl AD_Message.MsgText%TYPE;
 v_invoiceno_trl AD_Message.MsgText%TYPE;
 v_payment_desc AD_OrgInfo.em_aprm_payment_desc%TYPE;
-
+v_fin_orig_payment_schedule_id Fin_Orig_Payment_Schedule.Fin_Orig_Payment_Schedule_Id%Type;
 
 TYPE RECORD IS REF CURSOR;
 Cur_Params RECORD;
 cur_paymentschedule RECORD;
 cur_finaccpaymentmethod RECORD;
 cur_PaymentScheduleOrder RECORD;
+cur_paymentscheduledetail RECORD;
 
 BEGIN
 
@@ -201,6 +202,7 @@ BEGIN
         AND c_orderline.c_order_id = fin_payment_schedule.c_order_id
         AND fin_payment_schedule.fin_payment_schedule_id = fin_payment_scheduledetail.fin_payment_schedule_order
         AND fin_payment_scheduledetail.fin_payment_schedule_invoice is null
+        AND fin_payment_scheduledetail.ISCANCELED <> 'Y'
         AND c_invoiceline.c_invoice_id = invoice_id
       ORDER BY CASE WHEN fin_payment_scheduledetail.fin_payment_detail_id is not null THEN 0 ELSE 1 END, c_orderline.c_order_id;
       order_schdet cur_order_schdet%ROWTYPE;
@@ -379,6 +381,7 @@ BEGIN
               WHERE ps_inv.fin_payment_schedule_id = psd.fin_payment_schedule_invoice
                 AND psd.fin_payment_schedule_order = ps_ord.fin_payment_schedule_id
                 AND ps_inv.c_invoice_id = p_record_id
+                AND psd.ISCANCELED <> 'Y'
                 AND ps_ord.c_order_id = order_schdet.order_id;
 
               -- substract previously assigned amount
@@ -755,6 +758,53 @@ BEGIN
           END LOOP;
         END LOOP;
       END IF;
+
+      FOR cur_paymentschedule IN (
+        SELECT fin_payment_schedule_id,
+               c_invoice_id, c_currency_id, c_order_id,
+               fin_paymentmethod_id, amount, duedate,
+               fin_payment_priority_id
+        FROM FIN_PAYMENT_SCHEDULE
+	WHERE C_INVOICE_ID=p_record_id
+        )
+      LOOP
+        v_fin_orig_payment_schedule_id:=get_uuid();
+        INSERT INTO fin_orig_payment_schedule
+        (
+          fin_orig_payment_schedule_id, ad_client_id, ad_org_id, isactive,
+          created, createdby, updated, updatedby,
+          c_invoice_id, c_currency_id, c_order_id,
+          fin_paymentmethod_id,
+          amount, duedate,
+          fin_payment_priority_id
+         ) VALUES (
+          v_fin_orig_payment_schedule_id, v_client_id, v_org_id, 'Y',
+          now(), p_user, now(), p_user,
+          p_record_id, cur_paymentschedule.c_currency_id, cur_paymentschedule.c_order_id,
+          cur_paymentschedule.fin_paymentmethod_id,
+          cur_paymentschedule.amount, cur_paymentschedule.duedate,
+          cur_paymentschedule.fin_payment_priority_id
+        );
+        FOR cur_paymentscheduledetail IN (
+          SELECT FIN_PAYMENT_SCHEDULEDETAIL_ID, FIN_PAYMENT_DETAIL_ID,
+                 AMOUNT, ISACTIVE, WRITEOFFAMT
+          FROM FIN_PAYMENT_SCHEDULEDETAIL
+          WHERE FIN_PAYMENT_SCHEDULE_INVOICE = cur_paymentschedule.fin_payment_schedule_id
+            AND ISCANCELED <> 'Y'
+            AND FIN_PAYMENT_DETAIL_ID IS NOT NULL
+          )
+        LOOP
+          INSERT INTO fin_orig_paym_scheddetail(FIN_ORIG_PAYM_SCHEDDETAIL_ID,
+            AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+            FIN_ORIG_PAYMENT_SCHEDULE_ID, FIN_PAYMENT_SCHEDULEDETAIL_ID,
+            AMOUNT, WRITEOFFAMT, ISACTIVE, ISCANCELED)
+          VALUES (get_uuid(),
+            v_client_id, v_org_id, now(), p_user, now(), p_user,
+            v_fin_orig_payment_schedule_id, cur_paymentscheduledetail.FIN_PAYMENT_SCHEDULEDETAIL_ID,
+            cur_paymentscheduledetail.AMOUNT, cur_paymentscheduledetail.WRITEOFFAMT, 'Y', 'N'
+            );
+        END LOOP;
+      END LOOP;
     END;
 
   ELSIF (p_docaction = 'RE') THEN
@@ -891,6 +941,9 @@ BEGIN
           END IF;
         END LOOP;
       END LOOP;
+
+      DELETE FROM fin_orig_paym_scheddetail WHERE fin_orig_payment_schedule_id in (SELECT fin_orig_payment_schedule_id FROM fin_orig_payment_schedule WHERE c_invoice_id = p_record_id);
+      DELETE FROM fin_orig_payment_schedule WHERE c_invoice_id = p_record_id;
 
       DELETE FROM fin_payment_schedule WHERE (c_invoice_id = p_record_id
                   OR

@@ -21,6 +21,7 @@
 ************************************************************************
 */
 v_projecttaskid VARCHAR2(32);
+v_Count NUMBER;
     
 BEGIN
     
@@ -41,6 +42,16 @@ IF (:NEW.ISCOMPLETE = 'Y') THEN
     AND ISCOMPLETE='N';
   END IF;
 END IF;
+
+IF UPDATING THEN
+  SELECT COUNT(*) INTO v_Count FROM C_PROJECTTASK WHERE C_PROJECTPHASE_ID = :NEW.C_PROJECTPHASE_ID;
+  IF(v_Count > 0) THEN
+    UPDATE C_PROJECTTASK
+    SET AD_ORG_ID = :NEW.AD_ORG_ID
+    WHERE C_PROJECTPHASE_ID = :NEW.C_PROJECTPHASE_ID;
+  END IF;
+END IF;
+
 END C_PROJECTPHASE_TRG
 ]]></body>
     </trigger>

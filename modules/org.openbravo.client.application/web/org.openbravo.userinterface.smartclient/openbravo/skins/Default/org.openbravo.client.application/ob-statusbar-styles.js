@@ -11,11 +11,11 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 
 isc.OBStatusBar.addProperties({
@@ -87,8 +87,9 @@ isc.OBStatusBarIconButton.addProperties({
   showRollOver: true,
   showDown: true,
   showFocused: false,
-  genericIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/statusbar/iconButton.png', /* Can be: previous - next - maximize - minimize - restore - close */
-  initWidgetStyle: function() {
+  genericIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/statusbar/iconButton.png',
+  /* Can be: previous - next - maximize - minimize - restore - close */
+  initWidgetStyle: function () {
     var fileExt = this.genericIconSrc.substring(this.genericIconSrc.lastIndexOf('.'), this.genericIconSrc.length);
     var filePath = this.genericIconSrc.substring(0, this.genericIconSrc.length - fileExt.length) + '-';
     var buttonType = this.buttonType;

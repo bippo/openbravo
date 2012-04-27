@@ -16,6 +16,7 @@
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
+
 // = OB Classic Window =
 //
 // Implements the view which shows a classic OB window in a Smartclient HTMLFlow component. The 
@@ -53,72 +54,66 @@ isc.OBClassicWindow.addMethods({
   // ** {{{ updateTabInformation }}} **
   //
   // Is called to update the tab information of an opened classic window.
-  updateTabInformation: function(windowId, tabId, recordId, command, obManualURL, title){
+  updateTabInformation: function (windowId, tabId, recordId, command, obManualURL, title) {
     // ignore the first time
     if (this.ignoreTabInfoUpdate) {
       this.ignoreTabInfoUpdate = false;
       return;
     }
-    
+
     this.windowId = windowId || '';
-    
+
     this.tabId = tabId || '';
-    
+
     this.recordId = recordId || '';
-    
+
     this.command = (command ? command.toUpperCase() : '') || 'DEFAULT';
-    
+
     this.obManualURL = obManualURL || '';
-    
+
     this.tabTitle = null;
-    
+
     OB.Layout.HistoryManager.updateHistory();
   },
-  
+
   // ** {{{ refreshTab }}} **
   //
   // Is used to handle the refresh keyboard shortcut, clicks the refresh button
   // of a classic window.
-  refreshTab: function(){
+  refreshTab: function () {
     if (this.getAppFrameWindow()) {
       this.getAppFrameWindow().document.getElementById('buttonRefresh').onclick();
     }
   },
-  
+
   // ** {{{ tabSelected }}} **
   //
   // Is used to place the focus in a tab after one of the flyouts is closed.
-  tabSelected: function(){
-    if (this.getAppFrameWindow()) {
-      this.getAppFrameWindow().putFocusOnWindow();
+  tabSelected: function () {
+    var appFrameWindow = this.getAppFrameWindow();
+    if (appFrameWindow && appFrameWindow.putFocusOnWindow) {
+      appFrameWindow.putFocusOnWindow();
     }
   },
-  
-  initWidget: function(args){
+
+  initWidget: function (args) {
     var urlCharacter = '?';
     if (this.appURL.indexOf('?') !== -1) {
       urlCharacter = '&';
     }
     if (this.keyParameter) {
-      this.contentsURL = this.appURL + urlCharacter + 'url=' + this.mappingName +
-      '&' +
-      this.keyParameter +
-      '=' +
-      this.recordId +
-      '&noprefs=true&Command=DIRECT&hideMenu=true';
+      this.contentsURL = this.appURL + urlCharacter + 'url=' + this.mappingName + '&' + this.keyParameter + '=' + this.recordId + '&noprefs=true&Command=DIRECT&hideMenu=true';
     } else if (this.obManualURL && this.obManualURL !== '') {
       this.obManualURL = this.obManualURL.replace('?', '&');
-      
-      this.contentsURL = this.appURL + urlCharacter + 'url=' + this.obManualURL +
-      '&noprefs=true&hideMenu=true';
-      
+
+      this.contentsURL = this.appURL + urlCharacter + 'url=' + this.obManualURL + '&noprefs=true&hideMenu=true';
+
       if (this.obManualURL.indexOf('Command=') === -1) {
         // Add command in case it is not already set in the obManualURL
-        this.contentsURL = this.contentsURL + '&Command=' + this.command; 
+        this.contentsURL = this.contentsURL + '&Command=' + this.command;
       }
     } else {
-      this.contentsURL = this.appURL + urlCharacter + 'Command=' + this.command +
-      '&noprefs=true';
+      this.contentsURL = this.appURL + urlCharacter + 'Command=' + this.command + '&noprefs=true';
       if (this.recordId !== '') {
         this.contentsURL = this.contentsURL + '&windowId=' + this.windowId;
       }
@@ -128,19 +123,19 @@ isc.OBClassicWindow.addMethods({
       }
       this.contentsURL = this.contentsURL + '&hideMenu=true';
     }
-    
+
     this.Super('initWidget', args);
   },
-  
+
   // ** {{{ getIframeWindow }}} **
   //
   // Returns the contentWindow object of the iframe implementing the classic
   // window.
-  getIframeWindow: function(){
+  getIframeWindow: function () {
     var container, iframes;
-    
+
     container = this.getHandle();
-    
+
     if (container && container.getElementsByTagName) {
       iframes = container.getElementsByTagName('iframe');
       if (iframes.length > 0) {
@@ -149,12 +144,12 @@ isc.OBClassicWindow.addMethods({
     }
     return null;
   },
-  
+
   // ** {{{ getAppFrameWindow }}} **
   //
   // Returns the appFrame object of the contentWindow of the iframe implementing
   // the classic window.
-  getAppFrameWindow: function(){
+  getAppFrameWindow: function () {
     var iframe;
     if (this.appFrameWindow !== null) {
       return this.appFrameWindow;
@@ -164,10 +159,10 @@ isc.OBClassicWindow.addMethods({
     // reference
     return this.appFrameWindow;
   },
-  
+
   // The following methods are related to history management, i.e. that a
   // specific window is only opened once.
-  getBookMarkParams: function(){
+  getBookMarkParams: function () {
     var result = {};
     if (this.recordId) {
       result.recordId = this.recordId;
@@ -198,75 +193,66 @@ isc.OBClassicWindow.addMethods({
     }
     return result;
   },
-  
-  isEqualParams: function(params){
-    if (params && (this.recordId || params.recordId) &&
-    params.recordId !== this.recordId) {
+
+  isEqualParams: function (params) {
+    if (params && (this.recordId || params.recordId) && params.recordId !== this.recordId) {
       return false;
     }
-    
-    if (params && (this.command || params.command) &&
-    params.command !== this.command) {
+
+    if (params && (this.command || params.command) && params.command !== this.command) {
       return false;
     }
-    
+
     if (params && (this.tabId || params.tabId) && params.tabId !== this.tabId) {
       return false;
     }
-    
-    if (params && (this.formId || params.formId) &&
-    params.formId !== this.formId) {
+
+    if (params && (this.formId || params.formId) && params.formId !== this.formId) {
       return false;
     }
-    
-    if (params && (this.windowId || params.windowId) &&
-    params.windowId !== this.windowId) {
+
+    if (params && (this.windowId || params.windowId) && params.windowId !== this.windowId) {
       return false;
     }
-    
-    if (params && (this.processId || params.processId) &&
-    params.processId !== this.processId) {
+
+    if (params && (this.processId || params.processId) && params.processId !== this.processId) {
       return false;
     }
-    
+
     return true;
   },
-  
-  isSameTab: function(viewName, params){
+
+  isSameTab: function (viewName, params) {
     if (viewName !== 'OBClassicWindow') {
       return false;
     }
-    if (params && (params.obManualURL || this.obManualURL) &&
-    params.obManualURL === this.obManualURL) {
+    if (params && (params.obManualURL || this.obManualURL) && params.obManualURL === this.obManualURL) {
       return true;
     }
-    
-    if (params && (this.windowId || params.windowId) &&
-    params.windowId === this.windowId) {
+
+    if (params && (this.windowId || params.windowId) && params.windowId === this.windowId) {
       return true;
     }
-    
-    if (params && (this.processId || params.processId) &&
-    params.processId === this.processId) {
+
+    if (params && (this.processId || params.processId) && params.processId === this.processId) {
       return true;
     }
-    
-    if (params && (this.formId || params.formId) &&
-    params.formId === this.formId) {
+
+    if (params && (this.formId || params.formId) && params.formId === this.formId) {
       return true;
     }
-    
+
     if ((!params || params.tabId === '') && this.tabId === '') {
       return true;
     }
-    
+
     return params.tabId === this.tabId;
   },
-  
+
   // ** {{{ getHelpView }}} **
   //
   // Returns the view definition of the help window for this classic window.
-  getHelpView: function(){
+  getHelpView: function () {
     if (this.windowId) {
       // tabTitle is set in the viewManager
       return {
@@ -297,24 +283,23 @@ isc.OBClassicWindow.addMethods({
     }
     return null;
   },
-  
+
   // ** {{{ saveRecord }}} **
   //
   // Is used for supporting autosave, saves the specific tab of the window.
   // Calls the server to do the actual save, the response calls the callback
   // method.
-  saveRecord: function(/* String */tabID, /* Function */ callback){
-    var postData, reqObj, appFrame = this.appFrameWindow ||
-    this.getAppFrameWindow(), saveCallback = callback ||
-    this.ID +
-    '.saveCallback(rpcResponse, data, rpcRequest)', tabid = tabID || '';
-    
+  saveRecord: function ( /* String */ tabID, /* Function */ callback) {
+    var postData, reqObj, appFrame = this.appFrameWindow || this.getAppFrameWindow(),
+        saveCallback = callback || this.ID + '.saveCallback(rpcResponse, data, rpcRequest)',
+        tabid = tabID || '';
+
     postData = {};
     OB.Utilities.addFormInputsToCriteria(postData, appFrame);
-    
+
     postData.Command = 'SAVE_XHR';
     postData.tabID = tabid;
-    
+
     reqObj = {
       params: postData,
       callback: saveCallback,
@@ -325,13 +310,13 @@ isc.OBClassicWindow.addMethods({
     };
     isc.RPCManager.sendRequest(reqObj);
   },
-  
+
   // ** {{{ saveCallback }}} **
   //
   // If the save is successfull closes the tab.
-  saveCallback: function(rpcResponse, data, rpcRequest){
-    var result = eval('(' + data + ')'), appFrame = this.appFrameWindow ||
-    this.getAppFrameWindow();
+  saveCallback: function (rpcResponse, data, rpcRequest) {
+    var result = eval('(' + data + ')'),
+        appFrame = this.appFrameWindow || this.getAppFrameWindow();
     if (result && result.oberror) {
       if (result.oberror.type === 'Success') {
         appFrame.isUserChanges = false;

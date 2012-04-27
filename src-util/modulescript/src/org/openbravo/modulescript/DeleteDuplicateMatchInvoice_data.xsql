@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2012 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="DeleteDuplicateMatchInvoiceData" package="org.openbravo.modulescript">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      SELECT 1 as DUMMY FROM DUAL;
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="deletePurchase" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      DELETE FROM m_matchinv WHERE m_matchinv_id IN (SELECT m_matchinv_id FROM m_matchinv minv
+        WHERE EXISTS (
+            SELECT 1
+            FROM m_matchinv m
+            WHERE m.m_inoutline_id = minv.m_inoutline_id
+            AND m.c_invoiceline_id = minv.c_invoiceline_id
+            AND m.m_product_id = minv.m_product_id
+            GROUP BY m.m_inoutline_id, m.c_invoiceline_id , m.m_product_id
+            HAVING count(*)>1 AND max(m.m_matchinv_id) <> minv.m_matchinv_id))
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="deleteSales" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      DELETE FROM m_matchinv WHERE m_matchinv_id IN (SELECT m_matchinv_id FROM m_matchinv minv
+        WHERE EXISTS (
+            SELECT 1
+            FROM m_matchinv m 
+            LEFT JOIN m_inoutline ml on m.m_inoutline_id = ml.m_inoutline_id 
+            LEFT JOIN m_inout mi on mi.m_inout_id = ml.m_inout_id 
+            WHERE mi.issotrx = 'Y' AND m.m_matchinv_id = minv.m_matchinv_id)
+        OR EXISTS (
+            SELECT 1
+            FROM m_matchinv m 
+            LEFT JOIN c_invoiceline ci on m.c_invoiceline_id = ci.c_invoiceline_id 
+            LEFT JOIN c_invoice c on c.c_invoice_id = ci.c_invoice_id 
+            WHERE c.issotrx = 'Y' AND m.m_matchinv_id = minv.m_matchinv_id))
+      ]]>
+    </Sql>
+  </SqlMethod>
+</SqlClass>

@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.openbravo.base.weld.WeldUtils;
 import org.openbravo.client.application.window.ApplicationDictionaryCachedStructures;
@@ -67,8 +69,17 @@ public class DynamicExpressionParser {
   private String code;
   private Tab tab;
   private StringBuffer jsCode;
+  private ApplicationDictionaryCachedStructures cachedStructures;
 
   public DynamicExpressionParser(String code, Tab tab) {
+    this.code = code;
+    this.tab = tab;
+    parse();
+  }
+
+  public DynamicExpressionParser(String code, Tab tab,
+      ApplicationDictionaryCachedStructures cachedStructures) {
+    this.cachedStructures = cachedStructures;
     this.code = code;
     this.tab = tab;
     parse();
@@ -152,12 +163,35 @@ public class DynamicExpressionParser {
    * Transform values into JavaScript equivalent, e.g. <b>'Y'</b> into <b>true</b>, based in a
    * defined map. Often used in dynamic expression comparisons
    * 
+   * If the value is enclosed between brackets, it is extracted, translated and enclosed again
+   * 
+   * @see DynamicExpressionParserTest
+   * 
    * @param value
    *          A string expression like <b>'Y'</b>
    * @return A equivalent value in JavaScript or the same string if has no mapping value
    */
   private String transformValue(String value) {
-    return exprToJSMap.get(value) != null ? exprToJSMap.get(value) : value;
+    if (value == null) {
+      return null;
+    }
+    String removeBracketsRegExp = "[\\[\\(]*(.*?)[\\)\\]]*";
+    Pattern pattern = Pattern.compile(removeBracketsRegExp);
+    Matcher matcher = pattern.matcher(value);
+    String transformedValueWithBrackets = null;
+    // It is always matched: zero or plus opening brackets, followed by any string, follow by zero
+    // or plus closing brackets
+    if (matcher.matches()) {
+      // Extracts the value
+      String valueWithoutBrackets = matcher.group(1);
+      // Transforms the value
+      String transformedValueWithoutBrackets = exprToJSMap.get(valueWithoutBrackets) != null ? exprToJSMap
+          .get(valueWithoutBrackets) : valueWithoutBrackets;
+      // Re-encloses the value
+      transformedValueWithBrackets = value.replace(valueWithoutBrackets,
+          transformedValueWithoutBrackets);
+    }
+    return transformedValueWithBrackets;
   }
 
   /*
@@ -194,9 +228,20 @@ public class DynamicExpressionParser {
   private DisplayLogicElement getDisplayLogicTextTranslate(String token) {
     if (token == null || token.trim().equals(""))
       return new DisplayLogicElement("", false);
-    ApplicationDictionaryCachedStructures cachedStructures = WeldUtils
-        .getInstanceFromStaticBeanManager(ApplicationDictionaryCachedStructures.class);
-    for (Field field : cachedStructures.getFieldsOfTab(tab.getId())) {
+    List<Field> fields;
+    List<AuxiliaryInput> auxIns;
+    try {
+      if (cachedStructures == null) {
+        cachedStructures = WeldUtils
+            .getInstanceFromStaticBeanManager(ApplicationDictionaryCachedStructures.class);
+      }
+      fields = cachedStructures.getFieldsOfTab(tab.getId());
+      auxIns = cachedStructures.getAuxiliarInputList(tab.getId());
+    } catch (NullPointerException e) {
+      fields = tab.getADFieldList();
+      auxIns = tab.getADAuxiliaryInputList();
+    }
+    for (Field field : fields) {
       if (field.getColumn() == null) {
         continue;
       }
@@ -208,11 +253,11 @@ public class DynamicExpressionParser {
         UIDefinition uiDef = UIDefinitionController.getInstance().getUIDefinition(
             field.getColumn().getId());
 
-        return new DisplayLogicElement("currentValues." + fieldName,
+        return new DisplayLogicElement("OB.Utilities.getValue(currentValues,'" + fieldName + "')",
             uiDef instanceof YesNoUIDefinition);
       }
     }
-    for (AuxiliaryInput auxIn : cachedStructures.getAuxiliarInputList(tab.getId())) {
+    for (AuxiliaryInput auxIn : auxIns) {
       if (token.equalsIgnoreCase(auxIn.getName())) {
         auxInputsInExpression.add(auxIn);
         return new DisplayLogicElement(TOKEN_PREFIX + auxIn.getName(), false);

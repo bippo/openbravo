@@ -11,11 +11,12 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
+
 // This file contains declarations for 2 types:
 // - Alert Manager: responsible for receiving alerts.
 // - OBAlertIcon: is the alert icon shown in the navigation bar
@@ -25,28 +26,29 @@
 // of alerts and to update the server side session administration.
 // The Alert manager makes use of OB.RemoteCallManager to make these remote calls.
 //
-(function(OB, isc) {
+(function (OB, isc) {
 
   if (!OB || !isc) {
     throw {
-      name : 'ReferenceError',
-      message : 'openbravo and isc objects are required'
+      name: 'ReferenceError',
+      message: 'openbravo and isc objects are required'
     };
   }
 
   // cache object references locally
-  var ISC = isc, alertmgr; // Local reference to RemoveCallManager instance
-  function AlertManager() {
-  }
+  var ISC = isc,
+      alertmgr; // Local reference to RemoveCallManager instance
+
+  function AlertManager() {}
 
   AlertManager.prototype = {
 
     // array of functions which are called when an alert is received
     // from the server.
-    listeners : [],
+    listeners: [],
 
-    delay : 50000,
-    
+    delay: 50000,
+
     // last info
     lastResponse: null,
     lastData: null,
@@ -61,7 +63,7 @@
     // Parameters:
     // * {{{listener}}}: a function which is called when a new alert result is
     // received.
-    addListener : function(/* function */listener) {
+    addListener: function (listener) {
       this.listeners[this.listeners.length] = listener;
       if (this.lastResponse) {
         // call the listener once with the last data
@@ -69,7 +71,7 @@
       }
     },
 
-    _notify : function(rpcResponse, data, rpcRequest) {
+    _notify: function (rpcResponse, data, rpcRequest) {
       var i, length = OB.AlertManager.listeners.length;
       // store info for new listeners
       OB.AlertManager.lastResponse = rpcResponse;
@@ -81,10 +83,11 @@
       isc.Timer.setTimeout(OB.AlertManager.call, OB.AlertManager.delay);
     },
 
-    call : function() {
-      OB.RemoteCallManager.call(
-          'org.openbravo.client.application.AlertActionHandler', {}, {IsAjaxCall: '1', ignoreForSessionTimeout: '1'},
-          OB.AlertManager._notify);
+    call: function () {
+      OB.RemoteCallManager.call('org.openbravo.client.application.AlertActionHandler', {}, {
+        IsAjaxCall: '1',
+        ignoreForSessionTimeout: '1'
+      }, OB.AlertManager._notify);
     }
   };
 
@@ -104,56 +107,58 @@ isc.ClassFactory.defineClass('OBAlertIcon', isc.ImgButton);
 // prompt.
 // The OBAlertIcon extends from the Smartclient Button.
 // The OBAlertIcon registers itself as a listener in the Alert Manager.
-isc.OBAlertIcon.addProperties( {
-  initWidget : function() {
-    var instance = this;
+isc.OBAlertIcon.addProperties({
 
-    var listener = function(rpcResponse, data, rpcRequest) {
+  initWidget: function () {
+    var instance = this,
+        listener;
+
+    listener = function (rpcResponse, data, rpcRequest) {
       if (data.cnt > 0) {
-        OB.I18N.getLabel(instance.alertLabel,
-            [ data.cnt ], instance, 'setTitle');
+        OB.I18N.getLabel(instance.alertLabel, [data.cnt], instance, 'setTitle');
         instance.setIcon(instance.alertIcon);
       } else {
-        OB.I18N.getLabel(instance.alertLabel,
-            [ 0 ], instance, 'setTitle');
-        instance.setIcon( {});
+        OB.I18N.getLabel(instance.alertLabel, [0], instance, 'setTitle');
+        instance.setIcon({});
       }
       instance.markForRedraw();
     };
 
     this.Super('initWidget', arguments);
 
-    OB.I18N.getLabel(instance.alertLabel,
-        [ '-' ], instance, 'setTitle');
+    OB.I18N.getLabel(instance.alertLabel, ['-'], instance, 'setTitle');
 
     // call it to update the number of alerts directly after login
     OB.AlertManager.addListener(listener);
     OB.TestRegistry.register('org.openbravo.client.application.AlertButton', this);
   },
-  click : function() {
+
+  click: function () {
     var viewDefinition = {
-      //obManualURL : '/ad_forms/AlertManagement.html',
-      //command : 'DEFAULT',
-      //formId : '800016',
-      i18nTabTitle : 'UINAVBA_AlertManagement'
+      i18nTabTitle: 'UINAVBA_AlertManagement'
     };
     OB.Layout.ViewManager.openView('OBUIAPP_AlertManagement', viewDefinition);
   },
+
   keyboardShortcutId: 'NavBar_OBAlertIcon',
-  draw: function(){
+
+  draw: function () {
+    var me = this,
+        ksAction;
+
+    ksAction = function () {
+      me.click();
+      return false; //To avoid keyboard shortcut propagation
+    };
+
     if (this.keyboardShortcutId) {
-      var me = this;
-      var ksAction = function(){
-        me.click();
-        return false; //To avoid keyboard shortcut propagation
-      };
       OB.KeyboardManager.Shortcuts.set(this.keyboardShortcutId, 'Canvas', ksAction);
     }
     this.Super('draw', arguments);
   },
-  alertLabel : 'UINAVBA_Alerts',
-  autoFit : true,
-  showTitle : true,
-  src : '',
-  overflow : 'visible'
+  alertLabel: 'UINAVBA_Alerts',
+  autoFit: true,
+  showTitle: true,
+  src: '',
+  overflow: 'visible'
 });

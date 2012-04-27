@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.security.OrganizationStructureProvider;
 import org.openbravo.erpCommon.ad_forms.DocInvoice;
 import org.openbravo.erpCommon.businessUtility.Tree;
 import org.openbravo.erpCommon.businessUtility.TreeData;
@@ -147,8 +148,8 @@ public class CreateVatRegisters extends HttpSecureAppServlet {
 
       // Select all active Register Type for create the Tax Registers
       TaxRegisterType[] taxregistertypes = TaxRegisterType
-          .select(this, vars.getClient(), Tree.getMembers(this,
-              TreeData.getTreeOrg(this, vars.getClient()), taxpayment[0].adOrgId));
+          .select(this, vars.getClient(), Utility.getInStrSet(new OrganizationStructureProvider()
+          .getNaturalTree(taxpayment[0].adOrgId)));
       log4j.info("2strTaxpaymentID: " + strTaxpaymentID + "strDatefrom: " + strDatefrom
           + "strDateto: " + strDateto + "strProcessed: " + strProcessed + "strGeneratePayment: "
           + strGeneratePayment);

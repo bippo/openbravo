@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -37,6 +37,7 @@ public class SessionInfo {
    * updated on context start and via SL_AuditTable. used to switch on/off the audit trail system
    */
   private static boolean isAuditActive = false;
+  private static boolean usageAuditActive = false;
 
   /*
    * The following variables track per thread the information about the current 'user' of the thread
@@ -47,6 +48,7 @@ public class SessionInfo {
   private static ThreadLocal<String> userId = new ThreadLocal<String>();
   private static ThreadLocal<String> processType = new ThreadLocal<String>();
   private static ThreadLocal<String> processId = new ThreadLocal<String>();
+  private static ThreadLocal<String> command = new ThreadLocal<String>();
 
   /*
    * To optimize updating of the AD_CONTEXT_INFO information, getConnection() is changed to return
@@ -74,6 +76,7 @@ public class SessionInfo {
     processId.set(null);
     changedInfo.set(null);
     moduleId.set(null);
+    command.set(null);
     // if there is an open connection associated to get current request, close it
     Connection conn = sessionConnection.get();
     try {
@@ -276,6 +279,14 @@ public class SessionInfo {
     }
   }
 
+  public static String getCommand() {
+    return command.get();
+  }
+
+  public static void setCommand(String comm) {
+    command.set(comm);
+  }
+
   public static String getSessionId() {
     return sessionId.get();
   }
@@ -294,5 +305,13 @@ public class SessionInfo {
 
   public static void setModuleId(String moduleId) {
     SessionInfo.moduleId.set(moduleId);
+  }
+
+  public static boolean isUsageAuditActive() {
+    return usageAuditActive;
+  }
+
+  public static void setUsageAuditActive(boolean usageAuditActive) {
+    SessionInfo.usageAuditActive = usageAuditActive;
   }
 }

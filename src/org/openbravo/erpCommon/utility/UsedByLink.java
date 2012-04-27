@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -283,17 +283,12 @@ public class UsedByLink extends HttpSecureAppServlet {
           windowId + "|" + columnName);
 
       final UsedByLinkData[] data = UsedByLinkData.keyColumns(this, adTabId);
-      if (data == null || data.length == 0) {
-        // // in order to preserve old behavior we use bdError method to report errors
-        // bdError(request, response, "RecordError", vars.getLanguage());
-        // return;
+      if (data != null && data.length > 0) {
+        final SearchResult searchResult = getLinkedItems(vars, data, windowId, columnName, keyId,
+            adTabId, tableName, inpcolumnName, tableId);
+        // jsonObject
+        jsonObject = buildJsonObject(jsonObject, searchResult);
       }
-
-      final SearchResult searchResult = getLinkedItems(vars, data, windowId, columnName, keyId,
-          adTabId, tableName, inpcolumnName, tableId);
-
-      jsonObject = buildJsonObject(jsonObject, searchResult);
-      // jsonObject
 
     } catch (Exception e) {
       try {
@@ -368,7 +363,6 @@ public class UsedByLink extends HttpSecureAppServlet {
               strNonAccessibleWhere).equals("0")) {
             nonAccessible = true;
           }
-
         }
         strWhereClause += " AND AD_ORG_ID IN (" + vars.getUserOrg() + ") AND AD_CLIENT_ID IN ("
             + vars.getUserClient() + ")";
@@ -527,11 +521,15 @@ public class UsedByLink extends HttpSecureAppServlet {
       usedByLinkDataJsonObj.put("total", data.total);
       usedByLinkDataJsonObj.put("whereClause", data.whereclause);
       usedByLinkDataJsonObj.put("windowName", data.windowname);
+      usedByLinkDataJsonObj.put("singleRecord", "SR".equals(data.uipattern));
+      usedByLinkDataJsonObj.put("readOnly", "RO".equals(data.uipattern));
       usedByLinkDataJsonObjects.add(usedByLinkDataJsonObj);
     }
 
     jsonObject.put("usedByLinkData", usedByLinkDataJsonObjects);
-    jsonObject.put("msg", msg);
+    if (msg != null) {
+      jsonObject.put("msg", msg.getMessage());
+    }
     return jsonObject;
   }
 

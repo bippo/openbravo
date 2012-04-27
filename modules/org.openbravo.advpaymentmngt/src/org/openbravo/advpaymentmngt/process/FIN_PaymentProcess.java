@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -22,10 +22,12 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.advpaymentmngt.dao.AdvPaymentMngtDao;
 import org.openbravo.advpaymentmngt.dao.TransactionsDao;
@@ -44,10 +46,12 @@ import org.openbravo.model.common.currency.ConversionRateDoc;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.invoice.Invoice;
 import org.openbravo.model.financialmgmt.payment.FIN_FinaccTransaction;
+import org.openbravo.model.financialmgmt.payment.FIN_OrigPaymentScheduleDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentScheduleDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment_Credit;
+import org.openbravo.model.financialmgmt.payment.Fin_OrigPaymentSchedule;
 import org.openbravo.model.financialmgmt.payment.PaymentExecutionProcess;
 import org.openbravo.model.pricing.pricelist.PriceList;
 import org.openbravo.scheduling.ProcessBundle;
@@ -95,6 +99,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
           msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
               "@APRM_FinancialAccountNotInNaturalTree@"));
           bundle.setResult(msg);
+          OBDal.getInstance().rollbackAndClose();
           return;
         }
         Set<String> invoiceDocNos = new TreeSet<String>();
@@ -118,6 +123,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
             msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                 "@APRM_PaymentNoLines@"));
             bundle.setResult(msg);
+            OBDal.getInstance().rollbackAndClose();
             return;
           }
           for (FIN_PaymentDetail paymentDetail : paymentDetails) {
@@ -256,6 +262,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
               msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                   "@NoExecutionProcessFound@"));
               bundle.setResult(msg);
+              OBDal.getInstance().rollbackAndClose();
               return;
             } catch (final Exception e) {
               e.printStackTrace(System.err);
@@ -263,6 +270,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
               msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                   "@IssueOnExecutionProcess@"));
               bundle.setResult(msg);
+              OBDal.getInstance().rollbackAndClose();
               return;
             }
           } else {
@@ -346,6 +354,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
           msg.setMessage(Utility.parseTranslation(conProvider, vars, language, "@PostedDocument@"
               + ": " + payment.getDocumentNo()));
           bundle.setResult(msg);
+          OBDal.getInstance().rollbackAndClose();
           return;
         }
         // Transaction exists
@@ -355,6 +364,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
           msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
               "@APRM_TransactionExists@"));
           bundle.setResult(msg);
+          OBDal.getInstance().rollbackAndClose();
           return;
         }
         // Payment with generated credit already used on other payments.
@@ -365,6 +375,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
           msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
               "@APRM_PaymentGeneratedCreditIsUsed@"));
           bundle.setResult(msg);
+          OBDal.getInstance().rollbackAndClose();
           return;
         }
 
@@ -406,6 +417,18 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
           List<ConversionRateDoc> conversionRates = payment.getCurrencyConversionRateDocList();
           Set<String> invoiceDocNos = new HashSet<String>();
           for (FIN_PaymentDetail paymentDetail : paymentDetails) {
+            // If an original payment plan is defined, all the details are removed, before removing
+            // the payment schedule details associated lines
+            OBCriteria<FIN_OrigPaymentScheduleDetail> origPaymSchedDetails = OBDal.getInstance()
+                .createCriteria(FIN_OrigPaymentScheduleDetail.class);
+            origPaymSchedDetails.add(Restrictions.in(
+                FIN_OrigPaymentScheduleDetail.PROPERTY_PAYMENTSCHEDULEDETAIL,
+                paymentDetail.getFINPaymentScheduleDetailList()));
+            for (FIN_OrigPaymentScheduleDetail origPaymSchedDetail : origPaymSchedDetails.list()) {
+              OBDal.getInstance().remove(
+                  OBDal.getInstance().get(FIN_OrigPaymentScheduleDetail.class,
+                      origPaymSchedDetail.getId()));
+            }
             removedPDS = new ArrayList<FIN_PaymentScheduleDetail>();
             for (FIN_PaymentScheduleDetail paymentScheduleDetail : paymentDetail
                 .getFINPaymentScheduleDetailList()) {
@@ -540,6 +563,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
               msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                   "@PostedDocument@" + ": " + payment.getDocumentNo()));
               bundle.setResult(msg);
+              OBDal.getInstance().rollbackAndClose();
               return;
             }
             // Transaction exists
@@ -549,6 +573,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
               msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                   "@APRM_TransactionExists@"));
               bundle.setResult(msg);
+              OBDal.getInstance().rollbackAndClose();
               return;
             }
             // Payment with generated credit already used on other payments.
@@ -559,6 +584,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
               msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                   "@APRM_PaymentGeneratedCreditIsUsed@"));
               bundle.setResult(msg);
+              OBDal.getInstance().rollbackAndClose();
               return;
             }
             // Payment not in Awaiting Execution
@@ -568,6 +594,7 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
               msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
                   "@APRM_PaymentNotRPAE_NotVoid@"));
               bundle.setResult(msg);
+              OBDal.getInstance().rollbackAndClose();
               return;
             }
 
@@ -607,6 +634,10 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
                         .getNewPaymentScheduleDetail(payment.getOrganization(), outStandingAmt);
                     mergedScheduleDetail.setInvoicePaymentSchedule(paymentScheduleDetail
                         .getInvoicePaymentSchedule());
+                    if (paymentScheduleDetail.getOrderPaymentSchedule() != null) {
+                      mergedScheduleDetail.setOrderPaymentSchedule(paymentScheduleDetail
+                          .getOrderPaymentSchedule());
+                    }
                     OBDal.getInstance().save(mergedScheduleDetail);
                   }
                 } else if (paymentScheduleDetail.getOrderPaymentSchedule() != null) {
@@ -664,6 +695,15 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
       OBDal.getInstance().save(payment);
       OBDal.getInstance().flush();
 
+      if (!updateOriginalPaymentPlanInformation(payment)) {
+        msg.setType("Error");
+        msg.setMessage(Utility.parseTranslation(conProvider, vars, language,
+            "@CouldNotUpdateOriginalPaymentPlan@"));
+        bundle.setResult(msg);
+        OBDal.getInstance().rollbackAndClose();
+        return;
+      }
+
       bundle.setResult(msg);
 
     } catch (final Exception e) {
@@ -678,13 +718,275 @@ public class FIN_PaymentProcess implements org.openbravo.scheduling.Process {
   }
 
   /**
+   * Method that updates the original payment plan details information with the payment that is
+   * being processed
+   * 
+   * @param payment
+   *          payment that is being processed
+   * @throws Exception
+   */
+  private boolean updateOriginalPaymentPlanInformation(FIN_Payment payment) throws Exception {
+    OBContext.setAdminMode(true);
+    try {
+      removeExistingOrigDetails(payment);
+      for (final FIN_PaymentDetail paymentDetail : payment.getFINPaymentDetailList()) {
+        if (paymentDetail != null && !payment.getStatus().equals(dao.PAYMENT_STATUS_CANCELED)) {
+          List<FIN_PaymentScheduleDetail> paymentScheduleDetails = paymentDetail
+              .getFINPaymentScheduleDetailList();
+          if (paymentScheduleDetails == null || paymentScheduleDetails.size() == 0) {
+            continue;
+          }
+          if (!recursiveOrigScheduleDetailPopulation(paymentScheduleDetails,
+              getOrigSchedule(paymentScheduleDetails.get(0)))) {
+            return false;
+          }
+          if (!saveWriteOffAmounts(paymentScheduleDetails.get(0),
+              getOrigSchedule(paymentScheduleDetails.get(0)))) {
+            return false;
+          }
+        }
+      }
+      return true;
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Given a payment, all the original schedule detail elements created for that payment are deleted
+   */
+  private void removeExistingOrigDetails(FIN_Payment payment) {
+    if (payment.getFINPaymentDetailList().size() > 0) {
+      ArrayList<String> opsdToRemove = new ArrayList<String>();
+      OBCriteria<FIN_PaymentScheduleDetail> criOpsd = OBDal.getInstance().createCriteria(
+          FIN_PaymentScheduleDetail.class);
+      criOpsd.add(Restrictions.in(FIN_PaymentScheduleDetail.PROPERTY_PAYMENTDETAILS,
+          payment.getFINPaymentDetailList()));
+      for (FIN_PaymentScheduleDetail psd : criOpsd.list()) {
+        OBCriteria<FIN_OrigPaymentScheduleDetail> opsds = OBDal.getInstance().createCriteria(
+            FIN_OrigPaymentScheduleDetail.class);
+        opsds.add(Restrictions
+            .eq(FIN_OrigPaymentScheduleDetail.PROPERTY_PAYMENTSCHEDULEDETAIL, psd));
+        for (FIN_OrigPaymentScheduleDetail opsd : opsds.list()) {
+          opsdToRemove.add(opsd.getId());
+        }
+      }
+
+      Iterator<String> it = opsdToRemove.iterator();
+      while (it.hasNext()) {
+        FIN_OrigPaymentScheduleDetail opsd = OBDal.getInstance().get(
+            FIN_OrigPaymentScheduleDetail.class, it.next());
+        OBDal.getInstance().remove(opsd);
+        OBDal.getInstance().flush();
+        OBDal.getInstance().refresh(opsd.getArchivedPaymentPlan());
+      }
+    }
+  }
+
+  /**
+   * This process do fill in the original payment plan detail table, given the payment detail
+   * element that is being processed
+   * 
+   * @param paymentScheduleDetailList
+   *          payment schedule detail elements associated to the payment detail element processed
+   * @param origSchedule
+   *          original payment plan lines of the invoice, ordered by due date descending
+   * @return
+   */
+  private boolean recursiveOrigScheduleDetailPopulation(
+      List<FIN_PaymentScheduleDetail> paymentScheduleDetailList,
+      List<Fin_OrigPaymentSchedule> origSchedule) {
+    if (origSchedule == null || origSchedule.size() == 0 || paymentScheduleDetailList == null
+        || paymentScheduleDetailList.size() == 0) {
+      return true;
+    }
+    FIN_PaymentScheduleDetail psd = paymentScheduleDetailList.get(0);
+    BigDecimal psdAmount = getScheduleDetailUnallocatedAmount(psd);
+    Fin_OrigPaymentSchedule ops = origSchedule.get(0);
+    BigDecimal opsAmount = getOrigPlanUnallocatedAmount(ops).subtract(
+        getOrigPlanWriteOffAmount(ops));
+    if (opsAmount.abs().compareTo(psdAmount.abs()) > 0) {
+      if (!isZero(psdAmount)) {
+        insertOrigScheduleDetail(psdAmount, psd, ops, BigDecimal.ZERO);
+      }
+      return recursiveOrigScheduleDetailPopulation(
+          paymentScheduleDetailList.subList(1, paymentScheduleDetailList.size()), origSchedule);
+    } else {
+      if (!isZero(opsAmount)) {
+        insertOrigScheduleDetail(opsAmount, psd, ops, BigDecimal.ZERO);
+      }
+      return recursiveOrigScheduleDetailPopulation(paymentScheduleDetailList,
+          origSchedule.subList(1, origSchedule.size()));
+    }
+  }
+
+  /**
+   * Once the amount of the payment detail has been assigned to the original payment plan elements,
+   * the write off amount (if any) is also assigned to the original payment plan elements
+   * 
+   */
+  private boolean saveWriteOffAmounts(FIN_PaymentScheduleDetail psd,
+      List<Fin_OrigPaymentSchedule> origSchedule) {
+    if (isZero(psd.getWriteoffAmount())) {
+      return true;
+    }
+    BigDecimal pendingAmount = psd.getWriteoffAmount();
+    for (int i = 0; i < origSchedule.size(); i++) {
+      Fin_OrigPaymentSchedule ops = origSchedule.get(i);
+      BigDecimal opsAmount = getOrigPlanUnallocatedAmount(ops).subtract(
+          getOrigPlanWriteOffAmount(ops));
+      if (!isZero(pendingAmount) && !isZero(opsAmount)) {
+        FIN_OrigPaymentScheduleDetail opsd = getOPSD(psd, ops);
+        if (opsd == null) {
+          insertOrigScheduleDetail(BigDecimal.ZERO, psd, ops,
+              minAbsoluteValues(opsAmount, pendingAmount));
+        } else if (!updateOPSDWriteOffAmount(opsd, minAbsoluteValues(opsAmount, pendingAmount))) {
+          return false;
+        }
+        pendingAmount = pendingAmount.subtract(minAbsoluteValues(opsAmount, pendingAmount));
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Given an original payment schedule detail element, and a number, sets this number as write-off
+   * amount of it.
+   */
+  private boolean updateOPSDWriteOffAmount(FIN_OrigPaymentScheduleDetail opsd,
+      BigDecimal writeOffAmount) {
+    opsd.setWriteoffAmount(writeOffAmount);
+    OBDal.getInstance().save(opsd);
+    OBDal.getInstance().flush();
+    return true;
+  }
+
+  /**
+   * Given two BigDecimal numbers, returns the lower absolute values of them
+   */
+  private BigDecimal minAbsoluteValues(BigDecimal num1, BigDecimal num2) {
+    if (num1.abs().compareTo(num2.abs()) < 0) {
+      return num1;
+    } else {
+      return num2;
+    }
+  }
+
+  private boolean isZero(BigDecimal num) {
+    return num.compareTo(BigDecimal.ZERO) == 0;
+  }
+
+  /**
+   * Given an original payment schedule and a payment schedule detail, returns the original payment
+   * schedule detail element that links both (if any) or null if it doesn't exist
+   */
+  private FIN_OrigPaymentScheduleDetail getOPSD(FIN_PaymentScheduleDetail psd,
+      Fin_OrigPaymentSchedule ops) {
+    OBCriteria<FIN_OrigPaymentScheduleDetail> opsd = OBDal.getInstance().createCriteria(
+        FIN_OrigPaymentScheduleDetail.class);
+    opsd.add(Restrictions.eq(FIN_OrigPaymentScheduleDetail.PROPERTY_PAYMENTSCHEDULEDETAIL, psd));
+    opsd.add(Restrictions.eq(FIN_OrigPaymentScheduleDetail.PROPERTY_ARCHIVEDPAYMENTPLAN, ops));
+    List<FIN_OrigPaymentScheduleDetail> lopsds = opsd.list();
+    if (lopsds.size() != 1) {
+      return null;
+    } else {
+      return lopsds.get(0);
+    }
+  }
+
+  /**
+   * Given an payment schedule detail element, returns the amount that has not been already assigned
+   * to any original payment plan schedule detail element
+   */
+  private BigDecimal getScheduleDetailUnallocatedAmount(FIN_PaymentScheduleDetail psd) {
+    BigDecimal result = psd.getAmount();
+    OBCriteria<FIN_OrigPaymentScheduleDetail> origScheduleDetail = OBDal.getInstance()
+        .createCriteria(FIN_OrigPaymentScheduleDetail.class);
+    origScheduleDetail.add(Restrictions.eq(
+        FIN_OrigPaymentScheduleDetail.PROPERTY_PAYMENTSCHEDULEDETAIL, psd));
+    for (final FIN_OrigPaymentScheduleDetail detail : origScheduleDetail.list()) {
+      result = result.subtract(detail.getAmount());
+    }
+    return result;
+  }
+
+  /**
+   * Stores a new record on the Fin_Orig_Payment_ScheduleDetail table, linking the payment schedule
+   * detail and the original payment plan line
+   */
+  private void insertOrigScheduleDetail(BigDecimal opsAmount, FIN_PaymentScheduleDetail psd,
+      Fin_OrigPaymentSchedule ops, BigDecimal writeOffAmount) {
+    final FIN_OrigPaymentScheduleDetail opsd = OBProvider.getInstance().get(
+        FIN_OrigPaymentScheduleDetail.class);
+    opsd.setClient(ops.getClient());
+    opsd.setOrganization(ops.getOrganization());
+    opsd.setActive(true);
+    opsd.setPaymentScheduleDetail(psd);
+    opsd.setArchivedPaymentPlan(ops);
+    opsd.setAmount(opsAmount);
+    opsd.setCanceled(false);
+    opsd.setWriteoffAmount(writeOffAmount);
+    OBDal.getInstance().save(opsd);
+    OBDal.getInstance().flush();
+    OBDal.getInstance().refresh(ops);
+  }
+
+  /**
+   * Given an original payment plan element, returns the amount that has been written off in any of
+   * the original payment plan detail elements
+   */
+  private BigDecimal getOrigPlanWriteOffAmount(Fin_OrigPaymentSchedule origSchedule) {
+    BigDecimal result = BigDecimal.ZERO;
+    OBCriteria<FIN_OrigPaymentScheduleDetail> origScheduleDetail = OBDal.getInstance()
+        .createCriteria(FIN_OrigPaymentScheduleDetail.class);
+    origScheduleDetail.add(Restrictions.eq(
+        FIN_OrigPaymentScheduleDetail.PROPERTY_ARCHIVEDPAYMENTPLAN, origSchedule));
+    for (final FIN_OrigPaymentScheduleDetail detail : origScheduleDetail.list()) {
+      result = result.add(detail.getWriteoffAmount());
+    }
+    return result;
+  }
+
+  /**
+   * Given an original payment plan element, returns the amount that has not been already assigned
+   * to any payment detail
+   */
+  private BigDecimal getOrigPlanUnallocatedAmount(Fin_OrigPaymentSchedule origSchedule) {
+    BigDecimal result = origSchedule.getAmount();
+    OBCriteria<FIN_OrigPaymentScheduleDetail> origScheduleDetail = OBDal.getInstance()
+        .createCriteria(FIN_OrigPaymentScheduleDetail.class);
+    origScheduleDetail.add(Restrictions.eq(
+        FIN_OrigPaymentScheduleDetail.PROPERTY_ARCHIVEDPAYMENTPLAN, origSchedule));
+    for (final FIN_OrigPaymentScheduleDetail detail : origScheduleDetail.list()) {
+      result = result.subtract(detail.getAmount());
+    }
+    return result;
+  }
+
+  /**
+   * Returns the original payment plan associated to the same invoice than the given payment plan
+   * schedule detail element
+   */
+  private List<Fin_OrigPaymentSchedule> getOrigSchedule(
+      FIN_PaymentScheduleDetail paymentScheduleDetail) {
+    if (paymentScheduleDetail.getInvoicePaymentSchedule() == null) {
+      return new ArrayList<Fin_OrigPaymentSchedule>();
+    } else {
+      Invoice invoice = paymentScheduleDetail.getInvoicePaymentSchedule().getInvoice();
+      OBCriteria<Fin_OrigPaymentSchedule> origSchedules = OBDal.getInstance().createCriteria(
+          Fin_OrigPaymentSchedule.class);
+      origSchedules.add(Restrictions.eq(Fin_OrigPaymentSchedule.PROPERTY_INVOICE, invoice));
+      origSchedules.addOrder(Order.asc(Fin_OrigPaymentSchedule.PROPERTY_DUEDATE));
+      return origSchedules.list();
+    }
+  }
+
+  /**
    * Method used to update the credit used when the user doing invoice processing or payment
    * processing
    * 
-   * @param businessPartner
    * @param amount
    *          Payment amount
-   * @param add
    */
   private void updateCustomerCredit(BusinessPartner businessPartner, BigDecimal amount, boolean add) {
     BigDecimal creditUsed = businessPartner.getCreditUsed();

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  Enterprise Intelligence Systems (http://www.eintel.com.au).
  *************************************************************************
@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -85,6 +86,15 @@ public class AdvPaymentMngtDao {
   public enum PaymentDirection {
     IN, OUT, EITHER
   }
+
+  public final String PAYMENT_STATUS_AWAITING_EXECUTION = "RPAE";
+  public final String PAYMENT_STATUS_CANCELED = "RPVOID";
+  public final String PAYMENT_STATUS_PAYMENT_CLEARED = "RPPC";
+  public final String PAYMENT_STATUS_DEPOSIT_NOT_CLEARED = "RDNC";
+  public final String PAYMENT_STATUS_PAYMENT_MADE = "PPM";
+  public final String PAYMENT_STATUS_AWAITING_PAYMENT = "RPAP";
+  public final String PAYMENT_STATUS_WITHDRAWAL_NOT_CLEARED = "PWNC";
+  public final String PAYMENT_STATUS_PAYMENT_RECEIVED = "RPR";
 
   public AdvPaymentMngtDao() {
   }
@@ -199,7 +209,7 @@ public class AdvPaymentMngtDao {
       whereClause.append(" and psd.");
       whereClause.append(FIN_PaymentSchedule.PROPERTY_ORGANIZATION);
       whereClause.append(".id in (");
-      whereClause.append(FIN_Utility.getInStrSet(OBContext.getOBContext()
+      whereClause.append(Utility.getInStrSet(OBContext.getOBContext()
           .getOrganizationStructureProvider().getNaturalTree(organization.getId())));
       whereClause.append(")");
 
@@ -510,6 +520,85 @@ public class AdvPaymentMngtDao {
     return psd;
   }
 
+  /**
+   * Creates a new payment schedule
+   * 
+   */
+  public FIN_PaymentSchedule getNewPaymentSchedule(Client client, Organization organization,
+      Invoice invoice, Order order, Currency currency, Date dueDate,
+      FIN_PaymentMethod paymentMethod, BigDecimal amount) {
+    FIN_PaymentSchedule ps = OBProvider.getInstance().get(FIN_PaymentSchedule.class);
+    ps.setClient(invoice.getClient());
+    ps.setOrganization(invoice.getOrganization());
+    ps.setInvoice(invoice);
+    ps.setOrder(order);
+    ps.setCurrency(invoice.getCurrency());
+    ps.setDueDate(dueDate);
+    ps.setFinPaymentmethod(paymentMethod);
+    ps.setOutstandingAmount(amount);
+    ps.setPaidAmount(BigDecimal.ZERO);
+    ps.setAmount(amount);
+    OBDal.getInstance().save(ps);
+    return ps;
+  }
+
+  /**
+   * Creates a new payment schedule detail taking info from provided payment schedule
+   * 
+   */
+  public FIN_PaymentScheduleDetail getNewPaymentScheduleDetail(FIN_PaymentSchedule invoicePS,
+      FIN_PaymentSchedule orderPS, BigDecimal amount, BigDecimal writeOff,
+      FIN_PaymentDetail paymentDetail) {
+
+    Client client = null;
+    Organization org = null;
+    BusinessPartner bp = null;
+    Project proj = null;
+    Campaign sc = null;
+    ABCActivity act = null;
+
+    if (orderPS == null && invoicePS == null) {
+      return null;
+    }
+
+    if (orderPS != null && orderPS.getOrder() != null) {
+      Order order = orderPS.getOrder();
+      client = order.getClient();
+      org = order.getOrganization();
+      bp = order.getBusinessPartner();
+      proj = order.getProject();
+      sc = order.getSalesCampaign();
+      act = order.getActivity();
+    }
+
+    if (invoicePS != null && invoicePS.getInvoice() != null) {
+      Invoice invoice = invoicePS.getInvoice();
+      client = invoice.getClient();
+      org = invoice.getOrganization();
+      bp = invoice.getBusinessPartner();
+      proj = invoice.getProject();
+      sc = invoice.getSalesCampaign();
+      act = invoice.getActivity();
+    }
+
+    FIN_PaymentScheduleDetail psd = OBProvider.getInstance().get(FIN_PaymentScheduleDetail.class);
+    psd.setClient(client);
+    psd.setOrganization(org);
+    psd.setInvoicePaymentSchedule(invoicePS);
+    psd.setOrderPaymentSchedule(orderPS);
+    psd.setAmount(amount);
+    psd.setWriteoffAmount((writeOff == null) ? BigDecimal.ZERO : writeOff);
+    psd.setBusinessPartner(bp);
+    psd.setProject(proj);
+    psd.setSalesCampaign(sc);
+    psd.setActivity(act);
+    if (paymentDetail != null)
+      psd.setPaymentDetails(paymentDetail);
+    OBDal.getInstance().save(psd);
+
+    return psd;
+  }
+
   public FIN_PaymentPropDetail getNewPaymentProposalDetail(Organization organization,
       FIN_PaymentProposal paymentProposal, FIN_PaymentScheduleDetail paymentScheduleDetail,
       BigDecimal amount, BigDecimal writeoffamount, GLItem glitem) {
@@ -712,6 +801,39 @@ public class AdvPaymentMngtDao {
         .copy(paymentScheduleDetail);
     newPaymentScheduleDetail.setAmount(writeoffAmount);
     OBDal.getInstance().save(newPaymentScheduleDetail);
+    OBDal.getInstance().flush();
+  }
+
+  /**
+   * Deletes from database a given fin_payment_schedule row
+   * 
+   */
+  public void removePaymentSchedule(FIN_PaymentSchedule fin_PaymentSchedule) {
+
+    OBCriteria<FIN_PaymentScheduleDetail> obcPSD = OBDal.getInstance().createCriteria(
+        FIN_PaymentScheduleDetail.class);
+    obcPSD.add(Restrictions.eq(FIN_PaymentScheduleDetail.PROPERTY_INVOICEPAYMENTSCHEDULE,
+        fin_PaymentSchedule));
+    List<FIN_PaymentScheduleDetail> lPSD = obcPSD.list();
+    Iterator<FIN_PaymentScheduleDetail> itPSD = lPSD.iterator();
+
+    while (itPSD.hasNext()) {
+      removePaymentScheduleDetail(itPSD.next());
+    }
+    OBDal.getInstance().remove(fin_PaymentSchedule);
+    OBDal.getInstance().flush();
+  }
+
+  /**
+   * Removes a payment schedule detail row from database
+   * 
+   */
+  public void removePaymentScheduleDetail(FIN_PaymentScheduleDetail fin_PaymentScheduleDetail) {
+
+    fin_PaymentScheduleDetail.setInvoicePaymentSchedule(null);
+    fin_PaymentScheduleDetail.setOrderPaymentSchedule(null);
+    OBDal.getInstance().save(fin_PaymentScheduleDetail);
+    OBDal.getInstance().remove(fin_PaymentScheduleDetail);
     OBDal.getInstance().flush();
   }
 
@@ -1463,8 +1585,7 @@ public class AdvPaymentMngtDao {
           FIN_Payment.PROPERTY_USEDCREDIT));
       final Organization legalEntity = FIN_Utility.getLegalEntityOrg(org);
       Set<String> orgIds = OBContext.getOBContext().getOrganizationStructureProvider()
-          .getChildOrg(legalEntity.getId());
-      orgIds.add(legalEntity.getId());
+          .getChildTree(legalEntity.getId(), true);
       obcPayment.add(Restrictions.in("organization.id", orgIds));
       obcPayment.addOrderBy(FIN_Payment.PROPERTY_PAYMENTDATE, true);
       obcPayment.addOrderBy(FIN_Payment.PROPERTY_DOCUMENTNO, true);
@@ -1590,5 +1711,21 @@ public class AdvPaymentMngtDao {
           invoice.getGrandTotalAmount(), invoice.getCurrency(), invoice.isSalesTransaction(),
           invoice.getInvoiceDate());
     }
+  }
+
+  /**
+   * Returns true in case the provided status of the payment has already recognized the amount as
+   * paid
+   * 
+   */
+  public boolean isPaymentMadeStatus(String paymentStatus) {
+    ArrayList<String> paidStatusList = new ArrayList<String>();
+    paidStatusList.add(PAYMENT_STATUS_PAYMENT_CLEARED);
+    paidStatusList.add(PAYMENT_STATUS_DEPOSIT_NOT_CLEARED);
+    paidStatusList.add(PAYMENT_STATUS_PAYMENT_MADE);
+    paidStatusList.add(PAYMENT_STATUS_WITHDRAWAL_NOT_CLEARED);
+    paidStatusList.add(PAYMENT_STATUS_PAYMENT_RECEIVED);
+
+    return paidStatusList.contains(paymentStatus);
   }
 }

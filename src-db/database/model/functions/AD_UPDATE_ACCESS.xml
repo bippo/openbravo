@@ -13,7 +13,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2007-2011 Openbravo SLU
+* All portions are Copyright (C) 2007-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -41,11 +41,20 @@ BEGIN
       OR
       (AD_ROLE.USERLEVEL = '  O' AND AD_FORM.ACCESSLEVEL IN ('3','1','7'))
     )
+    AND (AD_ROLE.ISADVANCED = 'Y' OR AD_FORM.ISADVANCEDFEATURE = 'N')
     AND NOT EXISTS (SELECT 1
                      FROM AD_FORM_ACCESS
                     WHERE AD_FORM_ID = AD_FORM.AD_FORM_ID
-                      AND AD_ROLE_ID = AD_ROLE.AD_ROLE_ID
-                      AND (AD_ROLE.ISADVANCED = 'Y' OR AD_FORM.ISADVANCEDFEATURE = 'N'));
+                      AND AD_ROLE_ID = AD_ROLE.AD_ROLE_ID);
+
+   DELETE FROM AD_Form_Access a 
+    WHERE EXISTS (SELECT 1
+                    FROM AD_Role r, AD_Form F
+                   WHERE r.IsAdvanced = 'N' 
+                     AND f.IsAdvancedFeature = 'Y' 
+                     AND r.AD_Role_ID = a.AD_Role_ID
+                     AND f.ad_form_ID = a.ad_form_id
+                     AND r.isManual = 'N');
 
 --AD_PROCESS_ACCESS
   INSERT INTO AD_Process_Access
@@ -65,12 +74,20 @@ BEGIN
       OR
       (AD_ROLE.USERLEVEL = '  O' AND AD_PROCESS.ACCESSLEVEL IN ('3','1','7'))
     )
+    AND (AD_ROLE.ISADVANCED = 'Y' OR AD_PROCESS.ISADVANCEDFEATURE = 'N')
     AND NOT EXISTS (SELECT 1 
                       FROM AD_PROCESS_ACCESS
                      WHERE AD_PROCESS_ID = AD_PROCESS.AD_PROCESS_ID
-                       AND AD_ROLE_ID    = AD_ROLE.AD_ROLE_ID
-                       AND (AD_ROLE.ISADVANCED = 'Y' OR AD_PROCESS.ISADVANCEDFEATURE = 'N'));
+                       AND AD_ROLE_ID    = AD_ROLE.AD_ROLE_ID);
 
+   DELETE FROM AD_Process_Access a 
+    WHERE EXISTS (SELECT 1
+                    FROM AD_Role r, AD_Process p
+                   WHERE r.IsAdvanced = 'N' 
+                     AND p.IsAdvancedFeature = 'Y' 
+                     AND r.AD_Role_ID = a.AD_Role_ID
+                     AND p.ad_Process_ID = a.ad_Process_id
+										 AND r.isManual = 'N');
  --Add org 0 to role 0                
  INSERT INTO AD_Role_OrgAccess
     (
@@ -113,11 +130,20 @@ BEGIN
       (AD_ROLE.USERLEVEL = '  O' AND AD_TABLE.ACCESSLEVEL IN ('3','1','7'))
     )
     AND AD_TAB.SEQNO = (SELECT MIN(SEQNO) FROM AD_TAB t WHERE t.AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID)
+    AND (AD_ROLE.ISADVANCED = 'Y' OR AD_WINDOW.ISADVANCEDFEATURE = 'N')
     AND NOT EXISTS (SELECT 1 
                        FROM AD_WINDOW_ACCESS
                       WHERE AD_WINDOW_ID = AD_WINDOW.AD_WINDOW_ID
-                        AND AD_ROLE_ID = AD_ROLE.AD_ROLE_ID
-                        AND (AD_ROLE.ISADVANCED = 'Y' OR AD_WINDOW.ISADVANCEDFEATURE = 'N'));
+                        AND AD_ROLE_ID = AD_ROLE.AD_ROLE_ID);
+
+   DELETE FROM AD_Window_Access a 
+    WHERE EXISTS (SELECT 1
+                    FROM AD_Role r, AD_Window w
+                   WHERE r.IsAdvanced = 'N' 
+                     AND w.IsAdvancedFeature = 'Y' 
+                     AND r.AD_Role_ID = a.AD_Role_ID
+                     AND w.ad_Window_ID = a.ad_Window_ID
+                     AND r.isManual = 'N');
 
   --Add role 0 to user 100 (Openbravo)
   INSERT INTO AD_USER_ROLES

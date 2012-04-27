@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -24,40 +24,48 @@ isc.ClassFactory.defineClass('OBClientClassCanvasItem', isc.CanvasItem);
 
 isc.OBClientClassCanvasItem.addProperties({
   autoDestroy: true,
-  
+
   // if the canvas is used somewhere else (in the statusbar) then
   // don't do placeCanvas.
-  placeCanvas: function() {
+  placeCanvas: function () {
     if (this.canvas && !this.canvas.inStatusBar) {
       this.Super('placeCanvas', arguments);
     }
   },
-  
-  showValue: function(displayValue, dataValue, form, item) {
+
+  showValue: function (displayValue, dataValue, form, item) {
     if (this.canvas && this.canvas.showValue) {
       this.canvas.showValue(displayValue, dataValue, form, item);
     }
   },
-  
-  createCanvas: function() {
-    var canvas = isc.ClassFactory.newInstance(this.clientClass, {canvasItem: this});
-    
+
+  createCanvas: function () {
+    var canvas = isc.ClassFactory.newInstance(this.clientClass, {
+      canvasItem: this
+    });
+
     if (!canvas) {
-      return isc.Label.create({contents:'Invalid Type ' + this.clientClass, width: 1, height: 1, overflow: 'visible', autoDraw: false});
+      return isc.Label.create({
+        contents: 'Invalid Type ' + this.clientClass,
+        width: 1,
+        height: 1,
+        overflow: 'visible',
+        autoDraw: false
+      });
     }
-    
+
     if (canvas.noTitle) {
       this.showTitle = false;
     }
-    
+
     if (this.form.itemChanged && canvas.onItemChanged) {
       canvas.observe(this.form, 'itemChanged', 'observer.onItemChanged(observed)');
     }
 
     return canvas;
   },
-  
-  redrawing: function() {
+
+  redrawing: function () {
     if (this.canvas.redrawingItem) {
       this.canvas.redrawingItem();
     }
@@ -72,18 +80,18 @@ isc.OBTruncAddMinusDisplay.addProperties({
   height: 1,
   width: 1,
   overflow: 'visible',
-  
-  setRecord: function(record) {
+
+  setRecord: function (record) {
     var fld = this.grid.getField(this.fieldName),
-      val = record[this.fieldName];
+        val = record[this.fieldName];
     if (fld && fld.type && isc.SimpleType.getType(fld.type).normalDisplayFormatter) {
       this.showValue(isc.SimpleType.getType(fld.type).normalDisplayFormatter(val), val);
     } else {
       this.showValue(String(record[this.fieldName]));
     }
   },
-  
-  showValue: function(displayValue, dataValue, form, item) {
+
+  showValue: function (displayValue, dataValue, form, item) {
     if (!dataValue || displayValue === '0') {
       this.setContents(displayValue);
     } else if (!displayValue) {
@@ -94,5 +102,4 @@ isc.OBTruncAddMinusDisplay.addProperties({
       this.setContents('-' + displayValue);
     }
   }
-  
 });

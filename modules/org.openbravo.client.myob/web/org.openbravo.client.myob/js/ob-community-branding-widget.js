@@ -13,7 +13,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -27,12 +27,12 @@ isc.defineClass('OBCommunityBrandingWidget', isc.OBWidget).addProperties({
   versionText: OB.Application.versionDescription,
   headerLabel: null,
 
-  createWindowContents: function(){
+  createWindowContents: function () {
     var layout = isc.VStack.create({
-      height:'100%',
-      width:'100%',
-      styleName:'',
-      resizeTo: function() {
+      height: '100%',
+      width: '100%',
+      styleName: '',
+      resizeTo: function () {
         var emptySize;
         if (this.separator) {
           emptySize = Math.round((this.width - 155) / 2);
@@ -42,7 +42,7 @@ isc.defineClass('OBCommunityBrandingWidget', isc.OBWidget).addProperties({
       }
     });
 
-    if(!OB.Application.brandingWidget) {
+    if (!OB.Application.brandingWidget) {
       // set a global pointer to ourselves
       OB.Application.brandingWidget = this;
     }
@@ -51,10 +51,10 @@ isc.defineClass('OBCommunityBrandingWidget', isc.OBWidget).addProperties({
 
     var post = {
       'eventType': 'GET_COMMUNITY_BRANDING_URL',
-      'context' : {
-        'adminMode' : 'false'
+      'context': {
+        'adminMode': 'false'
       },
-      'widgets' : []
+      'widgets': []
     };
 
     var me = this;
@@ -63,71 +63,80 @@ isc.defineClass('OBCommunityBrandingWidget', isc.OBWidget).addProperties({
      * The following LAB.wait(callback) call does not reliably call the callout in case no
      * internet connection is present (so schedule timeout to use local fallback content after 10s)
      */
-    var timerNoInternet = setTimeout(function() {
+    var timerNoInternet = setTimeout(function () {
       me.setOBContent(false);
     }, 10000);
-    $LAB.script(document.location.protocol + OB.Application.butlerUtilsUrl).wait(function() {
+    $LAB.script(document.location.protocol + OB.Application.butlerUtilsUrl).wait(function () {
       haveInternet = (typeof internetConnection !== 'undefined');
       // callback did fire so clear timer as its no longer needed
       clearTimeout(timerNoInternet);
 
       if (haveInternet) {
-        OB.RemoteCallManager.call('org.openbravo.client.myob.MyOpenbravoActionHandler', post, {}, function(response, data, request) {
+        OB.RemoteCallManager.call('org.openbravo.client.myob.MyOpenbravoActionHandler', post, {}, function (response, data, request) {
           var communityBrandingUrl = data.url;
           me.setOBContent(haveInternet, communityBrandingUrl);
         });
       } else {
-          me.setOBContent(false);
-        }
+        me.setOBContent(false);
+      }
     });
 
     return layout;
   },
 
-  setOBContent: function(haveInternet, communityBrandingUrl) {
-    var url, params = {}, emptySize, toolTip, purposeStack;
+  setOBContent: function (haveInternet, communityBrandingUrl) {
+    var url, params = {},
+        emptySize, toolTip, purposeStack;
 
     if (haveInternet) {
       url = document.location.protocol + communityBrandingUrl;
     } else {
       url = OB.Application.contextUrl + OB.Application.communityBrandingStaticUrl;
-      params = {'uimode': 'MyOB'};
+      params = {
+        'uimode': 'MyOB'
+      };
     }
 
     var layout = this.windowContents;
 
     // remove Loading...
-    var loadingBar = layout.members[this.windowContents.members.length-1];
+    var loadingBar = layout.members[this.windowContents.members.length - 1];
 
-    this.versionLabel = isc.Label.create({contents: this.versionText,
+    this.versionLabel = isc.Label.create({
+      contents: this.versionText,
       height: '22px',
-      width:'100%',
+      width: '100%',
       styleName: 'OBWidgetCommunityBranding',
       align: 'center'
     });
 
     var content = isc.HTMLFlow.create({
-        contentsType: 'page',
-        contentsURL: url,
-        contentsURLParams: params,
-        height: '324px'
-      });
+      contentsType: 'page',
+      contentsURL: url,
+      contentsURLParams: params,
+      height: '324px'
+    });
 
-    toolTip = isc.Label.create({contents: '',
+    toolTip = isc.Label.create({
+      contents: '',
       height: '5px',
-      width:'155px',
+      width: '155px',
       styleName: this.getPurposeStyleClass(),
-      prompt:OB.I18N.getLabel('OBKMO_InstancePurpose')
+      prompt: OB.I18N.getLabel('OBKMO_InstancePurpose')
     });
 
     emptySize = (layout.width - 155) / 2;
 
-    layout.separator = isc.Label.create({contents: '',
+    layout.separator = isc.Label.create({
+      contents: '',
       height: '5px',
       width: emptySize
     });
 
-    purposeStack = isc.HStack.create({height:'24px', width:'100%'});
+    purposeStack = isc.HStack.create({
+      height: '24px',
+      width: '100%'
+    });
     purposeStack.addMembers(layout.separator);
     purposeStack.addMembers(toolTip);
     purposeStack.addMembers(layout.separator);
@@ -139,16 +148,16 @@ isc.defineClass('OBCommunityBrandingWidget', isc.OBWidget).addProperties({
     layout.addMember(content);
   },
 
-  update: function() {
+  update: function () {
     //FIXME: too expensive
     OB.MyOB.reloadWidgets();
-//    this.versionLabel.clear();
-//    this.versionLabel.contents = this.versionText;
-//    this.versionLabel.styleName = this.getPurposeStyleClass();
-//    this.versionLabel.draw();
+    //    this.versionLabel.clear();
+    //    this.versionLabel.contents = this.versionText;
+    //    this.versionLabel.styleName = this.getPurposeStyleClass();
+    //    this.versionLabel.draw();
   },
 
-  getPurposeStyleClass: function(){
+  getPurposeStyleClass: function () {
     var purposeCode = OB.Application.purpose;
     if (purposeCode === 'D') {
       return 'OBWidgetCommunityBrandingDevelopment';
@@ -164,25 +173,25 @@ isc.defineClass('OBCommunityBrandingWidget', isc.OBWidget).addProperties({
   },
 
   confirmedClosePortlet: function (ok) {
-  
-   if (!ok) {
-     this.Super('confirmedClosePortlet', arguments);
-     return;
-   }
 
-   if(OB.Application.brandingWidget !== this) {
-     this.Super('confirmedClosePortlet', arguments);
-     return;
-   }
+    if (!ok) {
+      this.Super('confirmedClosePortlet', arguments);
+      return;
+    }
 
-    if(OB.Application.licenseType === 'C' || OB.Application.isTrial || OB.Application.isGolden) {
+    if (OB.Application.brandingWidget !== this) {
+      this.Super('confirmedClosePortlet', arguments);
+      return;
+    }
+
+    if (OB.Application.licenseType === 'C' || OB.Application.isTrial || OB.Application.isGolden) {
       isc.warn(OB.I18N.getLabel('OBUIAPP_ActivateMessage', [OB.I18N.getLabel('OBKMO_ActivateMessage')]), {
-          isModal: true,
-          showModalMask: true,
-          toolbarButtons: [isc.Dialog.OK]
+        isModal: true,
+        showModalMask: true,
+        toolbarButtons: [isc.Dialog.OK]
       });
       return;
     }
-    this.Super('confirmedClosePortlet', arguments);	
+    this.Super('confirmedClosePortlet', arguments);
   }
 });

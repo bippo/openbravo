@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -30,7 +30,6 @@
  =======================================================================*/
 // note main layout styling is done a bit differently 
 // as this needs to be set when the layout gets created
-
 // Styling of the main layout containing everything
 OB.Styles.TopLayout = {
   width: '100%',
@@ -73,7 +72,12 @@ isc.OBStandardWindow.addProperties({
 OB.Styles.LoadingPrompt = {
   mainLayoutStyleName: 'OBLoadingPromptModalMask',
   loadingLayoutStyleName: 'OBLoadingPromptLabel',
-  loadingImage: {src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/system/windowLoading.gif', width: 220, height:16}  /* Generated @ http://www.ajaxload.info/ */ /* Indicator type: 'Bar' - Background color: #7F7F7F - Transparent background - Foreground color: #FFFFFF */
+  loadingImage: {
+    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/system/windowLoading.gif',
+    width: 220,
+    height: 16
+  } /* Generated @ http://www.ajaxload.info/ */
+  /* Indicator type: 'Bar' - Background color: #7F7F7F - Transparent background - Foreground color: #FFFFFF */
 };
 
 /* =====================================================================
@@ -122,8 +126,10 @@ isc.confirm = function (message, callback, properties) {
 // loading prompt
 // note the loading image is set in the index.html
 isc._orginal_showPrompt = isc.showPrompt;
-isc.showPrompt = function(prompt){
-  var width, height, top, left, props = {}, dialog = isc.Dialog.Prompt, modalTarget;
+isc.showPrompt = function (prompt) {
+  var width, height, top, left, props = {},
+      dialog = isc.Dialog.Prompt,
+      modalTarget;
   if (OB.OBModalTarget) {
     props = {
       showEdges: false,
@@ -137,7 +143,7 @@ isc.showPrompt = function(prompt){
     modalTarget = OB.OBModalTarget;
     props.modalTarget = modalTarget;
     isc.Dialog.OBModalTarget = null;
-    
+
     // find the top/left position, center in the modalTarget
     width = dialog.getVisibleWidth();
     height = dialog.getVisibleHeight();
@@ -147,7 +153,6 @@ isc.showPrompt = function(prompt){
     props.top = Math.max(Math.round(top), 0);
     props.autoCenter = false;
   }
-  
+
   isc._orginal_showPrompt(prompt, props);
 };
-

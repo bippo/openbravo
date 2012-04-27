@@ -11,27 +11,25 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
 // it is often nicer to create a subclass than just changing 
 // the properties of the ListGrid. A subclass can be re-used.
-
 // OBTestSelectionGrid: The first type is the listgrid shown in the top
 // OBTestSelectionLayout: is the layout showing the grid and the button below it
-
 isc.ClassFactory.defineClass('OBTestSelectionGrid', isc.ListGrid);
 
 isc.OBTestSelectionGrid.addProperties({
   width: '100%',
-  height: '90%',  // give the button some space
-  
+  height: '90%',
+  // give the button some space
   // some common settings
-  showFilterEditor: true,  
+  showFilterEditor: true,
   filterOnKeypress: true,
-  
+
   canEdit: false,
   alternateRecordStyles: true,
   canReorderFields: true,
@@ -39,27 +37,28 @@ isc.OBTestSelectionGrid.addProperties({
   canGroupBy: false,
   selectionAppearance: 'checkbox',
   canAutoFitFields: false,
-  
+
   autoFitFieldWidths: true,
   autoFitWidthApproach: 'title',
-  
+
   // as all the data is loaded on the client 
   // let's do these things here
   dataProperties: {
     useClientFiltering: true,
     useClientSorting: true
   },
-  
+
   // property set by creator or when instantiated
   // is the server side actionhandler providing the data
   // and executing the action
   actionHandler: null,
-  
-  initWidget: function(){
-    var me = this;
-    
+
+  initWidget: function () {
+    var me = this,
+        callBack;
+
     // the data request calls this method, which sets the data in the grid
-    var callBack = function(response, data, request){
+    callBack = function (response, data, request) {
       me.dataSource = isc.DataSource.create({
         clientOnly: true,
         fields: me.fields,
@@ -67,17 +66,17 @@ isc.OBTestSelectionGrid.addProperties({
       });
       me.filterData();
     };
-    
+
     // request the data, note the _command value
     OB.RemoteCallManager.call(this.actionHandler, {}, {
       '_command': 'data'
     }, callBack);
-    
+
     var result = this.Super("initWidget", arguments);
   },
-  
+
   // enable/disable the button on selection
-  selectionChanged: function(){
+  selectionChanged: function () {
     this.selectionLayout.selectionUpdated(this.getSelection().getLength());
   }
 });
@@ -91,45 +90,47 @@ isc.OBTestSelectionLayout.addProperties({
   width: 600,
   height: 300,
   defaultLayoutAlign: 'center',
-  
+
   gridProperties: null,
   buttonProperties: null,
-  
+
   actionHandler: null,
-  
+
   selectionGrid: null,
   selectionButton: null,
-  initWidget: function(){
+  initWidget: function () {
+    var buttonClickCallback;
+
     // note the actionHandler needs to be set in the grid when it gets created
     // read the SC documentation on what isc.addProperties does    
     this.selectionGrid = isc.OBTestSelectionGrid.create(isc.addProperties(this.gridProperties, {
       actionHandler: this.actionHandler
     }));
-    
+
     // tell the selection grid who is its owner
     this.selectionGrid.selectionLayout = this;
     this.addMembers(this.selectionGrid);
-    
+
     // make some vertical space
     this.addMembers(isc.LayoutSpacer.create({
       height: 10
     }));
-    
+
     // create the action button    
     this.selectionButton = isc.Button.create(this.buttonProperties);
     this.selectionButton.selectionLayout = this;
     this.selectionButton.setDisabled(true);
     this.addMembers(this.selectionButton);
-    
+
     // this function is called after the data has been processed
     // the message is set on the server
-    var buttonClickCallback = function(resp, data, req){
+    buttonClickCallback = function (resp, data, req) {
       isc.say(data.message);
     };
-    
+
     // note it can make sense to make a process button class
     // which gets the name of the action handler to call
-    this.selectionButton.click = function(){
+    this.selectionButton.click = function () {
       OB.RemoteCallManager.call(this.actionHandler, {
         selectedRecords: this.selectionLayout.selectionGrid.getSelection()
       }, {
@@ -140,12 +141,12 @@ isc.OBTestSelectionLayout.addProperties({
     };
     this.selectionButton.actionHandler = this.actionHandler;
     this.Super('initWidget', arguments);
-    
+
     this.selectionGrid.focusInFilterEditor();
   },
-  
+
   // disable or enable the button
-  selectionUpdated: function(selectedCount){
+  selectionUpdated: function (selectedCount) {
     this.selectionButton.setDisabled(selectedCount === 0);
   }
 });

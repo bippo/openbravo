@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -646,7 +646,7 @@ public class Wad extends DefaultHandler {
       if (filters != null && filters.length > 0) {
         filterParams = new WadData[filters.length][];
         for (int i = 0; i < filters.length; i++) {
-          filterParams[i] = WadData.selectParams(pool, "F", filters[i].classname);
+          filterParams[i] = WadData.selectParams(pool, "F", filters[i].classname, filters[i].id);
         }
       } else
         filterParams = new WadData[0][0];
@@ -668,7 +668,7 @@ public class Wad extends DefaultHandler {
           if (servlets[i].loadonstartup != null && !servlets[i].loadonstartup.equals(""))
             servlets[i].loadonstartup = "<load-on-startup>" + servlets[i].loadonstartup
                 + "</load-on-startup>";
-          servletParams[i] = WadData.selectParams(pool, "S", servlets[i].classname);
+          servletParams[i] = WadData.selectParams(pool, "S", servlets[i].classname, servlets[i].id);
         }
       } else
         servletParams = new WadData[0][0];
@@ -1569,7 +1569,7 @@ public class Wad extends DefaultHandler {
     }
 
     final String[] discard = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-        "", "", "", "", "hasReference", "", "", "", "", "", "", "", "hasOrgKey", "", "", "" };
+        "", "", "", "", "hasReference", "", "", "", "", "", "", "", "hasOrgKey", "", "", "", "" };
 
     if (parentsFieldsData == null || parentsFieldsData.length == 0) {
       discard[0] = "parent"; // remove the parent tags
@@ -1653,6 +1653,13 @@ public class Wad extends DefaultHandler {
         && (actBtnsJava == null || actBtnsJava.length == 0)) {
       // No action buttons, service method is not neccessary
       discard[31] = "discardService";
+    }
+
+    if (parentsFieldsData.length > 0) {
+      String parentTableName = WadData.tabTableName(pool, parentsFieldsData[0].adTabId);
+      if (parentTableName != null && parentTableName.toUpperCase().endsWith("_ACCESS")) {
+        discard[33] = "parentAccess";
+      }
     }
 
     xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/wad/javasource", discard)

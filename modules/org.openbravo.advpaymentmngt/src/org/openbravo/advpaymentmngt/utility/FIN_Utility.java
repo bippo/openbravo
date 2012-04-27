@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -49,8 +49,9 @@ import org.openbravo.dal.security.OrganizationStructureProvider;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
-import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.FieldProviderFactory;
+import org.openbravo.erpCommon.utility.OBDateUtils;
+import org.openbravo.erpCommon.utility.OBMessageUtils;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.ad.utility.Sequence;
@@ -67,7 +68,6 @@ import org.openbravo.model.financialmgmt.payment.FIN_PaymentSchedule;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentScheduleDetail;
 import org.openbravo.model.financialmgmt.payment.FinAccPaymentMethod;
 import org.openbravo.service.db.CallStoredProcedure;
-import org.openbravo.service.db.DalConnectionProvider;
 import org.openbravo.utils.Replace;
 
 public class FIN_Utility {
@@ -76,51 +76,26 @@ public class FIN_Utility {
   private static AdvPaymentMngtDao dao;
 
   /**
-   * Parses the string to a date using the dateFormat.java property.
-   * 
-   * @param strDate
-   *          String containing the date
-   * @return the date
+   * @see OBDateUtils#getDate(String)
    */
   public static Date getDate(String strDate) {
-    if (strDate.equals(""))
-      return null;
     try {
-      String dateFormat = OBPropertiesProvider.getInstance().getOpenbravoProperties()
-          .getProperty("dateFormat.java");
-      SimpleDateFormat outputFormat = new SimpleDateFormat(dateFormat);
-      return (outputFormat.parse(strDate));
+      return OBDateUtils.getDate(strDate);
     } catch (ParseException e) {
-      log4j.error(e.getMessage(), e);
+      log4j.error("Error parsing date", e);
       return null;
     }
+
   }
 
   /**
-   * Parses the string to a date with time using the dateTimeFormat defined in Openbravo.properties.
-   * If the string parameter does not have time include it will add the current hours, minutes and
-   * seconds.
-   * 
-   * @param strDate
-   *          String date.
-   * @return the date with time.
+   * @see OBDateUtils#getDateTime(String)
    */
   public static Date getDateTime(String strDate) {
-    String dateTime = strDate;
-    Calendar cal = Calendar.getInstance();
-    if (!strDate.contains(":")) {
-      dateTime = strDate + " " + cal.get(Calendar.HOUR_OF_DAY) + ":" + cal.get(Calendar.MINUTE)
-          + ":" + cal.get(Calendar.SECOND);
-    }
-    if (dateTime.equals(""))
-      return null;
     try {
-      String dateFormat = OBPropertiesProvider.getInstance().getOpenbravoProperties()
-          .getProperty("dateTimeFormat.java");
-      SimpleDateFormat outputFormat = new SimpleDateFormat(dateFormat);
-      return (outputFormat.parse(dateTime));
+      return OBDateUtils.getDateTime(strDate);
     } catch (ParseException e) {
-      log4j.error(e.getMessage(), e);
+      log4j.error("Error parsing date", e);
       return null;
     }
   }
@@ -254,20 +229,14 @@ public class FIN_Utility {
 
   /**
    * Creates a comma separated string with the Id's of the Set of Strings.
-   * 
+   * This method is deprecated as it has been added to Utility (core)
    * @param set
    *          Set of Strings
    * @return Comma separated string of Id's
    */
+  @Deprecated 
   public static String getInStrSet(Set<String> set) {
-    StringBuilder strInList = new StringBuilder();
-    for (String string : set) {
-      if (strInList.length() == 0)
-        strInList.append("'" + string + "'");
-      else
-        strInList.append(", '" + string + "'");
-    }
-    return strInList.toString();
+    return Utility.getInStrSet(set);
   }
 
   /**
@@ -569,10 +538,21 @@ public class FIN_Utility {
    */
   public static Long getDaysToDue(Date date) {
     final Date now = DateUtils.truncate(new Date(), Calendar.DATE);
+    return getDaysBetween(now, date);
+  }
+
+  /**
+   * Returns the amount of days between two given dates
+   * 
+   * @param endDate
+   * @param beginDate
+   * @return
+   */
+  public static Long getDaysBetween(Date beginDate, Date endDate) {
     final TimeZone tz = TimeZone.getDefault();
-    final long nowDstOffset = (tz.inDaylightTime(now)) ? tz.getDSTSavings() : 0L;
-    final long dateDstOffset = (tz.inDaylightTime(date)) ? tz.getDSTSavings() : 0L;
-    return (date.getTime() + dateDstOffset - now.getTime() - nowDstOffset)
+    final long nowDstOffset = (tz.inDaylightTime(beginDate)) ? tz.getDSTSavings() : 0L;
+    final long dateDstOffset = (tz.inDaylightTime(endDate)) ? tz.getDSTSavings() : 0L;
+    return (endDate.getTime() + dateDstOffset - beginDate.getTime() - nowDstOffset)
         / DateUtils.MILLIS_PER_DAY;
   }
 
@@ -597,17 +577,10 @@ public class FIN_Utility {
   }
 
   /**
-   * Translate the given code into some message from the application dictionary. It searches first
-   * in AD_Message table and if there are not matchings then in AD_Element table.
-   * 
-   * @param strCode
-   *          String with the search key to search.
-   * @return String with the translated message.
+   * @see OBMessageUtils#messageBD(String)
    */
   public static String messageBD(String strCode) {
-    String language = OBContext.getOBContext().getLanguage().getLanguage();
-    ConnectionProvider conn = new DalConnectionProvider(false);
-    return Utility.messageBD(conn, strCode, language);
+    return OBMessageUtils.messageBD(strCode);
   }
 
   /**

@@ -98,6 +98,11 @@
     where ad_tab_id = v_Record_ID
       and m.ad_module_id = t.ad_module_id
       and ISINDEVELOPMENT ='Y';
+
+    select max(seqno)
+      into v_SeqNoCounter
+      from ad_field
+      where ad_field.ad_tab_id = v_Record_ID;
       
     if v_module_id is null then
       select max(ad_module_id)
@@ -128,8 +133,10 @@
     else
       v_GridSeqNo := 0;
     end if;
-    
-    v_SeqNoCounter := 20; --Reserve 10 for Organization
+
+    if v_SeqNoCounter < 20 OR v_SeqNoCounter is NULL then
+      v_SeqNoCounter := 10; --Reserve 10 for Organization. The field in the first iteration will be 20 (line 189)
+    end if;
     
     FOR Cur_Column IN(-- added by Pablo Sarobe
     SELECT c.Columnname, c.Name, c.Description, c.Help, c.AD_Column_ID, c.FieldLength, t.tablename, c.AD_Module_ID

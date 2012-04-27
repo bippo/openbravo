@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -23,15 +23,26 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.model.Entity;
+import org.openbravo.base.model.ModelProvider;
 import org.openbravo.base.model.Property;
 import org.openbravo.base.model.domaintype.DateDomainType;
 import org.openbravo.base.model.domaintype.DatetimeDomainType;
 import org.openbravo.base.model.domaintype.EnumerateDomainType;
+import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.structure.BaseOBObject;
+import org.openbravo.client.kernel.KernelUtils;
 import org.openbravo.dal.core.DalUtil;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.dal.service.OBQuery;
+import org.openbravo.model.ad.ui.Field;
+import org.openbravo.model.ad.ui.Tab;
+import org.openbravo.service.json.DataResolvingMode;
+import org.openbravo.service.json.DataToJsonConverter;
 import org.openbravo.service.json.DefaultJsonDataService;
 import org.openbravo.service.json.DefaultJsonDataService.QueryResultWriter;
 import org.openbravo.service.json.JsonConstants;
@@ -47,6 +58,7 @@ import org.openbravo.service.json.JsonConstants;
  */
 public class DefaultDataSourceService extends BaseDataSourceService {
   private static final long serialVersionUID = 1L;
+  private static final Logger log4j = Logger.getLogger(DefaultDataSourceService.class);
 
   /*
    * (non-Javadoc)
@@ -145,6 +157,7 @@ public class DefaultDataSourceService extends BaseDataSourceService {
     OBContext.setAdminMode(true);
     try {
       parameters.put(JsonConstants.ENTITYNAME, getEntity().getName());
+      testAccessPermissions(parameters, content);
       return DefaultJsonDataService.getInstance().add(parameters, content);
     } finally {
       OBContext.restorePreviousMode();
@@ -161,10 +174,102 @@ public class DefaultDataSourceService extends BaseDataSourceService {
     OBContext.setAdminMode(true);
     try {
       parameters.put(JsonConstants.ENTITYNAME, getEntity().getName());
+      testAccessPermissions(parameters, content);
       return DefaultJsonDataService.getInstance().update(parameters, content);
     } finally {
       OBContext.restorePreviousMode();
     }
+  }
+
+  private void testAccessPermissions(Map<String, String> parameters, String content) {
+    try {
+      if (parameters.get("tabId") == null) {
+        return;
+      }
+      final Tab tab = OBDal.getInstance().get(Tab.class, parameters.get("tabId"));
+      if (tab == null) {
+        return;
+      }
+      final String roleId = OBContext.getOBContext().getRole().getId();
+
+      final JSONObject jsonObject = new JSONObject(content);
+      if (content == null) {
+        return;
+      }
+
+      final JSONObject data = jsonObject.getJSONObject("data");
+      String id = null;
+      if (data.has(JsonConstants.ID)) {
+        id = data.getString(JsonConstants.ID);
+      }
+      // if there is a new indicator then nullify the id again to treat the object has new
+      final boolean isNew = data.has(JsonConstants.NEW_INDICATOR)
+          && data.getBoolean(JsonConstants.NEW_INDICATOR);
+      if (isNew) {
+        id = null;
+      }
+
+      String entityName = null;
+      if (!data.has(JsonConstants.ENTITYNAME) && parameters.containsKey(JsonConstants.ENTITYNAME)) {
+        data.put(JsonConstants.ENTITYNAME, parameters.get(JsonConstants.ENTITYNAME));
+      }
+      if (data.has(JsonConstants.ENTITYNAME)) {
+        entityName = data.getString(JsonConstants.ENTITYNAME);
+      }
+      if (entityName == null) {
+        throw new IllegalArgumentException("Entity name not defined in jsonobject " + data);
+      }
+      final DataToJsonConverter toJsonConverter = OBProvider.getInstance().get(
+          DataToJsonConverter.class);
+      final BaseOBObject oldDataObject = id == null ? null : OBDal.getInstance()
+          .get(entityName, id);
+      final JSONObject oldData = oldDataObject == null ? null : toJsonConverter.toJsonObject(
+          oldDataObject, DataResolvingMode.FULL);
+      final OBQuery<Field> fieldQuery = OBDal
+          .getInstance()
+          .createQuery(
+              Field.class,
+              "as f where f.tab.id = :tabId"
+                  + " and (exists (from f.aDFieldAccessList fa where fa.tabAccess.windowAccess.role.id = :roleId and fa.editableField = false and fa.ischeckonsave = true)"
+                  + "      or (not exists (from f.aDFieldAccessList fa where fa.tabAccess.windowAccess.role.id = :roleId)"
+                  + "          and exists (from f.tab.aDTabAccessList ta where ta.windowAccess.role.id = :roleId and ta.editableField = false)"
+                  + "          or not exists (from f.tab.aDTabAccessList  ta where  ta.windowAccess.role.id = :roleId)"
+                  + "          and exists (from ADWindowAccess wa where f.tab.window = wa.window and wa.role.id = :roleId and wa.editableField = false)))");
+      fieldQuery.setNamedParameter("tabId", tab.getId());
+      fieldQuery.setNamedParameter("roleId", roleId);
+      final Entity entity = ModelProvider.getInstance().getEntity(entityName);
+      for (Field f : fieldQuery.list()) {
+        String key = entity.getPropertyByColumnName(f.getColumn().getDBColumnName().toLowerCase())
+            .getName();
+        if (data.has(key)) {
+          String newValue = getValue(data, key);
+          String oldValue = getValue(oldData, key);
+          if (oldValue == null && newValue != null || oldValue != null
+              && !oldValue.equals(newValue)) {
+            throw new RuntimeException(KernelUtils.getInstance().getI18N(
+                "OBSERDS_RoleHasNoFieldAccess",
+                new String[] { OBContext.getOBContext().getRole().getName(), f.getName() }));
+          }
+        }
+      }
+
+    } catch (JSONException e) {
+      log4j.error("Unable to test access", e);
+      throw new RuntimeException("Unable to test access", e);
+    }
+  }
+
+  private static final String getValue(JSONObject jsonObject, String prop) throws JSONException {
+    if (jsonObject == null)
+      return null;
+    if (!jsonObject.has(prop))
+      return null;
+    Object val = jsonObject.get(prop);
+    if (JSONObject.NULL.equals(val) || val == null || val instanceof String
+        && ((String) val).trim().equals(""))
+      return null;
+    else
+      return val.toString();
   }
 
   public List<DataSourceProperty> getDataSourceProperties(Map<String, Object> parameters) {

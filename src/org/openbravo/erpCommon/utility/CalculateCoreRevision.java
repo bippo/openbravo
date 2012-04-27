@@ -29,6 +29,7 @@ import org.apache.tools.ant.Task;
  * 
  * 
  */
+@Deprecated
 public class CalculateCoreRevision extends Task {
   private String revision;
   private String hgRevNo;

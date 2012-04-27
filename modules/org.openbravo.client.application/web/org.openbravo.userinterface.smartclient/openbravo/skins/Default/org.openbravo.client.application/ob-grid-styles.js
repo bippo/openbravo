@@ -11,28 +11,39 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 // Styling properties for a generic grid (ob-grid.js)
 isc.OBGrid.addProperties({
-  editFailedBaseStyle: null, // is done through the additional csstext
+  editFailedBaseStyle: null,
+  // is done through the additional csstext
   editFailedCSSText: 'background-color: red; border-right-color: red; border-bottom-color: red;',
   bodyStyleName: 'OBGridBody',
   baseStyle: 'OBGridCell',
-  baseStyleEdit: 'OBGridCellEdit', // for use in ob-view-grid.js while editing a cell
+  baseStyleEdit: 'OBGridCellEdit',
+  // for use in ob-view-grid.js while editing a cell
   recordStyleError: 'OBGridCellError',
   recordStyleSelectedViewInActive: 'OBGridCellSelectedViewInactive',
   headerBaseStyle: 'OBGridHeaderCell',
   headerBarStyle: 'OBGridHeaderBar',
   headerTitleStyle: 'OBGridHeaderCellTitle',
-  cellPadding: 0, /* Set in the CSS */
+  cellPadding: 0,
+  /* Set in the CSS */
   cellAlign: 'center',
-  sortAscendingImage:{src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridHeader_sortAscending.png', width:7, height:11},
-  sortDescendingImage:{src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridHeader_sortDescending.png', width:7, height:11},
+  sortAscendingImage: {
+    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridHeader_sortAscending.png',
+    width: 7,
+    height: 11
+  },
+  sortDescendingImage: {
+    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridHeader_sortDescending.png',
+    width: 7,
+    height: 11
+  },
   headerMenuButtonConstructor: 'OBGridHeaderImgButton',
   headerButtonConstructor: 'ImgButton',
   headerMenuButtonWidth: 17,
@@ -41,28 +52,29 @@ isc.OBGrid.addProperties({
   editLinkColumnWidth: 58,
 
   summaryRowConstructor: 'OBGridSummary',
-  summaryRowDefaults:{
-    showRollOver:false
+  summaryRowDefaults: {
+    showRollOver: false
   },
   summaryRowHeight: 22,
   summaryRowStyle: 'OBGridSummaryCell',
   summaryRowStyle_sum: 'OBGridSummaryCell_sum',
   summaryRowStyle_avg: 'OBGridSummaryCell_avg',
   summaryRowStyle_count: 'OBGridSummaryCell_count',
-  
+
   progressIconDefaults: {
-      width: 16,
-      height: 16,
-      visibility: 'hidden',
-      src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridButton-progress.gif'  /* Generated @ http://www.ajaxload.info/ */ /* Indicator type: 'Snake' - Background color: #FFE1C0 - Transparent background - Foreground color: #333333 */
+    width: 16,
+    height: 16,
+    visibility: 'hidden',
+    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridButton-progress.gif' /* Generated @ http://www.ajaxload.info/ */
+    /* Indicator type: 'Snake' - Background color: #FFE1C0 - Transparent background - Foreground color: #333333 */
   }
 });
 
 isc.OBGrid.addClassProperties({
-  
+
   defaultColumnWidths: [50, 100, 200],
 
-  getDefaultColumnWidth: function(length) {
+  getDefaultColumnWidth: function (length) {
     if (length <= 1) {
       return isc.OBGrid.defaultColumnWidths[0];
     } else if (length <= 30) {
@@ -83,7 +95,7 @@ isc.OBGrid.changeDefaults('filterEditorDefaults', {
 isc.OBGrid.changeDefaults('sorterDefaults', {
   // baseStyle / titleStyle is auto-assigned from headerBaseStyle
   showFocused: false,
-//  src: '[SKIN]ListGrid/header.png',
+  //  src: '[SKIN]ListGrid/header.png',
   src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridHeader_bg.png',
   baseStyle: 'OBGridSorterButton'
 });
@@ -120,13 +132,14 @@ isc.OBGridToolStripIcon.addProperties({
   showFocused: false,
   showFocusedAsOver: true,
   baseStyle: 'OBGridToolStripIcon',
-  genericIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridButton.png', /* Can be: edit - form - cancel - save */
-  initWidgetStyle: function() {
+  genericIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/grid/gridButton.png',
+  /* Can be: edit - form - cancel - save */
+  initWidgetStyle: function () {
     var fileExt = this.genericIconSrc.substring(this.genericIconSrc.lastIndexOf('.'), this.genericIconSrc.length);
     var filePath = this.genericIconSrc.substring(0, this.genericIconSrc.length - fileExt.length) + '-';
     this.setSrc(filePath + this.buttonType + fileExt);
   },
-  setErrorState: function(error) {
+  setErrorState: function (error) {
     var fileExt = this.genericIconSrc.substring(this.genericIconSrc.lastIndexOf('.'), this.genericIconSrc.length);
     var filePath = this.genericIconSrc.substring(0, this.genericIconSrc.length - fileExt.length) + '-';
     if (error) {

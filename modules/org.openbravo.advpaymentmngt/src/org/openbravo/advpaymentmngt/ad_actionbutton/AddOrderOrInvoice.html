@@ -12,7 +12,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -127,14 +127,22 @@ function loadGridList() {
 }
 </script>
 <script language="JavaScript" type="text/javascript">
+function setTextContent(element, text) {
+  while (element.firstChild!==null) {
+    element.removeChild(element.firstChild); // remove all existing content
+  }
+  var newdiv = document.createElement("div");
+  newdiv.innerHTML = text.substring(5, text.length-6);
+  element.appendChild(newdiv);
+}
 function loadGLItemList() {
   var table = document.getElementById('sectionGLItemGrid'),
       glitemCount = OB.APRM.APFT_GLItems.length,
       glitemAmount = 0,
       glitemDescLength = 20, glitemDescCont = "...",
-      cellCount, row, cellGLItemDesc, cellGLITemReceivedInAmt, cellGLITemPaidOutAmt, cellRemoveButton, i, textNode, glAcctDimsDesc, acctDim, cellGLItemDim;
+      cellCount, row, cellGLItemDesc, cellGLITemReceivedInAmt, cellGLITemPaidOutAmt, cellRemoveButton, i, textNode, glAcctDimsDesc, acctDim, cellGLItemDim, cellText;
 
-  table.innerHTML = '';
+  setTextContent(table,'');
   if (glitemCount === 0) {
     OB.APRM.HasGLItems = false;
     frm.inpGLSumAmount.value = '0';
@@ -194,7 +202,7 @@ function loadGLItemList() {
       glitemAmount = subtract(applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemPaidOutAmt), applyFormatJSToOBMasked(OB.APRM.APFT_GLItems[i].glitemReceivedInAmt));
     }
     cellRemoveButton = row.insertCell(cellCount);
-    cellRemoveButton.innerHTML = '<div><button type="button" id="buttonRemoveGLItem"'
+    cellText = '<div><button type="button" id="buttonRemoveGLItem"'
         + ' class="ButtonLink_focus" onclick="removeGLItem(' + i + ', ' + applyFormatOBMaskedToJS(glitemAmount) + ');return false;"'
         + ' onfocus="buttonEvent(\'onfocus\', this); window.status=\'OK\'; return true;"'
         + ' onblur="buttonEvent(\'onblur\', this);"'
@@ -208,6 +216,7 @@ function loadGLItemList() {
         + '  <table class="Button"><tr><td>'
         + '    <img alt="Remove" title="Remove" src="../web/org.openbravo.advpaymentmngt/images/GLItemGridCancel-xButt.png" id="imgButtonRemove" border="0"/></td>'
         + '  </tr></table></button></div>';
+    setTextContent(cellRemoveButton, cellText);
   }
   updateTotal();
 }
@@ -331,6 +340,7 @@ function validate(action) {
       }
       if (!validateSelectedPendingPayments(true, selectedAction)) { return false; }
     }
+    OB.APRM.APFT_GLItems = OB.APRM.APFT_GLItems || [];
   }
   return true;
 }

@@ -46,8 +46,36 @@
            AND w.AD_Role_ID = ?
            AND t.AD_Tab_ID = ?
            AND w.isReadWrite = 'N'
-           AND w.isActive='Y') t
+           AND w.isActive='Y'
+           AND NOT EXISTS (
+               SELECT 1 FROM AD_Tab_Access ta 
+               WHERE ta.IsActive = 'Y' 
+               AND ta.AD_Window_Access_ID = w.AD_Window_Access_ID
+               AND ta.AD_Tab_ID = t.AD_Tab_ID
+               and (ta.isReadWrite = 'Y'
+                 OR  EXISTS (
+                     SELECT 1 FROM AD_Field_Access fa 
+                     WHERE fa.IsActive = 'Y' 
+                     AND fa.AD_Tab_Access_ID = ta.AD_Tab_Access_ID
+                     AND fa.isReadWrite = 'Y')))
+        UNION
+        SELECT 1
+          FROM AD_Window_Access w,
+               AD_Tab_Access t
+         WHERE w.IsActive='Y'
+           AND w.AD_Window_Access_ID = t.AD_Window_Access_ID
+           AND w.AD_Role_ID = ?
+           AND t.AD_Tab_ID = ?
+           AND t.isReadWrite = 'N'
+           AND t.isActive='Y'
+           AND NOT EXISTS (
+               SELECT 1 FROM AD_Field_Access fa 
+               WHERE fa.IsActive = 'Y' 
+               AND fa.AD_Tab_Access_ID = t.AD_Tab_Access_ID
+               and fa.isReadWrite = 'Y')) t
     </Sql>
+    <Parameter name="adRoleId"/>
+    <Parameter name="adTabId"/>
     <Parameter name="adRoleId"/>
     <Parameter name="adTabId"/>
     <Parameter name="adRoleId"/>

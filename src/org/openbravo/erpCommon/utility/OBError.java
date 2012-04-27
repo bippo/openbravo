@@ -69,8 +69,8 @@ public class OBError {
   }
 
   public void setError(OBError e) {
-    setTitle(Utility.formatMessageBDToHtml(e.getTitle()));
-    setMessage(Utility.formatMessageBDToHtml(e.getMessage()));
+    setTitle(BasicUtility.formatMessageBDToHtml(e.getTitle()));
+    setMessage(BasicUtility.formatMessageBDToHtml(e.getMessage()));
     setType(e.getType());
     setConnectionAvailable(e.isConnectionAvailable());
   }

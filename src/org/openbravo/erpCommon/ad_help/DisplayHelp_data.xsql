@@ -12,7 +12,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -24,105 +24,59 @@
 
 <SqlClass name="DisplayHelpData" package="org.openbravo.erpCommon.ad_help">
    <SqlClassComment></SqlClassComment>
-   <SqlMethod name="select" type="preparedStatement" return="multiple">
-      <SqlMethodComment></SqlMethodComment>
-      <Sql>
-      <![CDATA[
-          SELECT AD_TAB.ad_tab_id AS tabid, AD_TAB.NAME AS tabname, AD_TAB.HELP AS tabhelp, ('paramTabHelp' || AD_TAB.AD_TAB_ID) AS tabhelpname,
-          ('paramTabName' || AD_TAB.AD_TAB_ID) AS tabidname, 
-          AD_FIELD.ad_field_id AS fieldid, AD_FIELD.NAME AS fieldname, AD_FIELD.HELP AS fieldhelp, ('paramFieldHelp' || AD_FIELD.AD_FIELD_ID) AS fieldhelpname,
-          ('paramFieldName' || AD_FIELD.AD_FIELD_ID) AS fieldidname, '' AS NAME, '' AS HELP
-          FROM AD_TAB, AD_FIELD
-          WHERE AD_TAB.ad_tab_id = AD_FIELD.ad_tab_id
-          AND AD_TAB.isactive='Y'
-          AND AD_FIELD.isactive = 'Y'
-          AND AD_FIELD.ISDISPLAYED = 'Y'
-          AND AD_TAB.ad_window_id = ? 
-          ORDER BY AD_TAB.seqno, AD_TAB.AD_TAB_ID, AD_FIELD.SEQNO, AD_FIELD.AD_FIELD_ID
-        ]]>
-      </Sql>
-        <Parameter name="windowId"/>
-   </SqlMethod>
+
    <SqlMethod name="selectTrl" type="preparedStatement" return="multiple">
       <SqlMethodComment></SqlMethodComment>
       <Sql>
       <![CDATA[
         SELECT AD_TAB.ad_tab_id AS tabid, 
-        (CASE WHEN AD_TAB_TRL.NAME IS NULL THEN '*' || AD_TAB.NAME ELSE AD_TAB_TRL.NAME END) AS tabname, 
-        (CASE WHEN AD_TAB_TRL.HELP IS NULL THEN (CASE WHEN AD_TAB.HELP IS NOT NULL THEN '*' END) || AD_TAB.HELP ELSE AD_TAB_TRL.HELP END) AS tabhelp, 
-        ('paramTabHelp' || AD_TAB.AD_TAB_ID) AS tabhelpname, ('paramTabName' || AD_TAB.AD_TAB_ID) AS tabidname, 
-        AD_FIELD.ad_field_id AS fieldid, (CASE WHEN AD_FIELD_TRL.NAME IS NULL THEN '*' || AD_FIELD.NAME ELSE AD_FIELD_TRL.NAME END) AS fieldname, 
-        (CASE WHEN AD_FIELD_TRL.HELP IS NULL THEN (CASE WHEN AD_FIELD.HELP IS NOT NULL THEN '*' END) || AD_FIELD.HELP ELSE AD_FIELD_TRL.HELP END) AS fieldhelp, 
-        ('paramFieldHelp' || AD_FIELD.AD_FIELD_ID) AS fieldhelpname, ('paramFieldName' || AD_FIELD.AD_FIELD_ID) AS fieldidname 
+        COALESCE(AD_TAB_TRL.NAME, AD_TAB.NAME) AS tabname,
+        COALESCE(AD_TAB_TRL.HELP, AD_TAB.HELP) AS tabhelp,
+        ('paramTabHelp' || AD_TAB.AD_TAB_ID) AS tabhelpname, 
+        ('paramTabName' || AD_TAB.AD_TAB_ID) AS tabidname, 
+        AD_FIELD.ad_field_id AS fieldid, 
+        COALESCE(AD_FIELD_TRL.NAME, AD_FIELD.NAME) AS fieldname,
+        COALESCE(AD_FIELD_TRL.HELP, AD_FIELD.HELP) AS fieldhelp,
+        ('paramFieldHelp' || AD_FIELD.AD_FIELD_ID) AS fieldhelpname, 
+        ('paramFieldName' || AD_FIELD.AD_FIELD_ID) AS fieldidname,
+        COALESCE(AD_WINDOW_TRL.NAME, AD_WINDOW.NAME) AS windowname,
+        AD_WINDOW.AD_MODULE_ID as moduleId,
+        AD_WINDOW.NAME AS basename,
+        '' AS NAME, '' AS HELP
         FROM AD_TAB left join AD_TAB_TRL on AD_TAB.AD_TAB_ID = AD_TAB_TRL.AD_TAB_ID
                                         and AD_TAB_TRL.AD_LANGUAGE = ?,                     
              AD_FIELD left join AD_FIELD_TRL on AD_FIELD.AD_FIELD_ID = AD_FIELD_TRL.AD_FIELD_ID
-                                        and AD_FIELD_TRL.AD_LANGUAGE = ?
+                                        and AD_FIELD_TRL.AD_LANGUAGE = ?,
+             AD_WINDOW left join AD_WINDOW_TRL on AD_WINDOW.AD_WINDOW_ID = AD_WINDOW_TRL.AD_WINDOW_ID
+                                        and AD_WINDOW_TRL.AD_LANGUAGE = ?
         WHERE AD_TAB.ad_tab_id = AD_FIELD.ad_tab_id
         AND AD_TAB.isactive='Y'
         AND AD_FIELD.isactive = 'Y'
         AND AD_FIELD.ISDISPLAYED = 'Y'
         AND AD_TAB.ad_window_id = ? 
+        AND AD_WINDOW.AD_WINDOW_ID = AD_TAB.ad_window_id
         ORDER BY AD_TAB.seqno, AD_TAB.AD_TAB_ID, AD_FIELD.SEQNO, AD_FIELD.AD_FIELD_ID
         ]]>
       </Sql>
         <Parameter name="adLanguage"/>
         <Parameter name="adLanguage"/>
+        <Parameter name="adLanguage"/>
         <Parameter name="windowId"/>
    </SqlMethod>
+   
    <SqlMethod name="set" type="constant" return="multiple">
       <SqlMethodComment></SqlMethodComment>
       <Sql></Sql>
    </SqlMethod>
-   <SqlMethod name="windowName" type="preparedStatement" return="String" default="">
-      <SqlMethodComment></SqlMethodComment>
-      <Sql> 
-      <![CDATA[
-        SELECT NAME FROM AD_WINDOW WHERE AD_WINDOW_ID = ?
-      ]]>
-      </Sql>
-        <Parameter name="windowId"/>
-   </SqlMethod>
-   <SqlMethod name="windowNameTrl" type="preparedStatement" return="String" default="">
-      <SqlMethodComment></SqlMethodComment>
-      <Sql> 
-      <![CDATA[
-        SELECT (CASE WHEN AD_WINDOW_TRL.NAME IS NULL THEN '*' || AD_WINDOW.NAME ELSE AD_WINDOW_TRL.NAME END) AS NAME
-        FROM AD_WINDOW left join AD_WINDOW_TRL on AD_WINDOW.AD_WINDOW_ID = AD_WINDOW_TRL.AD_WINDOW_ID 
-                                              AND AD_WINDOW_TRL.AD_LANGUAGE =?
-        WHERE AD_WINDOW.AD_WINDOW_ID = ? 
-        AND AD_WINDOW.ISACTIVE = 'Y'
-      ]]>
-      </Sql>
-        <Parameter name="adLanguage"/>
-        <Parameter name="windowId"/>      
-   </SqlMethod>
-   <SqlMethod name="windowHelp" type="preparedStatement" return="String" default="">
-      <SqlMethodComment></SqlMethodComment>
-      <Sql> 
-      <![CDATA[
-        SELECT HELP FROM AD_WINDOW WHERE AD_WINDOW_ID = ?
-      ]]>
-      </Sql>
-        <Parameter name="windowId"/>
-   </SqlMethod>
-   <SqlMethod name="selectForm" type="preparedStatement" return="multiple">
-      <SqlMethodComment></SqlMethodComment>
-      <Sql> 
-      <![CDATA[
-        SELECT NAME, HELP
-        FROM AD_FORM
-        WHERE AD_FORM_ID = ?
-      ]]>
-      </Sql>
-        <Parameter name="formName"/>
-   </SqlMethod>
+   
    <SqlMethod name="selectFormTrl" type="preparedStatement" return="multiple">
       <SqlMethodComment></SqlMethodComment>
       <Sql> 
       <![CDATA[
-        SELECT (CASE WHEN AD_FORM_TRL.NAME IS NULL THEN '***' || AD_FORM.NAME ELSE AD_FORM_TRL.NAME END) AS NAME,
-               (CASE WHEN AD_FORM_TRL.HELP IS NULL THEN '***' || AD_FORM.HELP ELSE AD_FORM_TRL.HELP END) AS HELP
+        SELECT COALESCE(AD_FORM_TRL.NAME, AD_FORM.NAME) AS NAME,
+               COALESCE(AD_FORM_TRL.HELP, AD_FORM.HELP) AS HELP,
+               AD_FORM.NAME AS BASENAME,
+               AD_FORM.AD_MODULE_ID as moduleId
         FROM AD_FORM left join AD_FORM_TRL on AD_FORM.AD_FORM_ID = AD_FORM_TRL.AD_FORM_ID 
                                               AND AD_FORM_TRL.AD_LANGUAGE =?
         WHERE AD_FORM.AD_FORM_ID = ? 
@@ -131,23 +85,15 @@
         <Parameter name="adLanguage"/>
         <Parameter name="formName"/>
    </SqlMethod>
-   <SqlMethod name="selectProcess" type="preparedStatement" return="multiple">
-      <SqlMethodComment></SqlMethodComment>
-      <Sql> 
-      <![CDATA[
-        SELECT NAME, HELP
-        FROM AD_PROCESS
-        WHERE AD_PROCESS_ID = ?
-      ]]>
-      </Sql>
-        <Parameter name="processName"/>
-   </SqlMethod>
+
    <SqlMethod name="selectProcessTrl" type="preparedStatement" return="multiple">
       <SqlMethodComment></SqlMethodComment>
       <Sql> 
       <![CDATA[
-        SELECT (CASE WHEN AD_PROCESS_TRL.NAME IS NULL THEN '***' || AD_PROCESS.NAME ELSE AD_PROCESS_TRL.NAME END) AS NAME,
-               (CASE WHEN AD_PROCESS_TRL.HELP IS NULL THEN '***' || AD_PROCESS.HELP ELSE AD_PROCESS_TRL.HELP END) AS HELP
+        SELECT COALESCE(AD_PROCESS_TRL.NAME, AD_PROCESS.NAME) AS NAME,
+               COALESCE(AD_PROCESS_TRL.HELP, AD_PROCESS.HELP) AS HELP,
+               AD_PROCESS.NAME AS BASENAME,
+               AD_PROCESS.AD_MODULE_ID as moduleId
         FROM AD_PROCESS left join AD_PROCESS_TRL on AD_PROCESS.AD_PROCESS_ID = AD_PROCESS_TRL.AD_PROCESS_ID 
                                                     AND AD_PROCESS_TRL.AD_LANGUAGE =?
         WHERE AD_PROCESS.AD_PROCESS_ID = ? 
@@ -156,11 +102,12 @@
         <Parameter name="adLanguage"/>
         <Parameter name="processName"/>
    </SqlMethod>
+   
    <SqlMethod name="windowHelpTrl" type="preparedStatement" return="String" default="">
       <SqlMethodComment></SqlMethodComment>
       <Sql> 
       <![CDATA[
-        SELECT (CASE WHEN AD_WINDOW_TRL.HELP IS NULL THEN (CASE WHEN AD_WINDOW.HELP IS NOT NULL THEN '*' END) || AD_WINDOW.HELP ELSE AD_WINDOW_TRL.HELP END) AS HELP 
+        SELECT COALESCE(AD_WINDOW_TRL.HELP, AD_WINDOW.HELP) AS HELP 
         FROM AD_WINDOW left join AD_WINDOW_TRL on AD_WINDOW.AD_WINDOW_ID = AD_WINDOW_TRL.AD_WINDOW_ID
                                               and AD_WINDOW_TRL.AD_LANGUAGE = ?
         WHERE AD_WINDOW.AD_WINDOW_ID = ? 

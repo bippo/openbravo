@@ -11,7 +11,7 @@
 * under the License. 
 * The Original Code is Openbravo ERP. 
 * The Initial Developer of the Original Code is Openbravo SLU 
-* All portions are Copyright (C) 2011 Openbravo SLU 
+* All portions are Copyright (C) 2011-2012 Openbravo SLU 
 * All Rights Reserved. 
 * Contributor(s):  ______________________________________.
 ************************************************************************
@@ -72,6 +72,15 @@
         reloadOpener();
         initFIN_Utilities(document.frmMain);
         setWindowElementFocus('firstElement');
+        
+        // Refresh the invoice header after completing it
+        var contextView = getFrame('LayoutMDI').OB.ActionButton.executingProcess.contextView;
+        var currentView = getFrame('LayoutMDI').OB.ActionButton.executingProcess.view;
+      // Refresh context view
+        contextView.getTabMessage();
+        currentView.toolBar.refreshCustomButtons();
+      // Refresh in order to show possible new records
+        currentView.refresh(null, false, true);
     }
 
     function onResizeDo(){
@@ -79,7 +88,7 @@
     
     function validate(action, form, value) {
       var frm=document.frmMain;
-      if (frm.inpPaymentDate.value==null || frm.inpPaymentDate.value=="") {
+      if (frm.inpPaymentDate.value==null || frm.inpPaymentDate.value=="" || !isValidDate(frm.inpPaymentDate.value, frm.inpPaymentDate.getAttribute("displayformat"))) {
         setWindowElementFocus(frm.inpPaymentDate);
         showJSMessage(7);
         return false;
@@ -527,7 +536,7 @@ function distributeAmt(key){
                       <table class="Button">
 			<tr>
                           <td class="Button_left"><img class="Button_Icon Button_Icon_ok" alt="Process" title="Process" src="../../../../../web/images/blank.gif" border="0" /></td>
-                          <td class="Button_text Button_width">Process</td>
+                          <td class="Button_text" width="150px">Use Credit</td>
                           <td class="Button_right"></td>
 			</tr>
                       </table>
@@ -552,7 +561,7 @@ function distributeAmt(key){
                       <table class="Button">
 			<tr>
                           <td class="Button_left"><img class="Button_Icon Button_Icon_cancel" alt="Cancel" title="Cancel" src="../../../../../web/images/blank.gif" border="0" /></td>
-                          <td class="Button_text Button_width">Cancel</td>
+                          <td class="Button_text" width="150px">Do not use Credit</td>
                           <td class="Button_right"></td>
 			</tr>
                       </table>

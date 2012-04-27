@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,7 +22,7 @@ isc.ClassFactory.defineClass('OBQuickLaunchRecentLinkButton', isc.Button);
 isc.OBQuickLaunchRecentLinkButton.addProperties({
   recentObject: null,
   prefixLabel: null,
-  action: function(){
+  action: function () {
     OB.RecentUtilities.addRecent(this.recentPropertyName, this.recentObject);
     if (this.recentObject.viewId) {
       OB.Layout.ViewManager.openView(this.recentObject.viewId, this.recentObject);
@@ -34,7 +34,7 @@ isc.OBQuickLaunchRecentLinkButton.addProperties({
       isc.OBQuickRun.currentQuickRun.doHide();
     }
   },
-  initWidget: function() {
+  initWidget: function () {
     if (this.prefixLabel.length > 0) {
       this.title = OB.I18N.getLabel(this.prefixLabel) + ' ' + this.recentObject.tabTitle;
     } else {
@@ -60,24 +60,30 @@ isc.ClassFactory.defineClass('OBQuickLaunch', isc.OBQuickRun);
 
 isc.OBQuickLaunch.addProperties({
 
-  draw : function() {
+  draw: function () {
     this.Super("draw", arguments);
     if (this.itemPrompt) {
       this.setPrompt(this.itemPrompt); // itemPrompt declared at quick-launch.js.ftl
-      /* Avoid declare directly "prompt: " in this widget definition.
+/* Avoid declare directly "prompt: " in this widget definition.
          Declared as "setPrompt" inside "draw" function to solve issue https://issues.openbravo.com/view.php?id=18192 in FF */
     }
   },
 
-  beforeShow: function(){
-    var recent = OB.RecentUtilities.getRecentValue(this.recentPropertyName);
+  beforeShow: function () {
+    var valueField = this.members[2].getField('value'),
+        recent = OB.RecentUtilities.getRecentValue(this.recentPropertyName);
 
     if (recent && recent.length > 0) {
       var newFields = [];
-      var index = 0, recentIndex, length = recent.length;
+      var index = 0,
+          recentIndex, length = recent.length;
       for (recentIndex = 0; recentIndex < length; recentIndex++) {
         if (recent[recentIndex]) {
-          newFields[index] = isc.OBQuickLaunchRecentLinkButton.create({recentObject: recent[recentIndex], prefixLabel: this.prefixLabel, nodeIcons: this.nodeIcons});
+          newFields[index] = isc.OBQuickLaunchRecentLinkButton.create({
+            recentObject: recent[recentIndex],
+            prefixLabel: this.prefixLabel,
+            nodeIcons: this.nodeIcons
+          });
           newFields[index].recentPropertyName = this.recentPropertyName;
           index++;
         }
@@ -95,41 +101,50 @@ isc.OBQuickLaunch.addProperties({
 
       this.layout.showMember(this.members[1]);
     }
-    this.members[2].getField('value').setValue(null);
-    this.members[2].getField('value').setElementValue('', null);
+
+    if (valueField.pickList) {
+      valueField.pickList.deselectAllRecords();
+    }
+    valueField.setValue(null);
+    valueField.setElementValue('', null);
   },
 
   // handle the case that someone entered a url in the quick launch
-  doHide: function(){
+  doHide: function () {
     if (this.members[2].getField('value').getValue() && this.members[2].getField('value').getValue().contains('?')) {
       var params = OB.Utilities.getUrlParameters(this.members[2].getField('value').getValue());
       if (params && params.tabId) {
         OB.Utilities.openDirectTab(params.tabId, params.recordId, params.command);
       }
     }
+
     this.Super('doHide', arguments);
   },
 
-  initWidget: function(){
-    var dummyFirstField = isc.OBFocusButton.create({
-      getFocusTarget: function() {
-        return this.parentElement.members[this.parentElement.members.length-2];
+  initWidget: function () {
+    var dummyFirstField, dummyLastField;
+
+    dummyFirstField = isc.OBFocusButton.create({
+      getFocusTarget: function () {
+        return this.parentElement.members[this.parentElement.members.length - 2];
       }
     });
-    var dummyLastField = isc.OBFocusButton.create({
-      getFocusTarget: function() {
+
+    dummyLastField = isc.OBFocusButton.create({
+      getFocusTarget: function () {
         var firstFocusableItem;
         if (this.parentElement.members[1].members.length > 0) {
           firstFocusableItem = this.parentElement.members[1].members[0];
         } else {
-          firstFocusableItem = this.parentElement.members[this.parentElement.members.length-2];
+          firstFocusableItem = this.parentElement.members[this.parentElement.members.length - 2];
         }
         return firstFocusableItem;
       }
     });
-    this.members = [dummyFirstField,
-    isc.VLayout.create({
-      height: 1, //To allow height grow with its contents
+
+    this.members = [dummyFirstField, isc.VLayout.create({
+      // To allow height grow with its contents
+      height: 1,
       visibility: 'hidden'
     }), isc.DynamicForm.create({
       autoFocus: true,
@@ -150,9 +165,9 @@ isc.OBQuickLaunch.addProperties({
         pickerIconWidth: OB.Styles.OBFormField.DefaultComboBox.pickerIconWidth,
         // fixes issue https://issues.openbravo.com/view.php?id=15105
         pickListCellHeight: OB.Styles.OBFormField.DefaultComboBox.quickRunPickListCellHeight,
-        recentPropertyName : this.recentPropertyName,
+        recentPropertyName: this.recentPropertyName,
 
-        getControlTableCSS: function(){
+        getControlTableCSS: function () {
           // prevent extra width settings, super class
           // sets width to 0 on purpose
           return 'cursor:default;';
@@ -161,37 +176,38 @@ isc.OBQuickLaunch.addProperties({
         selectOnFocus: true,
         textMatchStyle: 'substring',
         width: OB.Styles.OBFormField.DefaultComboBox.quickRunWidth,
-        
+
         // client filtering does not always work great...
         pickListProperties: {
           textMatchStyle: 'substring',
+          selectionType: 'single',
           bodyStyleName: OB.Styles.OBFormField.DefaultComboBox.pickListProperties.bodyStyleName
         },
         pickListHeaderHeight: 0,
-        
+
         // this is to prevent this issue:
         // http://forums.isomorphic.com/showthread.php?t=17949&goto=newpost
         autoSizePickList: false,
-        
-        getPickListFilterCriteria: function(){
+
+        getPickListFilterCriteria: function () {
           // only filter on identifier
           var criteria = {};
-          criteria[OB.Constants.IDENTIFIER] = this.getDisplayValue();
+          criteria[OB.Constants.IDENTIFIER] = this.getValue();
           return criteria;
         },
         pickListFields: [{
-            showValueIconOnly: true,
-            name: 'icon',
-            valueIcons: {
-              Process: this.nodeIcons.Process,
-              Report: this.nodeIcons.Report,
-              Form: this.nodeIcons.Form,
-              Window: this.nodeIcons.Window
-            }
-          }, { 
-            name: OB.Constants.IDENTIFIER,
-            displayField: OB.Constants.IDENTIFIER,
-            valueField: OB.Constants.ID
+          showValueIconOnly: true,
+          name: 'icon',
+          valueIcons: {
+            Process: this.nodeIcons.Process,
+            Report: this.nodeIcons.Report,
+            Form: this.nodeIcons.Form,
+            Window: this.nodeIcons.Window
+          }
+        }, {
+          name: OB.Constants.IDENTIFIER,
+          displayField: OB.Constants.IDENTIFIER,
+          valueField: OB.Constants.ID
         }],
         autoFetchData: true,
         titleOrientation: 'top',
@@ -209,7 +225,7 @@ isc.OBQuickLaunch.addProperties({
 
         command: this.command,
 
-        pickValue: function(theValue){
+        pickValue: function (theValue) {
           // HACK: set this temporary value to prevent a temporary 
           // display of the db id
           if (!this.getValueMap()) {
@@ -225,7 +241,7 @@ isc.OBQuickLaunch.addProperties({
             isc.OBQuickRun.currentQuickRun.doHide();
             var openObject = isc.addProperties({}, record);
             if (record.optionType && record.optionType === 'tab') {
-              openObject = OB.Utilities.openView(record.windowId, viewValue, record[OB.Constants.IDENTIFIER], null, this.command, record.icon);
+              openObject = OB.Utilities.openView(record.windowId, viewValue, record[OB.Constants.IDENTIFIER], null, this.command, record.icon, record.readOnly, record.singleRecord);
               if (openObject) {
                 OB.RecentUtilities.addRecent(this.recentPropertyName, openObject);
               }
@@ -283,7 +299,7 @@ isc.OBQuickLaunch.addProperties({
             openObject.icon = record.icon;
 
             openObject = isc.addProperties({}, record, openObject);
-            
+
             OB.Layout.ViewManager.openView(openObject.viewId, openObject);
 
             OB.RecentUtilities.addRecent(this.recentPropertyName, openObject);
@@ -292,7 +308,7 @@ isc.OBQuickLaunch.addProperties({
           }
         },
 
-        handleKeyPress: function(){
+        handleKeyPress: function () {
           var result = this.Super('handleKeyPress', arguments);
 
           var key = isc.EH.lastEvent.keyName;

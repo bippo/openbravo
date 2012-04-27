@@ -11,11 +11,11 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 // The quick run widget is used for flyouts in the navigation bar
 isc.OBQuickRun.addProperties({
@@ -61,7 +61,7 @@ isc.OBQuickLaunch.addProperties({
   // https://issues.openbravo.com/view.php?id=13786
   width: 57,
   separatorHeight: 10,
-  
+
   layoutProperties: {
     width: 250,
     membersMargin: 0 // use custom attribute "separatorHeight" instead
@@ -95,7 +95,8 @@ isc.OBLogout.addProperties({
 
 
 isc.OBQuickLaunchRecentLinkButton.addProperties({
-  width: 1, //To allow button be just text width
+  width: 1,
+  //To allow button be just text width
   align: 'left',
   baseStyle: 'OBQuickLaunchRecentLinkButton',
   showDown: true,
@@ -108,7 +109,8 @@ isc.OBQuickLaunchRecentLinkButton.addProperties({
 });
 
 isc.OBHelpAboutLinkButton.addProperties({
-  width: 1, //To allow button be just text width
+  width: 1,
+  //To allow button be just text width
   align: 'left',
   baseStyle: 'OBHelpAboutLinkButton',
   showDown: true,
@@ -122,11 +124,11 @@ isc.OBHelpAboutLinkButton.addProperties({
 
 
 isc.OBAlertIcon.addProperties({
-  baseStyle : 'OBNavBarTextButton',
-  alertIcon : {
-    src : OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/navbar/iconAlert.png'
+  baseStyle: 'OBNavBarTextButton',
+  alertIcon: {
+    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/navbar/iconAlert.png'
   },
-  iconOrientation : 'left',
-  iconWidth : 11,
-  iconHeight : 13
+  iconOrientation: 'left',
+  iconWidth: 11,
+  iconHeight: 13
 });

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -21,32 +21,30 @@
 //
 // A view which displays an external url inside a tab of the main layout.
 //
-isc.defineClass('OBExternalPage', isc.HTMLFlow).addProperties( {
-  showsItself : false,
-  contentsType : 'page',
-  showEdges : false,
-  styleName : 'obClassicWindow',
-  padding : 0,
-  margin : 0,
-  height : '100%',
-  width : '100%'
+isc.defineClass('OBExternalPage', isc.HTMLFlow).addProperties({
+  showsItself: false,
+  contentsType: 'page',
+  showEdges: false,
+  styleName: 'obClassicWindow',
+  padding: 0,
+  margin: 0,
+  height: '100%',
+  width: '100%'
 });
 
 // get the label and set it in the class
 OB.I18N.getLabel('OBUIAPP_Loading', null, isc.OBExternalPage, 'loadingMessage');
 
-isc.OBExternalPage
-    .addMethods( {
+isc.OBExternalPage.addMethods({
 
-      // the following methods are used to support history management
-      getBookMarkParams : function() {
-        var result = {};
-        result.contentsURL = this.contentsURL;
-        return result;
-      },
+  // the following methods are used to support history management
+  getBookMarkParams: function () {
+    var result = {};
+    result.contentsURL = this.contentsURL;
+    return result;
+  },
 
-      isSameTab : function(params) {
-        return (params && (params.contentsURL || this.contentsURL) && params.contentsURL === this.contentsURL);
-      }
-
-    });
+  isSameTab: function (params) {
+    return (params && (params.contentsURL || this.contentsURL) && params.contentsURL === this.contentsURL);
+  }
+});

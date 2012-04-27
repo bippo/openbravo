@@ -22,7 +22,7 @@
   * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
   * All Rights Reserved.
   * Contributor(s): Openbravo SLU
-  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+  * Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
   *
   * Specifically, this derivative work is based upon the following Compiere
   * file and version.
@@ -304,7 +304,12 @@ BEGIN --BODY
       FROM c_invoiceline
       WHERE c_invoice_discount_id IS NULL
         AND qtyinvoiced > 0
-        AND c_invoice_id = v_Record_ID;
+        AND c_invoice_id = v_Record_ID
+        AND NOT EXISTS (SELECT 1 FROM c_invoiceline L
+			LEFT JOIN M_PRODUCT P ON L.M_PRODUCT_ID = P.M_PRODUCT_ID
+			LEFT JOIN C_DISCOUNT CD ON CD.M_PRODUCT_ID=P.M_PRODUCT_ID
+			WHERE P.M_PRODUCT_ID=C_INVOICELINE.M_PRODUCT_ID);
+
       IF (v_count <> 0) THEN
         RAISE_APPLICATION_ERROR(-20000, '@ReturnInvoiceNegativeQty@');
       END IF;
@@ -565,7 +570,8 @@ BEGIN --BODY
               C_Invoice_ID, C_OrderLine_ID, M_InOutLine_ID, Line,
               Description, M_Product_ID, QtyInvoiced, PriceList,
               PriceActual, LineNetAmt, C_Charge_ID, ChargeAmt,
-              C_UOM_ID, C_Tax_ID, PriceStd)
+              C_UOM_ID, C_Tax_ID, PriceStd, 
+              Financial_Invoice_Line, Account_ID)
             VALUES
             (
               v_NextNo, Cur_InvoiceLine.AD_Client_ID, Cur_InvoiceLine.AD_Org_ID, 'Y',
@@ -573,7 +579,8 @@ BEGIN --BODY
               v_RInvoice_ID, Cur_InvoiceLine.C_OrderLine_ID, Cur_InvoiceLine.M_InoutLine_ID, Cur_InvoiceLine.Line,
                '*R*: ' || Cur_InvoiceLine.Description, Cur_InvoiceLine.M_Product_ID, Cur_InvoiceLine.QtyInvoiced * -1, Cur_InvoiceLine.PriceList,
               Cur_InvoiceLine.PriceActual, Cur_InvoiceLine.LineNetAmt * -1, Cur_InvoiceLine.C_Charge_ID, Cur_InvoiceLine.ChargeAmt * -1,
-              Cur_InvoiceLine.C_UOM_ID, Cur_InvoiceLine.C_Tax_ID, Cur_InvoiceLine.PriceStd
+              Cur_InvoiceLine.C_UOM_ID, Cur_InvoiceLine.C_Tax_ID, Cur_InvoiceLine.PriceStd, 
+              Cur_InvoiceLine.Financial_Invoice_Line, Cur_InvoiceLine.Account_ID
             );
           INSERT INTO M_MATCHINV
             (M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE, CREATED, CREATEDBY, UPDATED, UPDATEDBY,

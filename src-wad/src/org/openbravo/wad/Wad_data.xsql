@@ -12,7 +12,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -25,14 +25,13 @@
     <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
     <Sql>
       <![CDATA[
-      SELECT MAX(COALESCE(ACTION, '') || AD_MODEL_OBJECT_ID) AS NAME, CLASSNAME, CLASSNAME AS DISPLAYNAME, 
-      MAX(LOADONSTARTUP) AS LOADONSTARTUP, '' AS VALUE, '' AS LINE, '' AS AUTH, '' as buildxml,
-      '' as ad_tab_id, '' as windowName, '' as tabName, '' as windowPackage, '' as windowmodule, '' as tabPackage, '' as tabmodule
+      SELECT AD_MODEL_OBJECT_ID as ID, (COALESCE(ACTION, '') || AD_MODEL_OBJECT_ID) AS NAME, CLASSNAME, CLASSNAME AS DISPLAYNAME, 
+      LOADONSTARTUP, '' AS VALUE, '' AS LINE, '' AS AUTH, '' as buildxml, 
+	  '' as ad_tab_id, '' as windowName, '' as tabName, '' as windowPackage, '' as windowmodule, '' as tabPackage, '' as tabmodule
       FROM AD_MODEL_OBJECT o
       WHERE ISACTIVE = 'Y'
       AND OBJECT_TYPE = 'S'
       AND ACTION != 'W'
-      GROUP BY CLASSNAME
       ORDER BY NAME
       ]]>
     </Sql>
@@ -75,11 +74,12 @@
       ]]>
     </Sql>
   </SqlMethod>
+
   <SqlMethod name="selectFilter" type="preparedStatement" return="multiple">
     <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
     <Sql>
       <![CDATA[
-      SELECT MAX(COALESCE(ACTION, '') || AD_MODEL_OBJECT_ID) AS NAME, CLASSNAME, CLASSNAME AS DISPLAYNAME
+      SELECT MAX(COALESCE(ACTION, '') || AD_MODEL_OBJECT_ID) AS NAME, MAX(AD_MODEL_OBJECT_ID) as ID, CLASSNAME, CLASSNAME AS DISPLAYNAME
       FROM AD_MODEL_OBJECT 
       WHERE ISACTIVE = 'Y' 
       AND OBJECT_TYPE = 'F'
@@ -149,6 +149,7 @@
       ]]>
     </Sql>
   </SqlMethod>
+
   <SqlMethod name="selectParams" type="preparedStatement" return="multiple">
     <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
     <Sql>
@@ -158,6 +159,7 @@
       WHERE MO.ISACTIVE = 'Y'
       AND MO.OBJECT_TYPE = ? 
       AND MO.CLASSNAME = ?
+      and mo.ad_model_object_id = ?
       AND MO.AD_MODEL_OBJECT_ID = P.AD_MODEL_OBJECT_ID 
       AND P.ISACTIVE = 'Y'
       GROUP BY P.NAME 
@@ -166,6 +168,7 @@
     </Sql>
     <Parameter name="objectType"/>
     <Parameter name="classname"/>
+    <Parameter name="id"/>
   </SqlMethod>
   <SqlMethod name="selectListener" type="preparedStatement" return="multiple">
     <SqlMethodComment>Names of the columns of the fields of a tab</SqlMethodComment>
@@ -222,5 +225,15 @@
       <Sql><![CDATA[
         CALL AD_Create_Audit_Triggers(null)
       ]]></Sql>
+   </SqlMethod>
+   
+   <SqlMethod name="tabTableName" type="preparedStatement" return="String" default="">
+      <Sql><![CDATA[
+        select t.tablename as value
+          from ad_table t, ad_tab tb
+         where tb.ad_table_id = t.ad_table_id
+           and tb.ad_tab_id = ? 
+      ]]></Sql>
+      <Parameter name="tabId"/>
    </SqlMethod>
 </SqlClass>

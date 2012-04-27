@@ -1,6 +1,6 @@
 <!--
  ************************************************************************************
- * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Copyright (C) 2001-2012 Openbravo S.L.U.
  * Licensed under the Apache Software License version 2.0
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to  in writing,  software  distributed
@@ -19,9 +19,22 @@
 <script language="JavaScript" type="text/javascript" id="paramLanguage">    defaultLang = "en_US";</script>
 <script language="JavaScript" type="text/javascript">
 function submitThisPage(ref) {
-  var process, layoutMDI;
-  if (top && top.opener && top.opener.submitCommandForm) {
-    // 2.50 poup process
+  var process, layoutMDI,
+      classicMode = false;
+
+  // If the function is invoked from a 3.0 environment where this html is executed in a modal
+  // popup, and the application has been opened trough a link, top.opener could cause a browser
+  // security exception if the opener link was in a different host. The only way to avoid this is
+  // situation and let the flow continue, is trough a try-catch
+  try {
+    if (top && top.opener && top.opener.submitCommandForm) {
+      classicMode = true;
+    }
+  } catch (e) {} // No need to do anything here, if the try fails because the previous described
+                 // situation, it means that we are in 3.0 and we already have "classicMode = false"
+
+  if (classicMode) {
+    // 2.50 popup process
     top.opener.submitCommandForm("DEFAULT", false, null, ref, '_self');
   } else {
     layoutMDI = getFrame('LayoutMDI');

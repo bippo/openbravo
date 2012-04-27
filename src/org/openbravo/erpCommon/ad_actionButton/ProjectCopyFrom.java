@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -73,14 +73,20 @@ public class ProjectCopyFrom extends HttpSecureAppServlet {
   private OBError processButton(VariablesSecureApp vars, String strKey, String strProject,
       String windowId) {
     Connection conn = null;
-    OBError myMessage = null;
+    
+    OBError myMessage = new OBError();
     if (strProject == null || strProject.equals("")) {
-      extracted(myMessage).setType("Error");
-      extracted(myMessage).setTitle(Utility.messageBD(this, "Error", vars.getLanguage()));
-      extracted(myMessage).setMessage(
-          Utility.messageBD(this, "NoProjectSelected", vars.getLanguage()));
-      return extracted(myMessage);
+      try {
+        releaseRollbackConnection(conn);
+      } catch (Exception ignored) {
+      }
+      log4j.warn("Rollback in transaction");
+      myMessage.setType("Error");
+      myMessage.setTitle(Utility.messageBD(this, "Error", vars.getLanguage()));
+      myMessage.setMessage(Utility.messageBD(this, "NoProjectSelected", vars.getLanguage()));
     }
+    else{
+   
     try {
       conn = this.getTransactionConnection();
       String projectCategory = ProjectCopyFromData.selectProjectCategory(this, strKey);
@@ -161,6 +167,7 @@ public class ProjectCopyFrom extends HttpSecureAppServlet {
       e.printStackTrace();
       log4j.warn("Rollback in transaction");
       myMessage = Utility.translateError(this, vars, vars.getLanguage(), "ProcessRunError");
+    }
     }
     return extracted(myMessage);
   }

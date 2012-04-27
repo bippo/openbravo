@@ -35,12 +35,21 @@
       onFieldChanged: function(form, item, value) {
         var f = form || this,
             context = this.view.getContextInfo(false, true),
-            currentValues = f.view.getCurrentValues(), otherItem;
+            currentValues = f.view.getCurrentValues(), otherItem,
+            disabledFields, i;
         <#list data.fieldHandler.fields as field>
         <#if field.readOnlyIf != "">
             f.disableItem('${field.name}', ${field.readOnlyIf});
         </#if>
         </#list>
+
+        // disable forced in case the fields are set as read only per role
+        disabledFields = form.view.disabledFields;
+        if (disabledFields) {
+          for (i=0; i<disabledFields.length; i++){
+            f.disableItem(disabledFields[i], true);
+          }
+        }
       }
     }
     </#if>

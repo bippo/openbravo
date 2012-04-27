@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -23,7 +23,11 @@ isc.ClassFactory.defineClass('OBEncryptedItem', isc.PasswordItem);
 // add specific properties here
 isc.OBEncryptedItem.addProperties({
   operator: 'iContains',
-  changed : function(form,item,value) {
+  changed: function (form, item, value) {
+    this.Super('changed', arguments);
     this.form.setValue(item.name + '_cleartext', value);
+    if (this.grid.getEditRow() !== null) {
+      this.grid.getEditValues(this.grid.getEditRow())[item.name + '_cleartext'] = value;
+    }
   }
 });

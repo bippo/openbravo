@@ -4,15 +4,15 @@
  * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
  * Version 1.1  with a permitted attribution clause; you may not  use this
  * file except in compliance with the License. You  may  obtain  a copy of
- * the License at http://www.openbravo.com/legal/license.html 
+ * the License at http://www.openbravo.com/legal/license.html
  * Software distributed under the License  is  distributed  on  an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
  * License for the specific  language  governing  rights  and  limitations
- * under the License. 
- * The Original Code is Openbravo ERP. 
- * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2010 Openbravo SLU 
- * All Rights Reserved. 
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU
+ * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
@@ -40,10 +40,10 @@ OB.Datasource = {};
 // * {{{doNew}}}: if set to true then a new datasource is created
 // If not set then setDataSource or optionDataSource are used.
 //
-OB.Datasource.get = function(/* String */dataSourceId, /* Object */
-target, /* String */dsFieldName, /*Boolean*/ doNew) {
-  var ds;
-  if (!doNew) {  
+OB.Datasource.get = function (dataSourceId, target, dsFieldName, doNew) {
+  var ds, callback, rpcRequest;
+
+  if (!doNew) {
     ds = isc.DataSource.getDataSource(dataSourceId);
     if (ds) {
       // only set if target is defined
@@ -61,7 +61,7 @@ target, /* String */dsFieldName, /*Boolean*/ doNew) {
   }
 
   // create the callback
-  var callback = function(rpcResponse, data, rpcRequest) {
+  callback = function (rpcResponse, data, rpcRequest) {
     // prevent registering it again
     var ds = isc.DataSource.getDataSource(data.ID);
     if (ds) {
@@ -82,9 +82,9 @@ target, /* String */dsFieldName, /*Boolean*/ doNew) {
     }
   };
 
-  var rpcRequest = {};
+  rpcRequest = {};
   rpcRequest.params = {
-    '_create' : true
+    '_create': true
   };
   if (doNew) {
     rpcRequest.params._new = true;
@@ -107,22 +107,38 @@ target, /* String */dsFieldName, /*Boolean*/ doNew) {
 // Parameters:
 // * {{{dsProperties}}}: the properties of the datasource which needs to be
 // created.
-OB.Datasource.create = function(/* Object */dsProperties) {
+OB.Datasource.create = function (dsProperties) {
   var i, length, flds;
-  
+
   // set some default properties
   if (!dsProperties.operationBindings) {
-    dsProperties.operationBindings = [
-        {operationType: 'fetch', dataProtocol: 'postParams', requestProperties:{httpMethod: 'POST'}}, 
-        {operationType: 'add', dataProtocol: 'postMessage'},
-        {operationType: 'remove', dataProtocol: 'postParams', requestProperties:{httpMethod: 'DELETE'}},
-        {operationType: 'update', dataProtocol: 'postMessage', requestProperties:{httpMethod: 'PUT'}}
-     ];
+    dsProperties.operationBindings = [{
+      operationType: 'fetch',
+      dataProtocol: 'postParams',
+      requestProperties: {
+        httpMethod: 'POST'
+      }
+    }, {
+      operationType: 'add',
+      dataProtocol: 'postMessage'
+    }, {
+      operationType: 'remove',
+      dataProtocol: 'postParams',
+      requestProperties: {
+        httpMethod: 'DELETE'
+      }
+    }, {
+      operationType: 'update',
+      dataProtocol: 'postMessage',
+      requestProperties: {
+        httpMethod: 'PUT'
+      }
+    }];
   }
   dsProperties.recordXPath = dsProperties.recordXPath || '/response/data';
   dsProperties.dataFormat = dsProperties.dataFormat || 'json';
   dsProperties.titleField = dsProperties.titleField || OB.Constants.IDENTIFIER;
-  
+
   if (dsProperties.fields) {
     flds = dsProperties.fields;
     length = flds.length;
@@ -132,7 +148,7 @@ OB.Datasource.create = function(/* Object */dsProperties) {
       }
     }
   }
-  
+
   // if must be a new datasource then change the id 
   // https://issues.openbravo.com/view.php?id=16581
   if (dsProperties._new && dsProperties.ID) {
@@ -156,8 +172,8 @@ isc.ClassFactory.defineClass('OBRestDataSource', isc.RestDataSource);
 isc.OBRestDataSource.addClassProperties({
   // is used to force a unique criterion with a unique value
   DUMMY_CRITERION_NAME: '_dummy',
-  
-  getDummyCriterion: function() {
+
+  getDummyCriterion: function () {
     return {
       fieldName: isc.OBRestDataSource.DUMMY_CRITERION_NAME,
       operator: 'equals',
@@ -167,20 +183,19 @@ isc.OBRestDataSource.addClassProperties({
 });
 
 isc.OBRestDataSource.addProperties({
-  sendDSRequest: function(dsRequest) {
-	//TODO: Report an issue to SmartClient - This part is a work around
+  sendDSRequest: function (dsRequest) {
+    //TODO: Report an issue to SmartClient - This part is a work around
     if (dsRequest.params && this.requestProperties && this.requestProperties.params) {
       isc.addProperties(dsRequest.params, this.requestProperties.params);
     }
     this.Super('sendDSRequest', arguments);
   },
-  
+
   // always let the dummy criterion be true
-  evaluateCriterion : function (record, criterion) {
+  evaluateCriterion: function (record, criterion) {
     if (criterion && criterion.fieldName && criterion.fieldName === isc.OBRestDataSource.DUMMY_CRITERION_NAME) {
       return true;
     }
     return this.Super('evaluateCriterion', arguments);
   }
 });
-

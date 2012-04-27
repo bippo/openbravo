@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,20 +22,14 @@ isc.ClassFactory.defineClass('OBAuditSectionItem', isc.OBSectionItem);
 
 isc.OBAuditSectionItem.addProperties({
 
-  init : function() {
-    /* tell the form who we are */
+  init: function () { /* tell the form who we are */
     this.form.auditSection = this;
 
     this.Super('init', arguments);
   },
-  
+
   // this field group does not participate in formbuilding
   personalizable: false,
-  
-  itemIds: [
-            'creationDate',
-            'createdBy',
-            'updated',
-            'updatedBy'
-            ]
+
+  itemIds: ['creationDate', 'createdBy', 'updated', 'updatedBy']
 });

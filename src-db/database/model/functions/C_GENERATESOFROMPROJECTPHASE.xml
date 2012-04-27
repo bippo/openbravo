@@ -163,7 +163,13 @@
             0, 0, Cur_SO.M_WAREHOUSE_ID, Cur_SO.M_PRICELIST_ID,
              'N', 'N', 'N', Cur_SO.SALESREP_ID,
             v_Billto_ID, Cur_SO.C_CAMPAIGN_ID, Cur_SO.C_PROJECT_ID, Cur_SO.AD_User_ID,
-             'N', TRUNC(now(), 'DD'), Cur_SO.PHASE_NAME || ' - ' || COALESCE(TO_CHAR(Cur_SO.DESCRIPTION),''), 
+             'N', TRUNC(now(), 'DD'), 
+             (CASE 
+		WHEN (length(Cur_SO.PHASE_NAME || ' - ' || COALESCE(TO_CHAR(Cur_SO.DESCRIPTION),'')) > 255) 
+			THEN substr(Cur_SO.PHASE_NAME || ' - ' || COALESCE(TO_CHAR(Cur_SO.DESCRIPTION),''),1,252)||'...'
+		ELSE 
+			Cur_SO.PHASE_NAME || ' - ' || COALESCE(TO_CHAR(Cur_SO.DESCRIPTION),'')
+	    END), 
              COALESCE(Cur_SO.FIN_PAYMENTMETHOD_ID, v_fin_paymentmethod_id), Cur_SO.POREFERENCE
              
           );

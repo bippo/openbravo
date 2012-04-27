@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -24,43 +24,44 @@ isc.ClassFactory.defineClass('OBSearchItem', isc.StaticTextItem);
 isc.ClassFactory.mixInInterface('OBSearchItem', 'OBLinkTitleItem');
 
 // a global function as it is called from classic windows
-(function(w) {
+(function (w) {
 
-w.closeSearch = function (action, value, display, parameters, wait){
-  var length, i, hiddenInputName, targetFld = isc.OBSearchItem.openSearchItem,
-    currentValue = targetFld.getValue();
-  if (action === 'SAVE') {    
-    if (!targetFld.valueMap) {
-      targetFld.valueMap = {};
-    }
-    
-    targetFld.storeValue(value);
-    if (!targetFld.valueMap) {
-      targetFld.valueMap = {};
-    }
-    targetFld.valueMap[targetFld.getValue()] = display;
-    targetFld.form.setValue(targetFld.displayField, display);
-    targetFld.updateValueMap(true);
-    
-    if (parameters && parameters.length > 0) {
-      length = parameters.length;
-      for (i = 0; i < length; i++) {
-        hiddenInputName = ((parameters[i].esRef) ? targetFld.inpColumnName : '') + parameters[i].campo;
-        // Revisit for grid editor, maybe setting the value in the form will set it
-        // in the record to be kepped there 
-        targetFld.form.hiddenInputs[hiddenInputName] = parameters[i].valor;
+  w.closeSearch = function (action, value, display, parameters, wait) {
+    var length, i, hiddenInputName, targetFld = isc.OBSearchItem.openSearchItem,
+        currentValue = targetFld.getValue();
+    if (action === 'SAVE') {
+      if (!targetFld.valueMap) {
+        targetFld.valueMap = {};
       }
-    }
-    targetFld._hasChanged = true;
-    targetFld.form.handleItemChange(targetFld);
-    // fire with a delay otherwise results in strange errors
-    targetFld.fireOnPause('validate', targetFld.validate, null, targetFld);
-  }
-  isc.OBSearchItem.openedWindow.close();
-  isc.OBSearchItem.openSearchItem = null;
-};
-}(this)); // window
 
+      targetFld.storeValue(value);
+      if (!targetFld.valueMap) {
+        targetFld.valueMap = {};
+      }
+      targetFld.valueMap[targetFld.getValue()] = display;
+      targetFld.form.setValue(targetFld.displayField, display);
+      targetFld.updateValueMap(true);
+
+      if (parameters && parameters.length > 0) {
+        length = parameters.length;
+        for (i = 0; i < length; i++) {
+          hiddenInputName = ((parameters[i].esRef) ? targetFld.inpColumnName : '') + parameters[i].campo;
+          // Revisit for grid editor, maybe setting the value in the form will set it
+          // in the record to be kepped there 
+          targetFld.form.hiddenInputs[hiddenInputName] = parameters[i].valor;
+        }
+      }
+      targetFld._hasChanged = true;
+      targetFld.form.handleItemChange(targetFld);
+      // fire with a delay otherwise results in strange errors
+      targetFld.fireOnPause('validate', targetFld.validate, null, targetFld);
+
+      targetFld.form.focusInNextItem(targetFld.name);
+    }
+    isc.OBSearchItem.openedWindow.close();
+    isc.OBSearchItem.openSearchItem = null;
+  };
+}(this)); // window
 isc.OBSearchItem.addProperties({
   operator: 'iContains',
   showPickerIcon: true,
@@ -71,12 +72,12 @@ isc.OBSearchItem.addProperties({
   validateOnChange: true,
 
   // NOTE: FormItem don't have initWidget but use init
-  init: function(){
+  init: function () {
     this.instanceClearIcon = isc.shallowClone(this.clearIcon);
     this.instanceClearIcon.formItem = this;
     this.valueMap = {};
 
-    this.instanceClearIcon.showIf = function(form, item){
+    this.instanceClearIcon.showIf = function (form, item) {
       if (item.disabled) {
         return false;
       }
@@ -91,8 +92,8 @@ isc.OBSearchItem.addProperties({
       }
       return false;
     };
-    
-    this.instanceClearIcon.click = function(){
+
+    this.instanceClearIcon.click = function () {
       var targetFld = this.formItem;
 
       this.formItem.setValue(null);
@@ -102,9 +103,9 @@ isc.OBSearchItem.addProperties({
       // fire with a delay otherwise results in strange errors
       targetFld.fireOnPause('validate', targetFld.validate, null, targetFld);
     };
-    
+
     this.icons = [this.instanceClearIcon];
-    
+
     return this.Super('init', arguments);
   },
 
@@ -112,28 +113,32 @@ isc.OBSearchItem.addProperties({
   itemHoverHTML: function (item, form) {
     return this.getDisplayValue(this.getValue());
   },
-  
-  click: function() {
+
+  click: function () {
     this.showPicker();
     return false;
   },
-  
-  keyPress: function(item, form, keyName, characterValue){
+
+  keyPress: function (item, form, keyName, characterValue) {
     if (keyName === 'Enter') {
       this.showPicker();
       return false;
     }
     return true;
-  }, 
+  },
 
-  showPicker: function(){
+  showPicker: function () {
     if (this.isDisabled()) {
       return;
     }
-    var parameters = [], index = 0, i = 0, length, propDef, inpName, values;
-    var form = this.form, view = form.view;
+    var parameters = [],
+        index = 0,
+        i = 0,
+        length, propDef, inpName, values;
+    var form = this.form,
+        view = form.view;
     if (this.isFocusable()) {
-      this.focusInItem(); 
+      this.focusInItem();
     }
     parameters[index++] = 'inpIDValue';
     if (this.getValue()) {
@@ -159,7 +164,7 @@ isc.OBSearchItem.addProperties({
     this.openSearchWindow(this.searchUrl, parameters, this.getValue());
   },
 
-  openSearchWindow: function(url, parameters, strValueID){
+  openSearchWindow: function (url, parameters, strValueID) {
     var height, width, top, left;
     var complementsNS4 = '';
     var auxField = '';
@@ -179,13 +184,13 @@ isc.OBSearchItem.addProperties({
     }
     top = parseInt((screen.height - height) / 2, 10);
     left = parseInt((screen.width - width) / 2, 10);
-    
+
     if (isc.OBSearchItem.openedWindow) {
       isc.OBSearchItem.openedWindow.close();
       this.clearUnloadEventHandling();
     }
     isc.OBSearchItem.openedWindow = null;
-    
+
     if (strValueID) {
       auxField = 'inpNameValue=' + encodeURIComponent(displayedValue);
     }
@@ -206,7 +211,7 @@ isc.OBSearchItem.addProperties({
         i++;
       }
     }
-    
+
     if (navigator.appName.indexOf('Netscape')) {
       complementsNS4 = 'alwaysRaised=1, dependent=1, directories=0, hotkeys=0, menubar=0, ';
     }
@@ -218,13 +223,13 @@ isc.OBSearchItem.addProperties({
     }
     isc.OBSearchItem.openSearchItem = this;
   },
-  
-  setUnloadEventHandling: function(){
+
+  setUnloadEventHandling: function () {
     var me = this;
     if (document.layers) {
       document.captureEvents(isc.Event.UNLOAD);
     }
-    window.onunload = function(){
+    window.onunload = function () {
       if (isc.OBSearchItem.openedWindow) {
         isc.OBSearchItem.openedWindow.close();
       }
@@ -232,12 +237,11 @@ isc.OBSearchItem.addProperties({
       me.clearUnloadEventHandling();
     };
   },
-  
-  clearUnloadEventHandling: function(){
+
+  clearUnloadEventHandling: function () {
     if (document.layers) {
       window.releaseEvents(isc.Event.UNLOAD);
     }
-    window.onunload = function(){
-    };
+    window.onunload = function () {};
   }
 });

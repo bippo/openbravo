@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,7 +22,7 @@
 // A widget which can be used to show parameter values and content.
 //
 isc.defineClass('OBShowParameterWidget', isc.OBWidget).addProperties({
-  setParameters: function(parameters){
+  setParameters: function (parameters) {
     this.Super('setParameters', arguments);
     var oldForm = this.displayForm;
     this.windowContents.destroyAndRemoveMembers(this.displayForm);
@@ -30,7 +30,7 @@ isc.defineClass('OBShowParameterWidget', isc.OBWidget).addProperties({
     oldForm.destroy();
   },
 
-  createWindowContents: function(){
+  createWindowContents: function () {
     var layout = isc.VLayout.create({
       width: '100%',
       height: '100%',
@@ -48,16 +48,22 @@ isc.defineClass('OBShowParameterWidget', isc.OBWidget).addProperties({
     return layout;
   },
 
-  customAction: function() {
-    isc.say('Custom Action!', {isModal: true, showModalMask: true});
+  customAction: function () {
+    isc.say('Custom Action!', {
+      isModal: true,
+      showModalMask: true
+    });
   },
 
-  createDisplayForm: function(){
-    var item, theForm = isc.DynamicForm.create({
+  createDisplayForm: function () {
+    var item, i, theForm, items = [],
+        values = {};
+
+    theForm = isc.DynamicForm.create({
       width: '100%',
       height: '100%',
       wrapItemTitles: false
-    }), items = [], values = {}, i;
+    });
 
     for (i in this.parameters) {
       if (this.parameters.hasOwnProperty(i)) {

@@ -514,7 +514,7 @@ BEGIN
      and activation_key is not null;
      
   if v_isObps = 0 then
-    RAISE EXCEPTION '%', '@OBPSNeededForAudit@' ; --OBTG:-20000--
+    RAISE EXCEPTION '%', '@OBPSNeededForAudit@' ;
   end if;  	
 	
   for cur_triggers in (select *
@@ -727,5 +727,44 @@ WHEN OTHERS THEN
   
 END ; $BODY1$
 LANGUAGE 'plpgsql' VOLATILE
+/-- END
+
+-- DOW: day of week
+CREATE OR REPLACE FUNCTION next_day(p_initDate timestamp without time zone, p_targetDOW numeric)
+  RETURNS DATE AS
+$BODY$ DECLARE
+/*************************************************************************
+* The contents of this file are subject to the Openbravo  Public  License
+* Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+* Version 1.1  with a permitted attribution clause; you may not  use this
+* file except in compliance with the License. You  may  obtain  a copy of
+* the License at http://www.openbravo.com/legal/license.html
+* Software distributed under the License  is  distributed  on  an "AS IS"
+* basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+* License for the specific  language  governing  rights  and  limitations
+* under the License.
+* The Original Code is Openbravo ERP.
+* The Initial Developer of the Original Code is Openbravo SLU
+* All portions are Copyright (C) 2012 Openbravo SLU
+* All Rights Reserved.
+* Contributor(s):  ______________________________________.
+************************************************************************/
+  v_Value NUMERIC;
+  v_Return DATE;
+BEGIN
+  v_Value := p_targetDOW - TO_NUMBER(TO_CHAR(EXTRACT('DOW' FROM p_initDate), '9999'), '9999');
+
+  IF (v_Value < 0 ) THEN
+    v_Value := v_Value + 7;
+  END IF;
+
+  SELECT p_initDate + v_Value
+  INTO v_Return
+  FROM DUAL;
+  
+  RETURN v_Return;
+
+END;   $BODY$
+  LANGUAGE 'plpgsql' VOLATILE
 /-- END
 

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -31,12 +31,12 @@ isc.OBApplicationMenuTree.addProperties({
   menuConstructor: isc.OBApplicationMenuTreeChild,
 
   // move the menu a few pixels down and a bit to the left
-  placeNear: function(left, top) {
+  placeNear: function (left, top) {
     var parentLeft = this.menuButton.parentElement.getPageLeft();
     return this.Super('placeNear', [parentLeft, top - 1]);
   },
 
-  initWidget: function() {
+  initWidget: function () {
     var theMenu = this;
 
     // make sure that the submenus also
@@ -46,7 +46,7 @@ isc.OBApplicationMenuTree.addProperties({
     this.Super('initWidget', arguments);
   },
 
-  draw: function() {
+  draw: function () {
     if (this.drawStyle) {
       this.drawStyle();
     }
@@ -58,14 +58,13 @@ isc.OBApplicationMenuTree.addProperties({
   //    var superBaseStyle = this.Super('getBaseStyle', arguments).replace(/^\s\s*/, '').replace(/\s\s*$/, '');
   //    return superBaseStyle + colNum;
   //},
-
   // overridden to get reliable custom style name
-  getBaseStyle: function(record, rowNum, colNum){
+  getBaseStyle: function (record, rowNum, colNum) {
     if (!this.getField(colNum)) {
       return '';
     }
     var name = this.getField(colNum).name;
-    return this.baseStyle +  name.substr(0, 1).toUpperCase() + name.substr(1) + 'Field';
+    return this.baseStyle + name.substr(0, 1).toUpperCase() + name.substr(1) + 'Field';
   },
 
   autoDraw: false,
@@ -76,7 +75,7 @@ isc.OBApplicationMenuTree.addProperties({
 
   showing: false,
 
-  show: function() {
+  show: function () {
     this.showing = true;
     this.Super('show', arguments);
     if (this.showStyle) {
@@ -86,16 +85,20 @@ isc.OBApplicationMenuTree.addProperties({
     // this code hides the horizontal line between the menu button and the menu
     var layoutContainer = this.menuButton.parentElement;
     if (!this.selectedHideLayout) {
-      this.selectedHideLayout = isc.Layout.create({styleName: this.hideButtonLineStyle,
-        height: 3, width: layoutContainer.getVisibleWidth() - 2,
+      this.selectedHideLayout = isc.Layout.create({
+        styleName: this.hideButtonLineStyle,
+        height: 3,
+        width: layoutContainer.getVisibleWidth() - 2,
         top: layoutContainer.getPageTop() + layoutContainer.getVisibleHeight() - 2,
-        left: layoutContainer.getPageLeft() + 1, overflow: 'hidden'});
+        left: layoutContainer.getPageLeft() + 1,
+        overflow: 'hidden'
+      });
     }
     this.selectedHideLayout.show();
     this.selectedHideLayout.moveAbove(this);
   },
 
-  hide: function() {
+  hide: function () {
     this.showing = false;
     this.Super('hide', arguments);
     if (this.selectedHideLayout) {
@@ -112,11 +115,11 @@ isc.OBApplicationMenuTree.addProperties({
     }
   },
 
-  itemClick: function(item, colNum) {
+  itemClick: function (item, colNum) {
     var isClassicEnvironment = OB.Utilities.useClassicMode(item.windowId);
     var selectedView = isc.addProperties({}, item);
     if (item.tabId) {
-      selectedView = OB.Utilities.openView(item.windowId, item.tabId, item.title, null, null, item.icon);
+      selectedView = OB.Utilities.openView(item.windowId, item.tabId, item.title, null, null, item.icon, item.readOnly, item.singleRecord);
       selectedView.type = item.type;
       selectedView.icon = item.icon;
       if (selectedView) {
@@ -126,30 +129,67 @@ isc.OBApplicationMenuTree.addProperties({
     } else if (item.recentObject) {
       selectedView = item.recentObject;
       if (!selectedView.viewId) {
-          selectedView.viewId = 'OBClassicWindow';
+        selectedView.viewId = 'OBClassicWindow';
       }
     } else if (item.manualUrl) {
       if (item.manualProcessId) {
-          selectedView = {viewId: 'OBClassicWindow', obManualURL: item.manualUrl, processId: item.manualProcessId, id: item.manualProcessId, command: 'DEFAULT', tabTitle: item.title};
+        selectedView = {
+          viewId: 'OBClassicWindow',
+          obManualURL: item.manualUrl,
+          processId: item.manualProcessId,
+          id: item.manualProcessId,
+          command: 'DEFAULT',
+          tabTitle: item.title
+        };
       } else if (item.processId) {
-          var viewName = item.modal?'OBClassicPopupModal':'OBPopupClassicWindow';
-          selectedView = {viewId: viewName, obManualURL: item.manualUrl, processId: item.processId, id: item.processId, command: 'BUTTON' + item.processId, tabTitle: item.title, popup: true};
+        var viewName = item.modal ? 'OBClassicPopupModal' : 'OBPopupClassicWindow';
+        selectedView = {
+          viewId: viewName,
+          obManualURL: item.manualUrl,
+          processId: item.processId,
+          id: item.processId,
+          command: 'BUTTON' + item.processId,
+          tabTitle: item.title,
+          popup: true
+        };
       } else if (item.formId) {
-          selectedView = {viewId: 'OBClassicWindow', obManualURL: item.manualUrl, id: item.manualUrl, formId: item.formId, command: 'DEFAULT', tabTitle: item.title};
+        selectedView = {
+          viewId: 'OBClassicWindow',
+          obManualURL: item.manualUrl,
+          id: item.manualUrl,
+          formId: item.formId,
+          command: 'DEFAULT',
+          tabTitle: item.title
+        };
       } else {
-          selectedView = {viewId: 'OBClassicWindow', obManualURL: item.manualUrl, id: item.manualUrl, command: 'DEFAULT', tabTitle: item.title};
+        selectedView = {
+          viewId: 'OBClassicWindow',
+          obManualURL: item.manualUrl,
+          id: item.manualUrl,
+          command: 'DEFAULT',
+          tabTitle: item.title
+        };
       }
     } else if (item.externalUrl) {
-      selectedView = {viewId: 'OBExternalPage', contentsURL: item.externalUrl, id: item.externalUrl, command: 'DEFAULT', tabTitle: item.title};
+      selectedView = {
+        viewId: 'OBExternalPage',
+        contentsURL: item.externalUrl,
+        id: item.externalUrl,
+        command: 'DEFAULT',
+        tabTitle: item.title
+      };
     } else {
-      selectedView = {viewId: item.viewId, tabTitle: item.title};
+      selectedView = {
+        viewId: item.viewId,
+        tabTitle: item.title
+      };
     }
-    
+
     selectedView.icon = item.icon;
     selectedView.type = item.type;
-    
+
     selectedView = isc.addProperties({}, item, selectedView);
-    
+
     OB.RecentUtilities.addRecent('UINAVBA_MenuRecentList', selectedView);
     OB.Layout.ViewManager.openView(selectedView.viewId, selectedView);
   }
@@ -159,11 +199,13 @@ isc.OBApplicationMenuTree.addProperties({
 isc.ClassFactory.defineClass('OBApplicationMenuButton', isc.MenuButton);
 
 isc.OBApplicationMenuButton.addProperties({
-  keyboardShortcutId : 'NavBar_MenuButton',
+  keyboardShortcutId: 'NavBar_MenuButton',
 
-  draw : function() {
-    var me = this;
-    var ksAction = function() {
+  draw: function () {
+    var me = this,
+        ksAction;
+
+    ksAction = function () {
       if (!me.menu.showing) {
         isc.EH.clickMaskClick();
       }
@@ -174,7 +216,7 @@ isc.OBApplicationMenuButton.addProperties({
     this.Super('draw', arguments);
   },
 
-  initWidget: function() {
+  initWidget: function () {
     if (this.initWidgetStyle) {
       this.initWidgetStyle();
     }
@@ -187,7 +229,7 @@ isc.OBApplicationMenuButton.addProperties({
     OB.TestRegistry.register('org.openbravo.client.application.navigationbarcomponents.ApplicationMenu', this.menu);
   },
 
-  showMenu: function() {
+  showMenu: function () {
     this.setMenuItems();
 
     this.menu.markForRedraw();
@@ -199,7 +241,7 @@ isc.OBApplicationMenuButton.addProperties({
     this.Super('showMenu', arguments);
   },
 
-  getNodeIcon: function(type) {
+  getNodeIcon: function (type) {
     var iconPath;
     if (type === 'window') {
       iconPath = this.nodeIcons.Window;
@@ -239,17 +281,24 @@ isc.OBApplicationMenuButton.addProperties({
 
   setMenuItems: function () {
     var recent = OB.RecentUtilities.getRecentValue('UINAVBA_MenuRecentList');
-    var recentEntries = [], length;
+    var recentEntries = [],
+        length;
     var completeMenuTree, recentIndex;
     if (recent && recent.length > 0) {
       length = recent.length;
       for (recentIndex = 0; recentIndex < length; recentIndex++) {
         var recentEntry = recent[recentIndex];
         if (recentEntry) {
-          recentEntries[recentIndex] = {title: recentEntry.tabTitle, recentObject: recentEntry, type: recentEntry.type};
+          recentEntries[recentIndex] = {
+            title: recentEntry.tabTitle,
+            recentObject: recentEntry,
+            type: recentEntry.type
+          };
         }
       }
-      recentEntries[recent.length] = {isSeparator: true};
+      recentEntries[recent.length] = {
+        isSeparator: true
+      };
     }
     completeMenuTree = recentEntries.concat(this.baseData);
     this.setNodeIcons(completeMenuTree);
@@ -259,14 +308,18 @@ isc.OBApplicationMenuButton.addProperties({
   // is used by selenium, creates a scLocator on the basis of a path passed in
   // as arguments, note that the function does not expect an array as this
   // did not seem to be supported by selenium
-  getSCLocator : function() {
-    var index = 0, path = [], length = arguments.length;
+  getSCLocator: function () {
+    var index = 0,
+        path = [],
+        length = arguments.length;
     for (; index < length; index++) {
       path[index] = arguments[index];
     }
     index = 0;
     var pathLength = path.getLength();
-    var itemIndex = 0, itemsLength = 0, item = null;
+    var itemIndex = 0,
+        itemsLength = 0,
+        item = null;
     var currentMenu = this.menu;
 
     // make sure the data is set

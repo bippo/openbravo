@@ -176,7 +176,10 @@ public class PaymentReportDao {
     try {
 
       hsqlScript
-          .append("select fpsd.id, (select a.sequenceNumber from ADList a where a.reference.id = '575BCB88A4694C27BC013DE9C73E6FE7' and a.searchKey = coalesce(pay.status, 'RPAP')) as a from FIN_Payment_ScheduleDetail as fpsd ");
+          .append("select fpsd.id, (select a.sequenceNumber from ADList a where a.reference.id = '575BCB88A4694C27BC013DE9C73E6FE7' and a.searchKey = coalesce(pay.status, 'RPAP')) as a,");
+      hsqlScript
+          .append(" (select trans.id from FIN_Finacc_Transaction trans left outer join trans.finPayment payment where payment.id=pay.id) as trans ");
+      hsqlScript.append(" from FIN_Payment_ScheduleDetail as fpsd ");
       hsqlScript.append(" left outer join fpsd.paymentDetails.finPayment pay");
       hsqlScript.append(" left outer join pay.businessPartner paybp");
       hsqlScript.append(" left outer join paybp.businessPartnerCategory paybpc");
@@ -192,6 +195,11 @@ public class PaymentReportDao {
       hsqlScript.append(FIN_PaymentScheduleDetail.PROPERTY_PAYMENTDETAILS);
       hsqlScript.append(" is not null or invps is not null ");
       hsqlScript.append(") ");
+
+      hsqlScript.append(" and fpsd.");
+      hsqlScript.append(FIN_PaymentScheduleDetail.PROPERTY_ORGANIZATION);
+      hsqlScript.append(".id in ");
+      hsqlScript.append(concatOrganizations(OBContext.getOBContext().getReadableOrganizations()));
 
       // organization + include sub-organization
       if (!strOrg.isEmpty()) {
@@ -327,12 +335,20 @@ public class PaymentReportDao {
         }
         // exclude empty business partner
         if (strcBPartnerIdIN.isEmpty() && strcBPGroupIdIN.isEmpty()) {
-          hsqlScript.append(" and (paybpc is not null or invbpc is not null) ");
+          hsqlScript.append(" and (pay.");
+          hsqlScript.append(FIN_Payment.PROPERTY_BUSINESSPARTNER);
+          hsqlScript.append(" is not null or inv.");
+          hsqlScript.append(Invoice.PROPERTY_BUSINESSPARTNER);
+          hsqlScript.append(" is not null) ");
         }
 
         // Only Empty Business Partner
       } else {// if ((strcNoBusinessPartner.equals("only")))
-        hsqlScript.append(" and paybpc is null and invbpc is null ");
+        hsqlScript.append(" and pay.");
+        hsqlScript.append(FIN_Payment.PROPERTY_BUSINESSPARTNER);
+        hsqlScript.append(" is null and inv.");
+        hsqlScript.append(Invoice.PROPERTY_BUSINESSPARTNER);
+        hsqlScript.append(" is null ");
       }
 
       // project
@@ -509,6 +525,7 @@ public class PaymentReportDao {
       hsqlScript.append(FIN_PaymentScheduleDetail.PROPERTY_INVOICEPAYMENTSCHEDULE);
       hsqlScript.append(".");
       hsqlScript.append(FIN_PaymentSchedule.PROPERTY_ID);
+
       final Session session = OBDal.getInstance().getSession();
       final Query query = session.createQuery(hsqlScript.toString());
       int pos = 0;
@@ -519,19 +536,27 @@ public class PaymentReportDao {
           query.setParameter(pos++, param);
         }
       }
-      boolean firstMember = true;
+
+      HashMap<String, FIN_FinaccTransaction> hashMapTransactions = new HashMap<String, FIN_FinaccTransaction>();
+      int index = 0;
       java.util.List<FIN_PaymentScheduleDetail> obqPSDList = new ArrayList<FIN_PaymentScheduleDetail>();
       for (Object resultObject : query.list()) {
         if (resultObject.getClass().isArray()) {
           final Object[] values = (Object[]) resultObject;
+          String StringPSDId = "";
           for (Object value : values) {
-            if (firstMember) {
+            if (index == 0) {
               obqPSDList.add(OBDal.getInstance().get(FIN_PaymentScheduleDetail.class,
                   (String) value));
-              firstMember = false;
-            } else {
-              firstMember = true;
+              StringPSDId = (String) value;
+            } else if (index == 2) {
+              if (value != null) {
+                hashMapTransactions.put(StringPSDId,
+                    OBDal.getInstance().get(FIN_FinaccTransaction.class, value));
+              }
+              index = -1;// firstMember = true;
             }
+            index++;
           }
         }
       }
@@ -632,6 +657,14 @@ public class PaymentReportDao {
             FieldProviderFactory.setField(data[i], "ISRECEIPT", "N");
             isReceipt = false;
           }
+          // deposit/withdraw date
+          if (hashMapTransactions.containsKey(FIN_PaymentScheduleDetail[i].getId().toString())) {
+            FieldProviderFactory.setField(data[i], "DEPOSIT_WITHDRAW_DATE", dateFormat
+                .format(hashMapTransactions.get(FIN_PaymentScheduleDetail[i].getId())
+                    .getTransactionDate()));
+          } else {
+            FieldProviderFactory.setField(data[i], "DEPOSIT_WITHDRAW_DATE", "");
+          }
         } else {
 
           // bp_group -- bp_category
@@ -672,6 +705,8 @@ public class PaymentReportDao {
             FieldProviderFactory.setField(data[i], "ISRECEIPT", "N");
             isReceipt = false;
           }
+          // deposit/withdraw date
+          FieldProviderFactory.setField(data[i], "DEPOSIT_WITHDRAW_DATE", "");
         }
 
         /*
@@ -710,7 +745,7 @@ public class PaymentReportDao {
             // payment plan yes / no
             FieldProviderFactory.setField(data[i], "NOT_PAYMENT_PLAN_Y_N", invoices.size() > 1 ? ""
                 : "Display:none");
-            // invoiceDatestrcProjectIdIN
+            // invoiceDate
             FieldProviderFactory.setField(data[i], "INVOICE_DATE", "");
             // dueDate.
             FieldProviderFactory.setField(data[i], "DUE_DATE", "");
@@ -747,7 +782,7 @@ public class PaymentReportDao {
 
         }
 
-        // Transactional and base amounts
+        // transactional and base amounts
         transAmount = FIN_PaymentScheduleDetail[i].getAmount();
 
         Currency baseCurrency = OBDal.getInstance().get(Currency.class, strConvertCurrency);
@@ -1135,6 +1170,9 @@ public class PaymentReportDao {
       FieldProviderFactory.setField(transactionData, "ISRECEIPT", "N");
       // isReceipt = false;
     }
+    // deposit/withdraw date
+    FieldProviderFactory.setField(transactionData, "DEPOSIT_WITHDRAW_DATE",
+        dateFormat.format(transaction.getDateAcct()));
     // project
     FieldProviderFactory.setField(transactionData, "PROJECT", "");
     // salesPerson
@@ -1370,7 +1408,7 @@ public class PaymentReportDao {
                 .compareTo(data.getField("TRANS_CURRENCY")) < 0);
       }
       if (strOrdCritList[i].contains("Date")) {
-        Date transactionDate = FIN_Utility.getDate(strOrdCritList[i]);
+        Date transactionDate = transaction.getDateAcct();
         Date dataDate = FIN_Utility.getDate(data.getField("DUE_DATE"));
         if (transactionDate.before(dataDate)) {
           isBefore = true;
@@ -1427,7 +1465,7 @@ public class PaymentReportDao {
               strProject);
         }
       } else if (strOrdCritList[i].contains("Date")) {
-        Date transactionDate = FIN_Utility.getDate(strOrdCritList[i]);
+        Date transactionDate = transaction.getDateAcct();
         Date dataDate = FIN_Utility.getDate(data.getField("DUE_DATE"));
         if (transactionDate.before(dataDate)) {
           isBefore = true;
@@ -1968,6 +2006,19 @@ public class PaymentReportDao {
       bp = psd.getPaymentDetails().getFinPayment().getBusinessPartner();
     }
     return bp;
+  }
+
+  private String concatOrganizations(String[] orgs) {
+    String concatOrgs = "";
+    for (int i = 0; i < orgs.length; i++) {
+      concatOrgs = concatOrgs.concat("', '" + orgs[i]);
+    }
+    if (!concatOrgs.equalsIgnoreCase("")) {
+      concatOrgs = concatOrgs.substring(3);
+      concatOrgs = "(" + concatOrgs + "')";
+    }
+
+    return concatOrgs;
   }
 
   /**

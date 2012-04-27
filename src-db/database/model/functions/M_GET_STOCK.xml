@@ -27,6 +27,7 @@
   v_ResultStr VARCHAR2(2000):='';
   v_Message VARCHAR2(2000):='';
   v_Record_ID VARCHAR2(32);
+  
   -- Parameter
   TYPE RECORD IS REF CURSOR;
   Cur_Parameter RECORD;
@@ -34,7 +35,7 @@
   Cur_MStock RECORD;
 
   -- Parameter Variables
-  v_Quantity NUMBER(10) ;
+  v_Quantity NUMBER(10);
   v_ProductID   VARCHAR2(32);
   v_LocatorID   VARCHAR2(32);
   v_WarehouseID VARCHAR2(32) ;
@@ -45,19 +46,21 @@
   v_UniqueAttribute CHAR(1);
   v_UomID VARCHAR2(32) ;
   v_ProductUomID VARCHAR2(32) ;
-  v_TableId  VARCHAR2(32):='-1';
+  v_TableID  VARCHAR2(32):='-1';
   v_AuxID VARCHAR2(32):='-1';
   v_LineNo NUMBER;
   v_SelectedAttSetInstanceID VARCHAR2(32) ;
   v_Count NUMBER:=1;
   v_ProductName M_Product.NAME%TYPE;
+  v_ProcessID VARCHAR2(32) ;
   
 BEGIN
   --  Update AD_PInstance
   DBMS_OUTPUT.PUT_LINE('Updating PInstance - Processing ' || PInstance_ID) ;
   v_ResultStr:='PInstanceNotFound';
-  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL, p_calledfromapp) ;
+  AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'Y', NULL, NULL, p_calledfromapp);
 BEGIN --BODY
+
   -- Get Parameters
   v_ResultStr:='ReadingParameters';
   FOR Cur_Parameter IN
@@ -94,46 +97,51 @@ BEGIN --BODY
       DBMS_OUTPUT.PUT_LINE(' M_Locator_ID=' || v_LocatorID);    
     ELSIF(Cur_Parameter.ParameterName='M_Warehouse_ID') THEN
       v_WarehouseID:=Cur_Parameter.P_String;
-      DBMS_OUTPUT.PUT_LINE(' M_Warehouse_ID=' || v_WarehouseID);       
+      DBMS_OUTPUT.PUT_LINE(' M_Warehouse_ID=' || v_WarehouseID);
     ELSIF(Cur_Parameter.ParameterName='AD_Client_ID') THEN
       v_ClientID:=Cur_Parameter.P_String;
-      DBMS_OUTPUT.PUT_LINE(' AD_Client_ID=' || v_ClientID);  
+      DBMS_OUTPUT.PUT_LINE(' AD_Client_ID=' || v_ClientID);
     ELSIF(Cur_Parameter.ParameterName='AD_Org_ID') THEN
       v_OrgID:=Cur_Parameter.P_String;
-      DBMS_OUTPUT.PUT_LINE(' AD_Org_ID=' || v_OrgID);    
+      DBMS_OUTPUT.PUT_LINE(' AD_Org_ID=' || v_OrgID);
     ELSIF(Cur_Parameter.ParameterName='M_AttributesetInstance_ID') THEN
       v_AttributesetinstanceID:=Cur_Parameter.P_String;
-      DBMS_OUTPUT.PUT_LINE(' M_AttributesetInstance_ID=' || v_AttributesetinstanceID);    
+      DBMS_OUTPUT.PUT_LINE(' M_AttributesetInstance_ID=' || v_AttributesetinstanceID);
     ELSIF(Cur_Parameter.ParameterName='UniqueAttribute') THEN
       v_UniqueAttribute:=Cur_Parameter.P_String;
       DBMS_OUTPUT.PUT_LINE(' UniqueAttribute=' || v_UniqueAttribute);
     ELSIF(Cur_Parameter.ParameterName='TableId') THEN
-      v_TableId:=Cur_Parameter.P_String;
-      DBMS_OUTPUT.PUT_LINE(' TableId=' || v_TableId);
+      v_TableID:=Cur_Parameter.P_String;
+      DBMS_OUTPUT.PUT_LINE(' TableId=' || v_TableID);
     ELSIF(Cur_Parameter.ParameterName='AuxID') THEN
       v_AuxID:=Cur_Parameter.P_String;
       DBMS_OUTPUT.PUT_LINE(' AuxID=' || v_AuxID);    
     ELSIF(Cur_Parameter.ParameterName='LineNo') THEN
       v_LineNo:=Cur_Parameter.P_Number;
-      DBMS_OUTPUT.PUT_LINE(' LineNo=' || v_LineNo);          
+      DBMS_OUTPUT.PUT_LINE(' LineNo=' || v_LineNo);
+    ELSIF(Cur_Parameter.ParameterName='ProcessID') THEN
+      v_ProcessID:=Cur_Parameter.P_String;
+      DBMS_OUTPUT.PUT_LINE(' ProcessID=' || v_ProcessID);
     ELSE
       DBMS_OUTPUT.PUT_LINE('*** Unknown Parameter=' || Cur_Parameter.ParameterName) ;
     END IF;
   END LOOP; -- Get Parameter
   DBMS_OUTPUT.PUT_LINE('  Record_ID=' || v_Record_ID) ;
 
-  -- Insert Values from Auxiliar STOCK
-  FOR Cur_Stock IN (
+        -- Insert Values from Auxiliar STOCK
+
+    FOR Cur_Stock  IN
+    (
       SELECT MS.M_STORAGE_DETAIL_ID, COALESCE(MS.Quantity, 0) AS Qty, MS.QtyOrder AS QtyOrder, MS.UPDATED AS lastupdated
-      FROM M_STORAGE_DETAIL T
-            JOIN M_STOCK_AUX MS ON T.M_STORAGE_DETAIL_ID = MS.M_STORAGE_DETAIL_ID
-            JOIN M_LOCATOR L ON T.M_LOCATOR_ID=L.M_LOCATOR_ID
-            JOIN M_WAREHOUSE W ON L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
-            LEFT JOIN M_PRODUCT_UOM PU ON T.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
-            LEFT JOIN C_UOM U ON PU.C_UOM_ID = U.C_UOM_ID
-      WHERE T.M_PRODUCT_ID=v_ProductID
+      FROM M_STORAGE_DETAIL T        
+       JOIN M_STOCK_AUX MS ON T.M_STORAGE_DETAIL_ID = MS.M_STORAGE_DETAIL_ID
+       JOIN M_LOCATOR L ON T.M_LOCATOR_ID=L.M_LOCATOR_ID
+       JOIN M_WAREHOUSE W ON L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
+                LEFT JOIN M_PRODUCT_UOM PU ON T.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
+                LEFT JOIN C_UOM U ON PU.C_UOM_ID = U.C_UOM_ID
+        WHERE T.M_PRODUCT_ID=v_ProductID
         AND MS.AUX_ID = v_AuxID
-        AND MS.AD_TABLE_ID = v_TableId
+        AND MS.AD_TABLE_ID = v_TableID
         AND MS.LINE < v_LineNo
         AND COALESCE(T.C_UOM_ID, '-1') = COALESCE(v_UomID, T.C_UOM_ID, '-1')
         AND COALESCE(T.M_Product_UOM_id, '-1') = COALESCE(v_ProductUomID, T.M_Product_UOM_id, '-1')
@@ -143,27 +151,33 @@ BEGIN --BODY
         AND AD_ISORGINCLUDED(W.AD_ORG_ID,v_OrgID,W.AD_CLIENT_ID)<>-1
         AND COALESCE(MS.Quantity, 0)>0
         ORDER BY PRIORITYNO, LASTUPDATED
-  ) LOOP
-    INSERT INTO M_STOCK_PROPOSED (
+      )
+      LOOP
+        INSERT 
+        INTO M_STOCK_PROPOSED
+        (
         m_stock_proposed_id, ad_client_id, ad_org_id, isactive, 
         created , createdby, updated, updatedby,
         ad_pinstance_id, priority, m_storage_detail_id, quantity, qtyorder
-    ) VALUES (
+        )
+        VALUES
+        (
         get_uuid(), v_ClientID, v_OrgID, 'Y',
         now(), v_AD_User_ID, now(), v_AD_User_ID,
         pinstance_id, v_Count, Cur_Stock.M_STORAGE_DETAIL_ID, Cur_Stock.Qty, Cur_Stock.qtyorder
-    );
-    v_Count:=v_Count+1;
-  END LOOP;
+        );
+        v_Count:=v_Count+1;
+      END LOOP;
 
-  -- Insert Values from Storage Detail
-  FOR Cur_Stock IN (
+    -- Insert Values from Storage Detail
+    FOR Cur_Stock  IN
+    (
       SELECT T.M_STORAGE_DETAIL_ID, COALESCE(T.QtyOnHand, 0) AS Qty, T.QtyOrderOnHand AS QtyOrder, L.PRIORITYNO, T.UPDATED AS lastupdated
       FROM M_STORAGE_DETAIL T 
-            JOIN M_LOCATOR L ON T.M_LOCATOR_ID=L.M_LOCATOR_ID
-            JOIN M_WAREHOUSE W ON L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
-            LEFT JOIN M_PRODUCT_UOM PU ON T.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
-            LEFT JOIN C_UOM U ON PU.C_UOM_ID = U.C_UOM_ID
+       JOIN M_LOCATOR L ON T.M_LOCATOR_ID=L.M_LOCATOR_ID
+       JOIN M_WAREHOUSE W ON L.M_WAREHOUSE_ID = W.M_WAREHOUSE_ID
+       LEFT JOIN M_PRODUCT_UOM PU ON T.M_PRODUCT_UOM_ID = PU.M_PRODUCT_UOM_ID
+       LEFT JOIN C_UOM U ON PU.C_UOM_ID = U.C_UOM_ID
       WHERE T.M_PRODUCT_ID=v_ProductID
         AND COALESCE(T.C_UOM_ID, '-1') = COALESCE(v_UomID, T.C_UOM_ID, '-1')
         AND COALESCE(T.M_Product_UOM_id, '-1') = COALESCE(v_ProductUomID, T.M_Product_UOM_id, '-1')
@@ -173,27 +187,64 @@ BEGIN --BODY
         AND AD_ISORGINCLUDED(W.AD_ORG_ID,v_OrgID,W.AD_CLIENT_ID)<>-1
         AND COALESCE(T.QtyOnHand, 0)>0
         ORDER BY PRIORITYNO, LASTUPDATED
-  ) LOOP
-    INSERT INTO M_STOCK_PROPOSED (
+      )
+      LOOP
+        INSERT 
+        INTO M_STOCK_PROPOSED
+        (
         m_stock_proposed_id, ad_client_id, ad_org_id, isactive, 
         created , createdby, updated, updatedby,
         ad_pinstance_id, priority, m_storage_detail_id, quantity, qtyorder
-    ) VALUES (
+        )
+        VALUES
+        (
         get_uuid(), v_ClientID, v_OrgID, 'Y',
         now(), v_AD_User_ID, now(), v_AD_User_ID,
         pinstance_id, v_Count, Cur_Stock.M_STORAGE_DETAIL_ID, Cur_Stock.Qty, Cur_Stock.QtyOrder
-    );
-    v_Count:=v_Count+1;
-  END LOOP;
+        );
+        v_Count:=v_Count+1;
+      END LOOP;
 
-  IF (v_UniqueAttribute='Y') THEN 
+  --M_Get_Stock - Finish Process Extension Point
+  SELECT count(*) INTO v_count
+  FROM DUAL
+  WHERE EXISTS (SELECT 1 FROM ad_ep_procedures WHERE ad_extension_points_id = 'FF80818132FDD74F0132FDF278430029');
+  IF (v_count=1) THEN
+    DECLARE
+      v_ep_instance VARCHAR2(32);
+      v_extension_point_id VARCHAR2(32) := 'FF80818132FDD74F0132FDF278430029';
+    BEGIN
+      v_ep_instance := get_uuid();
+
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'AD_Pinstance_Stock_ID',
+        pinstance_id, NULL, NULL, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
+        v_Record_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
+        v_AD_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
+      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
+        NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
+      AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);
+      
+      SELECT p_text INTO v_Message
+      FROM ad_ep_instance_para
+      WHERE ad_ep_instance_id = v_ep_instance
+      AND parametername LIKE 'Message';
+
+      DELETE FROM ad_ep_instance_para
+      WHERE ad_ep_instance_id = v_ep_instance;
+    END;
+  END IF;
+
+
+  IF (v_UniqueAttribute='Y') THEN
     DELETE FROM M_STOCK_PROPOSED MS
     WHERE AD_PINSTANCE_ID = pinstance_id
       AND EXISTS (SELECT '1'
-                  FROM M_STORAGE_DETAIL T
-                  WHERE T.M_STORAGE_DETAIL_ID = MS.M_STORAGE_DETAIL_ID
-                  AND T.M_ATTRIBUTESETINSTANCE_ID = '0'
-                 ); 
+      FROM M_STORAGE_DETAIL T
+      WHERE T.M_STORAGE_DETAIL_ID = MS.M_STORAGE_DETAIL_ID
+      AND T.M_ATTRIBUTESETINSTANCE_ID = '0'
+      ); 
     v_SelectedAttSetInstanceID:=null;
 
     FOR Cur_MStock IN (
@@ -201,7 +252,7 @@ BEGIN --BODY
         FROM (
           SELECT SUM(MS.QUANTITY) AS QTY, T.M_ATTRIBUTESETINSTANCE_ID, MIN(PRIORITY) AS PRIORITY
           FROM M_STOCK_PROPOSED MS
-                JOIN M_STORAGE_DETAIL T ON MS.M_STORAGE_DETAIL_ID = T.M_STORAGE_DETAIL_ID
+               JOIN M_STORAGE_DETAIL T ON MS.M_STORAGE_DETAIL_ID = T.M_STORAGE_DETAIL_ID
           WHERE AD_PINSTANCE_ID = pinstance_id
           GROUP BY T.M_ATTRIBUTESETINSTANCE_ID
           HAVING SUM(MS.QUANTITY) >= v_Quantity
@@ -231,36 +282,6 @@ BEGIN --BODY
     END IF;
   END IF;
 
-  --M_Get_Stock - Finish Process Extension Point
-  SELECT count(*) INTO v_count
-  FROM DUAL
-  WHERE EXISTS (SELECT 1 FROM ad_ep_procedures WHERE ad_extension_points_id = 'FF80818132FDD74F0132FDF278430029');
-  IF (v_count=1) THEN
-    DECLARE
-      v_ep_instance VARCHAR2(32);
-      v_extension_point_id VARCHAR2(32) := 'FF80818132FDD74F0132FDF278430029';
-    BEGIN
-      v_ep_instance := get_uuid();
-
-      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'AD_Pinstance_Stock_ID',
-          pinstance_id, NULL, NULL, NULL, NULL, NULL, NULL);
-      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Record_ID',
-          v_Record_ID, NULL, NULL, NULL, NULL, NULL, NULL);
-      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'User',
-          v_AD_User_ID, NULL, NULL, NULL, NULL, NULL, NULL);
-      AD_EP_INSTANCE_PARA_INSERT(v_ep_instance, v_extension_point_id, 'Message',
-          NULL, NULL, NULL, NULL, NULL, NULL, v_Message);
-      AD_EXTENSION_POINT_HANDLER(v_ep_instance, v_extension_point_id);	    
-      SELECT p_text INTO v_Message
-      FROM ad_ep_instance_para
-      WHERE ad_ep_instance_id = v_ep_instance
-        AND parametername LIKE 'Message';
-
-      DELETE FROM ad_ep_instance_para
-      WHERE ad_ep_instance_id = v_ep_instance;
-    END;
-  END IF;
-    
   --  Update AD_PInstance
   DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message) ;
   AD_UPDATE_PINSTANCE(PInstance_ID, NULL, 'N', 1, v_Message, p_calledfromapp) ;

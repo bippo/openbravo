@@ -586,15 +586,15 @@ public class DocFINReconciliation extends AcctServer {
       fact.createLine(line, getWithdrawalAccount(as, transaction.getAccount(), conn),
           C_Currency_ID, transactionPaymentAmount.toString(),
           transactionDepositedAmount.toString(), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
+          DocumentType, line.m_DateAcct, null, conn);
     } else {
       fact.createLine(line, getAccountFee(as, transaction.getAccount(), conn), C_Currency_ID,
           line.getPaymentAmount(), line.getDepositAmount(), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
+          DocumentType, line.m_DateAcct, null, conn);
     }
     fact.createLine(line, getClearOutAccount(as, transaction.getAccount(), conn), C_Currency_ID,
         line.getDepositAmount(), line.getPaymentAmount(), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-        DocumentType, conn);
+        DocumentType, line.m_DateAcct, null, conn);
     SeqNo = "0";
     return fact;
   }
@@ -617,7 +617,7 @@ public class DocFINReconciliation extends AcctServer {
       fact.createLine(line, getAccountTransactionPayment(conn, payment, as), C_Currency_ID,
           !payment.isReceipt() ? transactionAmount.toString() : "",
           payment.isReceipt() ? transactionAmount.toString() : "", Fact_Acct_Group_ID,
-          nextSeqNo(SeqNo), DocumentType, conn);
+          nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
     } else if (!getDocumentPaymentConfirmation(payment)) {
       FieldProviderFactory[] data = loadLinesPaymentDetailsFieldProvider(transaction);
       for (int i = 0; i < data.length; i++) {
@@ -655,11 +655,11 @@ public class DocFINReconciliation extends AcctServer {
       fact.createLine(line, getAccountPayment(conn, payment, as), C_Currency_ID,
           !payment.isReceipt() ? paymentAmount.toString() : "",
           payment.isReceipt() ? paymentAmount.toString() : "", Fact_Acct_Group_ID,
-          nextSeqNo(SeqNo), DocumentType, conn);
+          nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
     }
     fact.createLine(line, getAccountReconciliation(conn, payment, as), C_Currency_ID,
         payment.isReceipt() ? line.getAmount() : "", !payment.isReceipt() ? line.getAmount() : "",
-        Fact_Acct_Group_ID, "999999", DocumentType, conn);
+        Fact_Acct_Group_ID, "999999", DocumentType, line.m_DateAcct, null, conn);
     if (!getDocumentPaymentConfirmation(payment)
         && !getDocumentTransactionConfirmation(transaction)) {
       // Pre-payment is consumed when Used Credit Amount not equals Zero. When consuming Credit no
@@ -680,7 +680,7 @@ public class DocFINReconciliation extends AcctServer {
                   as, isReceiptPayment, true, conn), creditPayment.getCreditPaymentUsed()
                   .getCurrency().getId(), (isReceiptPayment ? creditAmountConverted : ""),
               (isReceiptPayment ? "" : creditAmountConverted), Fact_Acct_Group_ID,
-              nextSeqNo(SeqNo), DocumentType, conn);
+              nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
         }
         if (creditPayments.isEmpty()) {
           fact.createLine(
@@ -689,7 +689,7 @@ public class DocFINReconciliation extends AcctServer {
                   true, conn), payment.getCurrency().getId(), (payment.isReceipt() ? payment
                   .getUsedCredit().toString() : ""), (payment.isReceipt() ? "" : payment
                   .getUsedCredit().toString()), Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
-              conn);
+              line.m_DateAcct, null, conn);
         }
       }
     }
@@ -711,7 +711,7 @@ public class DocFINReconciliation extends AcctServer {
     if (getDocumentTransactionConfirmation(transaction))
       fact.createLine(line, getAccountTransactionPayment(conn, payment, as), C_Currency_ID,
           !isReceipt ? line.getAmount() : "", isReceipt ? line.getAmount() : "",
-          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
     else if (!getDocumentPaymentConfirmation(payment)) {
       BigDecimal bpAmount = new BigDecimal(line.getAmount());
       if (line.getWriteOffAmt() != null
@@ -725,7 +725,7 @@ public class DocFINReconciliation extends AcctServer {
         }
         fact.createLine(line, account, C_Currency_ID, (isReceipt ? line.getWriteOffAmt() : ""),
             (isReceipt ? "" : line.getWriteOffAmt()), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-            DocumentType, conn);
+            DocumentType, line.m_DateAcct, null, conn);
         bpAmount = bpAmount.add(new BigDecimal(line.getWriteOffAmt()));
       }
       fact.createLine(
@@ -734,11 +734,11 @@ public class DocFINReconciliation extends AcctServer {
               (line.m_C_BPartner_ID == null || line.m_C_BPartner_ID.equals("")) ? this.C_BPartner_ID
                   : line.m_C_BPartner_ID, as, isReceipt, isPrepayment, conn), C_Currency_ID,
           !isReceipt ? line.getAmount() : "", isReceipt ? line.getAmount() : "",
-          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
     } else {
       fact.createLine(line, getAccountPayment(conn, payment, as), C_Currency_ID,
           !isReceipt ? line.getAmount() : "", isReceipt ? line.getAmount() : "",
-          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
     }
 
     SeqNo = "0";
@@ -769,7 +769,7 @@ public class DocFINReconciliation extends AcctServer {
           nextSeqNo(SeqNo), conn);
       fact.createLine(line, account, paymentCurrency.getId(), (isReceipt ? writeOffAmt.toString()
           : ""), (isReceipt ? "" : writeOffAmt.toString()), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
+          DocumentType, line.m_DateAcct, null, conn);
       bpAmount = bpAmount.add(paymentDetail.getWriteoffAmount());
     }
     String bpartnerId = (line.m_C_BPartner_ID == null || line.m_C_BPartner_ID.equals("")) ? this.C_BPartner_ID
@@ -789,7 +789,7 @@ public class DocFINReconciliation extends AcctServer {
           getAccountGLItem(OBDal.getInstance().get(GLItem.class, line.cGlItemId), as, isReceipt,
               conn), paymentCurrency.getId(), (isReceipt ? "" : bpAmount.toString()),
           (isReceipt ? bpAmount.toString() : ""), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
+          DocumentType, line.m_DateAcct, null, conn);
     } else {
       BigDecimal bpAmountConverted = bpAmount;
       Invoice invoice = paymentDetail.getFINPaymentScheduleDetailList().get(0)
@@ -812,7 +812,7 @@ public class DocFINReconciliation extends AcctServer {
       fact.createLine(line, getAccountBPartner(bpartnerId, as, isReceipt, isPrepayment, conn),
           paymentCurrency.getId(), !isReceipt ? bpAmountConverted.toString() : "",
           isReceipt ? bpAmountConverted.toString() : "", Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
+          DocumentType, line.m_DateAcct, null, conn);
     }
 
     SeqNo = "0";
@@ -842,18 +842,18 @@ public class DocFINReconciliation extends AcctServer {
       fact.createLine(line, getAccountTransaction(conn, transaction.getAccount(), as, isReceipt),
           C_Currency_ID, transactionPaymentAmount.toString(),
           transactionDepositedAmount.toString(), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
+          DocumentType, line.m_DateAcct, null, conn);
       // Why empty string is being checked??
     } else if (!"".equals(line.getCGlItemId())) {
       fact.createLine(
           line,
           getAccountGLItem(OBDal.getInstance().get(GLItem.class, line.getCGlItemId()), as,
               isReceipt, conn), C_Currency_ID, line.getPaymentAmount(), line.getDepositAmount(),
-          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+          Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, line.m_DateAcct, null, conn);
     }
     fact.createLine(line, getAccount(conn, transaction.getAccount(), as, isReceipt), C_Currency_ID,
         line.getDepositAmount(), line.getPaymentAmount(), Fact_Acct_Group_ID, "999999",
-        DocumentType, conn);
+        DocumentType, line.m_DateAcct, null, conn);
     SeqNo = "0";
     return fact;
   }

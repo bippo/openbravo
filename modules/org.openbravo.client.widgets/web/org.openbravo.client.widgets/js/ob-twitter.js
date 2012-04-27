@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -19,17 +19,14 @@
 isc.defineClass('OBTwitterWidget', isc.OBUrlWidget);
 
 isc.OBTwitterWidget.addProperties({
-  initWidget: function() {
+  initWidget: function () {
     this.setContentSource();
     this.Super('initWidget', arguments);
   },
-  setContentSource: function() {
-    this.contentSource = OB.Application.contextUrl +
-                         'web/org.openbravo.client.widgets/twitter.html?t=search'+
-                         '&s=' + this.parameters.search +
-                         '&preventCache=' + Math.random();
+  setContentSource: function () {
+    this.contentSource = OB.Application.contextUrl + 'web/org.openbravo.client.widgets/twitter.html?t=search' + '&s=' + this.parameters.search + '&preventCache=' + Math.random();
   },
-  refresh: function() {
+  refresh: function () {
     this.setContentSource();
     this.Super('refresh', arguments);
   }

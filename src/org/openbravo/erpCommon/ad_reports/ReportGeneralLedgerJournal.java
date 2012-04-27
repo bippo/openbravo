@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2001-2011 Openbravo SLU
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -107,7 +107,7 @@ public class ReportGeneralLedgerJournal extends HttpSecureAppServlet {
           "1");
       String strEntryNo = vars.getGlobalVariable("inpEntryNo",
           "ReportGeneralLedgerJournal|EntryNo", "1");
-      String strInitialBalance = vars.getGlobalVariable("inpInitialBalance",
+      String strInitialBalance = vars.getNumericGlobalVariable("inpInitialBalance",
           "ReportGeneralLedgerJournal|InitialBalance", "0");
       String strShowDescription = vars.getGlobalVariable("inpShowDescription",
           "ReportGeneralLedgerJournal|ShowDescription", "");
@@ -176,7 +176,7 @@ public class ReportGeneralLedgerJournal extends HttpSecureAppServlet {
           "ReportGeneralLedgerJournal|PageNo");
       String strEntryNo = vars.getRequestGlobalVariable("inpEntryNo",
           "ReportGeneralLedgerJournal|EntryNo");
-      String strInitialBalance = vars.getRequestGlobalVariable("inpInitialBalance",
+      String strInitialBalance = vars.getNumericRequestGlobalVariable("inpInitialBalance",
           "ReportGeneralLedgerJournal|InitialBalance");
       String strShowDescription = vars.getRequestGlobalVariable("inpShowDescription",
           "ReportGeneralLedgerJournal|ShowDescription");
@@ -230,7 +230,7 @@ public class ReportGeneralLedgerJournal extends HttpSecureAppServlet {
           "1");
       String strEntryNo = vars.getGlobalVariable("inpEntryNo",
           "ReportGeneralLedgerJournal|EntryNo", "1");
-      String strInitialBalance = vars.getGlobalVariable("inpInitialBalance",
+      String strInitialBalance = vars.getNumericGlobalVariable("inpInitialBalance",
           "ReportGeneralLedgerJournal|InitialBalance", "0");
       String strShowDescription = vars.getGlobalVariable("inpShowDescription",
           "ReportGeneralLedgerJournal|ShowDescription", "N");

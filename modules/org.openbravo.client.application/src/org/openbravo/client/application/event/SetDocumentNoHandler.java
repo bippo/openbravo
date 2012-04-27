@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2011 Openbravo SLU 
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -119,8 +119,7 @@ public class SetDocumentNoHandler extends EntityPersistenceEventObserver {
       List<Property> processedPropertyList = new ArrayList<Property>();
       for (Entity entity : ModelProvider.getInstance().getModel()) {
         for (Property prop : entity.getProperties()) {
-          if ("documentno".equals(prop.getColumnName() != null ? prop.getColumnName().toLowerCase()
-              : "")) {
+          if (prop.isUsedSequence()) {
             entityList.add(entity);
             documentNoPropertyList.add(prop);
             if (entity.hasProperty(Order.PROPERTY_DOCUMENTTYPE)) {

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -21,17 +21,17 @@ isc.RelativeDateItem.addProperties({
   showChooserIcon: false,
   timeUnitOptions: ['day', 'week', 'month', 'quarter', 'year'],
   todayTitle: OB.I18N.getLabel('OBUISC_DateChooser.todayButtonTitle'),
-  
+
   millisecondsAgoTitle: OB.I18N.getLabel('OBUIAPP_milliseconds_ago'),
   secondsAgoTitle: OB.I18N.getLabel('OBUIAPP_seconds_ago'),
-  minutesAgoTitle: OB.I18N.getLabel('OBUIAPP_minutes_ago'),  
+  minutesAgoTitle: OB.I18N.getLabel('OBUIAPP_minutes_ago'),
   hoursAgoTitle: OB.I18N.getLabel('OBUIAPP_hours_ago'),
   daysAgoTitle: OB.I18N.getLabel('OBUIAPP_days_ago'),
   weeksAgoTitle: OB.I18N.getLabel('OBUIAPP_weeks_ago'),
   monthsAgoTitle: OB.I18N.getLabel('OBUIAPP_months_ago'),
   quartersAgoTitle: OB.I18N.getLabel('OBUIAPP_quarters_ago'),
   yearsAgoTitle: OB.I18N.getLabel('OBUIAPP_years_ago'),
-  
+
   millisecondsFromNowTitle: OB.I18N.getLabel('OBUIAPP_milliseconds_from_now'),
   secondsFromNowTitle: OB.I18N.getLabel('OBUIAPP_seconds_from_now'),
   minutesFromNowTitle: OB.I18N.getLabel('OBUIAPP_minutes_from_now'),
@@ -41,15 +41,15 @@ isc.RelativeDateItem.addProperties({
   monthsFromNowTitle: OB.I18N.getLabel('OBUIAPP_months_from_now'),
   quartersFromNowTitle: OB.I18N.getLabel('OBUIAPP_quarters_from_now'),
   yearsFromNowTitle: OB.I18N.getLabel('OBUIAPP_years_from_now'),
-  
+
   presetOptions: {
-    "$today" : OB.I18N.getLabel('OBUISC_DateChooser.todayButtonTitle'),
-    "$yesterday" : OB.I18N.getLabel('OBUIAPP_Yesterday'),
-    "$tomorrow" : OB.I18N.getLabel('OBUIAPP_Tomorrow'),
-    "-1w" : OB.I18N.getLabel('OBUIAPP_Current_day_of_last_week'),
-    "+1w" : OB.I18N.getLabel('OBUIAPP_Current_day_of_next_week'),
-    "-1m" : OB.I18N.getLabel('OBUIAPP_Current_day_of_last_month'),
-    "+1m" : OB.I18N.getLabel('OBUIAPP_Current_day_of_next_month')
+    "$today": OB.I18N.getLabel('OBUISC_DateChooser.todayButtonTitle'),
+    "$yesterday": OB.I18N.getLabel('OBUIAPP_Yesterday'),
+    "$tomorrow": OB.I18N.getLabel('OBUIAPP_Tomorrow'),
+    "-1w": OB.I18N.getLabel('OBUIAPP_Current_day_of_last_week'),
+    "+1w": OB.I18N.getLabel('OBUIAPP_Current_day_of_next_week'),
+    "-1m": OB.I18N.getLabel('OBUIAPP_Current_day_of_last_month'),
+    "+1m": OB.I18N.getLabel('OBUIAPP_Current_day_of_next_month')
   }
 });
 
@@ -57,10 +57,10 @@ isc.RelativeDateItem.changeDefaults('quantityFieldDefaults', {
   // max 1000 days/months in the past/future
   max: 1000,
   alwaysTakeSpace: false,
-  
+
   // after leaving the quantity field the next time the rangeitem is visited the 
   // focus should go to the value field again
-  blur: function() {
+  blur: function () {
     if (this.form && this.form._isRedrawing) {
       return;
     }
@@ -71,7 +71,7 @@ isc.RelativeDateItem.changeDefaults('quantityFieldDefaults', {
 });
 
 isc.RelativeDateItem.changeDefaults('valueFieldDefaults', {
-  keyPress: function(item, form, keyName, characterValue){
+  keyPress: function (item, form, keyName, characterValue) {
     if (keyName === 'Enter' && !isc.EventHandler.ctrlKeyDown() && !isc.EventHandler.altKeyDown() && !isc.EventHandler.shiftKeyDown()) {
       // canvasItem is the rangeItem
       form.canvasItem.showPicker();
@@ -79,7 +79,8 @@ isc.RelativeDateItem.changeDefaults('valueFieldDefaults', {
     }
     return true;
   },
-  init: function() {
+
+  init: function () {
     this.icons = [{
       width: this.calendarIconWidth,
       height: this.calendarIconHeight,
@@ -88,7 +89,7 @@ isc.RelativeDateItem.changeDefaults('valueFieldDefaults', {
       showFocused: false,
       item: this,
       src: this.calendarIconSrc,
-      click: function() {
+      click: function () {
         this.item.form.canvasItem.showPicker();
       }
     }];
@@ -104,25 +105,33 @@ isc.RelativeDateItem.changeDefaults('valueFieldDefaults', {
 isc.ClassFactory.defineClass('OBDateRangeDialog', isc.DateRangeDialog);
 
 isc.OBDateRangeDialog.addProperties({
-  initWidget: function() {
+  initWidget: function () {
     this.Super('initWidget', arguments);
     this.rangeForm.setFocusItem(this.rangeItem);
-   },
-  
-  show: function() {
+  },
+
+  show: function () {
     this.Super('show', arguments);
     this.rangeForm.items[0].fromField.calculatedDateField.canFocus = false;
     this.rangeForm.items[0].toField.calculatedDateField.canFocus = false;
     this.rangeForm.items[0].fromField.valueField.focusInItem();
     this.rangeForm.focus();
   },
-  
+
   // trick: overridden to let the ok and clear button change places
-  addAutoChild: function(name, props) {
+  addAutoChild: function (name, props) {
     if (name === 'okButton') {
-      return this.Super('addAutoChild', ['clearButton', {canFocus:true, title: this.clearButtonTitle}]);
+      return this.Super('addAutoChild', ['clearButton',
+      {
+        canFocus: true,
+        title: this.clearButtonTitle
+      }]);
     } else if (name === 'clearButton') {
-      return this.Super('addAutoChild', ['okButton', {canFocus:true, title: this.okButtonTitle}]);
+      return this.Super('addAutoChild', ['okButton',
+      {
+        canFocus: true,
+        title: this.okButtonTitle
+      }]);
     } else {
       return this.Super('addAutoChild', arguments);
     }
@@ -143,7 +152,7 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
   operator: 'equals',
   // prevents date formatting using the simple type formatters
   applyStaticTypeFormat: true,
-  
+
   // note this one needs to be set to let the formatDate be called below
   dateDisplayFormat: OB.Format.date,
   rangeDialogConstructor: isc.OBDateRangeDialog,
@@ -154,7 +163,7 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     _constructor: 'DateRangeDialog',
     autoDraw: false,
     destroyOnClose: false,
-    clear: function() {
+    clear: function () {
       if (this.destroying) {
         return;
       }
@@ -174,7 +183,7 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     showFocused: false,
     showFocusedWithItem: false,
     hspace: 0,
-    click: function(form, item, icon) {
+    click: function (form, item, icon) {
       if (!item.disabled) {
         item.showRangeDialog();
       }
@@ -182,13 +191,13 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
   },
 
   allowRelativeDates: true,
-  
+
   // if the user enters a date directly
   singleDateMode: false,
   singleDateValue: null,
   singleDateDisplayValue: null,
-  
-  init: function() {
+
+  init: function () {
     this.addAutoChild('rangeDialog', {
       fromDate: this.fromDate,
       toDate: this.toDate,
@@ -199,9 +208,9 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
       callback: this.getID() + '.rangeDialogCallback(value)'
     });
 
-    this.icons = [ isc.addProperties({
+    this.icons = [isc.addProperties({
       prompt: this.pickerIconPrompt
-    }, this.pickerIconDefaults, this.pickerIconProperties) ];
+    }, this.pickerIconDefaults, this.pickerIconProperties)];
 
     this.rangeItem = this.rangeDialog.rangeItem;
     this.rangeItem.name = this.name;
@@ -211,22 +220,24 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
       this.doInit();
     }
   },
-  
-  blurValue: function() {
+
+  blurValue: function () {
     return this.getElementValue();
   },
-  
-  expandSingleValue: function(){
-    var newValue = this.parseValue(), oldValue = this.mapValueToDisplay(), dateValue, editRow;
-    
+
+  expandSingleValue: function () {
+    var newValue = this.parseValue(),
+        oldValue = this.mapValueToDisplay(),
+        dateValue, editRow;
+
     if (!this.singleDateMode) {
       return;
     }
-    
+
     if (newValue === oldValue) {
       return false;
     }
-    
+
     if (this.singleDateMode) {
       dateValue = OB.Utilities.Date.OBToJS(newValue, this.dateFormat);
       if (isc.isA.Date(dateValue)) {
@@ -242,8 +253,8 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     }
     return false;
   },
-  
-  clearDateValues: function() {
+
+  clearDateValues: function () {
     this.singleDateValue = null;
     this.singleDateDisplayValue = '';
     this.singleDateMode = true;
@@ -251,27 +262,27 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     this.rangeItem.setValue(null);
     this.setElementValue('', '');
   },
-  
-  setSingleDateValue: function(value) {
+
+  setSingleDateValue: function (value) {
     var displayValue = OB.Utilities.Date.JSToOB(value, this.dateFormat);
     this.singleDateValue = value;
     this.singleDateDisplayValue = displayValue;
     this.singleDateMode = true;
     this.setElementValue(displayValue, displayValue);
   },
-  
-  blur: function() {
+
+  blur: function () {
     if (this.form && this.form._isRedrawing) {
       return;
     }
 
     if (this.expandSingleValue()) {
       this.form.grid.performAction();
-    }    
+    }
     return this.Super('blur', arguments);
   },
 
-  showRangeDialog: function() {
+  showRangeDialog: function () {
     if (!this.rangeItemValue) {
       this.rangeDialog.clear();
       this.rangeItem.fromField.setValue(null);
@@ -282,8 +293,9 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     this.rangeDialog.show();
   },
 
-  rangeDialogCallback: function(value) {
-    var data = value, illegalStart = data && data.start && !this.isCorrectRangeValue(data.start);
+  rangeDialogCallback: function (value) {
+    var data = value,
+        illegalStart = data && data.start && !this.isCorrectRangeValue(data.start);
     var illegalEnd = data && data.end && !this.isCorrectRangeValue(data.end);
     if (illegalStart || illegalEnd) {
       return;
@@ -295,11 +307,11 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     this.form.grid.performAction();
   },
 
-  hasAdvancedCriteria: function() {
+  hasAdvancedCriteria: function () {
     return this.singleDateMode || (this.rangeItem !== null && this.rangeItem.hasAdvancedCriteria());
   },
-  
-  setCriterion: function(criterion) {
+
+  setCriterion: function (criterion) {
     if (!criterion) {
       return;
     }
@@ -307,8 +319,8 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     if (criterion.operator === 'equals') {
       this.setSingleDateValue(criterion.value);
       return;
-    }  
-    
+    }
+
     if (this.rangeItem) {
       this.rangeItem.setCriterion(criterion);
       this.singleDateMode = false;
@@ -318,46 +330,44 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     }
   },
 
-  getCriterion: function() {
+  getCriterion: function () {
     if (this.singleDateValue) {
       return {
         fieldName: this.name,
-        operator: 'equals', 
+        operator: 'equals',
         value: this.singleDateValue
       };
     }
-    var criteria = this.rangeItem ? this.rangeItem.getCriterion(): null;
+    var criteria = this.rangeItem ? this.rangeItem.getCriterion() : null;
     return criteria;
   },
 
-  canEditCriterion: function(criterion) {
+  canEditCriterion: function (criterion) {
     if (this.singleDateMode && criterion.fieldName === this.name) {
       return true;
     }
-    return this.rangeItem ? this.rangeItem.canEditCriterion(criterion)
-       : false;
+    return this.rangeItem ? this.rangeItem.canEditCriterion(criterion) : false;
   },
 
-  itemHoverHTML: function(item, form) {
+  itemHoverHTML: function (item, form) {
     return this.mapValueToDisplay();
   },
-  
-  updateStoredDates: function() {
-    var value = this.rangeItemValue, i, newValue, length;
-    
+
+  updateStoredDates: function () {
+    var value = this.rangeItemValue,
+        i, newValue, length;
+
     if (value) {
       if (isc.DataSource.isAdvancedCriteria(value)) {
         // value has come back as an AdvancedCriteria!
         newValue = {};
         length = value.criteria.length;
-          
+
         for (i = 0; i < length; i++) {
           var criterion = value.criteria[i];
-          if (criterion.operator === 'greaterThan'
-              || criterion.operator === 'greaterOrEqual') {
+          if (criterion.operator === 'greaterThan' || criterion.operator === 'greaterOrEqual') {
             newValue.start = criterion.value;
-          } else if (criterion.operator === 'lessThan'
-              || criterion.operator === 'lessOrEqual') {
+          } else if (criterion.operator === 'lessThan' || criterion.operator === 'lessOrEqual') {
             newValue.end = criterion.value;
           }
         }
@@ -372,20 +382,20 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     }
   },
 
-  displayValue: function(value) {
+  displayValue: function (value) {
     var displayValue = this.mapValueToDisplay(value) || '';
     this.setElementValue(displayValue, value);
   },
-  
-  setElementValue: function() {
+
+  setElementValue: function () {
     return this.Super('setElementValue', arguments);
   },
-  
-  mapDisplayToValue: function(display) {
+
+  mapDisplayToValue: function (display) {
     return display;
   },
-  
-  mapValueToDisplay: function(value) {
+
+  mapValueToDisplay: function (value) {
     if (this.singleDateMode) {
       if (this.singleDateDisplayValue) {
         return this.singleDateDisplayValue;
@@ -398,11 +408,11 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
       return value;
     }
     value = this.rangeItemValue;
-    var fromDate = value.start, toDate = value.end, RDI = isc.RelativeDateItem, start = (RDI
-        .isRelativeDate(fromDate) ? RDI.getAbsoluteDate(fromDate.value,
-        null, null, 'start'): fromDate), end = (RDI.isRelativeDate(toDate) ? RDI
-        .getAbsoluteDate(toDate.value, null, null, 'end')
-       : toDate);
+    var fromDate = value.start,
+        toDate = value.end,
+        RDI = isc.RelativeDateItem,
+        start = (RDI.isRelativeDate(fromDate) ? RDI.getAbsoluteDate(fromDate.value, null, null, 'start') : fromDate),
+        end = (RDI.isRelativeDate(toDate) ? RDI.getAbsoluteDate(toDate.value, null, null, 'end') : toDate);
 
     var prompt;
     if (start || end) {
@@ -430,11 +440,11 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     return this.prompt;
   },
 
-  getCriteriaValue: function() {
+  getCriteriaValue: function () {
     return this.getCriterion();
   },
-  
-  isCorrectRangeValue: function(value) {
+
+  isCorrectRangeValue: function (value) {
     if (!value) {
       return false;
     }
@@ -446,8 +456,8 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     }
     return false;
   },
-  
-  keyPress: function(item, form, keyName, characterValue){
+
+  keyPress: function (item, form, keyName, characterValue) {
     if (keyName === 'Enter') {
       if (this.singleDateMode) {
         this.expandSingleValue();
@@ -460,7 +470,7 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
       // only do this if something got really typed in
       this.fromDate = null;
       this.toDate = null;
-      
+
       // typing, change to single date mode
       this.singleDateMode = true;
       this.singleDateValue = null;
@@ -470,30 +480,30 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
     }
     return true;
   },
-   
+
   // Explicit destroy of the rangedialog as formitems don't have 
   // an auto delete of autochilds
-  destroy: function() {
+  destroy: function () {
     this.destroying = true;
     if (this.rangeDialog) {
       this.rangeDialog.rangeForm.destroy();
       this.rangeDialog.mainLayout.destroy();
-      this.rangeDialog.destroying  = true;
+      this.rangeDialog.destroying = true;
       this.rangeDialog.destroy();
-      this.rangeDialog.destroying  = false;
+      this.rangeDialog.destroying = false;
     }
     this.Super('destroy', arguments);
     this.destroying = false;
   },
-  
-  clear: function() {
+
+  clear: function () {
     if (this.destroying) {
       return;
     }
     this.Super('clear', arguments);
   },
-  
-  formatDate: function(dt) {
+
+  formatDate: function (dt) {
     return OB.Utilities.Date.JSToOB(dt, OB.Format.date);
   }
 });

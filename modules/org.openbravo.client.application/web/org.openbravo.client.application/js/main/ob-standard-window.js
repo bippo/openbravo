@@ -19,7 +19,8 @@
 isc.ClassFactory.defineClass('OBStandardWindow', isc.VLayout);
 
 isc.OBStandardWindow.addClassProperties({
-  COMMAND_NEW: 'NEW' // tells the window to open the first tab in new mode
+  // tells the window to open the first tab in new mode
+  COMMAND_NEW: 'NEW'
 });
 
 // = OBStandardWindow =
@@ -38,15 +39,14 @@ isc.OBStandardWindow.addClassProperties({
 // 
 isc.OBStandardWindow.addProperties({
   toolBarLayout: null,
-  
   view: null,
-  
+
   viewProperties: null,
-  
+
   activeView: null,
-  
+
   views: [],
-  
+
   stackZIndex: 'firstOnTop',
   align: 'center',
   defaultLayoutAlign: 'center',
@@ -54,9 +54,8 @@ isc.OBStandardWindow.addProperties({
   // is set when a form or grid editing results in dirty data
   // in the window
   dirtyEditForm: null,
-  
-  initWidget: function(){
 
+  initWidget: function () {
     this.views = [];
 
     this.processLayout = isc.VStack.create({
@@ -67,22 +66,23 @@ isc.OBStandardWindow.addProperties({
     });
 
     this.addMember(this.processLayout);
-    
+
     this.toolBarLayout = isc.HLayout.create({
       mouseDownCancelParentPropagation: true,
       width: '100%',
-      height: 1, // is set by its content
+      // is set by its content
+      height: 1,
       overflow: 'visible'
     });
-    
+
     if (this.targetTabId) {
       // is used as a flag so that we are in direct link mode
       // prevents extra fetch data actions
       this.directTabInfo = {};
     }
-        
+
     this.addMember(this.toolBarLayout);
-    
+
     this.viewProperties.standardWindow = this;
     this.viewProperties.isRootView = true;
     if (this.command === isc.OBStandardWindow.COMMAND_NEW) {
@@ -94,30 +94,33 @@ isc.OBStandardWindow.addProperties({
     this.addMember(this.view);
 
     this.Super('initWidget', arguments);
-    
+
     // is set later after creation
     this.view.tabTitle = this.tabTitle;
-    
+
     // retrieve user specific window settings from the server
     // they are stored at class level to only do the call once
     // note this if is not done inside the method as this 
     // method is also called explicitly from the personalization window
     if (!this.getClass().windowSettingsRead) {
       this.readWindowSettings();
+    } else if (this.getClass().windowSettingsCached) {
+      this.setWindowSettings(this.getClass().windowSettingsCached);
     } else if (this.getClass().personalization) {
       this.setPersonalization(this.getClass().personalization);
     }
   },
 
   openProcess: function (params) {
-    var parts = this.getPrototype().Class.split('_'), 
+    var parts = this.getPrototype().Class.split('_'),
         len = parts.length,
         className = '_',
-        tabSet = OB.MainView.TabSet, vStack;
-    
+        tabSet = OB.MainView.TabSet,
+        vStack;
+
     if (params.windowId) {
       className = className + params.windowId;
-      if(len === 3) {
+      if (len === 3) {
         // debug mode, we have added _timestamp
         className = className + '_' + parts[2];
       }
@@ -137,28 +140,28 @@ isc.OBStandardWindow.addProperties({
   },
 
   refresh: function () {
-    var currentView = this.activeView, afterRefresh;
+    var currentView = this.activeView,
+        afterRefresh;
 
     afterRefresh = function () {
       // Refresh context view
       //contextView.getTabMessage();
       currentView.toolBar.refreshCustomButtons();
-//
-//      if (contextView !== currentView && currentView.state === isc.OBStandardView.STATE_TOP_MAX) {
-//        // Executing an action defined in parent tab, current tab is maximized,
-//        // let's set half for each in order to see the message
-//        contextView.setHalfSplit();
-//      }
-
+      //
+      //      if (contextView !== currentView && currentView.state === isc.OBStandardView.STATE_TOP_MAX) {
+      //        // Executing an action defined in parent tab, current tab is maximized,
+      //        // let's set half for each in order to see the message
+      //        contextView.setHalfSplit();
+      //      }
       // Refresh in order to show possible new records
       currentView.refresh(null, false, true);
     };
 
-    if(!currentView) {
+    if (!currentView) {
       return;
     }
 
-    if(this.selectedState) {
+    if (this.selectedState) {
       currentView.viewGrid.setSelectedState(this.selectedState);
       this.selectedState = null;
     }
@@ -178,29 +181,48 @@ isc.OBStandardWindow.addProperties({
     }
   },
 
-  readWindowSettings: function() {
+  //  Refreshes the selected records of all the window views, provided:
+  //  - They belong to the entity specified in the 'entity' parameter
+  //  - They are not included in the 'excludedTabIds' list
+  refreshViewsWithEntity: function (entity, excludedTabIds) {
+    if (this.view) {
+      this.view.refreshMeAndMyChildViewsWithEntity(entity, excludedTabIds);
+    }
+  },
+
+  readWindowSettings: function () {
     var standardWindow = this;
-    
+
     OB.RemoteCallManager.call('org.openbravo.client.application.WindowSettingsActionHandler', null, {
       windowId: this.windowId
-    }, function(response, data, request){
+    }, function (response, data, request) {
       standardWindow.setWindowSettings(data);
-    });    
+    });
   },
-  
-  // set window specific user settings, purposely set on class level
-  setWindowSettings: function(data) {
-    var i, views, length;
 
-    if (data && data.personalization) {
-      this.setPersonalization(data.personalization);
+  // set window specific user settings, purposely set on class level
+  setWindowSettings: function (data) {
+    var i, defaultView, persDefaultValue, views, length, t, tab, view, field, button, alwaysReadOnly, st, stView, stBtns, stBtn, disabledFields, personalization;
+
+    if (data) {
+      this.getClass().autoSave = data.autoSave;
+      this.getClass().windowSettingsRead = true;
+      this.getClass().windowSettingsCached = data;
+      this.getClass().uiPattern = data.uiPattern;
+      this.getClass().showAutoSaveConfirmation = data.showAutoSaveConfirmation;
     }
 
-    this.getClass().windowSettingsRead = true;
+    if (this.getClass().personalization) {
+      // Don't overwrite personalization if it is already set in class
+      personalization = this.getClass().personalization;
+    } else if (data && data.personalization) {
+      personalization = data.personalization;
+    }
 
-    this.getClass().uiPattern = data.uiPattern;
-    this.getClass().autoSave = data.autoSave;
-    this.getClass().showAutoSaveConfirmation = data.showAutoSaveConfirmation;
+    if (personalization) {
+      this.setPersonalization(personalization);
+    }
+
     // set the views to readonly
     length = this.views.length;
     for (i = 0; i < length; i++) {
@@ -208,32 +230,84 @@ isc.OBStandardWindow.addProperties({
       this.views[i].setSingleRecord(data.uiPattern[this.views[i].tabId] === isc.OBStandardView.UI_PATTERN_SINGLERECORD);
       this.views[i].toolBar.updateButtonState(true);
     }
+
+    // Field level permissions
+    if (data && data.tabs) {
+      alwaysReadOnly = function (view, record, context) {
+        return true;
+      };
+      for (t = 0; t < data.tabs.length; t++) {
+        tab = data.tabs[t];
+        view = this.getView(tab.tabId);
+        disabledFields = [];
+        for (i = 0; i < view.viewForm.fields.length; i++) {
+          field = view.viewForm.fields[i];
+          if (tab.fields[field.name] !== undefined) {
+            field.updatable = tab.fields[field.name];
+            field.disabled = !tab.fields[field.name];
+            if (!tab.fields[field.name]) {
+              disabledFields.push(field.name);
+            }
+          }
+        }
+        view.disabledFields = disabledFields;
+        for (i = 0; i < view.viewGrid.fields.length; i++) {
+          field = view.viewGrid.fields[i];
+          if (tab.fields[field.name] !== undefined) {
+            field.editorProperties.updatable = tab.fields[field.name];
+            field.editorProperties.disabled = !tab.fields[field.name];
+          }
+        }
+        for (i = 0; i < view.toolBar.rightMembers.length; i++) {
+          button = view.toolBar.rightMembers[i];
+          if (tab.tabId === button.contextView.tabId && button.property && !tab.fields[button.property]) {
+            button.readOnlyIf = alwaysReadOnly;
+            // looking for this button in subtabs
+            for (st = 0; st < this.views.length; st++) {
+              stView = this.views[st];
+              if (stView === view) {
+                continue;
+              }
+              for (stBtns = 0; stBtns < stView.toolBar.rightMembers.length; stBtns++) {
+                stBtn = stView.toolBar.rightMembers[stBtns];
+                if (stBtn.contextView === button.contextView && stBtn.property && !tab.fields[stBtn.property]) {
+                  stBtn.readOnlyIf = alwaysReadOnly;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
-  
-  setPersonalization: function(personalization) {
+
+  setPersonalization: function (personalization) {
     var i, defaultView, persDefaultValue, views, length, me = this;
-    
+
     // only personalize if there is a professional license
     if (!OB.Utilities.checkProfessionalLicense(null, true)) {
       return;
     }
-    
+
     // cache the original view so that it can be restored
     if (!this.getClass().originalView) {
-      this.getClass().originalView = {};
+      this.getClass().originalView = {
+        originalView: true
+      };
       this.getClass().originalView.personalizationId = 'dummyId';
       this.getClass().originalView.viewDefinition = OB.Personalization.getViewDefinition(this, '', false);
       this.getClass().originalView.viewDefinition.name = OB.I18N.getLabel('OBUIAPP_StandardView');
       this.getClass().originalView.canDelete = false;
-      
+
       // and clone the original view so that it can't get updated accidentally
       this.getClass().originalView = isc.clone(this.getClass().originalView);
     }
 
     this.getClass().personalization = personalization;
-    
+
     persDefaultValue = OB.PropertyStore.get('OBUIAPP_DefaultSavedView', this.windowId);
-    
+
     // find the default view, the personalizations are
     // returned in order of prio, then do sort by name
     if (this.getClass().personalization.views) {
@@ -255,28 +329,31 @@ isc.OBStandardWindow.addProperties({
           }
         }
       }
-      
+
       // apply the default view
       // maybe do this in a separate thread
       if (defaultView) {
         OB.Personalization.applyViewDefinition(defaultView.personalizationId, defaultView.viewDefinition, this);
-      } else { 
+      } else {
         // only apply the default form/grid if there are no views
         // otherwise you get strange interference
         // check the default form and grid viewstates
         length = this.views.length;
         for (i = 0; i < length; i++) {
           if (personalization.forms && personalization.forms[this.views[i].tabId]) {
+            this.lastViewApplied = true;
             OB.Personalization.personalizeForm(personalization.forms[this.views[i].tabId], this.views[i].viewForm);
           }
           if (this.viewState && this.viewState[this.views[i].tabId]) {
+            this.lastViewApplied = true;
             this.views[i].viewGrid.setViewState(this.viewState[this.views[i].tabId]);
           }
         }
       }
-      
-      this.getClass().personalization.views.sort(function(v1, v2) {
-        var t1 = v1.viewDefinition.name, t2 = v2.viewDefinition.name;
+
+      this.getClass().personalization.views.sort(function (v1, v2) {
+        var t1 = v1.viewDefinition.name,
+            t2 = v2.viewDefinition.name;
         if (t1 < t2) {
           return -1;
         } else if (t1 === t2) {
@@ -287,11 +364,30 @@ isc.OBStandardWindow.addProperties({
     }
   },
 
-  getDefaultGridViewState: function(tabId) {
-    var views, length, i, personalization = this.getClass().personalization,    
-      defaultView,
-      persDefaultValue = OB.PropertyStore.get('OBUIAPP_DefaultSavedView', this.windowId);
-    
+  clearLastViewPersonalization: function () {
+    var p, length, personalization = this.getClass().personalization;
+    delete this.lastViewApplied;
+    if (personalization.forms) {
+      for (p in personalization.forms) {
+        if (personalization.forms.hasOwnProperty(p) && personalization.forms[p].personalizationId) {
+          OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', {}, {
+            personalizationId: personalization.forms[p].personalizationId,
+            action: 'delete'
+          }, null);
+        }
+      }
+      delete personalization.forms;
+    }
+    delete this.viewState;
+
+    // remove the grid properties
+    OB.PropertyStore.set('OBUIAPP_GridConfiguration', null, this.windowId);
+  },
+
+  getDefaultGridViewState: function (tabId) {
+    var views, length, i, personalization = this.getClass().personalization,
+        defaultView, persDefaultValue = OB.PropertyStore.get('OBUIAPP_DefaultSavedView', this.windowId);
+
     if (personalization && personalization.views) {
       views = personalization.views;
       length = views.length;
@@ -312,42 +408,38 @@ isc.OBStandardWindow.addProperties({
         }
       }
     }
-    
-    if (defaultView && defaultView.viewDefinition && 
-        defaultView.viewDefinition[tabId]) {
+
+    if (defaultView && defaultView.viewDefinition && defaultView.viewDefinition[tabId]) {
       return defaultView.viewDefinition[tabId].grid;
-    } 
-        
+    }
+
     if (this.viewState && this.viewState[tabId]) {
       return this.viewState[tabId];
     }
-    
+
     return null;
   },
-  
+
   // Update the personalization record which is stored 
-  updateFormPersonalization: function(view, formPersonalization) {
+  updateFormPersonalization: function (view, formPersonalization) {
     if (!this.getClass().personalization) {
       this.getClass().personalization = {};
-     }
+    }
     if (!this.getClass().personalization.forms) {
       this.getClass().personalization.forms = [];
     }
     this.getClass().personalization.forms[view.tabId] = formPersonalization;
-   },
-   
-  getFormPersonalization: function(view, checkSavedView) {
+  },
+
+  getFormPersonalization: function (view, checkSavedView) {
     var formPersonalization, i, persView;
     if (!this.getClass().personalization || !this.getClass().personalization.forms) {
       // no form personalization on form level
       // check window level
-      if (checkSavedView && this.getClass().personalization && this.getClass().personalization.views 
-          && this.selectedPersonalizationId) {
+      if (checkSavedView && this.getClass().personalization && this.getClass().personalization.views && this.selectedPersonalizationId) {
         for (i = 0; i < this.getClass().personalization.views.length; i++) {
           persView = this.getClass().personalization.views[i];
-          if (persView.viewDefinition && 
-              persView.viewDefinition[view.tabId] && 
-              persView.personalizationId === this.selectedPersonalizationId) {
+          if (persView.viewDefinition && persView.viewDefinition[view.tabId] && persView.personalizationId === this.selectedPersonalizationId) {
             return persView.viewDefinition[view.tabId].form;
           }
         }
@@ -359,8 +451,9 @@ isc.OBStandardWindow.addProperties({
     return formPersonalization[view.tabId];
   },
 
-  removeAllFormPersonalizations: function() {
-    var i, updateButtons = false, length = this.views.length;
+  removeAllFormPersonalizations: function () {
+    var i, updateButtons = false,
+        length = this.views.length;
     if (!this.getClass().personalization) {
       return;
     }
@@ -373,11 +466,11 @@ isc.OBStandardWindow.addProperties({
     }
   },
 
-  isAutoSaveEnabled: function(){
+  isAutoSaveEnabled: function () {
     return this.getClass().autoSave;
   },
 
-  getDirtyEditForm: function() {
+  getDirtyEditForm: function () {
     return this.dirtyEditForm;
   },
 
@@ -388,15 +481,16 @@ isc.OBStandardWindow.addProperties({
     }
   },
 
-  autoSave: function() {
+  autoSave: function () {
     this.doActionAfterAutoSave(null, false);
   },
 
-  doActionAfterAutoSave: function(action, forceDialogOnFailure, ignoreAutoSaveEnabled) {
-    var me = this;
+  doActionAfterAutoSave: function (action, forceDialogOnFailure, ignoreAutoSaveEnabled) {
+    var me = this,
+        saveCallback;
 
-    var saveCallback = function(ok){
-      if (!ok){
+    saveCallback = function (ok) {
+      if (!ok) {
         if (me.getDirtyEditForm()) {
           me.getDirtyEditForm().resetForm();
         }
@@ -405,7 +499,7 @@ isc.OBStandardWindow.addProperties({
         }
         return;
       }
-      
+
       // if not dirty or we know that the object has errors
       if (!me.getDirtyEditForm() || (me.getDirtyEditForm() && !me.getDirtyEditForm().validateForm())) {
         // clean up before calling the action, as the action
@@ -451,7 +545,7 @@ isc.OBStandardWindow.addProperties({
     }
   },
 
-  callAutoSaveAction: function() {
+  callAutoSaveAction: function () {
     var action = this.autoSaveAction;
     this.cleanUpAutoSaveProperties();
     if (!action) {
@@ -460,14 +554,14 @@ isc.OBStandardWindow.addProperties({
     OB.Utilities.callAction(action);
   },
 
-  cleanUpAutoSaveProperties: function() {
+  cleanUpAutoSaveProperties: function () {
     delete this.dirtyEditForm;
     delete this.isAutoSaving;
     delete this.autoSaveAction;
     delete this.forceDialogOnFailure;
   },
 
-  autoSaveDone: function(view, success) {
+  autoSaveDone: function (view, success) {
     if (!this.isAutoSaving) {
       this.cleanUpAutoSaveProperties();
       return;
@@ -482,18 +576,20 @@ isc.OBStandardWindow.addProperties({
     }
     this.cleanUpAutoSaveProperties();
   },
-  
-  autoSaveConfirmAction: function(){
-    var action = this.autoSaveAction, me = this;
+
+  autoSaveConfirmAction: function () {
+    var action = this.autoSaveAction,
+        me = this,
+        callback;
     this.autoSaveAction = null;
 
-    
+
     if (this.isAutoSaveEnabled()) {
       // clean up everything
       me.cleanUpAutoSaveProperties();
     }
 
-    var callback = function(ok){
+    callback = function (ok) {
       delete me.inAutoSaveConfirmation;
       if (ok) {
         if (me.getDirtyEditForm()) {
@@ -512,11 +608,12 @@ isc.OBStandardWindow.addProperties({
         }
       }
     };
+
     this.inAutoSaveConfirmation = true;
     isc.ask(OB.I18N.getLabel('OBUIAPP_AutoSaveNotPossibleExecuteAction'), callback);
   },
-  
-  addView: function(view){
+
+  addView: function (view) {
     view.standardWindow = this;
     this.views.push(view);
     this.toolBarLayout.addMember(view.toolBar);
@@ -526,14 +623,14 @@ isc.OBStandardWindow.addProperties({
   },
 
   // is called from the main app tabset. Redirects to custom viewSelected
-  tabSelected: function(tabNum, tabPane, ID, tab) {
+  tabSelected: function (tabNum, tabPane, ID, tab) {
     if (this.activeView && this.activeView.setViewFocus) {
       this.activeView.setViewFocus();
     }
   },
 
   // is called from the main app tabset. Redirects to custom viewDeselected
-  tabDeselected: function(tabNum, tabPane, ID, tab, newTab){
+  tabDeselected: function (tabNum, tabPane, ID, tab, newTab) {
     this.wasDeselected = true;
   },
 
@@ -541,7 +638,7 @@ isc.OBStandardWindow.addProperties({
   //
   // Called from the main app tabset
   // Selects the parent tab of the current selected and active tab (independently of its level)
-  selectParentTab: function(mainTabSet) {
+  selectParentTab: function (mainTabSet) {
     if (!this.activeView.parentView) {
       return false;
     }
@@ -559,12 +656,12 @@ isc.OBStandardWindow.addProperties({
     parentTabSet.selectTab(parentTabNum);
     if (parentTabPane.setAsActiveView) {
       parentTabPane.setAsActiveView();
-      isc.Timer.setTimeout(function(){ // Inside a timeout like in itemClick case. Also to avoid a strange effect that child tab not deployed properly
+      isc.Timer.setTimeout(function () { // Inside a timeout like in itemClick case. Also to avoid a strange effect that child tab not deployed properly
         parentTabSet.doHandleClick();
       }, 0);
     } else if (parentTabPane.view.setAsActiveView) {
       parentTabPane.view.setAsActiveView();
-      isc.Timer.setTimeout(function(){ // Inside a timeout like in itemClick case. Also to avoid a strange effect that parent tab not deployed properly
+      isc.Timer.setTimeout(function () { // Inside a timeout like in itemClick case. Also to avoid a strange effect that parent tab not deployed properly
         parentTabPane.view.doHandleClick();
       }, 0);
     }
@@ -574,7 +671,7 @@ isc.OBStandardWindow.addProperties({
   //
   // Called from the main app tabset
   // Selects the child tab of the current selected and active tab (independently of its level)
-  selectChildTab: function(mainTabSet) {
+  selectChildTab: function (mainTabSet) {
     var childTabSet = this.activeView.childTabSet;
 
     if (!childTabSet) {
@@ -588,7 +685,7 @@ isc.OBStandardWindow.addProperties({
     childTabSet.selectTab(childTabNum);
     if (childTabPane.setAsActiveView) {
       childTabPane.setAsActiveView();
-      isc.Timer.setTimeout(function(){ // Inside a timeout like in itemClick case. Also to avoid a strange effect that child tab not deployed properly
+      isc.Timer.setTimeout(function () { // Inside a timeout like in itemClick case. Also to avoid a strange effect that child tab not deployed properly
         childTabSet.doHandleClick();
       }, 0);
     }
@@ -598,7 +695,7 @@ isc.OBStandardWindow.addProperties({
   //
   // Called from the main app tabset
   // Selects the previous tab of the current selected and active tab (independently of its level)
-  selectPreviousTab: function(mainTabSet) {
+  selectPreviousTab: function (mainTabSet) {
     var activeTabSet = this.activeView.parentTabSet;
     if (!activeTabSet) { // If activeTabSet is null means that we are in the top level
       activeTabSet = mainTabSet;
@@ -607,11 +704,11 @@ isc.OBStandardWindow.addProperties({
         activeTabNum = activeTabSet.getTabNumber(activeTab),
         activeTabPane = activeTabSet.getTabPane(activeTab);
 
-    if ((activeTabNum-1) < 0) {
+    if ((activeTabNum - 1) < 0) {
       return false;
     }
 
-    activeTabSet.selectTab(activeTabNum-1);
+    activeTabSet.selectTab(activeTabNum - 1);
 
     // after select the new tab, activeTab related variables are updated
     activeTab = activeTabSet.getSelectedTab();
@@ -628,7 +725,7 @@ isc.OBStandardWindow.addProperties({
   //
   // Called from the main app tabset
   // Selects the next tab of the current selected and active tab (independently of its level)
-  selectNextTab: function(mainTabSet) {
+  selectNextTab: function (mainTabSet) {
     var activeTabSet = this.activeView.parentTabSet;
     if (!activeTabSet) { // If activeTabSet is null means that we are in the top level
       activeTabSet = mainTabSet;
@@ -637,11 +734,11 @@ isc.OBStandardWindow.addProperties({
         activeTabNum = activeTabSet.getTabNumber(activeTab),
         activeTabPane = activeTabSet.getTabPane(activeTab);
 
-    if ((activeTabNum+1) >= activeTabSet.tabs.getLength()) {
+    if ((activeTabNum + 1) >= activeTabSet.tabs.getLength()) {
       return false;
     }
 
-    activeTabSet.selectTab(activeTabNum+1);
+    activeTabSet.selectTab(activeTabNum + 1);
 
     // after select the new tab, activeTab related variables are updated
     activeTab = activeTabSet.getSelectedTab();
@@ -653,8 +750,8 @@ isc.OBStandardWindow.addProperties({
       activeTabPane.setAsActiveView();
     }
   },
-  
-  closeClick: function(tab, tabSet){
+
+  closeClick: function (tab, tabSet) {
     if (!this.activeView.viewForm.hasChanged && this.activeView.viewForm.isNew) {
       this.view.standardWindow.setDirtyEditForm(null);
     }
@@ -666,15 +763,15 @@ isc.OBStandardWindow.addProperties({
     };
     this.doActionAfterAutoSave(actionObject, false);
   },
-  
-  setActiveView: function(view){
+
+  setActiveView: function (view) {
     if (!this.isDrawn()) {
       return;
     }
     if (this.activeView === view) {
       return;
     }
-    
+
     var currentView = this.activeView;
     // note the new activeView must be set before disabling
     // the other one
@@ -684,22 +781,22 @@ isc.OBStandardWindow.addProperties({
     }
     view.setActiveViewProps(true);
   },
-  
-  setFocusInView: function(view){
+
+  setFocusInView: function (view) {
     var currentView = view || this.activeView || this.view;
     this.setActiveView(currentView);
   },
 
-  show: function() {
+  show: function () {
     var ret = this.Super('show', arguments);
     this.setFocusInView();
     return ret;
   },
 
-  draw: function(){
-    var standardWindow = this, targetEntity,
-        ret = this.Super('draw', arguments), i,
-        length = this.views.length;
+  draw: function () {
+    var standardWindow = this,
+        targetEntity, ret = this.Super('draw', arguments),
+        i, length = this.views.length;
     if (this.targetTabId) {
       for (i = 0; i < length; i++) {
         if (this.views[i].tabId === this.targetTabId) {
@@ -718,16 +815,16 @@ isc.OBStandardWindow.addProperties({
     } else {
       this.setFocusInView(this.view);
     }
-    
+
     return ret;
   },
-  
-  setViewTabId: function(viewTabId){
+
+  setViewTabId: function (viewTabId) {
     this.view.viewTabId = viewTabId;
     this.viewTabId = viewTabId;
   },
-  
-  doHandleClick: function(){
+
+  doHandleClick: function () {
     // happens when we are getting selected
     // then don't change state
     if (this.wasDeselected) {
@@ -737,8 +834,8 @@ isc.OBStandardWindow.addProperties({
     this.setActiveView(this.view);
     this.view.doHandleClick();
   },
-  
-  doHandleDoubleClick: function(){
+
+  doHandleDoubleClick: function () {
     // happens when we are getting selected
     // then don't change state
     if (this.wasDeselected) {
@@ -748,21 +845,20 @@ isc.OBStandardWindow.addProperties({
     this.setActiveView(this.view);
     this.view.doHandleDoubleClick();
   },
-  
+
   // +++++++++++++ Methods for the main tab handling +++++++++++++++++++++
-  
-  getHelpView: function(){
+  getHelpView: function () {
     // tabTitle is set in the viewManager
     return {
-        viewId: 'ClassicOBHelp',
-        tabTitle: this.tabTitle + ' - ' + OB.I18N.getLabel('UINAVBA_Help'),
-        windowId: this.windowId,
-        windowType: 'W',
-        windowName: this.tabTitle
+      viewId: 'ClassicOBHelp',
+      tabTitle: this.tabTitle + ' - ' + OB.I18N.getLabel('UINAVBA_Help'),
+      windowId: this.windowId,
+      windowType: 'W',
+      windowName: this.tabTitle
     };
   },
-  
-  getBookMarkParams: function(){
+
+  getBookMarkParams: function () {
     var result = {};
     result.windowId = this.windowId;
     result.viewId = this.getClassName();
@@ -773,13 +869,13 @@ isc.OBStandardWindow.addProperties({
     }
     return result;
   },
-  
-  isEqualParams: function(params){
+
+  isEqualParams: function (params) {
     var equalTab = params.windowId && params.windowId === this.windowId;
     return equalTab;
   },
-  
-  isSameTab: function(viewName, params){
+
+  isSameTab: function (viewName, params) {
     // always return false to force new tabs
     if (this.multiDocumentEnabled) {
       return false;
@@ -787,26 +883,27 @@ isc.OBStandardWindow.addProperties({
     return this.isEqualParams(params) && viewName === this.getClassName();
   },
 
-  setTargetInformation: function(tabId, recordId) {
+  setTargetInformation: function (tabId, recordId) {
     this.targetTabId = tabId;
     this.targetRecordId = recordId;
     OB.Layout.HistoryManager.updateHistory();
   },
-  
-  getView: function(tabId) {
+
+  getView: function (tabId) {
     // find is a SC extension on arrays
     return this.views.find('tabId', tabId);
   },
 
-  storeViewState: function(){
-    var result = {}, i, length = this.views.length;
-    
+  storeViewState: function () {
+    var result = {},
+        i, length = this.views.length;
+
     if (!OB.Utilities.checkProfessionalLicense(null, true)) {
       return;
     }
-    
+
     for (i = 0; i < length; i++) {
-      if ( this.views[i].viewGrid ) {
+      if (this.views[i].viewGrid) {
         result[this.views[i].tabId] = this.views[i].viewGrid.getViewState();
       }
     }

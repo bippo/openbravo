@@ -166,7 +166,7 @@ build.war: build a war file in the lib directory.
     <mkdir dir="${build.apply.module}" />
     <java classname="org.openbravo.data.Sqlc" fork="yes" jvm="${env.JAVA_HOME}/bin/java" maxmemory="${build.maxmemory}" failonerror="true">
       <arg line="'${base.config}'/Openbravo.properties .xsql . '${build.sqlc}'/src" />
-      <jvmarg value="-Dsqlc.listOfFiles=PInstanceProcess_data.xsql,ApplyModule_data.xsql,TableSQLQuery_data.xsql,DateTime_data.xsql,ComboTableQuery_data.xsql,PrintJR_data.xsql,DocumentNo_data.xsql,WindowAccess_data.xsql,Tab_data.xsql,WindowTree_data.xsql,ErrorTextParser_data.xsql,Utility_data.xsql,MessageBD_data.xsql,Translation_data.xsql,Buscador_data.xsql,Pinstance_data.xsql,ProcessRequest_data.xsql,Trigger_data.xsql,ProcessRun_data.xsql,Process_data.xsql,OrgTree_data.xsql,VersionUtility_data.xsql,ImportModule_data.xsql,SystemInfo_data.xsql,Heartbeat_data.xsql,Alert_data.xsql,Registration_data.xsql"/>
+      <jvmarg value="-Dsqlc.listOfFiles=ApplyModule_data.xsql,PInstanceProcess_data.xsql,Translation_data.xsql,MessageBD_data.xsql"/>
       <classpath refid="project.class.path" />
       <syspropertyset>
          <propertyref name="java.security.egd" />
@@ -347,9 +347,19 @@ build.war: build a war file in the lib directory.
 		  <available file="${basedir}/config/instance.revision"/>
 	    </and>
 	  </condition>
+	  <condition property="revision.not.found">
+		<and>
+		  <not>
+		 	<isset property="hg.id"/>
+		  </not>
+		  <not>
+		  	<available file="${basedir}/config/instance.revision"/>
+		  </not>
+	    </and>
+	  </condition>
 	  <antcall inheritall="true" target="calculate.instance.version"/>
 	</target>
-	<target name="calculate.instance.version" depends="calculate.version.from.hg, calculate.version.from.file">
+	<target name="calculate.instance.version" depends="calculate.version.from.hg, calculate.version.from.file, cannot.find.version">
 	    <sql driver="${bbdd.driver}" url="${bbdd.owner.url}" userid="${bbdd.user}" password="${bbdd.password}" delimiter="/">
 	      <classpath>
 	        <fileset dir="${base.lib}">
@@ -368,7 +378,10 @@ build.war: build a war file in the lib directory.
 	  <property name="instance.version" value="${hg.id}"/>
 	</target>
 	<target name="calculate.version.from.file" if="revision.from.file">
-		<loadfile property="instance.version" srcfile="${basedir}/config/instance.revision"/>
+	  <loadfile property="instance.version" srcfile="${basedir}/config/instance.revision"/>
+	</target>
+	<target name="cannot.find.version" if="revision.not.found">
+	  <property name="instance.version" value=" - "/>
 	</target>
 
   <target name="compile.src.gen" depends="init">
@@ -576,6 +589,12 @@ build.war: build a war file in the lib directory.
         <istrue value="${changes.in.md5.skins}" />
         <not>
           <istrue value="${smart.mode}"/>
+        </not>
+        <not>
+          <available file="${base.context}/web/skins/rtl" type="dir"/>
+        </not>
+        <not>
+          <available file="${base.context}/web/skins/ltr" type="dir"/>
         </not>
       </or>
     </condition>

@@ -12,7 +12,7 @@
 	* under the License. 
 	* The Original Code is Openbravo ERP. 
 	* The Initial Developer of the Original Code is Openbravo SLU 
-	* All portions are Copyright (C) 2001-2008 Openbravo SLU 
+	* All portions are Copyright (C) 2001-2012 Openbravo SLU 
 	* All Rights Reserved. 
 	* Contributor(s):  ______________________________________.
 	************************************************************************
@@ -38,7 +38,9 @@
 				'' as docTypeTargetId,
 				'' as ourreference,
 				'' as cusreference,
+				'' as salnam,
 				'' as bpartner_id,
+				'' as bpartner_name,
 				'' as bpartner_language,
 				'' as isSalesOrderTransaction
 			from
@@ -61,15 +63,19 @@
 			select
 				c_order.ad_org_id,
 				c_order.c_order_id as document_id,
+				c_order.issotrx as isSalesOrderTransaction,
 				c_order.docstatus,
 				c_order.c_doctypetarget_id as docTypeTargetId,
 				c_order.documentno as ourreference,
 				c_order.poreference as cusreference,
+				ad_user.name as salnam,
 				c_order.c_bpartner_id as bpartner_id,
+				c_bpartner.name as bpartner_name,
 				c_bpartner.ad_language as bpartner_language
 			from
 				c_order left join c_doctype on c_order.c_doctypetarget_id = c_doctype.c_doctype_id
 				left join c_bpartner on c_order.c_bpartner_id = c_bpartner.c_bpartner_id
+				left join ad_user on c_order.salesrep_id = ad_user.ad_user_id
 			where
 				c_order.c_order_id = ?
 	        ]]>
@@ -90,12 +96,15 @@
 				c_invoice.c_doctypetarget_id as docTypeTargetId,
 				c_invoice.documentno as ourreference,
 				c_invoice.poreference as cusreference,
+				ad_user.name as salnam,
 				c_invoice.c_bpartner_id as bpartner_id,
 				c_invoice.issotrx as isSalesOrderTransaction,
+				c_bpartner.name as bpartner_name,
 				c_bpartner.ad_language as bpartner_language
 			from
 				c_invoice left join c_doctype on c_invoice.c_doctypetarget_id = c_doctype.c_doctype_id
 				left join c_bpartner on c_invoice.c_bpartner_id = c_bpartner.c_bpartner_id
+				left join ad_user on c_invoice.salesrep_id = ad_user.ad_user_id
 			where
 				c_invoice.c_invoice_id = ?
 	        ]]>
@@ -115,11 +124,15 @@
 				m_inout.c_doctype_id as docTypeTargetId,
 				m_inout.documentno as ourreference,
 				m_inout.poreference as cusreference,
+				ad_user.name as salnam,
 				m_inout.c_bpartner_id as bpartner_id,
+				m_inout.issotrx as isSalesOrderTransaction,
+				c_bpartner.name as bpartner_name,
 				c_bpartner.ad_language as bpartner_language
 			from
 				m_inout left join c_doctype on m_inout.c_doctype_id = c_doctype.c_doctype_id
 				left join c_bpartner on m_inout.c_bpartner_id = c_bpartner.c_bpartner_id
+				left join ad_user on m_inout.salesrep_id = ad_user.ad_user_id
 			where
 				m_inout.m_inout_id = ?
 	        ]]>
@@ -141,6 +154,7 @@
                 fin_payment.referenceno as cusreference,
                 fin_payment.c_bpartner_id as bpartner_id,
                 fin_payment.isreceipt as isSalesOrderTransaction,
+                c_bpartner.name as bpartner_name,
                 c_bpartner.ad_language as bpartner_language
             from
                 fin_payment left join c_doctype on fin_payment.c_doctype_id = c_doctype.c_doctype_id

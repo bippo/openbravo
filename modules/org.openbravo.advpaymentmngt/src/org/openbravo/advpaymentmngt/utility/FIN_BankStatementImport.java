@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -252,7 +252,7 @@ public abstract class FIN_BankStatementImport {
       whereClause.append(FIN_BankStatement.PROPERTY_ACCOUNT + ".id = ?");
       parameters.add(account.getId());
       whereClause.append(" and bsl." + FIN_BankStatementLine.PROPERTY_ORGANIZATION + ".id in (");
-      whereClause.append(FIN_Utility.getInStrSet(new OrganizationStructureProvider()
+      whereClause.append(Utility.getInStrSet(new OrganizationStructureProvider()
           .getNaturalTree(organization.getId())) + ") ");
       whereClause.append(" and bsl.bankStatement.processed = 'Y'");
       whereClause.append(" order by bsl." + FIN_BankStatementLine.PROPERTY_CREATIONDATE + " desc");
@@ -283,7 +283,7 @@ public abstract class FIN_BankStatementImport {
       whereClause.append(" where bp." + BusinessPartner.PROPERTY_NAME + " = ?");
       parameters.add(partnername);
       whereClause.append(" and bp." + BusinessPartner.PROPERTY_ORGANIZATION + ".id in (");
-      whereClause.append(FIN_Utility.getInStrSet(new OrganizationStructureProvider()
+      whereClause.append(Utility.getInStrSet(new OrganizationStructureProvider()
           .getNaturalTree(organization.getId())) + ") ");
       final OBQuery<BusinessPartner> bp = OBDal.getInstance().createQuery(BusinessPartner.class,
           whereClause.toString(), parameters);
@@ -330,7 +330,7 @@ public abstract class FIN_BankStatementImport {
       }
       whereClause.delete(whereClause.length() - 3, whereClause.length()).append(")");
       whereClause.append(" and b." + BusinessPartner.PROPERTY_ORGANIZATION + ".id in (");
-      whereClause.append(FIN_Utility.getInStrSet(new OrganizationStructureProvider()
+      whereClause.append(Utility.getInStrSet(new OrganizationStructureProvider()
           .getNaturalTree(organization.getId())) + ") ");
       final OBQuery<BusinessPartner> bl = OBDal.getInstance().createQuery(BusinessPartner.class,
           whereClause.toString(), parameters);

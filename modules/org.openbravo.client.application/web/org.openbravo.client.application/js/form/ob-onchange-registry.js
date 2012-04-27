@@ -22,77 +22,78 @@
 // tab and field combination. Multiple callouts can be registered
 // for one field.
 OB.OnChangeRegistry = {
-    registry: {},
-    
-    register: function(tabId, field, callback, id) {
-      var tabEntry, fieldEntry, i, overwritten = false;
-      
-      if (!this.registry[tabId]) {
-        this.registry[tabId] = {};
-      }
-      
-      tabEntry = this.registry[tabId];
-      if (!tabEntry[field]) {
-        tabEntry[field] = [];
-      }
-      
-      if (id && !callback.id) {
-        callback.id = id;
-      }
-      
-      // just set a default sort if not defined
-      if (callback.sort !== 0 && !callback.sort) {
-        callback.sort = 100;
-      }
-      
-      // check if there is one with the same name
-      for (i = 0; i < tabEntry[field].length; i++) {
-        if (tabEntry[field][i] && tabEntry[field][i].id === callback.id) {
-          tabEntry[field][i] = callback;
-          overwritten = true;
-          break;
-        }
-      }
-      
-      // add
-      if (!overwritten) {
-        tabEntry[field].push(callback);        
-      }
-      
-      // and sort according to the sort property
-      tabEntry[field].sortByProperty('sort', true);
-    },
-    
-    hasOnChange: function(tabId, item) {
-      return this.getFieldEntry(tabId, item);
-    },
-    
-    getFieldEntry: function(tabId, item) {
-      var tabEntry, field = item.name;
-      if (!this.registry[tabId]) {
-        return;
-      }
-      tabEntry = this.registry[tabId];
-      return tabEntry[field];  
-    },
-    
-    call: function(tabId, item, view, form, grid) {
-      var callResult, fieldEntry = this.getFieldEntry(tabId, item), i; 
+  registry: {},
 
-      if (!fieldEntry) {
-        return;
+  register: function (tabId, field, callback, id) {
+    var tabEntry, fieldEntry, i, overwritten = false;
+
+    if (!this.registry[tabId]) {
+      this.registry[tabId] = {};
+    }
+
+    tabEntry = this.registry[tabId];
+    if (!tabEntry[field]) {
+      tabEntry[field] = [];
+    }
+
+    if (id && !callback.id) {
+      callback.id = id;
+    }
+
+    // just set a default sort if not defined
+    if (callback.sort !== 0 && !callback.sort) {
+      callback.sort = 100;
+    }
+
+    // check if there is one with the same name
+    for (i = 0; i < tabEntry[field].length; i++) {
+      if (tabEntry[field][i] && tabEntry[field][i].id === callback.id) {
+        tabEntry[field][i] = callback;
+        overwritten = true;
+        break;
       }
-      for (i = 0; i < fieldEntry.length; i++) {
-        if (fieldEntry[i]) {
-          callResult = fieldEntry[i](item, view, form, grid);
-          if (callResult === false) {
-            return;
-          }
+    }
+
+    // add
+    if (!overwritten) {
+      tabEntry[field].push(callback);
+    }
+
+    // and sort according to the sort property
+    tabEntry[field].sortByProperty('sort', true);
+  },
+
+  hasOnChange: function (tabId, item) {
+    return this.getFieldEntry(tabId, item);
+  },
+
+  getFieldEntry: function (tabId, item) {
+    var tabEntry, field = item.name;
+    if (!this.registry[tabId]) {
+      return;
+    }
+    tabEntry = this.registry[tabId];
+    return tabEntry[field];
+  },
+
+  call: function (tabId, item, view, form, grid) {
+    var callResult, fieldEntry = this.getFieldEntry(tabId, item),
+        i;
+
+    if (!fieldEntry) {
+      return;
+    }
+    for (i = 0; i < fieldEntry.length; i++) {
+      if (fieldEntry[i]) {
+        callResult = fieldEntry[i](item, view, form, grid);
+        if (callResult === false) {
+          return;
         }
       }
     }
+  }
 };
 
-OB.OnChangeRegistry.TestFunction = function(item) {
+OB.OnChangeRegistry.TestFunction = function (item) {
   alert('You changed ' + item.name);
 };

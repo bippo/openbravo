@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -27,40 +27,40 @@ isc.OBSelectorPopupWindow.addProperties({
   canDragResize: true,
   dismissOnEscape: true,
   showMaximizeButton: true,
-  
+
   defaultSelectorGridField: {
     canFreeze: true,
     canGroupBy: false
   },
-  
+
   initWidget: function () {
-    var selectorWindow = this;
+    var selectorWindow = this,
+        okButton, cancelButton, operator, i;
+
     this.setFilterEditorProperties(this.selectorGridFields);
-    
-    var okButton = isc.OBFormButton.create({
+
+    okButton = isc.OBFormButton.create({
       title: OB.I18N.getLabel('OBUISC_Dialog.OK_BUTTON_TITLE'),
-      click: function(){
+      click: function () {
         selectorWindow.setValueInField();
       }
     });
-    var cancelButton = isc.OBFormButton.create({
+    cancelButton = isc.OBFormButton.create({
       title: OB.I18N.getLabel('OBUISC_Dialog.CANCEL_BUTTON_TITLE'),
-      click: function(){
+      click: function () {
         selectorWindow.hide();
         selectorWindow.selector.focusInItem();
       }
     });
-    
+
     OB.Utilities.applyDefaultValues(this.selectorGridFields, this.defaultSelectorGridField);
 
-    var operator;
     if (this.selector.popupTextMatchStyle === 'substring') {
       operator = 'iContains';
     } else {
-      operator = 'iStartsWith';      
+      operator = 'iStartsWith';
     }
 
-    var i;
     for (i = 0; i < this.selectorGridFields.length; i++) {
       this.selectorGridFields[i].canSort = (this.selectorGridFields[i].canSort === false ? false : true);
       if (this.selectorGridFields[i].disableFilter) {
@@ -69,14 +69,14 @@ isc.OBSelectorPopupWindow.addProperties({
         this.selectorGridFields[i].canFilter = true;
       }
     }
-    if(!this.dataSource.fields || !this.dataSource.fields.length || this.dataSource.fields.length===0){
+    if (!this.dataSource.fields || !this.dataSource.fields.length || this.dataSource.fields.length === 0) {
       this.dataSource.fields = this.selectorGridFields;
       this.dataSource.init();
     }
     this.selectorGrid = isc.OBGrid.create({
-    
+
       selector: this.selector,
-      
+
       dataProperties: {
         useClientFiltering: false,
         useClientSorting: false
@@ -88,14 +88,14 @@ isc.OBSelectorPopupWindow.addProperties({
       dataSource: this.dataSource,
       showFilterEditor: true,
       sortField: this.displayField,
-      
-      onFetchData: function(criteria, requestProperties) {
+
+      onFetchData: function (criteria, requestProperties) {
         requestProperties = requestProperties || {};
-        requestProperties.params = this.getFetchRequestParams(requestProperties.params);        
+        requestProperties.params = this.getFetchRequestParams(requestProperties.params);
       },
-      
-      getFetchRequestParams: function(params) {
-        params = params || {};  
+
+      getFetchRequestParams: function (params) {
+        params = params || {};
         // on purpose not sending the third boolean param
         isc.addProperties(params, this.selector.form.view.getContextInfo(false, true));
 
@@ -114,13 +114,13 @@ isc.OBSelectorPopupWindow.addProperties({
         // add field's default filter expressions
         params.filterClass = 'org.openbravo.userinterface.selector.SelectorDataSourceFilter';
 
-        if(this.getSelectedRecord()) {
+        if (this.getSelectedRecord()) {
           params._targetRecordId = this.targetRecordId;
         }
         return params;
       },
 
-      dataArrived: function() {
+      dataArrived: function () {
         var record, rowNum;
         this.Super('dataArrived', arguments);
         // check if a record has been selected, if
@@ -140,11 +140,11 @@ isc.OBSelectorPopupWindow.addProperties({
         }
       },
       fields: this.selectorGridFields,
-      recordDoubleClick: function(){
+      recordDoubleClick: function () {
         selectorWindow.setValueInField();
       }
     });
-    
+
     this.items = [this.selectorGrid, isc.HLayout.create({
       styleName: this.buttonBarStyleName,
       height: this.buttonBarHeight,
@@ -155,35 +155,36 @@ isc.OBSelectorPopupWindow.addProperties({
     })];
     this.Super('initWidget', arguments);
   },
-  
-  setFilterEditorProperties: function(gridFields){
-    var type, selectorWindow = this;
-    var keyPressFunction = function(item, form, keyName, characterValue){
+
+  setFilterEditorProperties: function (gridFields) {
+    var type, selectorWindow = this,
+        keyPressFunction, clickFunction, i, gridField;
+
+    keyPressFunction = function (item, form, keyName, characterValue) {
       if (keyName === 'Escape') {
         selectorWindow.hide();
         return false;
       }
       return true;
     };
-    
-    var clickFunction = function(form, item, icon){
+
+    clickFunction = function (form, item, icon) {
       item.setValue(null);
       selectorWindow.selectorGrid.focusInFilterEditor(item);
       selectorWindow.selectorGrid.filterByEditor();
     };
-    
-    var i;
+
     for (i = 0; i < gridFields.length; i++) {
-      var gridField = gridFields[i];
-      
+      gridField = gridFields[i];
+
       type = isc.SimpleType.getType(gridField.type);
-      
+
       if (type.filterEditorType && !gridField.filterEditorType) {
         gridField.filterEditorType = type.filterEditorType;
       }
-      
+
       gridField.canFilter = (gridField.canFilter === false ? false : true);
-      gridField.filterOnKeypress = (gridField.filterOnKeypress === false ? false : true); 
+      gridField.filterOnKeypress = (gridField.filterOnKeypress === false ? false : true);
 
       if (!gridField.filterEditorProperties) {
         gridField.filterEditorProperties = {
@@ -192,25 +193,25 @@ isc.OBSelectorPopupWindow.addProperties({
       } else {
         gridField.filterEditorProperties.required = false;
       }
-      
+
       gridField.filterEditorProperties.keyPress = keyPressFunction;
-      
+
       if (!gridField.filterEditorProperties.icons) {
         gridField.filterEditorProperties.icons = [];
       }
-      
+
       gridField.filterEditorProperties.showLabel = false;
       gridField.filterEditorProperties.showTitle = false;
       gridField.filterEditorProperties.selectorWindow = selectorWindow;
       gridField.filterEditorProperties.textMatchStyle = selectorWindow.selector.popupTextMatchStyle;
     }
   },
-  
-  closeClick: function() {
+
+  closeClick: function () {
     this.hide(arguments);
   },
 
-  hide: function(){
+  hide: function () {
     this.Super('hide', arguments);
     //focus is now moved to the next item in the form automatically
     if (!this.selector.form.getFocusItem()) {
@@ -218,7 +219,7 @@ isc.OBSelectorPopupWindow.addProperties({
     }
   },
 
-  show: function(applyDefaultFilter){
+  show: function (applyDefaultFilter) {
     // draw now already otherwise the filter does not work the
     // first time    
     var ret = this.Super('show', arguments);
@@ -226,7 +227,7 @@ isc.OBSelectorPopupWindow.addProperties({
       this.selectorGrid.setFilterEditorCriteria(this.defaultFilter);
       this.selectorGrid.filterByEditor();
     }
-    if(this.selectorGrid.isDrawn()) {
+    if (this.selectorGrid.isDrawn()) {
       this.selectorGrid.focusInFilterEditor();
     } else {
       isc.Page.setEvent(isc.EH.IDLE, this.selectorGrid, isc.Page.FIRE_ONCE, 'focusInFilterEditor');
@@ -237,25 +238,28 @@ isc.OBSelectorPopupWindow.addProperties({
     } else {
       this.selectorGrid.selectSingleRecord(null);
     }
-    
+
     return ret;
   },
-  
-  open: function(){
-    var selectorWindow = this, data = {
+
+  open: function () {
+    var selectorWindow = this,
+        callback, data;
+
+    data = {
       '_selectorDefinitionId': this.selectorDefinitionId || this.selector.selectorDefinitionId
     };
-    
+
     // purposely not passing the third boolean param
     isc.addProperties(data, this.selector.form.view.getContextInfo(false, true));
-    
-    var callback = function(resp, data, req){
+
+    callback = function (resp, data, req) {
       selectorWindow.fetchDefaultsCallback(resp, data, req);
     };
     OB.RemoteCallManager.call('org.openbravo.userinterface.selector.SelectorDefaultFilterActionHandler', data, data, callback);
   },
-  
-  fetchDefaultsCallback: function(rpcResponse, data, rpcRequest){
+
+  fetchDefaultsCallback: function (rpcResponse, data, rpcRequest) {
     var defaultFilter = {};
     if (data) {
       defaultFilter = {}; // Reset filter
@@ -269,7 +273,7 @@ isc.OBSelectorPopupWindow.addProperties({
     this.show(true);
   },
 
-  setValueInField: function(){
+  setValueInField: function () {
     this.selector.setValueFromRecord(this.selectorGrid.getSelectedRecord(), true);
     this.hide();
   }
@@ -289,16 +293,15 @@ isc.OBSelectorItem.addProperties({
   popupTextMatchStyle: 'startswith',
   suggestionTextMatchStyle: 'startswith',
   showOptionsFromDataSource: true,
-  
+
   // https://issues.openbravo.com/view.php?id=18739
   selectOnFocus: false,
   // still do select on focus initially
   doInitialSelectOnFocus: true,
-  
+
   // Setting this to false results in the picklist to be shown 
   // on focus, specific SC logic
   //  addUnknownValues: false,
-  
   // ** {{{ selectorGridFields }}} **
   // the definition of the columns in the popup window
   selectorGridFields: [{
@@ -312,12 +315,15 @@ isc.OBSelectorItem.addProperties({
 
   autoFetchData: false,
   showPickerIcon: true,
-  validateOnChange: true,
+  //  selectors should not be validated on change, only after its content has been deleted
+  //  and after an option of the combo has been selected
+  //  see issue 19956 (https://issues.openbravo.com/view.php?id=19956)
+  validateOnChange: false,
   completeOnTab: true,
   // note validateonexit does not work when completeOnTab is true
   // setting it anyway, the this.validate() is called in the blur
   validateOnExit: true,
-  
+
   pickListProperties: {
     fetchDelay: 400,
     showHeaderContextMenu: false,
@@ -326,14 +332,14 @@ isc.OBSelectorItem.addProperties({
     }
   },
 
-  hidePickListOnBlur: function() {    
+  hidePickListOnBlur: function () {
     // when the form gets redrawn the focus may not be in
     // the item but it is still the item which gets the focus
     // after redrawing
     if (this.form && this.form._isRedrawing && this.form.getFocusItem() === this) {
       return;
     }
-    
+
     this.Super('hidePickListOnBlur', arguments);
   },
 
@@ -348,62 +354,83 @@ isc.OBSelectorItem.addProperties({
   // to the server, so only do updatevalue when the user changes information
   // https://issues.openbravo.com/view.php?id=16611
   updateValue: function () {
-    if (this.form && this.form.grid && 
-        (this.form.grid._storingUpdatedEditorValue || this.form.grid._showingEditor || this.form.grid._hidingInlineEditor)) {
+    if (this.form && this.form.grid && (this.form.grid._storingUpdatedEditorValue || this.form.grid._showingEditor || this.form.grid._hidingInlineEditor)) {
       // prevent updatevalue while the form is being shown or hidden
       return;
     }
     this.Super('updateValue', arguments);
   },
 
+  setValue: function (val) {
+    var i, displayedVal;
+
+    if (val && this.valueMap) {
+      displayedVal = this.valueMap[val];
+      for (i in this.valueMap) {
+        if (this.valueMap.hasOwnProperty(i)) {
+          if (this.valueMap[i] === displayedVal && i !== val) {
+            // cleaning up valueMap: there are 2 values that display the same info, keep just the one for
+            // the current value
+            delete this.valueMap[i];
+            break;
+          }
+        }
+      }
+    }
+
+    this.Super('setValue', arguments);
+  },
+
   // changed handles the case that the user removes the value using the keyboard
   // this should do the same things as setting the value through the pickvalue
-  changed: function(form, item, newValue) {
+  changed: function (form, item, newValue) {
     // only do the identifier actions when clearing
     // in all other cases pickValue is called
     if (!newValue) {
       this.setValueFromRecord(null);
     }
   },
-  
-  setPickListWidth: function(){
+
+  setPickListWidth: function () {
     var extraWidth = 0,
         fieldWidth = this.getVisibleWidth();
     if (this.pickListFields.length > 1) {
       extraWidth = 150 * (this.pickListFields.length - 1);
     }
-    
+
     this.pickListWidth = (fieldWidth < 150 ? 150 : fieldWidth) + extraWidth;
   },
 
-  enableShortcuts: function() {
-    var me = this;
-    var ksAction_ShowPopup = function() {
+  enableShortcuts: function () {
+    var me = this,
+        ksAction_ShowPopup;
+
+    ksAction_ShowPopup = function () {
       me.openSelectorWindow();
       return false; //To avoid keyboard shortcut propagation
     };
     OB.KeyboardManager.Shortcuts.set('Selector_ShowPopup', ['OBSelectorItem', 'OBSelectorItem.icon'], ksAction_ShowPopup);
   },
 
-  init: function(){
+  init: function () {
     this.enableShortcuts();
     this.icons = [{
       src: this.popupIconSrc,
       width: this.popupIconWidth,
       height: this.popupIconHeight,
       hspace: this.popupIconHspace,
-      keyPress: function(keyName, character, form, item, icon){
+      keyPress: function (keyName, character, form, item, icon) {
         var response = OB.KeyboardManager.Shortcuts.monitor('OBSelectorItem.icon');
         if (response !== false) {
           response = this.Super('keyPress', arguments);
         }
         return response;
       },
-      click: function(form, item, icon){
+      click: function (form, item, icon) {
         item.openSelectorWindow();
       }
     }];
-    
+
     if (this.disabled) {
       // TODO: disable, remove icons
       this.icons = null;
@@ -411,7 +438,7 @@ isc.OBSelectorItem.addProperties({
     if (!this.showSelectorGrid) {
       this.icons = null;
     }
-    
+
     if (this.showSelectorGrid && !this.form.isPreviewForm) {
       this.selectorWindow = isc.OBSelectorPopupWindow.create({
         // solves issue: https://issues.openbravo.com/view.php?id=17268
@@ -423,21 +450,23 @@ isc.OBSelectorItem.addProperties({
         selectorGridFields: isc.shallowClone(this.selectorGridFields)
       });
     }
-    
+
     this.optionCriteria = {
       _selectorDefinitionId: this.selectorDefinitionId
     };
-    
+
     return this.Super('init', arguments);
   },
-  
-  setValueFromRecord: function(record, fromPopup){
-    var currentValue = this.getValue(), identifierFieldName = this.name + '.' + OB.Constants.IDENTIFIER;
+
+  setValueFromRecord: function (record, fromPopup) {
+    var currentValue = this.getValue(),
+        identifierFieldName = this.name + '.' + OB.Constants.IDENTIFIER,
+        i;
     if (!record) {
       this.storeValue(null);
       this.form.setValue(this.name + '.' + this.displayField, null);
       this.form.setValue(identifierFieldName, null);
-      
+
       // make sure that the grid does not display the old identifier
       if (this.form.grid && this.form.grid.getEditForm()) {
         this.form.grid.setEditValue(this.form.grid.getEditRow(), this.name, null);
@@ -452,49 +481,50 @@ isc.OBSelectorItem.addProperties({
       if (!this.valueMap) {
         this.valueMap = {};
       }
+
       this.valueMap[record[this.valueField]] = record[this.displayField];
       this.updateValueMap();
-    }
-    
-    // only jump to the next field if the value has really been set
-    if (currentValue && this.form.focusInNextItem) {
-      this.form.focusInNextItem(this.name);
     }
 
     if (this.form && this.form.handleItemChange) {
       this._hasChanged = true;
       this.form.handleItemChange(this);
     }
+
+    // only jump to the next field if the value has really been set
+    if (currentValue && this.form.focusInNextItem) {
+      this.form.focusInNextItem(this.name);
+    }
   },
 
   // override blur to not do any change handling
-  blur: function(form, item){
-  },
+  blur: function (form, item) {},
 
-  handleOutFields: function(record){
-    var i, j, outFields = this.outFields, form = this.form, grid = this.grid, item, value,
-        fields = form.fields || grid.fields, numberFormat;
+  handleOutFields: function (record) {
+    var i, j, outFields = this.outFields,
+        form = this.form,
+        grid = this.grid,
+        item, value, fields = form.fields || grid.fields,
+        numberFormat;
     for (i in outFields) {
       if (outFields.hasOwnProperty(i)) {
         if (outFields[i].suffix) {
           // when it has a suffix
           if (record) {
             value = record[i];
-            if(typeof value === 'undefined') {
+            if (typeof value === 'undefined') {
               continue;
             }
             if (isc.isA.Number(value)) {
-              if(outFields[i].formatType && outFields[i].formatType !== ''){
-                value = OB.Utilities.Number.JSToOBMasked(value, OB.Format.formats[outFields[i].formatType],
-                  OB.Format.defaultDecimalSymbol, OB.Format.defaultGroupingSymbol,
-                   OB.Format.defaultGroupingSize);
-              }else{
+              if (outFields[i].formatType && outFields[i].formatType !== '') {
+                value = OB.Utilities.Number.JSToOBMasked(value, OB.Format.formats[outFields[i].formatType], OB.Format.defaultDecimalSymbol, OB.Format.defaultGroupingSymbol, OB.Format.defaultGroupingSize);
+              } else {
                 value = value.toString().replace('.', OB.Format.defaultDecimalSymbol);
               }
             }
             form.hiddenInputs[this.outHiddenInputPrefix + outFields[i].suffix] = value;
             item = form.getItem(outFields[i].fieldName);
-            if(item && item.valueMap) {
+            if (item && item.valueMap) {
               item.valueMap[value] = record[outFields[i].fieldName + '._identifier'];
             }
           } else {
@@ -506,7 +536,7 @@ isc.OBSelectorItem.addProperties({
             if (fields[j].name !== '' && fields[j].name === outFields[i].fieldName) {
               if (record) {
                 value = record[i];
-                if(typeof value === 'undefined') {
+                if (typeof value === 'undefined') {
                   continue;
                 }
               } else {
@@ -519,8 +549,8 @@ isc.OBSelectorItem.addProperties({
       }
     }
   },
-  
-  openSelectorWindow: function(){
+
+  openSelectorWindow: function () {
     // always refresh the content of the grid to force a reload
     // if the organization has changed
     if (this.selectorWindow.selectorGrid) {
@@ -528,73 +558,77 @@ isc.OBSelectorItem.addProperties({
     }
     this.selectorWindow.open();
   },
-  
-  keyPress: function(item, form, keyName, characterValue){
+
+  keyPress: function (item, form, keyName, characterValue) {
     var response = OB.KeyboardManager.Shortcuts.monitor('OBSelectorItem');
     if (response !== false) {
       response = this.Super('keyPress', arguments);
     }
     return response;
   },
-  
-  pickValue: function(value){
+
+  pickValue: function (value) {
     // get the selected record before calling the super, as this super call
     // will deselect the record
-    var selectedRecord = this.pickList.getSelectedRecord(), ret = this.Super('pickValue', arguments);
+    var selectedRecord = this.pickList.getSelectedRecord(),
+        ret = this.Super('pickValue', arguments);
     this.setValueFromRecord(selectedRecord);
     return ret;
   },
-  
-  filterDataBoundPickList: function (requestProperties, dropCache){
+
+  filterDataBoundPickList: function (requestProperties, dropCache) {
     requestProperties = requestProperties || {};
     requestProperties.params = requestProperties.params || {};
-    
+
     // sometimes the value is passed as a filter criteria remove it
     if (this.getValueFieldName() && requestProperties.params[this.getValueFieldName()]) {
       requestProperties.params[this.getValueFieldName()] = null;
     }
-            
+
     // do not prevent the count operation
     requestProperties.params[isc.OBViewGrid.NO_COUNT_PARAMETER] = 'true';
 
     // on purpose not passing the third boolean param
     isc.addProperties(requestProperties.params, this.form.view.getContextInfo(false, true));
-    
+
     // also add the special ORG parameter
     if (requestProperties.params.inpadOrgId) {
       requestProperties.params[OB.Constants.ORG_PARAMETER] = requestProperties.params.inpadOrgId;
     }
-    
-    var criteria = this.getPickListFilterCriteria(), i;
+
+    var criteria = this.getPickListFilterCriteria(),
+        i;
     for (i = 0; i < criteria.criteria.length; i++) {
       if (criteria.criteria[i].fieldName === this.displayField) {
         // for the suggestion box it is one big or
         requestProperties.params[OB.Constants.OR_EXPRESSION] = 'true';
       }
     }
-    
+
     // adds the selector id to filter used to get filter information
     requestProperties.params._selectorDefinitionId = this.selectorDefinitionId;
-    
+
     // add field's default filter expressions
     requestProperties.params.filterClass = 'org.openbravo.userinterface.selector.SelectorDataSourceFilter';
-    
+
     // the additional where clause
     requestProperties.params[OB.Constants.WHERE_PARAMETER] = this.whereClause;
-    
+
     // and sort according to the display field
     // initially
     requestProperties.params[OB.Constants.SORTBY_PARAMETER] = this.displayField;
-    
+
     return this.Super('filterDataBoundPickList', [requestProperties, dropCache]);
   },
-  
-  getPickListFilterCriteria: function() {
+
+  getPickListFilterCriteria: function () {
     var crit = this.Super('getPickListFilterCriteria', arguments);
     this.pickList.data.useClientFiltering = false;
-    var criteria = { operator: 'or',
-                     _constructor: 'AdvancedCriteria',
-                     criteria:[]};
+    var criteria = {
+      operator: 'or',
+      _constructor: 'AdvancedCriteria',
+      criteria: []
+    };
 
     // add a dummy criteria to force a fetch
     criteria.criteria.push(isc.OBRestDataSource.getDummyCriterion());
@@ -602,7 +636,8 @@ isc.OBSelectorItem.addProperties({
     // only filter if the display field is also passed
     // the displayField filter is not passed when the user clicks the drop-down button
     // display field is passed on the criteria.
-    var displayFieldValue = null, i;
+    var displayFieldValue = null,
+        i;
     if (crit.criteria) {
       for (i = 0; i < crit.criteria.length; i++) {
         if (crit.criteria[i].fieldName === this.displayField) {
@@ -628,23 +663,27 @@ isc.OBSelectorItem.addProperties({
     }
     return criteria;
   },
-  
-  mapValueToDisplay : function (value) {
+
+  mapValueToDisplay: function (value) {
     var ret = this.Super('mapValueToDisplay', arguments);
     if (ret === value && this.isDisabled()) {
       return '';
     }
-    if (ret === value && !this.valueMap) {
-      this.valueMap = {};
-      this.valueMap[value] = '';
-      return '';
+    if (ret === value) {
+      if (!this.valueMap) {
+        this.valueMap = {};
+        this.valueMap[value] = '';
+        return '';
+      } else if (!this.valueMap[value]) {
+        return '';
+      }
     }
     return ret;
   },
 
   destroy: function () {
     // Explicitly destroy the selector window to avoid memory leaks
-    if(this.selectorWindow) {
+    if (this.selectorWindow) {
       this.selectorWindow.destroy();
       this.selectorWindow = null;
     }
@@ -661,13 +700,13 @@ isc.OBSelectorLinkItem.addProperties({
   showFocused: true,
   wrap: false,
   clipValue: true,
-  
+
   // show the complete displayed value, handy when the display value got clipped
-  itemHoverHTML: function(item, form){
+  itemHoverHTML: function (item, form) {
     return this.getDisplayValue(this.getValue());
   },
-  
-  setValue: function(value){
+
+  setValue: function (value) {
     var ret = this.Super('setValue', arguments);
     // in this case the clearIcon needs to be shown or hidden
     if (!this.disabled && !this.required) {
@@ -679,28 +718,28 @@ isc.OBSelectorLinkItem.addProperties({
     }
     return ret;
   },
-  
-  click: function(){
+
+  click: function () {
     this.showPicker();
     return false;
   },
-  
-  keyPress: function(item, form, keyName, characterValue){
+
+  keyPress: function (item, form, keyName, characterValue) {
     var response = OB.KeyboardManager.Shortcuts.monitor('OBSelectorLinkItem');
     if (response !== false) {
       response = this.Super('keyPress', arguments);
     }
     return response;
   },
-  
-  showPicker: function(){
+
+  showPicker: function () {
     if (this.isFocusable()) {
       this.focusInItem();
     }
     this.selectorWindow.open();
   },
-  
-  setValueFromRecord: function(record){
+
+  setValueFromRecord: function (record) {
     // note this.displayfield already contains the prefix of the property name
     if (!record) {
       this.setValue(null);
@@ -712,7 +751,7 @@ isc.OBSelectorLinkItem.addProperties({
         this.valueMap = {};
       }
       this.valueMap[record[this.gridValueField]] = record[this.gridDisplayField];
-      this.updateValueMap();    
+      this.updateValueMap();
     }
     this.handleOutFields(record);
     if (this.form && this.form.handleItemChange) {
@@ -720,19 +759,19 @@ isc.OBSelectorLinkItem.addProperties({
       this.form.handleItemChange(this);
     }
   },
-  
-  handleOutFields: function(record){
-    var i, j, outFields = this.outFields, form = this.form, grid = this.grid, item, value,
-        fields = form.fields || grid.fields;
+
+  handleOutFields: function (record) {
+    var i, j, outFields = this.outFields,
+        form = this.form,
+        grid = this.grid,
+        item, value, fields = form.fields || grid.fields;
     for (i in outFields) {
       if (outFields.hasOwnProperty(i)) {
         if (outFields[i].suffix) {
           if (record) {
             value = record[i];
             if (isc.isA.Number(value)) {
-              value = OB.Utilities.Number.JSToOBMasked(value, OB.Format.defaultNumericMask,
-                  OB.Format.defaultDecimalSymbol, OB.Format.defaultGroupingSymbol,
-                  OB.Format.defaultGroupingSize);
+              value = OB.Utilities.Number.JSToOBMasked(value, OB.Format.defaultNumericMask, OB.Format.defaultDecimalSymbol, OB.Format.defaultGroupingSymbol, OB.Format.defaultGroupingSize);
             }
             form.hiddenInputs[this.outHiddenInputPrefix + outFields[i].suffix] = value;
           } else {
@@ -751,23 +790,24 @@ isc.OBSelectorLinkItem.addProperties({
     }
   },
 
-  enableShortcuts: function() {
-    var me = this;
-    var ksAction_ShowPopup = function() {
+  enableShortcuts: function () {
+    var me = this,
+        ksAction_ShowPopup;
+    ksAction_ShowPopup = function () {
       me.showPicker();
       return false; //To avoid keyboard shortcut propagation
     };
-    OB.KeyboardManager.Shortcuts.set('SelectorLink_ShowPopup', 'OBSelectorLinkItem' , ksAction_ShowPopup);
+    OB.KeyboardManager.Shortcuts.set('SelectorLink_ShowPopup', 'OBSelectorLinkItem', ksAction_ShowPopup);
   },
 
-  init: function(){
+  init: function () {
     this.enableShortcuts();
     if (this.disabled) {
       this.showPickerIcon = false;
     }
-    
+
     this.instanceClearIcon = isc.shallowClone(this.clearIcon);
-    this.instanceClearIcon.showIf = function(form, item){
+    this.instanceClearIcon.showIf = function (form, item) {
       if (item.disabled) {
         return false;
       }
@@ -782,20 +822,20 @@ isc.OBSelectorLinkItem.addProperties({
       }
       return false;
     };
-    
-    this.instanceClearIcon.click = function(){
+
+    this.instanceClearIcon.click = function () {
       this.formItem.setValue(null);
       this.formItem.form.itemChangeActions();
     };
-    
+
     this.icons = [this.instanceClearIcon];
     this.icons[0].formItem = this;
-    
+
     if (this.disabled) {
       // TODO: disable, remove icons
       this.icons = null;
     }
-    
+
     if (!this.form.isPreviewForm) {
       this.selectorWindow = isc.OBSelectorPopupWindow.create({
         // solves issue: https://issues.openbravo.com/view.php?id=17268
@@ -807,11 +847,11 @@ isc.OBSelectorLinkItem.addProperties({
         selectorGridFields: isc.shallowClone(this.selectorGridFields)
       });
     }
-    
+
     return this.Super('init', arguments);
   },
-  
-  changed: function(){
+
+  changed: function () {
     var ret = this.Super('changed', arguments);
     this._hasChanged = true;
     this._doFICCall = true;
@@ -823,7 +863,7 @@ isc.OBSelectorLinkItem.addProperties({
 
   destroy: function () {
     // Explicitly destroy the selector window to avoid memory leaks
-    if(this.selectorWindow) {
+    if (this.selectorWindow) {
       this.selectorWindow.destroy();
       this.selectorWindow = null;
     }

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -450,11 +450,13 @@ public class ProcessInvoice extends HttpSecureAppServlet {
     xmlDocument.setParameter("css", vars.getTheme());
     xmlDocument.setParameter("language", "defaultLang=\"" + vars.getLanguage() + "\";");
     xmlDocument.setParameter("directory", "var baseDirectory = \"" + strReplaceWith + "/\";\n");
-    xmlDocument.setParameter("cancel", Utility.messageBD(this, "Cancel", vars.getLanguage()));
-    xmlDocument.setParameter("ok", Utility.messageBD(this, "OK", vars.getLanguage()));
     xmlDocument.setParameter("window", strWindowId);
     xmlDocument.setParameter("tab", strTabId);
     xmlDocument.setParameter("adOrgId", strOrg);
+
+    xmlDocument.setParameter("messageType", "SUCCESS");
+    xmlDocument.setParameter("messageTitle",
+        Utility.messageBD(this, "InvoiceComplete", vars.getLanguage()));
 
     xmlDocument.setParameter("invoiceGrossAmt", dao.getObject(Invoice.class, strC_Invoice_ID)
         .getGrandTotalAmount().toString());

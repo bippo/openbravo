@@ -12,7 +12,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -25,7 +25,7 @@
         
     tabTitle: '${tabComponent.tabTitle?js_string}',
     entity:  '${tabComponent.entityName}',
-    
+    isDeleteableTable: ${tabComponent.deleteableTable?string},
     <#if tabComponent.parentProperty != ''>
         parentProperty: '${tabComponent.parentProperty?js_string}',
     </#if>
@@ -138,7 +138,7 @@
     </#list>],
     
     <#if tabComponent.childTabs?has_content>
-        hasChildTabs: true,
+        hasChildTabs: ${tabComponent.hasChildTabsProperty},
         createViewStructure: function() {
             <#list tabComponent.childTabs as childTabComponent>
             this.addChildView(

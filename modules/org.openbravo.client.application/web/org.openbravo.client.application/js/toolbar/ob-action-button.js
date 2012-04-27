@@ -93,9 +93,13 @@ isc.OBToolbarActionButton.addProperties({
           actionHandler: me.command,
           buttons: me.labelValue
         });
+        me.opening = false; // Activate again the button
       };
 
-      theView.setContextInfo(sessionProperties, callbackFunction, true);
+      if (!me.opening) {
+        me.opening = true; // To avoid button could be clicked twice
+        theView.setContextInfo(sessionProperties, callbackFunction, true);
+      }
       return;
     }
 
@@ -130,30 +134,31 @@ isc.OBToolbarActionButton.addProperties({
     //Force setting context info, it needs to be forced in case the current record has just been saved.
     theView.setContextInfo(sessionProperties, callbackFunction, true);
   },
-  
-  closeProcessPopup: function(newWindow) {
+
+  closeProcessPopup: function (newWindow) {
     //Keep current view for the callback function. Refresh and look for tab message.
     var contextView = OB.ActionButton.executingProcess.contextView,
         currentView = this.view,
-        afterRefresh = function (doRefresh) {
-          var undef,
-              refresh = (doRefresh === undef || doRefresh);
+        afterRefresh;
 
-          // Refresh context view
-          contextView.getTabMessage();
-          currentView.toolBar.refreshCustomButtons();
+    afterRefresh = function (doRefresh) {
+      var undef, refresh = (doRefresh === undef || doRefresh);
 
-          if (contextView !== currentView && currentView.state === isc.OBStandardView.STATE_TOP_MAX) {
-            // Executing an action defined in parent tab, current tab is maximized,
-            // let's set half for each in order to see the message
-            contextView.setHalfSplit();
-          }
+      // Refresh context view
+      contextView.getTabMessage();
+      currentView.toolBar.refreshCustomButtons();
 
-          // Refresh in order to show possible new records
-          if (refresh) {
-            currentView.refresh(null, false, true);
-          }
-        };
+      if (contextView !== currentView && currentView.state === isc.OBStandardView.STATE_TOP_MAX) {
+        // Executing an action defined in parent tab, current tab is maximized,
+        // let's set half for each in order to see the message
+        contextView.setHalfSplit();
+      }
+
+      // Refresh in order to show possible new records
+      if (refresh) {
+        currentView.refresh(null, false, true);
+      }
+    };
 
     if (this.autosave) {
       if (currentView.parentView) {
@@ -178,11 +183,11 @@ isc.OBToolbarActionButton.addProperties({
 
     if (newWindow) {
       if (OB.Application.contextUrl && newWindow.indexOf(OB.Application.contextUrl) !== -1) {
-        newWindow = newWindow.substr(newWindow.indexOf(OB.Application.contextUrl) + OB.Application.contextUrl.length-1);
+        newWindow = newWindow.substr(newWindow.indexOf(OB.Application.contextUrl) + OB.Application.contextUrl.length - 1);
       }
 
-      if (!newWindow.startsWith('/')){
-        newWindow = '/'+newWindow;
+      if (!newWindow.startsWith('/')) {
+        newWindow = '/' + newWindow;
       }
 
       if (newWindow.startsWith(contextView.mapping250)) {
@@ -190,52 +195,52 @@ isc.OBToolbarActionButton.addProperties({
         return;
       }
       var windowParams = {
-          viewId : this.title,
-          tabTitle: this.title,
-          obManualURL : newWindow  
-        };
+        viewId: this.title,
+        tabTitle: this.title,
+        obManualURL: newWindow
+      };
       OB.Layout.ViewManager.openView('OBClassicWindow', windowParams);
     }
   },
-  
-  updateState: function(record, hide, context, keepNonAutosave) {
-    var currentValues = record || this.contextView.getCurrentValues() || {},
-        // do not hide non autosave buttons when hidding the rest if keepNonAutosave === true
-        hideButton = hide && (!keepNonAutosave || this.autosave);
+
+  updateState: function (record, hide, context, keepNonAutosave) {
+    var currentValues = record || this.contextView.getCurrentValues() || {};
+    // do not hide non autosave buttons when hidding the rest if keepNonAutosave === true
+    var hideButton = hide && (!keepNonAutosave || this.autosave);
 
     if (hideButton || !record) {
       this.hide();
       return;
     }
-    
-    context = context || this.contextView.getContextInfo(false, true, true); 
-    
-    
+
+    context = context || this.contextView.getContextInfo(false, true, true);
+
+
     OB.Utilities.fixNull250(currentValues);
-    
+
     this.visible = !this.displayIf || (context && this.displayIf(this.contextView.viewForm, record, context));
-    
+
     // Even visible is correctly set, it is necessary to execute show() or hide()
-    if (this.visible){
+    if (this.visible) {
       this.show();
     } else {
       this.hide();
     }
-    
+
     var readonly = this.readOnlyIf && context && this.readOnlyIf(this.contextView.viewForm, record, context);
     if (readonly) {
       this.disable();
     } else {
       this.enable();
     }
-    
+
     var buttonValue = record[this.property];
     if (buttonValue === '--') {
       buttonValue = 'CL';
     }
-    
+
     var label = this.labelValue[buttonValue];
-    if (!label){
+    if (!label) {
       if (this.realTitle) {
         label = this.realTitle;
       } else {
@@ -245,5 +250,4 @@ isc.OBToolbarActionButton.addProperties({
     this.realTitle = label;
     this.setTitle(label);
   }
-  
 });

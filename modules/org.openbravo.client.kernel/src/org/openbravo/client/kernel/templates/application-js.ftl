@@ -11,12 +11,19 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2009-2011 Openbravo SLU
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
 */
 //jslint
+
+if (window.isc) {
+  // do at the beginning
+  isc.setAutoDraw(false);
+  // Prevent errors in smartclient for screenreader, is quite new and unstable for now
+  isc.screenReader = false;
+}
 
 var OB = {
     Application : {

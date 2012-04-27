@@ -9,7 +9,7 @@
  * either express or implied. See the License for the specific language
  * governing rights and limitations under the License. The Original Code is
  * Openbravo ERP. The Initial Developer of the Original Code is Openbravo SLU All
- * portions are Copyright (C) 2001-2010 Openbravo SLU All Rights Reserved.
+ * portions are Copyright (C) 2001-2012 Openbravo SLU All Rights Reserved.
  * Contributor(s): ______________________________________.
  * ***********************************************************************
  */
@@ -49,7 +49,9 @@ public class Report {
   private String _DocumentStatus;
   private String _OurReference;
   private String _CusReference;
+  private String _SalNam;
   private String _BPartnerId;
+  private String _BPartnerName;
   private String _BPartnerLanguage;
   private String _Filename;
   private File _targetDirectory;
@@ -111,7 +113,9 @@ public class Report {
 
       _OurReference = reportData[0].getField("ourreference");
       _CusReference = reportData[0].getField("cusreference");
+      _SalNam = reportData[0].getField("salnam");
       _BPartnerId = reportData[0].getField("bpartner_id");
+      _BPartnerName = reportData[0].getField("bpartner_name");
       _BPartnerLanguage = reportData[0].getField("bpartner_language");
       _DocumentStatus = reportData[0].getField("docstatus");
       templateInfo = new TemplateInfo(connectionProvider, docTypeId, orgId, strLanguage, templateId);
@@ -131,13 +135,18 @@ public class Report {
   private String generateReportFileName() {
     // Generate the target report filename
     final String dateStamp = Utility.formatDate(new Date(), "yyyyMMdd-HHmmss");
-
     String reportFilename = templateInfo.getReportFilename();
     reportFilename = reportFilename.replaceAll("@our_ref@", _OurReference);
     reportFilename = reportFilename.replaceAll("@cus_ref@", _CusReference);
-    reportFilename = reportFilename.replaceAll(" ", "_");
-    reportFilename = reportFilename.replaceAll("/", "_");
-    reportFilename = reportFilename.replaceAll("\\\\", "_");
+    reportFilename = reportFilename.replaceAll("@cus_nam@", _BPartnerName);
+    if (checkSalesOrder.equalsIgnoreCase("y")
+        && !_DocumentType.toString().equalsIgnoreCase("PAYMENT")) {
+      reportFilename = reportFilename.replaceAll("@sal_nam@", _SalNam);
+    } else {
+      reportFilename = reportFilename.replaceAll("@sal_nam@", "");
+    }
+    // only characters, numbers and "." are accepted. Others will be changed for "_"
+    reportFilename = reportFilename.replaceAll("[^A-Za-z0-9\\.]", "_");
     reportFilename = reportFilename + "." + dateStamp + ".pdf";
     if (log4j.isDebugEnabled())
       log4j.debug("target report filename: " + reportFilename);

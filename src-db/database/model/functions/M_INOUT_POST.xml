@@ -217,6 +217,7 @@
       FROM m_inoutline iol JOIN c_orderline ol ON iol.c_orderline_id = ol.c_orderline_id
       WHERE iol.m_inout_id = v_record_id
         AND iol.movementqty > 0
+        AND canceled_inoutline_id IS NULL
         AND ol.c_order_discount_id IS NULL;
       IF (v_Count <> 0) THEN
         RAISE_APPLICATION_ERROR(-20000, '@ReturnInOutNegativeQty@');
@@ -516,47 +517,6 @@
             END IF;
           END IF;
           -- Close Shipment
-          --Entry in Match Invoices
-          FOR Cur_MILines IN
-                (SELECT sl.AD_Client_ID,
-                  sl.AD_Org_ID,
-                  il.C_InvoiceLine_ID,
-                  sl.M_InOutLine_ID,
-                  sl.M_Product_ID,
-                  sl.M_AttributeSetInstance_ID,
-                  sl.MovementQty,
-                  il.QTYINVOICED,
-                  i.DateAcct,
-                  il.IsDescription
-                FROM M_INOUTLINE sl,
-                  C_INVOICE i,
-                  C_INVOICELINE il
-                WHERE sl.M_InOutLine_ID=il.M_InOutLine_ID
-                  AND sl.M_InOut_ID=Cur_InOut.M_InOut_ID
-                  AND i.C_INVOICE_ID = il.C_INVOICE_ID
-                )
-              LOOP
-                --Ad_Sequence_Next('M_MatchInv', Cur_MILines.AD_Org_ID, v_MatchInv_ID) ;
-                -- The min qty. Modified by Ismael Ciordia
-                v_Qty:=Cur_MILines.MovementQty;
-              --  v_ResultStr:='InsertMatchPO ' || v_MatchPO_ID;
-                INSERT
-                INTO M_MATCHINV
-                  (
-                    M_MATCHINV_ID, AD_CLIENT_ID, AD_ORG_ID, ISACTIVE,
-                    CREATED, CREATEDBY, UPDATED, UPDATEDBY,
-                    M_INOUTLINE_ID, C_INVOICELINE_ID, M_PRODUCT_ID, DATETRX,
-                    QTY, PROCESSING, PROCESSED, POSTED
-                  )
-                  VALUES
-                  (
-                    GET_UUID(), Cur_MILines.AD_Client_ID, Cur_MILines.AD_Org_ID, 'Y',
-                    now(), v_User, now(), v_User,
-                    Cur_MILines.M_InOutLine_ID, Cur_MILines.C_InvoiceLine_ID, Cur_MILines.M_Product_ID, Cur_MILines.DateAcct,
-                    v_Qty, 'N', 'Y', 'N'
-                  )
-                  ;
-              END LOOP;
           v_ResultStr:='CloseShipment';
           UPDATE M_INOUT
             SET Processed='Y',
@@ -632,7 +592,7 @@
               v_RInOut_ID, Cur_InOut.C_Order_ID, Cur_InOut.IsSOTrx, Cur_InOut.AD_Client_ID,
               Cur_InOut.AD_Org_ID, 'Y', now(), v_User,
               now(), v_User, v_RDocumentNo, v_DoctypeReversed_ID,
-               '(*R*: ' || Cur_InOut.DocumentNo || ') ' || Cur_InOut.Description, 'N', Cur_InOut.MovementType, Cur_InOut.MovementDate,
+               '(*R*: ' || Cur_InOut.DocumentNo || ') ' || COALESCE(TO_CHAR(Cur_InOut.Description), ''), 'N', Cur_InOut.MovementType, Cur_InOut.MovementDate,
               Cur_InOut.DateAcct, Cur_InOut.C_BPartner_ID, Cur_InOut.C_BPartner_Location_ID, Cur_InOut.AD_User_ID,
               Cur_InOut.M_Warehouse_ID, Cur_InOut.POReference, Cur_InOut.DateOrdered, Cur_InOut.DeliveryRule,
               Cur_InOut.FreightCostRule, Cur_InOut.FreightAmt * -1, Cur_InOut.C_Project_ID, Cur_InOut.C_Activity_ID,
@@ -661,7 +621,8 @@
                 CreatedBy, Updated, UpdatedBy, M_Product_ID,
                 M_AttributeSetInstance_ID, C_UOM_ID, M_Locator_ID, MovementQty,
                 Description, IsInvoiced,  --MODIFIED BY F.IRIAZABAL
-                QuantityOrder, M_Product_UOM_ID, IsDescription
+                QuantityOrder, M_Product_UOM_ID, IsDescription,
+                canceled_inoutline_id
               )
               VALUES
               (
@@ -669,8 +630,9 @@
                 Cur_InOut.AD_Client_ID, Cur_InOut.AD_Org_ID, 'Y', now(),
                 v_User, now(), v_User, Cur_InOutLine.M_Product_ID,
                 Cur_InOutLine.M_AttributeSetInstance_ID, Cur_InOutLine.C_UOM_ID, Cur_InOutLine.M_Locator_ID, Cur_InOutLine.MovementQty * -1,
-                 '*R*: ' || Cur_InOutLine.Description, Cur_InOutLine.IsInvoiced, --MODIFIED BY F.IRIAZABAL
-                Cur_InOutLine.QuantityOrder * -1, Cur_InOutLine.M_PRODUCT_UOM_ID, Cur_InOutLine.IsDescription
+                 '*R*: ' || COALESCE(TO_CHAR(Cur_InOutLine.Description), ''), Cur_InOutLine.IsInvoiced, --MODIFIED BY F.IRIAZABAL
+                Cur_InOutLine.QuantityOrder * -1, Cur_InOutLine.M_PRODUCT_UOM_ID, Cur_InOutLine.IsDescription,
+                Cur_InOutLine.M_InOutLine_ID
               )
               ;
             INSERT INTO M_MATCHINV
@@ -692,7 +654,21 @@
             Updated=now(),
             UpdatedBy=v_User
           WHERE M_INOUT.M_INOUT_ID=Cur_InOut.M_INOUT_ID;
-         
+
+	   FOR Cur_InOutLine IN
+            (SELECT *
+            FROM M_INOUTLINE
+            WHERE M_InOut_ID=Cur_InOut.M_InOut_ID
+              AND IsActive='Y'  FOR UPDATE
+            )
+	  LOOP
+            UPDATE M_INOUTLINE
+              SET Description=COALESCE(TO_CHAR(Cur_InOutLine.Description), '') || ' : *R*',
+              Updated=now(),
+              UpdatedBy=v_User
+            WHERE M_INOUTLINE.M_INOUTLINE_ID=Cur_InOutLine.M_INOUTLINE_ID;
+          END LOOP;
+          
           -- Post Reversal
           v_ResultStr:='PostReversal';
           M_INOUT_POST(NULL, v_RInOut_ID) ;

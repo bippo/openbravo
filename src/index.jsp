@@ -19,7 +19,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -59,6 +59,9 @@ if (isMSIE) {
   }
   verMSIE = Integer.parseInt(verMSIEtmp);
 }
+response.addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+response.addHeader("Pragma", "no-cache");
+response.addHeader("Expires", "0");
 %>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
         "http://www.w3.org/TR/html4/loose.dtd">
@@ -68,6 +71,7 @@ if (isMSIE) {
 <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7">
 <meta http-equiv="Expires" content="Tue, 24 Apr 1979 00:00:01 GMT"/>
 <meta http-equiv="Content-type" content="text/html;charset=utf-8"/>
+<meta http-equiv="Cache-Control" content="no-cache no-store must-revalidate" >
 <meta http-equiv="Pragma" content="no-cache" >
 <meta name="author" content="Openbravo S.L.U.">
 <meta name="keywords" content="openbravo">

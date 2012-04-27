@@ -17,7 +17,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -60,7 +60,8 @@ function initFIN_Utilities(_frm, _creditAllowed, _isCreditCheckedFromBPinGrid, _
 }
 
 function processLabels() {
-  var receiptlbls = getElementsByName('lblR'), i;
+  var receiptlbls = getElementsByName('lblR'),
+      i;
   for (i = 0; i < receiptlbls.length; i++) {
     displayLogicElement(receiptlbls[i].id, isReceipt);
   }
@@ -71,7 +72,8 @@ function processLabels() {
 }
 
 function selectDifferenceAction(value) {
-  var diffAction = frm.inpDifferenceAction, i;
+  var diffAction = frm.inpDifferenceAction,
+      i;
   for (i = 0; i < diffAction.length; i++) {
     diffAction[i].checked = false;
     diffAction[i].checked = (diffAction[i].value === value);
@@ -84,6 +86,7 @@ function selectDifferenceAction(value) {
  * @return The converted number
  * @type String
  */
+
 function applyFormat(number) {
   return returnFormattedNumber(number, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
@@ -94,9 +97,9 @@ function applyFormat(number) {
  * @return The converted number
  * @type String
  */
+
 function applyFormatJSToOBMasked(number) {
-  return OB.Utilities.Number.JSToOBMasked(number, globalMaskNumeric, globalDecSeparator,
-                                          globalGroupSeparator, globalGroupInterval);
+  return OB.Utilities.Number.JSToOBMasked(number, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
 
 function applyFormatOBMaskedToJS(number) {
@@ -105,18 +108,19 @@ function applyFormatOBMaskedToJS(number) {
 
 
 /**
-* Function to operate with formatted number
-* @param {Number} number1 The first operand
-* @param {String} operator The operator (+ - * / % < > <= >= ...)
-* @param {Number} number2 The second operand
-* @param {String} result_maskNumeric The numeric mask of the result
-* @param {String} decSeparator The decimal separator of the number
-* @param {String} groupSeparator The group separator of the number
-* @param {String} groupInterval The group interval of the number
-* @return The result of the operation or true or false if the operator is (< > <= >= ...)
-* @type String or Boolean
-* @deprecated TO BE REMOVED ON MP22
-*/
+ * Function to operate with formatted number
+ * @param {Number} number1 The first operand
+ * @param {String} operator The operator (+ - * / % < > <= >= ...)
+ * @param {Number} number2 The second operand
+ * @param {String} result_maskNumeric The numeric mask of the result
+ * @param {String} decSeparator The decimal separator of the number
+ * @param {String} groupSeparator The group separator of the number
+ * @param {String} groupInterval The group interval of the number
+ * @return The result of the operation or true or false if the operator is (< > <= >= ...)
+ * @type String or Boolean
+ * @deprecated TO BE REMOVED ON MP22
+ */
+
 function formattedNumberOpTemp(number1, operator, number2, result_maskNumeric, decSeparator, groupSeparator, groupInterval) {
   var result;
 
@@ -144,7 +148,7 @@ function formattedNumberOpTemp(number1, operator, number2, result_maskNumeric, d
   } else if (operator === "round") {
     result = roundNumber(number1, number2);
   } else {
-    result = eval('('+number1+')' + operator + '('+number2+')');
+    result = eval('(' + number1 + ')' + operator + '(' + number2 + ')');
   }
   if (result !== true && result !== false && result !== null && result !== "") {
     result = returnCalcToFormatted(result, result_maskNumeric, decSeparator, groupSeparator, groupInterval);
@@ -158,6 +162,7 @@ function formattedNumberOpTemp(number1, operator, number2, result_maskNumeric, d
  * @return The result of the Math.abs() operation in a formatted string
  * @type String
  */
+
 function abs(number1) {
   var result;
   number1 = returnFormattedToCalc(number1, globalDecSeparator, globalGroupSeparator);
@@ -177,6 +182,7 @@ function abs(number1) {
  * @return The result of adding number1 to number2 using the global formats.
  * @type String
  */
+
 function add(number1, number2) {
   return formattedNumberOpTemp(number1, '+', number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
@@ -188,6 +194,7 @@ function add(number1, number2) {
  * @return The result of adding number1 to number2 using the global formats.
  * @type String
  */
+
 function subtract(number1, number2) {
   return formattedNumberOpTemp(number1, '-', number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
@@ -199,6 +206,7 @@ function subtract(number1, number2) {
  * @return The result of dividing number1 to number2 using the global formats.
  * @type String
  */
+
 function divide(number1, number2) {
   return formattedNumberOpTemp(number1, '/', number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
@@ -210,8 +218,9 @@ function divide(number1, number2) {
  * @return The result of multiplying number1 to number2 using the global formats.
  * @type String
  */
+
 function multiply(number1, number2) {
-  return formattedNumberOpTemp(number1, '*', number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);	
+  return formattedNumberOpTemp(number1, '*', number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
 
 /**
@@ -222,14 +231,16 @@ function multiply(number1, number2) {
  * @return true or false
  * @type boolean
  */
+
 function compare(number1, operator, number2) {
-  return formattedNumberOpTemp(number1, operator, number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);	
+  return formattedNumberOpTemp(number1, operator, number2, globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
 }
 
 /**
  * Compares two Strings using the operator.
- * If both numbers are negative it compares using the absolute value. 
+ * If both numbers are negative it compares using the absolute value.
  */
+
 function compareWithSign(number1, operator, number2) {
   if (compare(number1, '<', 0) && compare(number2, '<', 0)) {
     return formattedNumberOpTemp(abs(number1), operator, abs(number2), globalMaskNumeric, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
@@ -238,16 +249,15 @@ function compareWithSign(number1, operator, number2) {
   }
 }
 
-function isBetweenZeroAndMaxValue(value, maxValue){
-  return ((compare(value, '>=', 0) && compare(value, '<=', maxValue)) ||
-          (compare(value, '<=', 0) && compare(value, '>=', maxValue)));
+function isBetweenZeroAndMaxValue(value, maxValue) {
+  return ((compare(value, '>=', 0) && compare(value, '<=', maxValue)) || (compare(value, '<=', 0) && compare(value, '>=', maxValue)));
 }
 
 function applyPrecisionToMask(currencyPrecision) {
   var i, c, output, currentDecimalMask, currentPrecision;
   var toConvertDecimalMask = globalMaskNumeric;
   if (globalMaskNumeric.indexOf(globalDecSeparator) !== -1) {
-	currentDecimalMask = globalMaskNumeric.substring(globalMaskNumeric.indexOf(globalDecSeparator), globalMaskNumeric.length);
+    currentDecimalMask = globalMaskNumeric.substring(globalMaskNumeric.indexOf(globalDecSeparator), globalMaskNumeric.length);
     currentPrecision = currentDecimalMask.length - globalDecSeparator.length;
     if (currentPrecision) {
       toConvertDecimalMask = globalDecSeparator;
@@ -261,18 +271,18 @@ function applyPrecisionToMask(currencyPrecision) {
   return toConvertDecimalMask;
 }
 
-function updateConvertedAmounts( recalcExchangeRate ) {
+function updateConvertedAmounts(recalcExchangeRate) {
   var exchangeRate = frm.inpExchangeRate;
   var precision = frm.inpFinancialAccountCurrencyPrecision ? frm.inpFinancialAccountCurrencyPrecision.value : 2;
   var roundedMask = applyPrecisionToMask(precision);
   var expectedConverted = frm.inpExpectedConverted;
   var actualConverted = frm.inpActualConverted;
-  var expectedPayment= frm.inpExpectedPayment;
-  var actualPayment= frm.inpActualPayment;
-  
+  var expectedPayment = frm.inpExpectedPayment;
+  var actualPayment = frm.inpActualPayment;
+
   if (actualConverted && expectedConverted && exchangeRate) {
-    if( recalcExchangeRate ) {
-      if( actualConverted.value && actualPayment.value) {
+    if (recalcExchangeRate) {
+      if (actualConverted.value && actualPayment.value) {
         exchangeRate.value = formattedNumberOpTemp(actualConverted.value, '/', actualPayment.value, roundedMask, globalDecSeparator, globalGroupSeparator, globalGroupInterval);
       } else {
         exchangeRate.value = '';
@@ -284,30 +294,30 @@ function updateConvertedAmounts( recalcExchangeRate ) {
   }
 }
 
-function validateSelectedAmounts(recordID, existsPendingAmount, selectedAction){
-  var pendingAmount = document.frmMain.elements["inpRecordAmt"+recordID].value,
-      amount = document.frmMain.elements["inpPaymentAmount"+recordID].value;
+function validateSelectedAmounts(recordID, existsPendingAmount, selectedAction) {
+  var pendingAmount = document.frmMain.elements["inpRecordAmt" + recordID].value,
+      amount = document.frmMain.elements["inpPaymentAmount" + recordID].value;
   if (existsPendingAmount === null) {
     existsPendingAmount = false;
   }
-  if (amount===null || amount==="") {
-    setWindowElementFocus(frm.elements["inpPaymentAmount"+recordID]);
+  if (amount === null || amount === "") {
+    setWindowElementFocus(frm.elements["inpPaymentAmount" + recordID]);
     showJSMessage(7);
     return false;
   }
-  if ( !isBetweenZeroAndMaxValue(amount, pendingAmount) ) {
-    setWindowElementFocus(frm.elements["inpPaymentAmount"+recordID]);
+  if (!isBetweenZeroAndMaxValue(amount, pendingAmount)) {
+    setWindowElementFocus(frm.elements["inpPaymentAmount" + recordID]);
     showJSMessage(9);
     return false;
   }
   // Only possible to pay 0 in case of a write off
   if (selectedAction !== "writeoff" && compare(amount, '==', 0)) {
-	setWindowElementFocus(frm.elements["inpPaymentAmount"+recordID]);
-	showJSMessage(9);
+    setWindowElementFocus(frm.elements["inpPaymentAmount" + recordID]);
+    showJSMessage(9);
     return false;
   }
-  if ( existsPendingAmount && compare(amount, '<', pendingAmount) ) {
-    setWindowElementFocus(frm.elements["inpPaymentAmount"+recordID]);
+  if (existsPendingAmount && compare(amount, '<', pendingAmount)) {
+    setWindowElementFocus(frm.elements["inpPaymentAmount" + recordID]);
     showJSMessage('APRM_JSNOTALLAMOUTALLOCATED');
     return false;
   }
@@ -319,37 +329,37 @@ function updateDifference() {
       total = (frm.inpTotal && frm.inpTotal.value) ? frm.inpTotal.value : applyFormat('0'),
       amount = total,
       invoicedAmount = total;
-  
+
   if (isGLItemEnabled) {
     invoicedAmount = frm.inpInvoiceAmount.value;
   }
-  
+
   if (frm.inpActualPayment !== null) {
     amount = frm.inpActualPayment.value;
   }
   if (frm.inpUseCredit.checked) {
     amount = add(amount, frm.inpCredit.value);
   }
-  if ( compareWithSign(expected, '>', total) ) {
+  if (compareWithSign(expected, '>', total)) {
     frm.inpDifference.value = subtract(expected, total);
-  } else if ( compareWithSign(amount, '>', total) ) {
+  } else if (compareWithSign(amount, '>', total)) {
     frm.inpDifference.value = subtract(amount, total);
   } else {
     frm.inpDifference.value = applyFormat('0');
   }
   document.getElementById('paramDifference').innerHTML = frm.inpDifference.value;
-  displayLogicElement('sectionDifference', ( compare(expected, '!=', total) || compareWithSign(amount, '>', total) ) );
-  displayLogicElement('sectionDifferenceBox', ( compare(expected, '!=', total) || (isCreditAllowed && compareWithSign(amount, '>', total)) ) );
-  displayLogicElement('writeoff', compare(expected, '!=', total) );
-  displayLogicElement('underpayment', compareWithSign(expected, '>', total) );
-  displayLogicElement('credit', isCreditAllowed && compareWithSign(amount, '>', total) );
-  displayLogicElement('refund', isCreditAllowed && isReceipt && compareWithSign(amount, '>', total) );
-  if (!(compare(expected, '!=', total) || (isCreditAllowed && compareWithSign(amount, '>', total)) )) {
+  displayLogicElement('sectionDifference', (compare(expected, '!=', total) || compareWithSign(amount, '>', total)));
+  displayLogicElement('sectionDifferenceBox', (compare(expected, '!=', total) || (isCreditAllowed && compareWithSign(amount, '>', total))));
+  displayLogicElement('writeoff', compare(expected, '!=', total));
+  displayLogicElement('underpayment', compareWithSign(expected, '>', total));
+  displayLogicElement('credit', isCreditAllowed && compareWithSign(amount, '>', total));
+  displayLogicElement('refund', isCreditAllowed && isReceipt && compareWithSign(amount, '>', total));
+  if (!(compare(expected, '!=', total) || (isCreditAllowed && compareWithSign(amount, '>', total)))) {
     // No action available
     selectDifferenceAction('none');
-  } else if ( isCreditAllowed && compareWithSign(amount, '>', total) ) {
+  } else if (isCreditAllowed && compareWithSign(amount, '>', total)) {
     selectDifferenceAction('credit');
-  } else if ( !isCreditAllowed || compareWithSign(expected, '>', total) ) {
+  } else if (!isCreditAllowed || compareWithSign(expected, '>', total)) {
     selectDifferenceAction('underpayment');
   } else {
     selectDifferenceAction('none');
@@ -358,64 +368,65 @@ function updateDifference() {
 
 function updateTotal() {
   var chk = frm.inpScheduledPaymentDetailId;
-  var total = applyFormat('0'), i, invalidSpan;
+  var total = applyFormat('0'),
+      i, invalidSpan;
   var scheduledPaymentDetailId, pendingAmount, amount, isAnyChecked = false;
   var selectedBusinessPartners = {
-     numberofitems: 0,
-     increase: function(obj) {
-       if (obj && obj.value) {
-         var key = obj.value;
-            var value = this[key];
-         if (value) {
-           this[key] = value + 1;
-         } else {
-           this[key] = 1;
-           this.numberofitems = this.numberofitems + 1;
-         }
-       }
-     },
-     reset: function() {
-          var i;
-       this.numberofitems = 0;
-       for (i in this) {
-         if (this.hasOwnProperty(i)) {
-           if (typeof this[i] !== "function") {
-             this[i] = 0;
-           }
-         }
-       }
-     },
-     isMultibpleSelection: function() {
-       return (this.numberofitems > 1);
-     }
+    numberofitems: 0,
+    increase: function (obj) {
+      if (obj && obj.value) {
+        var key = obj.value;
+        var value = this[key];
+        if (value) {
+          this[key] = value + 1;
+        } else {
+          this[key] = 1;
+          this.numberofitems = this.numberofitems + 1;
+        }
+      }
+    },
+    reset: function () {
+      var i;
+      this.numberofitems = 0;
+      for (i in this) {
+        if (this.hasOwnProperty(i)) {
+          if (typeof this[i] !== "function") {
+            this[i] = 0;
+          }
+        }
+      }
+    },
+    isMultibpleSelection: function () {
+      return (this.numberofitems > 1);
+    }
   };
-  
+
   selectedBusinessPartners.reset();
-  
+
   if (!chk) {
-    if (frm.inpGeneratedCredit && !isReceipt){
+    if (frm.inpGeneratedCredit && !isReceipt) {
       frm.inpActualPayment.value = frm.inpGeneratedCredit.value;
     }
     updateDifference();
     //if (OB.APRM.HasGLItems === 'undefined' || !OB.APRM.HasGLItems) {
-      //return;
+    //return;
     //}
   } else if (!chk.length) {
     scheduledPaymentDetailId = frm.inpRecordId0.value;
     pendingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
     amount = frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value;
-    if ( amount !== "" && !isBetweenZeroAndMaxValue(amount, pendingAmount) ) {
+    if (amount !== "" && !isBetweenZeroAndMaxValue(amount, pendingAmount)) {
       setWindowElementFocus(frm.elements["inpPaymentAmount" + scheduledPaymentDetailId]);
     } else {
       initialize_MessageBox('messageBoxID');
     }
     if (chk.checked) {
-      invalidSpan = document.getElementById('paraminvalidSpan'+scheduledPaymentDetailId);
+      invalidSpan = document.getElementById('paraminvalidSpan' + scheduledPaymentDetailId);
       if (invalidSpan) {
-        document.getElementById('paraminvalidSpan'+scheduledPaymentDetailId).style.display = !isBetweenZeroAndMaxValue(amount, pendingAmount) ? 'block' : 'none';
+        document.getElementById('paraminvalidSpan' + scheduledPaymentDetailId).style.display = !isBetweenZeroAndMaxValue(amount, pendingAmount) ? 'block' : 'none';
       }
       total = (frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value === '') ? "0" : frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value;
-      selectedBusinessPartners.increase(frm.elements['inpRecordBP'+scheduledPaymentDetailId]);
+      selectedBusinessPartners.increase(frm.elements['inpRecordBP' + scheduledPaymentDetailId]);
       isAnyChecked = true;
     }
   } else {
@@ -424,18 +435,18 @@ function updateTotal() {
       scheduledPaymentDetailId = frm.elements["inpRecordId" + i].value;
       pendingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
       amount = frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value;
-      if (amount !== "" && !isBetweenZeroAndMaxValue(amount, pendingAmount) ) {
+      if (amount !== "" && !isBetweenZeroAndMaxValue(amount, pendingAmount)) {
         setWindowElementFocus(frm.elements["inpPaymentAmount" + scheduledPaymentDetailId]);
       } else {
         initialize_MessageBox('messageBoxID');
       }
       if (chk[i].checked) {
-        invalidSpan = document.getElementById('paraminvalidSpan'+scheduledPaymentDetailId);
+        invalidSpan = document.getElementById('paraminvalidSpan' + scheduledPaymentDetailId);
         if (invalidSpan) {
-          document.getElementById('paraminvalidSpan'+scheduledPaymentDetailId).style.display = !isBetweenZeroAndMaxValue(amount, pendingAmount) ? 'block' : 'none';
+          document.getElementById('paraminvalidSpan' + scheduledPaymentDetailId).style.display = !isBetweenZeroAndMaxValue(amount, pendingAmount) ? 'block' : 'none';
         }
-        total = (frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value === '') ? total : add(total,frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value);
-        selectedBusinessPartners.increase(frm.elements['inpRecordBP'+scheduledPaymentDetailId]);
+        total = (frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value === '') ? total : add(total, frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value);
+        selectedBusinessPartners.increase(frm.elements['inpRecordBP' + scheduledPaymentDetailId]);
         isAnyChecked = true;
       }
     }
@@ -450,10 +461,9 @@ function updateTotal() {
   var inheritedActualPayment = (frm.paramInheritedActualPayment && frm.paramInheritedActualPayment.value === "Y");
   if (!isReceipt && !inheritedActualPayment) {
     if (frm.inpUseCredit.checked) {
-      if ( compare(total, '>',frm.inpCredit.value) ) {
+      if (compare(total, '>', frm.inpCredit.value)) {
         frm.inpActualPayment.value = subtract(total, frm.inpCredit.value);
-      }
-      else {
+      } else {
         frm.inpActualPayment.value = 0;
       }
     } else {
@@ -479,14 +489,14 @@ function distributeAmount(_amount) {
   if (isGLItemEnabled) {
     amount = subtract(amount, frm.inpGLSumAmount.value);
   }
-  
+
   if (!chk) {
     updateTotal();
     return;
   } else if (!chk.length) {
     scheduledPaymentDetailId = frm.inpRecordId0.value;
     outstandingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
-    if ( compare(outstandingAmount, '>', amount) ) {
+    if (compare(outstandingAmount, '>', amount)) {
       outstandingAmount = amount;
     }
     frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstandingAmount;
@@ -496,15 +506,15 @@ function distributeAmount(_amount) {
     }
   } else {
     var total = chk.length;
-    for ( i = 0; i < total; i++) {
+    for (i = 0; i < total; i++) {
       scheduledPaymentDetailId = frm.elements["inpRecordId" + i].value;
       outstandingAmount = frm.elements["inpRecordAmt" + scheduledPaymentDetailId].value;
-      if ( compare(outstandingAmount, '>', amount) ) {
+      if (compare(outstandingAmount, '>', amount)) {
         outstandingAmount = amount;
       }
-      if ( compare(amount, '==', 0) ) {
+      if (compare(amount, '==', 0)) {
         frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = "";
-        for ( j = 0; j < total; j++) {
+        for (j = 0; j < total; j++) {
           if (chk[j].checked && chk[j].value === scheduledPaymentDetailId) {
             chk[j].checked = false;
             updateData(chk[j].value, chk[j].checked);
@@ -512,7 +522,7 @@ function distributeAmount(_amount) {
         }
       } else {
         frm.elements["inpPaymentAmount" + scheduledPaymentDetailId].value = outstandingAmount;
-        for ( j = 0; j < total; j++) {
+        for (j = 0; j < total; j++) {
           if (!chk[j].checked && chk[j].value === scheduledPaymentDetailId) {
             chk[j].checked = true;
             updateData(chk[j].value, chk[j].checked);
@@ -531,7 +541,8 @@ function updateReadOnly(key, mark) {
     mark = false;
   }
   frm.elements["inpPaymentAmount" + key].disabled = !mark;
-  var expectedAmount = frm.inpExpectedPayment.value, invalidSpan;
+  var expectedAmount = frm.inpExpectedPayment.value,
+      invalidSpan;
   var recordAmount = frm.elements["inpRecordAmt" + key].value;
 
   if (mark) {
@@ -544,9 +555,9 @@ function updateReadOnly(key, mark) {
     }
     frm.elements["inpPaymentAmount" + key].value = '';
     frm.inpExpectedPayment.value = subtract(expectedAmount, recordAmount);
-    invalidSpan = document.getElementById('paraminvalidSpan'+key);
+    invalidSpan = document.getElementById('paraminvalidSpan' + key);
     if (invalidSpan) {
-      document.getElementById('paraminvalidSpan'+key).style.display = 'none';
+      document.getElementById('paraminvalidSpan' + key).style.display = 'none';
     }
   }
   if (!mark) {
@@ -586,11 +597,12 @@ function updateAll(drivenByGrid) {
 }
 
 /**
- * 
+ *
  * @param allowCreditGeneration true if it is allowed to not select any pending payment if actualPayment amount is not
  *        zero.
  * @return true if validations are fine.
  */
+
 function validateSelectedPendingPayments(allowNotSelectingPendingPayment, action) {
   if (allowNotSelectingPendingPayment === undefined) {
     allowNotSelectingPendingPayment = false;
@@ -598,9 +610,10 @@ function validateSelectedPendingPayments(allowNotSelectingPendingPayment, action
   // If no credit usage is allowed we are forced to select at least one pending payment.
   allowNotSelectingPendingPayment = isCreditAllowed && allowNotSelectingPendingPayment;
   var actualPayment = document.frmMain.inpActualPayment.value;
-  var expectedPayment = document.frmMain.inpExpectedPayment.value, i;
+  var expectedPayment = document.frmMain.inpExpectedPayment.value,
+      i;
   if (document.frmMain.inpUseCredit.checked) {
-    /*if ( compare(expectedPayment, '<=', actualPayment) ) {
+/*if ( compare(expectedPayment, '<=', actualPayment) ) {
       setWindowElementFocus(document.frmMain.inpUseCredit);
       showJSMessage('APRM_JSCANNOTUSECREDIT');
       return false;
@@ -612,7 +625,7 @@ function validateSelectedPendingPayments(allowNotSelectingPendingPayment, action
     return false;
   }
   var selectedTotal = document.frmMain.inpTotal.value;
-  if ( compareWithSign(selectedTotal, '>', actualPayment) ) {
+  if (compareWithSign(selectedTotal, '>', actualPayment)) {
     setWindowElementFocus(document.frmMain.inpActualPayment);
     showJSMessage('APRM_JSMOREAMOUTALLOCATED');
     return false;
@@ -626,16 +639,15 @@ function validateSelectedPendingPayments(allowNotSelectingPendingPayment, action
         return false;
       }
     } else {
-      if (!(typeof OB !== 'undefined' && OB.APRM && OB.APRM.HasGLItems) &&
-          (!allowNotSelectingPendingPayment || compare(actualPayment, '==', "0"))){
+      if (!(typeof OB !== 'undefined' && OB.APRM && OB.APRM.HasGLItems) && (!allowNotSelectingPendingPayment || compare(actualPayment, '==', "0"))) {
         showJSMessage('APRM_JSNOTLINESELECTED');
         return false;
-      }	
+      }
     }
   } else {
     var total = chk.length;
     var isAnyChecked = false;
-    for (i=0; i<total; i++) {
+    for (i = 0; i < total; i++) {
       if (chk[i].checked) {
         isAnyChecked = true;
         if (!validateSelectedAmounts(chk[i].value, compare(selectedTotal, '<', actualPayment), action)) {
@@ -643,10 +655,7 @@ function validateSelectedPendingPayments(allowNotSelectingPendingPayment, action
         }
       }
     }
-    if (!(typeof OB !== 'undefined' && OB.APRM && OB.APRM.HasGLItems) &&
-        !isAnyChecked &&
-        (!allowNotSelectingPendingPayment || compare(actualPayment, '==', "0"))
-        ) {
+    if (!(typeof OB !== 'undefined' && OB.APRM && OB.APRM.HasGLItems) && !isAnyChecked && (!allowNotSelectingPendingPayment || compare(actualPayment, '==', "0"))) {
       showJSMessage('APRM_JSNOTLINESELECTED');
       return false;
     }
@@ -661,37 +670,38 @@ function validateSelectedPendingPayments(allowNotSelectingPendingPayment, action
  * @param innerHTML
  *     The string with the options. Example '<option value="id1">fist<option>'
  */
-function createCombo(object, innerHTML){
+
+function createCombo(object, innerHTML) {
   object.innerHTML = "";
   var selTemp = document.createElement("temp");
   var opt, i, j;
-  selTemp.id="temp1";
+  selTemp.id = "temp1";
   document.body.appendChild(selTemp);
   selTemp = document.getElementById("temp1");
-  selTemp.style.display="none";
-  innerHTML = innerHTML.replace(/<option/g,"<span").replace(/<\/option/g,"</span");
+  selTemp.style.display = "none";
+  innerHTML = innerHTML.replace(/<option/g, "<span").replace(/<\/option/g, "</span");
   selTemp.innerHTML = innerHTML;
 
-  for (i=0; i<selTemp.childNodes.length; i++){
+  for (i = 0; i < selTemp.childNodes.length; i++) {
     var spantemp = selTemp.childNodes[i];
 
     if (spantemp.tagName) {
       opt = document.createElement("option");
-      if(document.all){ //IE
+      if (document.all) { //IE
         object.add(opt);
-      } else{
+      } else {
         object.appendChild(opt);
       }
 
       //getting attributes
-      for(j=0; j<spantemp.attributes.length ; j++){
+      for (j = 0; j < spantemp.attributes.length; j++) {
         var attrName = spantemp.attributes[j].nodeName;
         var attrVal = spantemp.attributes[j].nodeValue;
-        if(attrVal){
-          try{
-            opt.setAttribute(attrName,attrVal);
+        if (attrVal) {
+          try {
+            opt.setAttribute(attrName, attrVal);
             opt.setAttributeNode(spantemp.attributes[j].cloneNode(true));
-          }catch(e){}
+          } catch (e) {}
         }
       }
       //value and text
@@ -710,15 +720,13 @@ function createCombo(object, innerHTML){
  * Helper function to reload the opener window dynamic grid.
  * @return
  */
+
 function reloadParentGrid() {
   var f, dad, layoutMDI, popup;
   try {
     f = getFrame('LayoutMDI');
     popup = f && f.OB && f.OB.Layout.ClassicOBCompatibility.Popup;
-    layoutMDI = popup && popup.getPopup('process')
-                && popup.getPopup('process').getIframeHtmlObj()
-                && popup.getPopup('process').getIframeHtmlObj().contentWindow
-                && popup.getPopup('process').getIframeHtmlObj().contentWindow.frames[0];
+    layoutMDI = popup && popup.getPopup('process') && popup.getPopup('process').getIframeHtmlObj() && popup.getPopup('process').getIframeHtmlObj().contentWindow && popup.getPopup('process').getIframeHtmlObj().contentWindow.frames[0];
     dad = layoutMDI || top.opener;
     if (dad) {
       if (typeof dad.loadGrid === "function" || typeof dad.loadGrid === "object") {
@@ -728,12 +736,12 @@ function reloadParentGrid() {
       }
     } else if (f && f.OB.MainView.TabSet.getSelectedTab().pane.view) {
       var theView = f.OB.MainView.TabSet.getSelectedTab().pane.view;
-      theView.refresh(function(){
-          theView.getTabMessage();
-          theView.toolBar.refreshCustomButtons();
+      theView.refresh(function () {
+        theView.getTabMessage();
+        theView.toolBar.refreshCustomButtons();
       });
     }
-  } catch(e) {
+  } catch (e) {
     // not possible to reload parent grid
   }
 }
@@ -742,10 +750,11 @@ function reloadParentGrid() {
  * Helper function to turn a JSON string representation into an object.
  * @param jsonString
  */
+
 function decodeJSON(jsonString) {
-    try{
-        return eval('(' + jsonString + ')'); // do the eval
-    }catch(e){
-        throw new SyntaxError("Invalid JSON string: " + e.message + " parsing: "+ jsonString);
-    }
+  try {
+    return eval('(' + jsonString + ')'); // do the eval
+  } catch (e) {
+    throw new SyntaxError("Invalid JSON string: " + e.message + " parsing: " + jsonString);
+  }
 }

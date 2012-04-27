@@ -30,6 +30,7 @@ import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.SQLQuery;
+import org.hibernate.exception.SQLGrammarException;
 import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
@@ -138,33 +139,38 @@ public class AlertManagementActionHandler extends BaseActionHandler {
                 .addEntity(Alert.ENTITY_NAME);
             sqlQuery.setParameter(0, alertRule.getId());
 
-            log4j.debug("Alert " + alertRule.getName() + " (" + alertRule.getId() + ") - SQL:'"
-                + sql + "' - Rows: " + sqlQuery.list().size());
-            // It is not possible to add an SQL filter clause to the grid's default datasource.
-            // A String with the alert_id's to filter the grid's so only alerts with access are
-            // shown.
-            if (sqlQuery.list().size() > 0) {
-              // Alert rule returns data, adding it to list of alert rules.
-              alertRuleJson = new JSONObject();
-              alertRuleJson.put("name", alertRule.getIdentifier());
-              alertRuleJson.put("alertRuleId", alertRule.getId());
-              if (alertRule.getTab() != null) {
-                alertRuleJson.put("tabId", alertRule.getTab().getId());
-              } else {
-                alertRuleJson.put("tabId", "");
-              }
-
-              String filterAlerts = "";
-              @SuppressWarnings("unchecked")
-              List<Alert> alerts = sqlQuery.list();
-              for (Alert alert : alerts) {
-                if (!filterAlerts.isEmpty()) {
-                  filterAlerts += ", ";
+            try {
+              log4j.debug("Alert " + alertRule.getName() + " (" + alertRule.getId() + ") - SQL:'"
+                  + sql + "' - Rows: " + sqlQuery.list().size());
+              // It is not possible to add an SQL filter clause to the grid's default datasource.
+              // A String with the alert_id's to filter the grid's so only alerts with access are
+              // shown.
+              if (sqlQuery.list().size() > 0) {
+                // Alert rule returns data, adding it to list of alert rules.
+                alertRuleJson = new JSONObject();
+                alertRuleJson.put("name", alertRule.getIdentifier());
+                alertRuleJson.put("alertRuleId", alertRule.getId());
+                if (alertRule.getTab() != null) {
+                  alertRuleJson.put("tabId", alertRule.getTab().getId());
+                } else {
+                  alertRuleJson.put("tabId", "");
                 }
-                filterAlerts += "'" + alert.getId() + "'";
-              }
-              alertRuleJson.put("alerts", filterAlerts);
 
+                String filterAlerts = "";
+                @SuppressWarnings("unchecked")
+                List<Alert> alerts = sqlQuery.list();
+                for (Alert alert : alerts) {
+                  if (!filterAlerts.isEmpty()) {
+                    filterAlerts += ", ";
+                  }
+                  filterAlerts += "'" + alert.getId() + "'";
+                }
+                alertRuleJson.put("alerts", filterAlerts);
+
+              }
+            } catch (SQLGrammarException e) {
+              log4j.error(
+                  "An error has ocurred when trying to process the alerts: " + e.getMessage(), e);
             }
           }
           if (alertRuleJson != null) {

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -31,16 +31,16 @@ isc.OBTimeItem.addProperties({
   shortTimeFormat: 'HH:MM:SS',
   long24TimeFormat: 'HH:MM:SS',
   longTimeFormat: 'HH:MM:SS',
- 
-  
+
+
   // make sure that the undo/save buttons get enabled, needs to be done like
   // this because changeOnKeypress is false. Activating changeOnKeypress makes the
   // item not editable as it is reformatted on keyStroke, the same happens calling
   // from this method form.itemChangeActions
-  keyPress: function(item, form, keyName, characterValue){
+  keyPress: function (item, form, keyName, characterValue) {
     var i, f = this.form,
         toolBarButtons = f.view.toolBar.leftMembers;
-    
+
     if (characterValue || keyName === 'Backspace' || keyName === 'Delete') {
       f.setHasChanged(true);
       f.view.messageBar.hide();
@@ -50,16 +50,15 @@ isc.OBTimeItem.addProperties({
         }
       }
     }
-   this.Super('keyPress', arguments);
+    this.Super('keyPress', arguments);
   },
 
   // SmartClient's TimeItem doesn't keep time zone. Preserve it in case the
   // string contains time zone. So time in this format is kept: 12:00+01:00
-  setValue: function(value){
+  setValue: function (value) {
     if (isc.isA.String(value) && (value.contains('+') || value.contains('-'))) {
-      value = isc.Time.parseInput(value,null,null,true);
+      value = isc.Time.parseInput(value, null, null, true);
     }
     return this.Super('setValue', arguments);
   }
 });
-

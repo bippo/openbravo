@@ -125,7 +125,9 @@
                   (1 + (CASE WHEN ic.totallines IS NULL OR disc.dis_amt IS NULL THEN 0 ELSE (COALESCE(disc.dis_amt,0)/(C_CURRENCY_CONVERT(ic.totallines, ic.C_CURRENCY_ID, ?, TO_DATE(COALESCE(ic.DATEINVOICED, NOW())), NULL, ic.AD_CLIENT_ID, ic.AD_ORG_ID) - disc.dis_amt)) END)) 
                   ELSE COALESCE(C_CURRENCY_CONVERT(ila.amt, ic.C_CURRENCY_ID, ?, TO_DATE(COALESCE(ic.DATEINVOICED, NOW())), NULL, ila.AD_CLIENT_ID, ila.AD_ORG_ID),0) * 
                   (1 + (CASE WHEN ic.totallines IS NULL OR disc.dis_amt IS NULL THEN 0 ELSE (COALESCE(disc.dis_amt,0)/(C_CURRENCY_CONVERT(ic.totallines, ic.C_CURRENCY_ID, ?, TO_DATE(COALESCE(ic.DATEINVOICED, NOW())), NULL, ic.AD_CLIENT_ID, ic.AD_ORG_ID) - disc.dis_amt)) END)) END AS amount
-           FROM M_Product p, C_InvoiceLine il LEFT JOIN C_InvoiceLine_AcctDimension ila on il.C_InvoiceLine_ID = ila.C_InvoiceLine_ID,
+           FROM C_InvoiceLine il LEFT JOIN C_InvoiceLine_AcctDimension ila on il.C_InvoiceLine_ID = ila.C_InvoiceLine_ID
+                                 LEFT JOIN C_GLITEM GL ON il.account_id = gl.c_glitem_id
+                                 LEFT JOIN M_Product p ON il.m_product_id = p.m_product_id,
              C_Invoice ic left join (SELECT il3.c_invoice_id, sum(C_CURRENCY_CONVERT(il3.linenetamt, ic.C_CURRENCY_ID, ?, TO_DATE(COALESCE(ic.DATEINVOICED, NOW())), NULL, il3.AD_CLIENT_ID, il3.AD_ORG_ID)) as dis_amt
                                       FROM c_invoiceline il3, c_invoice ic 
                                       WHERE il3.c_invoice_discount_id IS NOT NULL
@@ -134,14 +136,13 @@
                                       AND il3.AD_Client_ID IN ('12')
                                       GROUP BY il3.c_invoice_id) disc ON ic.C_Invoice_ID = disc.C_Invoice_ID
            WHERE ic.C_Invoice_ID = il.C_Invoice_ID
-             AND il.M_Product_ID = p.M_Product_ID
              AND ic.processed = 'Y'
              AND 4=4
              AND ic.AD_Org_ID IN ('3')
              AND ic.AD_Client_ID IN ('3')
              AND (ila.c_project_id IS NOT NULL OR ic.c_project_id IS NOT NULL)
              AND ic.issotrx = 'N'
-             AND p.producttype <> 'S') CCC
+             AND Coalesce(p.producttype,'') <> 'S') CCC
            GROUP BY c_Project) expexp ON p.C_Project_ID = expexp.C_Project
 
                       LEFT JOIN (SELECT c_Project, sum(amount) as amount

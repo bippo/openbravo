@@ -243,6 +243,10 @@ public class OBViewTab extends BaseTemplateComponent {
     return parentProperty;
   }
 
+  public boolean getDeleteableTable() {
+    return tab.getTable().isDeletableRecords();
+  }
+
   public String getViewForm() {
     // force a load all the columns of the table
     getTab().getTable().getADColumnList().size();
@@ -277,6 +281,57 @@ public class OBViewTab extends BaseTemplateComponent {
 
   public List<OBViewTab> getChildTabs() {
     return childTabs;
+  }
+
+  private boolean hasAlwaysVisibleChildTab() {
+    boolean hasVisibleChildTab = false;
+    for (OBViewTab childTab : this.getChildTabs()) {
+      if (!childTab.getAcctTab() && !childTab.getTrlTab()) {
+        hasVisibleChildTab = true;
+        break;
+      }
+    }
+    return hasVisibleChildTab;
+  }
+
+  private boolean hasAccountingChildTab() {
+    boolean hasAccountingChildTab = false;
+    for (OBViewTab childTab : this.getChildTabs()) {
+      if (childTab.getAcctTab()) {
+        hasAccountingChildTab = true;
+        break;
+      }
+    }
+    return hasAccountingChildTab;
+  }
+
+  private boolean hasTranslationChildTab() {
+    boolean hasTranslationChildTab = false;
+    for (OBViewTab childTab : this.getChildTabs()) {
+      if (childTab.getTrlTab()) {
+        hasTranslationChildTab = true;
+        break;
+      }
+    }
+    return hasTranslationChildTab;
+  }
+
+  public String getHasChildTabsProperty() {
+    String hasChildTabs = null;
+    if (this.hasAlwaysVisibleChildTab()) {
+      hasChildTabs = "true";
+    } else {
+      boolean hasAcctChildTab = this.hasAccountingChildTab();
+      boolean hasTrlChildTab = this.hasTranslationChildTab();
+      if (hasAcctChildTab && hasTrlChildTab) {
+        hasChildTabs = "(OB.PropertyStore.get('ShowTrl', this.windowId) === 'Y') || (OB.PropertyStore.get('ShowAcct', this.windowId) === 'Y')";
+      } else if (hasAcctChildTab) {
+        hasChildTabs = "(OB.PropertyStore.get('ShowAcct', this.windowId) === 'Y')";
+      } else { // hasTrlChildTab == true
+        hasChildTabs = "(OB.PropertyStore.get('ShowTrl', this.windowId) === 'Y')";
+      }
+    }
+    return hasChildTabs;
   }
 
   public Tab getTab() {
@@ -409,17 +464,38 @@ public class OBViewTab extends BaseTemplateComponent {
   }
 
   public boolean isAllowAdd() {
-    // if (tab.isObuiappCanAdd() != null) {
-    // return tab.isObuiappCanAdd();
-    // }
+    if (tab.isObuiappCanAdd() != null) {
+      return tab.isObuiappCanAdd();
+    }
     return false;
   }
 
   public boolean isAllowDelete() {
-    // if (tab.isObuiappCanDelete() != null) {
-    // return tab.isObuiappCanDelete();
-    // }
+    if (tab.isObuiappCanDelete() != null) {
+      return tab.isObuiappCanDelete();
+    }
     return false;
+  }
+
+  public boolean isShowSelect() {
+    if (tab.isObuiappShowSelect() != null) {
+      return tab.isObuiappShowSelect();
+    }
+    return true;
+  }
+
+  public String getNewFunction() {
+    if (tab.getOBUIAPPNewFn() != null) {
+      return tab.getOBUIAPPNewFn();
+    }
+    return "";
+  }
+
+  public String getRemoveFunction() {
+    if (tab.getObuiappRemovefn() != null) {
+      return tab.getObuiappRemovefn();
+    }
+    return "";
   }
 
   public class ButtonField {

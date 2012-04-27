@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -23,13 +23,13 @@ isc.ClassFactory.defineClass('OBLinkItem', isc.TextItem);
 
 isc.OBLinkItem.addProperties({
   validateOnExit: true,
-  init: function(){
+  init: function () {
     this.icons = [{
       src: this.pickerIconSrc,
       width: this.pickerIconWidth,
       height: this.pickerIconHeight,
       hspace: this.pickerIconHspace,
-      click: function(form, item) {
+      click: function (form, item) {
         var url = item.getValue();
         if (!url) {
           return;
@@ -42,12 +42,11 @@ isc.OBLinkItem.addProperties({
     }];
     return this.Super('init', arguments);
   },
-  validate: function() {
+  validate: function () {
     var url = this.getValue();
-    if(!url) {
+    if (!url) {
       return true;
     }
     return OB.Utilities.isValidURL(url);
   }
 });
-

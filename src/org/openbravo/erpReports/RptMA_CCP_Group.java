@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -45,13 +45,13 @@ public class RptMA_CCP_Group extends HttpSecureAppServlet {
       String strmaCcpGroup = vars.getSessionValue("RptMA_CCP_Group.inpmaCcpGroup_R");
       if (strmaCcpGroup.equals(""))
         strmaCcpGroup = vars.getSessionValue("RptMA_CCP_Group.inpmaCcpGroupId");
-      printPagePartePDF(response, vars, strmaCcpGroup);
+      printPagePartePDF(request, response, vars, strmaCcpGroup);
     } else
       pageError(response);
   }
 
-  private void printPagePartePDF(HttpServletResponse response, VariablesSecureApp vars,
-      String strmaCcpGroup) throws IOException, ServletException {
+  private void printPagePartePDF(HttpServletRequest request, HttpServletResponse response,
+      VariablesSecureApp vars, String strmaCcpGroup) throws IOException, ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: pdf");
     XmlDocument xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/erpReports/RptMA_CCP_Group")
@@ -79,7 +79,7 @@ public class RptMA_CCP_Group extends HttpSecureAppServlet {
     String strResult = xmlDocument.print();
     if (log4j.isDebugEnabled())
       log4j.debug(strResult);
-    renderFO(strResult, response);
+    renderFO(strResult, request, response);
   }
 
   public String getServletInfo() {

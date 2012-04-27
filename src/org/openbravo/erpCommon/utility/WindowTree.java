@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -56,6 +56,13 @@ public class WindowTree extends HttpSecureAppServlet {
   public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException,
       ServletException {
     VariablesSecureApp vars = new VariablesSecureApp(request);
+
+    // Checking the window invoking the tree is accessible
+    if (!hasGeneralAccess(vars, "W", vars.getStringParameter("inpTabId"))) {
+      bdErrorGeneralPopUp(request, response, Utility.messageBD(this, "Error", vars.getLanguage()),
+          Utility.messageBD(this, "AccessTableNoView", vars.getLanguage()));
+    }
+
     if (vars.commandIn("DEFAULT", "TAB")) {
       String strTabId = vars.getGlobalVariable("inpTabId", "WindowTree|tabId");
       String strTreeID = "";

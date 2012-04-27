@@ -1,6 +1,6 @@
 <!--
  ************************************************************************************
- * Copyright (C) 2001-2010 Openbravo S.L.U.
+ * Copyright (C) 2001-2012 Openbravo S.L.U.
  * Licensed under the Apache Software License version 2.0
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to  in writing,  software  distributed
@@ -31,6 +31,13 @@
 
 <script language="JavaScript" type="text/javascript">
   function onLoadDo() {
+    var layoutMDI = getFrame('LayoutMDI'), msgTitle, msg;
+    if (layoutMDI) {
+      msg = document.getElementById('messageBoxIDMessage').innerHTML;
+      msgTitle = document.getElementById('messageBoxIDTitle').innerHTML;
+      layoutMDI.isc.warn(msg, null, {title:msgTitle});
+      closePage();
+    } else{
       this.windowTables = new Array(
         new windowTableId('client', 'buttonCancel')
       );
@@ -43,6 +50,7 @@
       } catch (e) {}
 
       setWindowElementFocus('firstElement');
+    }
   }
 
   function onResizeDo() {

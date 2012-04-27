@@ -17,7 +17,7 @@
 * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
 * All Rights Reserved.
 * Contributor(s): Openbravo SLU
-* Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+* Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
 *
 * Specifically, this derivative work is based upon the following Compiere
 * file and version.
@@ -86,7 +86,8 @@ IF (UPDATING) THEN
     AND t.AD_Table_ID=tt.AD_Table_ID
     AND tt.AccessLevel IN ('4','7','6')
     AND w.IsActive = 'Y'
-    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')) w;
+    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')
+    AND t.SeqNo = (select min(seqNo) from ad_tab tb where tb.ad_window_id = w.ad_window_id)) w;
   -- Process
   INSERT INTO AD_Process_Access
    ( AD_Process_Access_ID, AD_Process_ID, AD_Role_ID,
@@ -121,9 +122,9 @@ IF (UPDATING) THEN
   WHERE w.AD_Window_ID=t.AD_Window_ID
     AND t.AD_Table_ID=tt.AD_Table_ID
     AND tt.AccessLevel IN ('7','6','3','1')
-    AND w.AD_Window_ID NOT IN ('100','102','165','187')
     AND w.IsActive='Y'
-    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')) w;
+    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')
+    AND t.SeqNo = (select min(seqNo) from ad_tab tb where tb.ad_window_id = w.ad_window_id)) w;
   -- Process
   INSERT INTO AD_Process_Access
    (AD_Process_Access_ID, AD_Process_ID, AD_Role_ID,
@@ -159,7 +160,8 @@ IF (UPDATING) THEN
     AND t.AD_Table_ID=tt.AD_Table_ID
     AND tt.AccessLevel IN ('3','1','7')
     AND w.IsActive='Y'
-    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')) w;
+    AND (:new.ISADVANCED = 'Y' OR w.ISADVANCEDFEATURE = 'N')
+    AND t.SeqNo = (select min(seqNo) from ad_tab tb where tb.ad_window_id = w.ad_window_id)) w;
   -- Process
   INSERT INTO AD_Process_Access
    (AD_Process_Access_ID, AD_Process_ID, AD_Role_ID,

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -29,23 +29,27 @@ isc.OBListFilterItem.addProperties({
   validateOnChange: false,
   filterOnKeypress: false,
   addUnknownValues: false,
-  
-  init: function() {
+
+  init: function () {
     if (this.valueMap) {
       // add the empty value in this way to make sure that the 
       // space is shown first
-      this.valueMap = isc.addProperties({'' : ''}, this.valueMap);
+      this.valueMap = isc.addProperties({
+        '': ''
+      }, this.valueMap);
     }
     this.Super('init', arguments);
   },
 
-  setValueMap: function(valueMap) {
-    this.Super('setValueMap', [isc.addProperties({'' : ''}, valueMap)]);
+  setValueMap: function (valueMap) {
+    this.Super('setValueMap', [isc.addProperties({
+      '': ''
+    }, valueMap)]);
   },
-  
+
   // note: can't override changed as it is used by the filter editor 
   // itself, see the RecordEditor source code and the changed event
-  change: function(form, item, value, oldValue) {
+  change: function (form, item, value, oldValue) {
     if (this._pickedValue || !value) {
       // filter with a delay to let the value be set
       isc.Page.setEvent(isc.EH.IDLE, this.form.grid, isc.Page.FIRE_ONCE, 'performAction');
