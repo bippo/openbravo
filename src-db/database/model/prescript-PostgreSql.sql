@@ -166,10 +166,24 @@ CREATE OR REPLACE FUNCTION to_number
 text
 )
 RETURNS NUMERIC AS '
+DECLARE
+  v_Pos INTEGER;
+  v_Mant NUMERIC;
+  v_Exp NUMERIC;
+  v_Res NUMERIC;
 BEGIN
-RETURN to_number($1, ''S99999999999999D9999999999'');
-EXCEPTION 
-  WHEN OTHERS THEN 
+  v_Pos := position(''E'' in upper($1));
+  IF v_Pos = 0 THEN
+    -- this is the old behaviour
+    RETURN to_number($1, ''S99999999999999D999999'');
+  ELSE
+    v_Mant := substring($1 from 1 for v_Pos - 1); -- Mantissa, implicit cast to data type NUMERIC
+    v_Exp := substring($1 from v_Pos + 1); -- Exponent, implicit cast to data type NUMERIC
+    v_Res := v_Mant * power(10, v_Exp);
+    RETURN v_Res;
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
     RETURN NULL;
 END;
 ' LANGUAGE 'plpgsql' IMMUTABLE
@@ -193,7 +207,7 @@ CREATE OR REPLACE FUNCTION to_number(integer)
   RETURNS "numeric" AS
 $BODY$
 BEGIN
-RETURN to_number($1, 'S99999999999999D9999999999');
+RETURN $1;
 EXCEPTION 
   WHEN OTHERS THEN 
     RETURN NULL;
@@ -1244,15 +1258,19 @@ CREATE OR REPLACE VIEW user_tab_columns AS
                     ELSE 10 
                 END
         END AS data_precision,
-        0 AS data_scale,
+        CASE 
+            WHEN upper(pg_type.typname) = 'NUMERIC' and cols.numeric_scale is not null THEN cols.numeric_scale
+            ELSE 0
+        END AS data_scale,
         CASE pg_attribute.atthasdef
             WHEN true THEN ( SELECT pg_attrdef.adsrc
                FROM pg_attrdef
               WHERE pg_attrdef.adrelid = pg_class.oid AND pg_attrdef.adnum = pg_attribute.attnum)
             ELSE NULL::text
         END AS data_default, not pg_attribute.attnotnull AS nullable, pg_attribute.attnum AS column_id
-   FROM pg_class, pg_namespace, pg_attribute, pg_type
-  WHERE pg_attribute.attrelid = pg_class.oid AND pg_attribute.atttypid = pg_type.oid AND pg_class.relnamespace = pg_namespace.oid AND pg_namespace.nspname = current_schema() AND pg_attribute.attnum > 0
+   FROM pg_class, pg_namespace, pg_attribute, pg_type, information_schema.columns cols
+  WHERE pg_attribute.attrelid = pg_class.oid AND pg_attribute.atttypid = pg_type.oid AND pg_class.relnamespace = pg_namespace.oid AND pg_namespace.nspname = current_schema() AND pg_attribute.attnum > 0 
+  AND upper(cols.table_name)=upper(pg_class.relname) AND upper(cols.column_name)=upper(pg_attribute.attname) AND cols.table_schema = current_schema()
 /-- END
 
 SELECT * FROM drop_view('v$version')

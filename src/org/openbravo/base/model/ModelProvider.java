@@ -561,8 +561,6 @@ public class ModelProvider implements OBSingleton {
         uniqueConstraint = null;
       }
       if (entity == null) {
-        log.warn("No entity found for " + uniqueConstraintColumn.getTableName()
-            + " table, for uniqueconstraint computation");
         continue;
       }
 

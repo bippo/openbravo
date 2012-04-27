@@ -31,6 +31,16 @@
          AND ISTRANSLATIONMODULE = 'Y'
     ]]></Sql>
   </SqlMethod>
+  <SqlMethod name="selectAllTranslationModules" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M.JAVAPACKAGE, M.NAME, M.AD_LANGUAGE, L.ISSYSTEMLANGUAGE, '' as DS_NAME, '' AS AD_MODULE_ID
+        FROM AD_MODULE M LEFT JOIN AD_LANGUAGE L
+                           ON L.AD_LANGUAGE = M.AD_LANGUAGE
+       WHERE ISTRANSLATIONMODULE = 'Y'
+    ]]></Sql>
+  </SqlMethod>
   
   <SqlMethod name="selectClientReferenceModules" type="preparedStatement" return="multiple">
     <SqlMethodComment></SqlMethodComment>
@@ -40,6 +50,18 @@
         FROM AD_MODULE M, AD_DATASET D
        WHERE (M.STATUS = 'I' OR M.STATUS = 'P')
          AND M.HASREFERENCEDATA = 'Y'
+         AND D.AD_MODULE_ID = M.AD_MODULE_ID
+         AND D.ACCESSLEVEL = '4'
+    ]]></Sql>
+  </SqlMethod>
+  
+  <SqlMethod name="selectAllClientReferenceModules" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+    <![CDATA[
+      SELECT M.JAVAPACKAGE, M.NAME, M.AD_MODULE_ID, D.NAME as DS_NAME
+        FROM AD_MODULE M, AD_DATASET D
+       WHERE M.HASREFERENCEDATA = 'Y'
          AND D.AD_MODULE_ID = M.AD_MODULE_ID
          AND D.ACCESSLEVEL = '4'
     ]]></Sql>

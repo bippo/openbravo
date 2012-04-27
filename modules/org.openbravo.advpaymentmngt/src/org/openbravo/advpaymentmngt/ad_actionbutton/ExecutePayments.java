@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.servlet.ServletException;
@@ -96,6 +97,8 @@ public class ExecutePayments extends HttpSecureAppServlet {
           IsIDFilter.instance);
       processAndClose(response, vars, strWindowId, executionProcess, payments,
           dao.getObject(Organization.class, strOrganizationId));
+    } else if (vars.commandIn("CLOSE")) {
+      printPageClosePopUp(response, vars);
     }
   }
 
@@ -171,8 +174,22 @@ public class ExecutePayments extends HttpSecureAppServlet {
       executePayment.init(getSource(strWindowId), executionProcess, payments, parameters,
           organization);
       result = executePayment.execute();
-      result.setMessage(Utility.parseTranslation(this, vars, vars.getLanguage(),
-          result.getMessage()));
+      String paymentsDocNo = "";
+      if ("Success".equals(result.getType())) {
+        int i = 0;
+        Iterator<FIN_Payment> iterator = payments.iterator();
+        while (iterator.hasNext()) {
+          FIN_Payment payment = iterator.next();
+          if (i == 0) {
+            paymentsDocNo += payment.getDocumentNo();
+            i++;
+          } else {
+            paymentsDocNo += ", " + payment.getDocumentNo();
+          }
+        }
+        result.setMessage(String.format(
+            Utility.messageBD(this, "APRM_Payments_Created", vars.getLanguage()), paymentsDocNo));
+      }
     } catch (NoExecutionProcessFoundException e) {
       result.setType("Error");
       result.setMessage(Utility.parseTranslation(this, vars, vars.getLanguage(),

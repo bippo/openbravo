@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2012 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="UpgradeToPocEmailData" package="org.openbravo.modulescript">
+  <SqlClassComment></SqlClassComment>
+   <SqlMethod name="newConfigurationData" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_client_id, ad_org_id, isactive, c_poc_configuration_id, smtpserver as server, smtpserversenderaddress as senderaddress, issmtpauthorization as auth, smtpserveraccount as accountname, smtpserverpassword as accountpass FROM c_poc_configuration
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="oldConfigurationData" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      SELECT ad_client_id, ad_org_id, smtphost as server, requestemail as senderaddress, issmtpauthorization as auth, requestuser as accountname, requestuserpw as accountpass FROM ad_client
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="deleteOldConfigurationData" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE ad_client SET
+           smtphost = NULL,
+           requestemail = NULL,
+           issmtpauthorization = 'N',
+           requestuser = NULL,
+           requestuserpw = NULL,
+           requestfolder = NULL,
+           updated = now(),
+           updatedby = '0'
+        WHERE
+           ad_client_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+  </SqlMethod>
+  <SqlMethod name="insertNewConfigurationData" type="preparedStatement" connection="true" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+      INSERT INTO c_poc_configuration(
+            ad_client_id, ad_org_id, c_poc_configuration_id, smtpserver, smtpserversenderaddress,
+            issmtpauthorization, smtpserveraccount, smtpserverpassword, isactive,
+            created, createdby, updated, updatedby)
+      VALUES (?, '0', GET_UUID(), ?, ?,
+            ?, ?, ?, 'Y',
+            now(), '0', now(), '0')
+      ]]>
+    </Sql>
+    <Parameter name="adClientId"/>
+    <Parameter name="smtpserver"/>
+    <Parameter name="smtpserversenderaddress"/>    
+    <Parameter name="issmtpauthorization"/>
+    <Parameter name="smtpserveraccount"/>
+    <Parameter name="smtpserverpassword"/>
+  </SqlMethod>
+  <SqlMethod name="changeNewConfigurationDataOrg" type="preparedStatement" return="rowCount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql>
+      <![CDATA[
+        UPDATE c_poc_configuration SET
+           ad_org_id = '0',
+           updated = now(),
+           updatedby = '0'
+        WHERE
+           c_poc_configuration_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="cPocConfigurationId"/>
+  </SqlMethod>
+</SqlClass>

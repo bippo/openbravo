@@ -25,9 +25,12 @@ import javax.servlet.ServletException;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.SequenceIdData;
+import org.openbravo.model.ad.system.Client;
 
 public class DocMatchInv extends AcctServer {
 
@@ -174,12 +177,19 @@ public class DocMatchInv extends AcctServer {
 
     DocMatchInvData[] invoiceData = DocMatchInvData.selectInvoiceData(conn, vars.getClient(),
         data[0].getField("C_InvoiceLine_Id"));
+    String costCurrencyId = as.getC_Currency_ID();
+    OBContext.setAdminMode(false);
+    try {
+      costCurrencyId = OBDal.getInstance().get(Client.class, AD_Client_ID).getCurrency().getId();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
 
     String strExpenses = invoiceData[0].linenetamt;
     String strInvoiceCurrency = invoiceData[0].cCurrencyId;
     String strDate = invoiceData[0].dateacct;
-    strExpenses = getConvertedAmt(strExpenses, strInvoiceCurrency, as.getC_Currency_ID(), strDate,
-        "", vars.getClient(), vars.getOrg(), conn);
+    strExpenses = getConvertedAmt(strExpenses, strInvoiceCurrency, costCurrencyId, strDate, "",
+        vars.getClient(), vars.getOrg(), conn);
     BigDecimal bdExpenses = new BigDecimal(strExpenses);
     if ((new BigDecimal(data[0].getField("QTYINVOICED")).signum() != (new BigDecimal(
         data[0].getField("MOVEMENTQTY"))).signum())
@@ -193,9 +203,10 @@ public class DocMatchInv extends AcctServer {
     DocLine docLine = new DocLine(DocumentType, Record_ID, "");
     docLine.m_C_Project_ID = data[0].getField("INOUTPROJECT");
 
-    dr = fact.createLine(docLine, getAccount(AcctServer.ACCTTYPE_NotInvoicedReceipts, as, conn),
-        as.getC_Currency_ID(), bdCost.toString(), Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-        DocumentType, conn);
+    dr = fact
+        .createLine(docLine, getAccount(AcctServer.ACCTTYPE_NotInvoicedReceipts, as, conn),
+            costCurrencyId, bdCost.toString(), Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType,
+            conn);
 
     if (dr == null) {
       log4j.warn("createFact - unable to calculate line with "
@@ -204,13 +215,19 @@ public class DocMatchInv extends AcctServer {
     }
     ProductInfo p = new ProductInfo(data[0].getField("M_Product_Id"), conn);
     for (DocLine docLineInvoice : p_lines) {
-      bdExpenses.toString();
-      String strAmount = (changeSign) ? new BigDecimal(docLineInvoice.getAmount()).multiply(
-          new BigDecimal(-1)).toString() : docLineInvoice.getAmount();
+      String strAmount = "";
+      if (strInvoiceCurrency != costCurrencyId) {
+        strAmount = getConvertedAmt((changeSign) ? new BigDecimal(docLineInvoice.getAmount())
+            .multiply(new BigDecimal(-1)).toString() : docLineInvoice.getAmount(),
+            strInvoiceCurrency, costCurrencyId, strDate, "", vars.getClient(), vars.getOrg(), conn);
+      } else {
+        strAmount = (changeSign) ? new BigDecimal(docLineInvoice.getAmount()).multiply(
+            new BigDecimal(-1)).toString() : docLineInvoice.getAmount();
+      }
+
       cr = fact.createLine(docLineInvoice, p.getAccount(ProductInfo.ACCTTYPE_P_Expense, as, conn),
-          as.getC_Currency_ID(), "0", strAmount, Fact_Acct_Group_ID, nextSeqNo(SeqNo),
-          DocumentType, conn);
-      if (cr == null) {
+          costCurrencyId, "0", strAmount, Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+      if (cr == null && ZERO.compareTo(new BigDecimal(strAmount)) != 0) {
         log4j.warn("createFact - unable to calculate line with "
             + " expenses to product expenses account.");
         return null;
@@ -227,10 +244,10 @@ public class DocMatchInv extends AcctServer {
     }
 
     if (!bdCost.equals(bdExpenses)) {
-      diff = fact.createLine(docLine, p.getAccount(ProductInfo.ACCTTYPE_P_IPV, as, conn), as
-          .getC_Currency_ID(), (bdDifference.compareTo(BigDecimal.ZERO) == 1) ? bdDifference.abs()
-          .toString() : "0", (bdDifference.compareTo(BigDecimal.ZERO) < 1) ? bdDifference.abs()
-          .toString() : "0", Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
+      diff = fact.createLine(docLine, p.getAccount(ProductInfo.ACCTTYPE_P_IPV, as, conn),
+          costCurrencyId, (bdDifference.compareTo(BigDecimal.ZERO) == 1) ? bdDifference.abs()
+              .toString() : "0", (bdDifference.compareTo(BigDecimal.ZERO) < 1) ? bdDifference.abs()
+              .toString() : "0", Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
       if (diff == null) {
         log4j.warn("createFact - unable to calculate line with "
             + " difference to InvoicePriceVariant account.");

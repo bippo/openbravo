@@ -11,11 +11,11 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 isc.OBPersonalizationTreeGrid.addProperties({
   bodyStyleName: 'OBGridBody',
@@ -27,7 +27,7 @@ isc.OBPersonalizationTreeGrid.addProperties({
   // icon, set to a small number, should be > 0 (otherwise it it not used)
   // this setting of 2 makes the drag indicator to be 2 pixels to the right also
   openerIconSize: 2,
-  
+
   width: '100%',
   indentSize: 10
 });
@@ -58,12 +58,12 @@ OB.Styles.Personalization.saveViewPopupLarge = {
 };
 
 OB.Styles.Personalization.popupButtonLayout = {
-    layoutTopMargin: 20,
-    membersMargin: 10,
-    width: '100%',
-    align: 'center',
-    overflow: 'visible',
-    height: 1
+  layoutTopMargin: 20,
+  membersMargin: 10,
+  width: '100%',
+  align: 'center',
+  overflow: 'visible',
+  height: 1
 };
 
 OB.Styles.Personalization.viewFieldDefaults = {
@@ -81,14 +81,14 @@ OB.Styles.Personalization.buttonBarProperties = {
 
 OB.Styles.Personalization.Icons = {
   fieldGroup: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/iconFolder.png',
-  field:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/item.png',
-  fieldDisplayLogic:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemDisplayLogic.png',
-  fieldDisplayLogicHidden:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemDisplayLogicHidden.png',
-  fieldHidden:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemHidden.png',
-  fieldRequired:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequired.png',
-  fieldRequiredDisplayLogic:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequiredDisplayLogic.png',
-  fieldRequiredDisplayLogicHidden:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequiredDisplayLogicHidden.png',
-  fieldRequiredHidden:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequiredHidden.png'
+  field: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/item.png',
+  fieldDisplayLogic: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemDisplayLogic.png',
+  fieldDisplayLogicHidden: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemDisplayLogicHidden.png',
+  fieldHidden: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemHidden.png',
+  fieldRequired: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequired.png',
+  fieldRequiredDisplayLogic: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequiredDisplayLogic.png',
+  fieldRequiredDisplayLogicHidden: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequiredDisplayLogicHidden.png',
+  fieldRequiredHidden: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/personalization/itemRequiredHidden.png'
 };
 
 OB.Styles.Personalization.closeButtonProperties = {
@@ -128,7 +128,7 @@ OB.Styles.Personalization.TabSet = {
     buttonProperties: {
       // prevent the orange hats
       customState: 'Inactive',
-      
+
       src: '',
       capSize: 14,
       titleStyle: 'OBTabBarButtonChildTitle'
@@ -139,7 +139,7 @@ OB.Styles.Personalization.TabSet = {
   width: '100%',
   height: '100%',
   overflow: 'hidden',
-  
+
   showTabPicker: false,
 
   // get rid of the margin around the content of a pane
@@ -157,5 +157,3 @@ OB.Styles.Personalization.TabSet = {
   scrollerSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/tab/tabBarButtonChild_OverflowIcon.png',
   pickerButtonSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/tab/tabBarButtonChild_OverflowIconPicker.png'
 };
-
-

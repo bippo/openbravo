@@ -12,7 +12,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -72,16 +72,17 @@
   
   <SqlMethod name="isUsageAuditEnabled" type="preparedStatement" return="boolean">
     <Sql><![CDATA[
-        SELECT isusageauditenabled
+        SELECT count(*)
           FROM AD_SYSTEM_INFO
+         WHERE isUsageAuditEnabled = 'Y'
     ]]></Sql>
   </SqlMethod>
 
   <SqlMethod name="insertUsageAudit" type="preparedStatement" return="rowCount" connection="true" >
     <Sql><![CDATA[
         INSERT INTO ad_session_usage_audit
-        (ad_session_usage_audit_id, ad_client_id, ad_org_id, createdby, updatedby, ad_session_id, object_id, ad_module_id, command, classname, object_type)
-        VALUES (get_uuid(),'0','0',?,?,?,?,?,?,?,?)
+        (ad_session_usage_audit_id, ad_client_id, ad_org_id, createdby, updatedby, ad_session_id, object_id, ad_module_id, command, classname, object_type, process_time)
+        VALUES (get_uuid(),'0','0',?,?,?,?,?,?,?,?,to_number(?))
     ]]></Sql>
     <Parameter name="userId"/>
     <Parameter name="userId"/>
@@ -91,6 +92,7 @@
     <Parameter name="command"/>
     <Parameter name="classname"/>
     <Parameter name="objecttype"/>
+    <Parameter name="time"/>
   </SqlMethod>
   
 </SqlClass>

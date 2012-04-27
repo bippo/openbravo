@@ -11,20 +11,20 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
 module('org.openbravo.client.application');
 
-test('Property Store Exists', function() {
+test('Property Store Exists', function () {
   expect(2);
   ok(OB.PropertyStore, 'PropertyStore is present');
   ok(!OB.PropertyStore.get('abc'), 'Test property is not present (okay)');
 });
 
-test('Set/Get Property', function() {
+test('Set/Get Property', function () {
 
   expect(2);
 
@@ -37,10 +37,10 @@ test('Set/Get Property', function() {
   propValue = OB.PropertyStore.get(propName);
   same(propValue, testValue, 'Equal values');
   // clear the test property
-    // with a short delay to make sure that the previous set does not interfere
-    // on the server
-    isc.Timer.setTimeout(function() {
-      OB.PropertyStore.set(propName, null);
-    }, 1000);
+  // with a short delay to make sure that the previous set does not interfere
+  // on the server
+  isc.Timer.setTimeout(function () {
+    OB.PropertyStore.set(propName, null);
+  }, 1000);
 
-  });
+});

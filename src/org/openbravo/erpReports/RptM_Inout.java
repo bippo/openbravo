@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -45,13 +45,13 @@ public class RptM_Inout extends HttpSecureAppServlet {
       String strmInoutId = vars.getSessionValue("RptM_Inout.inpmInoutId_R");
       if (strmInoutId.equals(""))
         strmInoutId = vars.getSessionValue("RptM_Inout.inpmInoutId");
-      printPagePartePDF(response, vars, strmInoutId);
+      printPagePartePDF(request, response, vars, strmInoutId);
     } else
       pageError(response);
   }
 
-  private void printPagePartePDF(HttpServletResponse response, VariablesSecureApp vars,
-      String strmInoutId) throws IOException, ServletException {
+  private void printPagePartePDF(HttpServletRequest request, HttpServletResponse response,
+      VariablesSecureApp vars, String strmInoutId) throws IOException, ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: pdf");
     XmlDocument xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/erpReports/RptM_Inout")
@@ -81,7 +81,7 @@ public class RptM_Inout extends HttpSecureAppServlet {
     xmlDocument.setDataArray("reportInoutHeader", "structure1", dataHeader);
     xmlDocument.setDataArray("reportInoutLines", "structure2", dataLines);
     String strResult = xmlDocument.print();
-    renderFO(strResult, response);
+    renderFO(strResult, request, response);
   }
 
   private String minimumOne(String strCopies) {

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -402,7 +402,7 @@ public class RequisitionToOrder extends HttpSecureAppServlet {
     xmlDocument.setParameter("paramPriceListId", strPriceListId);
     try {
       ComboTableData comboTableData = new ComboTableData(vars, this, "TABLEDIR", "AD_Org_ID", "",
-          "AD_Org Trx Security validation", Utility.getContext(this, vars, "#User_Org",
+          "AD_Org is transactions allowed", Utility.getContext(this, vars, "#User_Org",
               "RequisitionToOrder"), Utility.getContext(this, vars, "#User_Client",
               "RequisitionToOrder"), 0);
       Utility.fillSQLParameters(this, vars, null, comboTableData, "RequisitionToOrder", strOrgId);

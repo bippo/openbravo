@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -342,17 +342,24 @@ public class ModuleManagement extends HttpSecureAppServlet {
         }
 
         // Check for updates
+        String message = "";
         total = ModuleManagementData.selectUpdate(this);
         if (!total.equals("0")) {
           if (!updatesRebuildHTML.isEmpty()) {
             updatesRebuildHTML += "&nbsp;/&nbsp;";
           }
+          if (total.equals("1")) {
+            message = Utility.messageBD(this, "UpdateAvailable", lang).toLowerCase();
+          } else {
+            message = Utility.messageBD(this, "UpdatesAvailable", lang);
+          }
           updatesRebuildHTML += total
               + "&nbsp;"
-              + Utility.messageBD(this, "UpdateAvailable", lang)
+              + message
               + "&nbsp;"
               + "<a class=\"LabelLink_noicon\" href=\"#\" onclick=\"installUpdate('all'); return false;\">"
               + Utility.messageBD(this, "InstallUpdatesNow", lang) + "</a>";
+
         }
       }
 
@@ -1156,12 +1163,9 @@ public class ModuleManagement extends HttpSecureAppServlet {
                 message = new OBError();
                 message.setType("Warning");
                 message.setTitle(Utility.messageBD(this, message.getType(), vars.getLanguage()));
-                message.setMessage(module.getName()
-                    + " "
-                    + module.getVersionNo()
-                    + " "
-                    + Utility.messageBD(this, "OtherModuleVersionToinstall",
-                        vars.getLanguage()) + " " + installOrig[i].getVersionNo());
+                message.setMessage(module.getName() + " " + module.getVersionNo() + " "
+                    + Utility.messageBD(this, "OtherModuleVersionToinstall", vars.getLanguage())
+                    + " " + installOrig[i].getVersionNo());
               }
               if (found) {
                 module = installOrig[i];
@@ -1721,6 +1725,10 @@ public class ModuleManagement extends HttpSecureAppServlet {
       if (message != null) {
         xmlDocument.setParameter("messageType", message.getType());
         xmlDocument.setParameter("messageTitle", message.getTitle());
+        if (message.getType().equalsIgnoreCase("error")) {
+          message.setMessage(message.getMessage() + "<br/>"
+              + Utility.messageBD(this, "CheckUpdateTips", vars.getLanguage(), false));
+        }
         xmlDocument.setParameter("messageMessage", message.getMessage());
       }
     }
@@ -1797,15 +1805,17 @@ public class ModuleManagement extends HttpSecureAppServlet {
         icon = (icon == null ? "M" : icon).equals("M") ? "Module" : icon.equals("T") ? "Template"
             : "Pack";
 
-        // If there is no url, we need to hide the 'Visit Site' link and separator.
-        String url = mod.getUrl();
-        url = (url == null || url.equals("") ? "HIDDEN" : url);
-
         moduleBox.put("name", mod.getName());
         moduleBox.put("description", mod.getDescription());
         moduleBox.put("type", icon);
         moduleBox.put("help", mod.getHelp());
-        moduleBox.put("url", getLink(url));
+        // If there is no url, we need to hide the 'Visit Site' link and separator.
+        if (mod.getUrl() == null || mod.getUrl().equals("")) {
+          moduleBox.put("urlStyle", "none");
+        } else {
+          moduleBox.put("url", getLink(mod.getUrl()));
+          moduleBox.put("urlStyle", "true");
+        }
         moduleBox.put("moduleVersionID", mod.getModuleVersionID());
         moduleBox.put("commercialStyle", (mod.isIsCommercial() ? "true" : "none"));
 

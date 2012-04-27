@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -110,6 +110,9 @@ public class StaticResourceComponent extends BaseComponent {
       }
 
       StringBuilder result = new StringBuilder();
+      final String scriptPath = getContextUrl() + GEN_TARGET_LOCATION + "/"
+          + getStaticResourceFileName() + ".js";
+
       if (classicMode) {
         result.append("document.write(\"<LINK rel='stylesheet' type='text/css' href='"
             + getContextUrl()
@@ -119,9 +122,8 @@ public class StaticResourceComponent extends BaseComponent {
         result
             .append("var isomorphicDir='../web/org.openbravo.userinterface.smartclient/isomorphic/';\n");
       }
-      result.append("document.write(\"<s\" + \"cript type='text/javascript' src='"
-          + getContextUrl() + GEN_TARGET_LOCATION + "/" + getStaticResourceFileName()
-          + ".js'><\\/s\"+\"cript>\");");
+      result.append("document.write(\"<s\" + \"cript type='text/javascript' src='" + scriptPath
+          + "'><\\/s\"+\"cript>\");");
       return result.toString();
     } catch (Exception e) {
       log.error("Error generating component; " + e.getMessage(), e);

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,13 +22,13 @@ isc.OBSelectorFilterSelectItem.addProperties({
   operator: 'equals',
   valueField: OB.Constants.ID,
 
-  init: function() {
+  init: function () {
     OB.Datasource.get(this.entity, this);
     this.Super('init', arguments);
   },
-  
+
   // prevent ids from showing up
-  mapValueToDisplay : function (value) {
+  mapValueToDisplay: function (value) {
     var ret = this.Super('mapValueToDisplay', arguments);
     if (ret === value) {
       return '';
@@ -36,7 +36,7 @@ isc.OBSelectorFilterSelectItem.addProperties({
     return ret;
   },
 
-  setDataSource: function(ds) {
+  setDataSource: function (ds) {
     var val;
     this.optionDataSource = ds;
     if (this.getValue()) {
@@ -47,23 +47,20 @@ isc.OBSelectorFilterSelectItem.addProperties({
       this.setValue(val);
     }
   },
-  
-  filterDataBoundPickList : function (requestProperties, dropCache){
+
+  filterDataBoundPickList: function (requestProperties, dropCache) {
     requestProperties = requestProperties || {};
     requestProperties.params = requestProperties.params || {};
     // on purpose not passing the third boolean param
     var contextInfo = this.selectorWindow.selector.form.view.getContextInfo(false, true);
-    
+
     // also add the special ORG parameter
     if (this.selectorWindow.selector.form.getField('organization')) {
-      requestProperties.params[OB.Constants.ORG_PARAMETER] =
-        this.selectorWindow.selector.form.getValue('organization');
+      requestProperties.params[OB.Constants.ORG_PARAMETER] = this.selectorWindow.selector.form.getValue('organization');
     } else if (contextInfo.inpadOrgId) {
       requestProperties.params[OB.Constants.ORG_PARAMETER] = contextInfo.inpadOrgId;
     }
-    
+
     return this.Super('filterDataBoundPickList', [requestProperties, dropCache]);
   }
-
-
 });

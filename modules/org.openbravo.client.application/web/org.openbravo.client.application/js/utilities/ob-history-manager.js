@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -27,20 +27,22 @@
 // actually update the address in the address bar and to get called when
 // the user presses the back or forward button.
 //
-(function(OB, isc) {
+(function (OB, isc) {
 
   if (!OB || !isc) {
     throw {
-      name : 'ReferenceError',
-      message : 'openbravo and isc objects are required'
+      name: 'ReferenceError',
+      message: 'openbravo and isc objects are required'
     };
   }
 
   // cache object references locally
-  var L = OB.Layout, QUOTE_REPLACE = '__', ISC = isc, historyMgr;
+  var L = OB.Layout,
+      QUOTE_REPLACE = '__',
+      ISC = isc,
+      historyMgr;
 
-  function HistoryManager() {
-  }
+  function HistoryManager() {}
 
   HistoryManager.prototype = {
 
@@ -53,9 +55,10 @@
     // state of that tab. The combined state is passed to the smartclient
     // History object.
     //
-    updateHistory: function() {
+    updateHistory: function () {
 
-      var state = {}, stateStr, data, i, tabsLength, tab, tabObject;
+      var state = {},
+          stateStr, data, i, tabsLength, tab, tabObject;
 
       if (L.ViewManager.inStateHandling) {
         return;
@@ -79,7 +82,7 @@
         tabObject = OB.MainView.TabSet.getTabObject(tab);
 
         state.bm[i] = {
-          viewId : tabObject.viewName
+          viewId: tabObject.viewName
         };
 
         // store the bookmark parameters
@@ -99,8 +102,8 @@
       // now encode the state as a json string
       // which is used as a the id in the url
       stateStr = isc.JSON.encode(state, {
-        prettyPrint : false,
-        strictQuoting : false
+        prettyPrint: false,
+        strictQuoting: false
       });
 
       // smartclient fails if there is a " in the string, replace them all
@@ -133,7 +136,7 @@
     // string
     // * {{{data}}} type: String, extra parameter passed in by Smartclient, not
     // used
-    restoreHistory: function(id, data) {
+    restoreHistory: function (id, data) {
       var correctedId, state;
       isc.Log.logDebug('Restoring history ' + id, 'OB');
 
@@ -154,7 +157,6 @@
   historyMgr = L.HistoryManager = new HistoryManager();
 
   // and register the callback
-  isc.History
-      .registerCallback('OB.Layout.HistoryManager.restoreHistory(id, data)');
+  isc.History.registerCallback('OB.Layout.HistoryManager.restoreHistory(id, data)');
 
 }(OB, isc));

@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+  <database name="VIEW FIN_ORIG_PAYMENT_SCHED_V">
+    <view name="FIN_ORIG_PAYMENT_SCHED_V"><![CDATA[SELECT foo.fin_orig_payment_sched_v_id, max(foo.ad_client_id) AS ad_client_id, max(foo.ad_org_id) AS ad_org_id, max(foo.isactive) AS isactive, max(foo.created) AS created, max(foo.createdby) AS createdby, max(foo.updated) AS updated, max(foo.updatedby) AS updatedby, max(foo.c_invoice_id) AS c_invoice_id, max(foo.c_order_id) AS c_order_id, max(foo.duedate) AS duedate, max(foo.fin_paymentmethod_id) AS fin_paymentmethod_id, max(foo.expected) AS expected, sum(foo.received) AS received, max(foo.expected) - sum(foo.received) AS outstanding, min(foo.c_currency_id) AS c_currency_id, min(foo.lastpayment) AS lastpayment, min(foo.numberofpayments) AS numberofpayments, min(foo.fin_payment_priority_id) AS fin_payment_priority_id, min(foo.update_payment_plan) AS update_payment_plan
+FROM (SELECT fin_orig_payment_schedule.fin_orig_payment_schedule_id AS fin_orig_payment_sched_v_id, fin_orig_payment_schedule.ad_client_id, fin_orig_payment_schedule.ad_org_id, fin_orig_payment_schedule.isactive, fin_orig_payment_schedule.created, fin_orig_payment_schedule.createdby, fin_orig_payment_schedule.updated, fin_orig_payment_schedule.updatedby, fin_orig_payment_schedule.c_invoice_id, fin_orig_payment_schedule.c_order_id, fin_orig_payment_schedule.duedate, fin_orig_payment_schedule.fin_paymentmethod_id, fin_orig_payment_schedule.amount AS expected, fin_orig_payment_schedule.c_currency_id, (SELECT max(p.paymentdate) AS max
+FROM fin_orig_paym_scheddetail opsd
+LEFT JOIN fin_payment_scheduledetail psd ON opsd.fin_payment_scheduledetail_id = psd.fin_payment_scheduledetail_id
+LEFT JOIN fin_payment_detail pd ON pd.fin_payment_detail_id = psd.fin_payment_detail_id
+LEFT JOIN fin_payment p ON p.fin_payment_id = pd.fin_payment_id
+WHERE opsd.fin_orig_payment_schedule_id = fin_orig_payment_schedule.fin_orig_payment_schedule_id) AS lastpayment, (SELECT count(DISTINCT opsd.fin_payment_scheduledetail_id) AS count
+FROM fin_orig_paym_scheddetail opsd
+WHERE opsd.fin_orig_payment_schedule_id = fin_orig_payment_schedule.fin_orig_payment_schedule_id) AS numberofpayments, fin_orig_payment_schedule.fin_payment_priority_id, fin_orig_payment_schedule.update_payment_plan, 0 AS received, 0 AS outstanding
+FROM fin_orig_payment_schedule
+UNION ALL 
+SELECT opsd.fin_orig_payment_schedule_id AS fin_orig_payment_sched_v_id, NULL AS ad_client_id, NULL AS ad_org_id, NULL AS isactive, NULL AS created, NULL AS createdby, NULL AS updated, NULL AS updatedby, NULL AS c_invoice_id, NULL AS c_order_id, NULL AS duedate, NULL AS fin_paymentmethod_id, NULL AS expected, NULL AS c_currency_id, NULL AS lastpayment, NULL AS numberofpayments, NULL AS fin_payment_priority_id, NULL AS update_payment_plan, COALESCE(sum(opsd.amount) + sum(opsd.writeoffamt), 0) AS received, 0 AS outstanding
+FROM fin_orig_paym_scheddetail opsd
+LEFT JOIN fin_orig_payment_schedule ops ON opsd.fin_orig_payment_schedule_id = ops.fin_orig_payment_schedule_id
+LEFT JOIN fin_payment_scheduledetail psd ON opsd.fin_payment_scheduledetail_id = psd.fin_payment_scheduledetail_id
+LEFT JOIN fin_payment_detail pd ON pd.fin_payment_detail_id = psd.fin_payment_detail_id
+LEFT JOIN fin_payment p ON p.fin_payment_id = pd.fin_payment_id
+WHERE aprm_ispaymentconfirmed(p.status, opsd.fin_payment_scheduledetail_id) <> 'N'
+GROUP BY opsd.fin_orig_payment_schedule_id) foo
+GROUP BY foo.fin_orig_payment_sched_v_id
+ORDER BY foo.fin_orig_payment_sched_v_id]]></view>
+  </database>

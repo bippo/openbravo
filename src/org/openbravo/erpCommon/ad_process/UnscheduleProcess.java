@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -44,16 +44,17 @@ public class UnscheduleProcess extends HttpSecureAppServlet {
 
     final String windowId = vars.getStringParameter("inpwindowId");
     final String requestId = vars.getSessionValue(windowId + "|" + PROCESS_REQUEST_ID);
-
     String message;
     try {
       OBScheduler.getInstance().unschedule(requestId, new ProcessContext(vars));
 
     } catch (final SchedulerException e) {
       message = Utility.messageBD(this, "UNSCHED_ERROR", vars.getLanguage());
-      advisePopUp(request, response, "ERROR", "Process Request", message + " " + e.getMessage());
+      String processErrorTit = Utility.messageBD(this, "Error", vars.getLanguage());
+      advisePopUp(request, response, "ERROR", processErrorTit, message + " " + e.getMessage());
     }
     message = Utility.messageBD(this, "UNSCHED_SUCCESS", vars.getLanguage());
-    advisePopUpRefresh(request, response, "SUCCESS", "Process Request", message);
+    String processTitle = Utility.messageBD(this, "Success", vars.getLanguage());
+    advisePopUpRefresh(request, response, "SUCCESS", processTitle, message);
   }
 }

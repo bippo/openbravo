@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -68,6 +68,7 @@ public class Column extends ModelObject {
   private Integer position;
   private boolean translatable;
   private Integer seqno;
+  private boolean usedSequence;
 
   private Module module;
 
@@ -462,5 +463,13 @@ public class Column extends ModelObject {
 
   public void setSeqno(Integer seqno) {
     this.seqno = seqno;
+  }
+
+  public boolean isUsedSequence() {
+    return usedSequence;
+  }
+
+  public void setUsedSequence(boolean usedSequence) {
+    this.usedSequence = usedSequence;
   }
 }

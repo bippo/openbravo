@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2010-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -133,6 +133,26 @@ public class DataSourceProperty {
       dsProperty.setTargetEntity(targetEntity);
     }
     return dsProperty;
+  }
+
+  /**
+   * Gets a Set of allowed values for a List reference
+   * 
+   * @param reference
+   *          List reference
+   * @return
+   */
+  public static Set<String> getAllowedValues(Reference reference) {
+    Set<String> allowedValues = new HashSet<String>();
+
+    final String hql = "select al.searchKey from ADList al" + " where al.reference=:ref";
+    final Query qry = OBDal.getInstance().getSession().createQuery(hql);
+    qry.setParameter("ref", reference);
+    for (Object o : qry.list()) {
+      final String value = (String) o;
+      allowedValues.add(value);
+    }
+    return allowedValues;
   }
 
   public static List<RefListEntry> createValueMap(Set<String> allowedValues, String referenceId) {

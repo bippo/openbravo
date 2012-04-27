@@ -11,68 +11,32 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
 package org.openbravo.erpCommon.ad_callouts;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-import org.openbravo.base.secureApp.HttpSecureAppServlet;
-import org.openbravo.base.secureApp.VariablesSecureApp;
-import org.openbravo.xmlEngine.XmlDocument;
+import org.apache.commons.lang.StringUtils;
 
-public class SL_Inventory_Locator extends HttpSecureAppServlet {
+public class SL_Inventory_Locator extends SimpleCallout {
   private static final long serialVersionUID = 1L;
 
   @Override
-  public void init(ServletConfig config) {
-    super.init(config);
-    boolHist = false;
-  }
+  protected void execute(CalloutInfo info) throws ServletException {
 
-  @Override
-  public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException,
-      ServletException {
-    final VariablesSecureApp vars = new VariablesSecureApp(request);
-    if (vars.commandIn("DEFAULT")) {
-      final String strChanged = vars.getStringParameter("inpLastFieldChanged");
-      if (log4j.isDebugEnabled())
-        log4j.debug("CHANGED: " + strChanged);
-      final String strProduct = vars.getStringParameter("inpmProductId");
-      final String strLocator = vars.getStringParameter("inpmLocatorId");
-      final String strAttribute = vars.getStringParameter("inpmAttributesetinstanceId");
-      final String strUOM = vars.getStringParameter("inpcUomId");
-      final String strSecUOM = vars.getStringParameter("inpmProductUomId");
-      final String strTabId = vars.getStringParameter("inpTabId");
-      printPage(response, vars, strChanged, strProduct, strLocator, strAttribute, strUOM,
-          strSecUOM, strTabId);
-    } else
-      pageError(response);
-  }
+    String strProduct = info.vars.getStringParameter("inpmProductId");
+    String strLocator = info.vars.getStringParameter("inpmLocatorId");
+    String strAttribute = info.vars.getStringParameter("inpmAttributesetinstanceId");
+    String strUOM = info.vars.getStringParameter("inpcUomId");
+    String strSecUOM = info.vars.getStringParameter("inpmProductUomId");
 
-  private void printPage(HttpServletResponse response, VariablesSecureApp vars, String strChanged,
-      String strProduct, String strLocator, String strAttribute, String strUOM, String strSecUOM,
-      String strTabId) throws IOException, ServletException {
-    if (log4j.isDebugEnabled())
-      log4j.debug("Output: dataSheet");
-    final XmlDocument xmlDocument = xmlEngine.readXmlTemplate(
-        "org/openbravo/erpCommon/ad_callouts/CallOut").createXmlDocument();
-
-    final StringBuffer resultado = new StringBuffer();
-    resultado.append("var calloutName='SL_Inventory_Locator';\n\n");
-    resultado.append("var respuesta = new Array(");
-
-    if (strProduct.startsWith("\""))
+    if (strProduct.startsWith("\"")) {
       strProduct = strProduct.substring(1, strProduct.length() - 1);
+    }
 
     if (!strProduct.equals("")) {
 
@@ -85,22 +49,13 @@ public class SL_Inventory_Locator extends HttpSecureAppServlet {
         data[0].qtyorder = "0";
       }
 
-      resultado.append("new Array(\"inpquantityorderbook\", "
-          + ((data[0].qtyorder == null || data[0].qtyorder.equals("")) ? "\"\"" : data[0].qtyorder)
-          + "), \n");
-      resultado.append("new Array(\"inpqtycount\", "
-          + ((data[0].qty == null || data[0].qty.equals("")) ? "\"\"" : data[0].qty) + "), \n");
-      resultado.append("new Array(\"inpqtybook\", "
-          + ((data[0].qty == null || data[0].qty.equals("")) ? "\"\"" : data[0].qty) + "), \n");
+      info.addResult("inpquantityorderbook", StringUtils.isEmpty(data[0].qtyorder) ? "\"\""
+          : (Object) data[0].qtyorder);
+      info.addResult("inpqtycount", StringUtils.isEmpty(data[0].qty) ? "\"\""
+          : (Object) data[0].qty);
+      info.addResult("inpqtybook", StringUtils.isEmpty(data[0].qty) ? "\"\"" : (Object) data[0].qty);
 
-      resultado.append("new Array(\"EXECUTE\", \"displayLogic();\")\n");
+      info.addResult("EXECUTE", "displayLogic();");
     }
-    resultado.append(");");
-    xmlDocument.setParameter("array", resultado.toString());
-    xmlDocument.setParameter("frameName", "appFrame");
-    response.setContentType("text/html; charset=UTF-8");
-    final PrintWriter out = response.getWriter();
-    out.println(xmlDocument.print());
-    out.close();
   }
 }

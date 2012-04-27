@@ -29,7 +29,7 @@ OB.Styles.OBApplicationMenu = {
     form: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/application-menu/iconForm.png',
     externalLink: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/application-menu/iconExternalLink.png',
     view: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/application-menu/iconForm.png',
-    document:  OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/application-menu/iconDocument.png'
+    document: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/application-menu/iconDocument.png'
   }
 };
 
@@ -51,13 +51,13 @@ isc.OBApplicationMenuTree.addProperties({
   tableStyle: "OBApplicationMenuTreeTable",
   hideButtonLineStyle: 'OBNavBarComponentHideLine',
   submenuOffset: -6,
-  drawStyle: function() {
+  drawStyle: function () {
     //this.setStyleName(this.styleName);
   },
-  showStyle: function() {
+  showStyle: function () {
     this.menuButton.parentElement.setStyleName('OBNavBarComponentSelected');
   },
-  hideStyle: function() {
+  hideStyle: function () {
     this.menuButton.parentElement.setStyleName('OBNavBarComponent');
   }
 });
@@ -87,7 +87,7 @@ isc.OBApplicationMenuButton.addProperties({
   icon: {
     src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/navbar/iconOpenDropDown.png'
   },
-  showMenuStyle: function() {
+  showMenuStyle: function () {
     this.parentElement.setStyleName('OBNavBarComponentSelected');
   }
 });

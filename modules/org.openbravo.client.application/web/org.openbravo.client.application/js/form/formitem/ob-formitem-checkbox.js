@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,7 +22,12 @@
 isc.ClassFactory.defineClass('OBCheckboxItem', isc.CheckboxItem);
 
 isc.OBCheckboxItem.addProperties({
-  operator: 'equals'
-  // no validation on change or exit here
+  operator: 'equals',
+  changed: function (form, item, value) {
+    this.Super('changed', arguments);
+    //A change on a checkbox item should be handled  on the changed event, not on blur 
+    if (this._hasChanged && this.form && this.form.handleItemChange) {
+      this.form.handleItemChange(this);
+    }
+  }
 });
-

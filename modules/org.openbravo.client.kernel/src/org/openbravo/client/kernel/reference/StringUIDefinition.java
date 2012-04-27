@@ -46,11 +46,16 @@ public class StringUIDefinition extends UIDefinition {
   public String getGridFieldProperties(Field field) {
     Long length = field.getColumn().getLength();
 
+    Long displaylength = field.getDisplayedLength();
+    if (displaylength == null || displaylength == 0) {
+      displaylength = length;
+    }
+
     // custom override
     if (field.getColumn().getDBColumnName().compareToIgnoreCase("documentno") == 0) {
       length = new Long(20);
     }
     return getShowHoverGridFieldSettings(field) + (length != null ? ", length:" + length : "")
-        + super.getGridFieldProperties(field);
+        + ", displaylength:" + displaylength + super.getGridFieldProperties(field);
   }
 }

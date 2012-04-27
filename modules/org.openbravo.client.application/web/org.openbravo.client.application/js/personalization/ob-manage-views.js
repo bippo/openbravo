@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s): ___________
  ************************************************************************
@@ -95,19 +95,18 @@
 //      - personalization id: the id of the personalization record
 //  - formData: contains the level information at which the user can edit the views. For each level
 //      (clients, orgs, roles) a 'valuemap' is contained in this object.
-
 // ** {{{OB.Personalization.applyViewDefinition}}} **
 // Apply a selected view definition to a window
-OB.Personalization.applyViewDefinition = function(persId, viewDefinition, standardWindow) {
+OB.Personalization.applyViewDefinition = function (persId, viewDefinition, standardWindow) {
   var i, view, viewTabDefinition, length = standardWindow.views.length,
-    windowDefinition = viewDefinition.window;
-  
+      windowDefinition = viewDefinition.window;
+
   // delete the current form personalization 
   // as these will be overwritten by the new settings
   standardWindow.removeAllFormPersonalizations();
-  
+
   standardWindow.selectedPersonalizationId = persId;
-  
+
   if (windowDefinition) {
     if (windowDefinition.activeTabId) {
       for (i = 0; i < length; i++) {
@@ -125,14 +124,26 @@ OB.Personalization.applyViewDefinition = function(persId, viewDefinition, standa
         if (windowDefinition.parentTabSetState && view.parentTabSet) {
           view.parentTabSet.setState(windowDefinition.parentTabSetState);
           view.parentTabSet.setHeight(windowDefinition.parentTabSetHeight);
+          // in this case the visibility of the top part of the parent view has to be set
+          // as it can be hidden previously
+          // https://issues.openbravo.com/view.php?id=18951
+          if (view.parentView && !view.parentView.members[0].isVisible() && isc.OBStandardView.STATE_BOTTOM_MAX !== windowDefinition.parentTabSetState) {
+            view.parentView.members[0].show();
+          }
         } else if (windowDefinition.childTabSetState && view.childTabSet) {
+          // in this case the visibility of the top part of the view has to be set
+          // as it can be hidden previously
+          // https://issues.openbravo.com/view.php?id=18951
+          if (!view.members[0].isVisible() && isc.OBStandardView.STATE_BOTTOM_MAX !== windowDefinition.childTabSetState) {
+            view.members[0].show();
+          }
           view.childTabSet.setState(windowDefinition.childTabSetState);
           view.childTabSet.setHeight(windowDefinition.childTabSetHeight);
         }
       }
-    }      
+    }
   }
-  
+
   // the viewdefinition contains both the global info (form, canDelete, personalizationid)  
   // set the view state for each tab
   for (i = 0; i < length; i++) {
@@ -148,7 +159,7 @@ OB.Personalization.applyViewDefinition = function(persId, viewDefinition, standa
       if (view.isShowingForm) {
         view.switchFormGridVisibility();
       }
-      
+
       if (viewTabDefinition.grid) {
         view.viewGrid.setViewState(viewTabDefinition.grid);
       }
@@ -163,44 +174,44 @@ OB.Personalization.applyViewDefinition = function(persId, viewDefinition, standa
 // Retrieve the view state from the window.
 // The levelInformation contains the level at which to store the view. After the save the internal
 // view state is stored in the standardWindow.getClass().personalization object.
-OB.Personalization.getViewDefinition = function(standardWindow, name, isDefault) {
-  var view, persDataByTab, personalizationData = {}, i, 
-    formData, length = standardWindow.views.length;
-  
+OB.Personalization.getViewDefinition = function (standardWindow, name, isDefault) {
+  var view, persDataByTab, personalizationData = {},
+      i, formData, length = standardWindow.views.length;
+
   // retrieve the viewstate from the server
   for (i = 0; i < length; i++) {
     persDataByTab = {};
     view = standardWindow.views[i];
-    
+
     // get the form personalization information
-    formData = OB.Personalization.getPersonalizationDataFromForm(view.viewForm);    
+    formData = OB.Personalization.getPersonalizationDataFromForm(view.viewForm);
     persDataByTab.form = formData.form;
-    
+
     // ahd the grid state
     persDataByTab.grid = view.viewGrid.getViewState(false, true);
-    
+
     if (view.childTabSet && view.childTabSet.getSelectedTabNumber() >= 0) {
       persDataByTab.selectedTab = view.childTabSet.getSelectedTabNumber();
     }
-    
+
     // and store it in the overall structure
     personalizationData[view.tabId] = persDataByTab;
   }
   personalizationData.name = name;
   if (isDefault) {
-    personalizationData.isDefault = true;    
+    personalizationData.isDefault = true;
   }
   if (standardWindow.activeView) {
     personalizationData.window = {
-        activeTabId: standardWindow.activeView ? standardWindow.activeView.tabId : null
+      activeTabId: standardWindow.activeView ? standardWindow.activeView.tabId : null
     };
-    
+
     if (standardWindow.activeView.parentTabSet) {
       personalizationData.window.parentTabSetState = standardWindow.activeView.parentTabSet.getState();
       personalizationData.window.parentTabSetHeight = standardWindow.activeView.parentTabSet.getHeight();
     } else if (standardWindow.activeView.childTabSet) {
-      personalizationData.window.childTabSetState = standardWindow.activeView.childTabSet.getState();      
-      personalizationData.window.childTabSetHeight = standardWindow.activeView.childTabSet.getHeight();      
+      personalizationData.window.childTabSetState = standardWindow.activeView.childTabSet.getState();
+      personalizationData.window.childTabSetHeight = standardWindow.activeView.childTabSet.getHeight();
     }
   }
   return personalizationData;
@@ -210,10 +221,9 @@ OB.Personalization.getViewDefinition = function(standardWindow, name, isDefault)
 // Retrieve the view state from the window and stores it in the server using the specified name and id (if set).
 // The levelInformation contains the level at which to store the view. After the save the internal
 // view state is stored in the standardWindow.getClass().personalization object.
-OB.Personalization.storeViewDefinition = function(standardWindow, levelInformation, persId, name, isDefault) {
-  var params, personalizationData = 
-      OB.Personalization.getViewDefinition(standardWindow, name, isDefault);
-  
+OB.Personalization.storeViewDefinition = function (standardWindow, levelInformation, persId, name, isDefault) {
+  var params, personalizationData = OB.Personalization.getViewDefinition(standardWindow, name, isDefault);
+
   // if there is a personalization id then use that
   // this ensures that a specific record will be updated
   // on the server.
@@ -222,117 +232,108 @@ OB.Personalization.storeViewDefinition = function(standardWindow, levelInformati
   // also persist the level information
   if (persId) {
     params = {
-        action: 'store',
-        target: 'viewDefinition',
-        clientId: levelInformation.clientId,
-        orgId: levelInformation.orgId,
-        roleId: levelInformation.roleId,
-        userId: levelInformation.userId,
-        personalizationId: persId
+      action: 'store',
+      target: 'viewDefinition',
+      clientId: levelInformation.clientId,
+      orgId: levelInformation.orgId,
+      roleId: levelInformation.roleId,
+      userId: levelInformation.userId,
+      personalizationId: persId
     };
-    
+
   } else {
     // this case is used if there is no personalization record
     // use the level information to store the view state
     params = {
-        action: 'store',
-        target: 'viewDefinition',
-        clientId: levelInformation.clientId,
-        orgId: levelInformation.orgId,
-        roleId: levelInformation.roleId,
-        userId: levelInformation.userId,
-        windowId: standardWindow.windowId
+      action: 'store',
+      target: 'viewDefinition',
+      clientId: levelInformation.clientId,
+      orgId: levelInformation.orgId,
+      roleId: levelInformation.roleId,
+      userId: levelInformation.userId,
+      windowId: standardWindow.windowId
     };
   }
-  
+
   // and store on the server
-  OB.RemoteCallManager.call(
-    'org.openbravo.client.application.personalization.PersonalizationActionHandler', 
-    personalizationData, params,
-    function(resp, data, req){
-      var i = 0, fnd = false, length;
-      var newView, 
-        personalization = standardWindow.getClass().personalization, 
-        views = personalization && personalization.views ? personalization.views : []; 
+  OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', personalizationData, params, function (resp, data, req) {
+    var i = 0,
+        fnd = false,
+        length, newView, personalization = standardWindow.getClass().personalization,
+        views = personalization && personalization.views ? personalization.views : [];
 
-      standardWindow.selectedPersonalizationId = data.personalizationId;
-      
-      // create a new structure, the same way as it is 
-      // returned from the server
-      newView = isc.addProperties({
-          canEdit: true,
-          personalizationId: data.personalizationId,
-          viewDefinition: personalizationData
-        }, levelInformation);
-        
-      // when returning update the in-memory entry,
-      // first check if there is an existing record, if so 
-      // update it
-      if (views) {
-        length = views.length;
-        for (i = 0; i < length; i++) {
-          if (views[i].personalizationId === data.personalizationId) {
-            views[i] = newView;
-            fnd = true;
-            break;
-          }
-        }
-      }
-      
-      // not found create a new one, take into account
-      // that the initial structure maybe empty
-      if (!fnd) {
-        if (!standardWindow.getClass().personalization) {
-          standardWindow.getClass().personalization = {};
-        }
-        if (!standardWindow.getClass().personalization.views) {
-          standardWindow.getClass().personalization.views = [];
-          views = standardWindow.getClass().personalization.views;
-        }
-        views.push(newView);
-        
-        // sort the viewdefinitions
-        views.sort(function(v1, v2) {
-          var t1 = v1.viewDefinition.name, t2 = v2.viewDefinition.name;
-          if (t1 < t2) {
-            return -1;
-          } else if (t1 === t2) {
-            return 0;
-          }
-          return 1;
-        });
+    standardWindow.selectedPersonalizationId = data.personalizationId;
 
+    // create a new structure, the same way as it is 
+    // returned from the server
+    newView = isc.addProperties({
+      canEdit: true,
+      personalizationId: data.personalizationId,
+      viewDefinition: personalizationData
+    }, levelInformation);
+
+    // when returning update the in-memory entry,
+    // first check if there is an existing record, if so 
+    // update it
+    if (views) {
+      length = views.length;
+      for (i = 0; i < length; i++) {
+        if (views[i].personalizationId === data.personalizationId) {
+          views[i] = newView;
+          fnd = true;
+          break;
+        }
       }
     }
-  );
+
+    // not found create a new one, take into account
+    // that the initial structure maybe empty
+    if (!fnd) {
+      if (!standardWindow.getClass().personalization) {
+        standardWindow.getClass().personalization = {};
+      }
+      if (!standardWindow.getClass().personalization.views) {
+        standardWindow.getClass().personalization.views = [];
+        views = standardWindow.getClass().personalization.views;
+      }
+      views.push(newView);
+
+      // sort the viewdefinitions
+      views.sort(function (v1, v2) {
+        var t1 = v1.viewDefinition.name,
+            t2 = v2.viewDefinition.name;
+        if (t1 < t2) {
+          return -1;
+        } else if (t1 === t2) {
+          return 0;
+        }
+        return 1;
+      });
+
+    }
+  });
 };
 
 //** {{{OB.Personalization.deleteViewDefinition}}} **
 // Delete the view definition from the server, also remove it from the 
 // in-memory structure.
-OB.Personalization.deleteViewDefinition = function(standardWindow, personalizationId) {
-  OB.RemoteCallManager.call(
-      'org.openbravo.client.application.personalization.PersonalizationActionHandler', 
-      {}, 
-      { 
-        personalizationId: personalizationId,
-        action: 'delete'
-      },
-      function(resp, data, req){
-        var personalization = standardWindow.getClass().personalization, 
-          length, i,
-          views = personalization && personalization.views ? personalization.views : [];
-        
-        if (views) {
-          length = views.length;
-          // remove the entry from the global list
-          for (i = 0; i < length; i++) {
-            if (views[i].personalizationId === personalizationId) {
-              views.splice(i, 1);
-              break;
-            }
-          }
+OB.Personalization.deleteViewDefinition = function (standardWindow, personalizationId) {
+  OB.RemoteCallManager.call('org.openbravo.client.application.personalization.PersonalizationActionHandler', {}, {
+    personalizationId: personalizationId,
+    action: 'delete'
+  }, function (resp, data, req) {
+    var personalization = standardWindow.getClass().personalization,
+        length, i, views = personalization && personalization.views ? personalization.views : [];
+
+    if (views) {
+      length = views.length;
+      // remove the entry from the global list
+      for (i = 0; i < length; i++) {
+        if (views[i].personalizationId === personalizationId) {
+          views.splice(i, 1);
+          break;
         }
       }
-   );
+    }
+  });
 };

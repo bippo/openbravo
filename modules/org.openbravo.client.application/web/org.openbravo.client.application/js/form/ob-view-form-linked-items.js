@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  Valery Lezhebokov.
  ************************************************************************
@@ -27,59 +27,58 @@ isc.OBLinkedItemSectionItem.addProperties({
   // as the name is always the same there should be at most
   // one linked item section per form
   name: '_linkedItems_',
-  
+
   // note: setting these apparently completely hides the section
   // width: '100%',
   // height: '100%',
-  
   overflow: 'hidden',
-  
+
   // this field group does not participate in personalization
   personalizable: false,
 
   canFocus: true,
-  
+
   // don't expand as a default
   sectionExpanded: false,
-  
+
   prompt: OB.I18N.getLabel('OBUIAPP_LinkedItemsPrompt'),
-  
+
   linkedItemCanvasItem: null,
-  
+
   visible: false,
-  
+
   itemIds: ['_linkedItems_Canvas'],
-  
+
   // note formitems don't have an initWidget but an init method
-  init: function(){
+  init: function () {
     // override the one passed in
     this.defaultValue = OB.I18N.getLabel('OBUIAPP_LinkedItemsTitle');
     this.sectionExpanded = false;
-    
+
     // tell the form who we are
     this.form.linkedItemSection = this;
-    
+
     return this.Super('init', arguments);
   },
-  
-  getLinkedItemPart: function(){
+
+  getLinkedItemPart: function () {
     if (!this.linkedItemCanvasItem) {
       this.linkedItemCanvasItem = this.form.getField(this.itemIds[0]);
     }
     return this.linkedItemCanvasItem.canvas;
   },
-  
-  setRecordInfo: function(entity, id){
+
+  setRecordInfo: function (entity, id) {
     this.getLinkedItemPart().setRecordInfo(entity, id);
   },
-  
-  collapseSection: function(){
+
+  collapseSection: function () {
     var ret = this.Super('collapseSection', arguments);
     this.getLinkedItemPart().setExpanded(false);
     return ret;
   },
-  
-  expandSection: function(){
+
+  expandSection: function () {
     // if this is not there then when clicking inside the 
     // section item will visualize it
     if (!this.isVisible()) {
@@ -89,22 +88,22 @@ isc.OBLinkedItemSectionItem.addProperties({
     this.getLinkedItemPart().setExpanded(true);
     return ret;
   },
-  
-  hide: function(){
+
+  hide: function () {
     this.collapseSection();
     this.prompt = '';
     return this.Super('hide', arguments);
   },
-  
-  visibilityChanged: function(state) {
+
+  visibilityChanged: function (state) {
     if (state) {
-      this.prompt = OB.I18N.getLabel('OBUIAPP_LinkedItemsPrompt');      
+      this.prompt = OB.I18N.getLabel('OBUIAPP_LinkedItemsPrompt');
     } else {
       this.prompt = '';
     }
   },
-  
-  handleFocus: function() {
+
+  handleFocus: function () {
     if (this.getLinkedItemPart().linkedItemCategoryListGrid && this.getLinkedItemPart().linkedItemCategoryListGrid.filterEditor && this.getLinkedItemPart().linkedItemCategoryListGrid.filterEditor.getEditForm()) {
       this.getLinkedItemPart().linkedItemCategoryListGrid.filterEditor.getEditForm().focus();
       return true;
@@ -119,40 +118,40 @@ isc.OBLinkedItemLayout.addProperties({
 
   // set to true when the content has been created at first expand
   isInitialized: false,
-  
+
   layoutMargin: 5,
-  
+
   // setting width/height makes the canvasitem to be hidden after a few
   // clicks on the section item, so don't do that for now
   // width: '100%',
   // height: '100%',
-
   /** 
    * Loads categories to the categories grid
    **/
-  loadCategories: function(){
+  loadCategories: function () {
     var windowId = this.getForm().view.standardWindow.windowId;
     var entityName = this.getForm().view.entity;
     var actionURL = OB.Application.contextUrl + 'utility/UsedByLink.html';
-    
+
     var that = this;
-    
-    var callback = function(response, data, request){
+
+    var callback;
+    callback = function (response, data, request) {
       var msg = data.msg;
       var usedByLinkData = data.usedByLinkData;
       if (msg !== null) {
         that.messageLabel.setContents(msg);
       }
-      
+
       if (usedByLinkData === null) {
         usedByLinkData = [];
       }
-      
+
       that.linkedItemCategoryDS.setCacheData(usedByLinkData, true);
       that.linkedItemCategoryListGrid.invalidateCache();
       that.linkedItemCategoryListGrid.filterData();
     };
-    
+
     var reqObj = {
       params: {
         Command: 'JSONCategory',
@@ -169,26 +168,26 @@ isc.OBLinkedItemLayout.addProperties({
     this.linkedItemCategoryListGrid.showLoadingMessage();
     isc.RPCManager.sendRequest(reqObj);
   },
-  
+
   /** 
    * Loads linked items of a chosen category to linkedItemListGrid
    * */
-  loadLinkedItems: function(record){
-  
+  loadLinkedItems: function (record) {
+
     var windowId = this.getForm().view.standardWindow.windowId;
     var entityName = this.getForm().view.entity;
     var actionURL = OB.Application.contextUrl + 'utility/UsedByLink.html';
-    var selCatItems=this.linkedItemCategoryListGrid.getSelectedRecord();
-    
-    var that = this;
-    /* loads linked items to the child grid */
-    var callback = function(response, data, request){
+    var selCatItems = this.linkedItemCategoryListGrid.getSelectedRecord();
+
+    var that = this; /* loads linked items to the child grid */
+    var callback;
+    callback = function (response, data, request) {
       var msg = data.msg;
       var usedByLinkData = data.usedByLinkData;
       if (msg !== null) {
         that.messageLabel.setContents(msg);
       }
-      
+
       if (usedByLinkData === null) {
         usedByLinkData = [];
       }
@@ -197,54 +196,53 @@ isc.OBLinkedItemLayout.addProperties({
       that.linkedItemListGrid.filterData();
     };
 
-    if (!selCatItems){
-     this.linkedItemCategoryListGrid.filterEditorSubmit();
-    }
-    else{
-     var reqObj = {
-      params: {
-        Command: 'JSONLinkedItem',
-        windowId: windowId,
-        entityName: entityName,
-        adTabId: record.adTabId,
-        tableName: record.tableName,
-        columnName: record.columnName
-      },
-      callback: callback,
-      evalResult: true,
-      httpMethod: 'POST',
-      useSimpleHttp: true,
-      actionURL: actionURL
-     };
-    this.linkedItemListGrid.setData([]);
-    this.linkedItemListGrid.showLoadingMessage();
-    isc.RPCManager.sendRequest(reqObj);
+    if (!selCatItems) {
+      this.linkedItemCategoryListGrid.filterEditorSubmit();
+    } else {
+      var reqObj = {
+        params: {
+          Command: 'JSONLinkedItem',
+          windowId: windowId,
+          entityName: entityName,
+          adTabId: record.adTabId,
+          tableName: record.tableName,
+          columnName: record.columnName
+        },
+        callback: callback,
+        evalResult: true,
+        httpMethod: 'POST',
+        useSimpleHttp: true,
+        actionURL: actionURL
+      };
+      this.linkedItemListGrid.setData([]);
+      this.linkedItemListGrid.showLoadingMessage();
+      isc.RPCManager.sendRequest(reqObj);
     }
   },
-  
+
   /**
    * Opens linked item in a new window
    */
-  openLinkedItemInNewWindow: function(record){
-    OB.Utilities.openView(record.adWindowId, record.adTabId, record.adMenuName, record.id, 'DIRECT');
+  openLinkedItemInNewWindow: function (record) {
+    OB.Utilities.openView(record.adWindowId, record.adTabId, record.adMenuName, record.id, 'DIRECT', null, record.readOnly, record.singleRecord);
   },
-  
+
   /**
    * Cleans linked items grid when the filter is used.
    **/
-  cleanLinkedItemsListGrid: function(){
+  cleanLinkedItemsListGrid: function () {
     this.linkedItemListGrid.invalidateCache();
     this.linkedItemDS.setCacheData([], true);
     this.linkedItemListGrid.filterData();
     this.linkedItemCategoryListGrid.deselectAllRecords();
   },
-  
+
   /** 
    * Initializes the widget
    **/
-  initWidget: function(){
+  initWidget: function () {
     var ret = this.Super('initWidget', arguments);
-    
+
     // the list of linked items
     this.linkedItemDS = isc.DataSource.create({
       fields: [{
@@ -269,11 +267,11 @@ isc.OBLinkedItemLayout.addProperties({
       emptyMessage: OB.I18N.getLabel('OBUIAPP_LinkedItemsEmptyMessage'),
       layout: this,
       recordClick: 'this.layout.openLinkedItemInNewWindow(record)',
-      fetchData: function(criteria, callback, requestProperties){
+      fetchData: function (criteria, callback, requestProperties) {
         this.checkShowFilterFunnelIcon(criteria);
         return this.Super('fetchData', arguments);
       },
-      filterData: function(criteria, callback, requestProperties){
+      filterData: function (criteria, callback, requestProperties) {
         this.checkShowFilterFunnelIcon(criteria);
         return this.Super('filterData', arguments);
       },
@@ -281,7 +279,7 @@ isc.OBLinkedItemLayout.addProperties({
         this.emptyMessage = this.loadingDataMessage;
       },
       showNoRowsMessage: function () {
-                this.emptyMessage = this.emptyDataMessage;
+        this.emptyMessage = this.emptyDataMessage;
       },
       dataArrived: function (startRow, endRow) {
         if (startRow === 0 && endRow === -1) {
@@ -290,8 +288,8 @@ isc.OBLinkedItemLayout.addProperties({
         return this.Super('dataArrived', arguments);
       }
     });
-    
-    
+
+
     // the list of linked item categories
     this.linkedItemCategoryDS = isc.DataSource.create({
       fields: [{
@@ -310,18 +308,18 @@ isc.OBLinkedItemLayout.addProperties({
       height: 300,
       dataSource: this.linkedItemCategoryDS,
       layout: this,
-      emptyDataMessage: this.emptyMessage,
+      emptyDataMessage: OB.I18N.getLabel('OBUISC_ListGrid.emptyMessage'),
       loadingDataMessage: OB.I18N.getLabel('OBUISC_ListGrid.loadingDataMessage'),
       recordClick: 'this.layout.loadLinkedItems(record)',
       showFilterEditor: true,
       selectionType: 'single',
       filterOnKeypress: true,
       filterEditorSubmit: 'this.layout.cleanLinkedItemsListGrid()',
-      fetchData: function(criteria, callback, requestProperties){
+      fetchData: function (criteria, callback, requestProperties) {
         this.checkShowFilterFunnelIcon(criteria);
         return this.Super('fetchData', arguments);
       },
-      filterData: function(criteria, callback, requestProperties){
+      filterData: function (criteria, callback, requestProperties) {
         this.checkShowFilterFunnelIcon(criteria);
         return this.Super('filterData', arguments);
       },
@@ -338,65 +336,65 @@ isc.OBLinkedItemLayout.addProperties({
         return this.Super('dataArrived', arguments);
       }
     });
-    
+
     var hLayout = isc.HLayout.create({
       layoutTopMargin: 5
     });
-    
+
     // add the grids to the horizontal layout
     hLayout.addMember(this.linkedItemCategoryListGrid);
     hLayout.addMember(this.linkedItemListGrid);
-    
+
     this.messageLabel = isc.Label.create({
       width: '100%',
       height: '100%',
       canFocus: true
     });
-    
+
     // add the grids to the vertical layout
     this.addMember(this.messageLabel);
     this.addMember(hLayout);
-    
+
     return ret;
   },
-  
-  
+
+
   // never disable this item
-  isDisabled: function(){
+  isDisabled: function () {
     return false;
   },
-  
-  getForm: function(){
+
+  getForm: function () {
     return this.canvasItem.form;
   },
-  
+
   // is called when a new record is loaded in the form
   // in this method the linked item section should be cleared
   // but not reload its content, that's done when the section
   // gets expanded
-  setRecordInfo: function(entity, id){
+  setRecordInfo: function (entity, id) {
     this.entity = entity;
     // use recordId instead of id, as id is often used to keep
     // html ids
     this.recordId = id;
     this.isInitialized = false;
   },
-  
-  
+
+
   // is called when the section expands/collapse
   // the linked items should not be loaded before the section actually expands
-  setExpanded: function(expanded){
+  setExpanded: function (expanded) {
     if (expanded && !this.isInitialized) {
-    
+
       this.loadCategories();
       this.linkedItemCategoryListGrid.filterEditorSubmit();
       // this part should stay also for linked items
       this.isInitialized = true;
     }
   },
-  
+
   // ensure that the view gets activated
-  focusChanged: function(){
+  focusChanged: function () {
     var view = this.getForm().view;
     if (view && view.setAsActiveView) {
       view.setAsActiveView();
@@ -407,11 +405,11 @@ isc.OBLinkedItemLayout.addProperties({
   destroy: function () {
     // Explicitly destroy the associated DataSource to prevent memory leaks
     // http://forums.smartclient.com/showthread.php?p=70493
-    if(this.linkedItemDS) {
+    if (this.linkedItemDS) {
       this.linkedItemDS.destroy();
       this.likedItemDS = null;
     }
-    if(this.linkedItemCategoryDS) {
+    if (this.linkedItemCategoryDS) {
       this.linkedItemCategoryDS.destroy();
       this.likedItemDS = null;
     }
@@ -426,17 +424,16 @@ isc.OBLinkedItemCanvasItem.addProperties({
 
   // some defaults, note if this changes then also the 
   // field generation logic needs to be checked
-  colSpan: 4, 
-  startRow: true, 
+  colSpan: 4,
+  startRow: true,
   endRow: true,
 
   canFocus: true,
-  
+
   // setting width/height makes the canvasitem to be hidden after a few
   // clicks on the section item, so don't do that for now
   // width: '100%',
   // height: '100%',
-  
   showTitle: false,
 
   // note that explicitly setting the canvas gives an error as not
@@ -445,10 +442,10 @@ isc.OBLinkedItemCanvasItem.addProperties({
   // for setting more properties use canvasProperties, etc. see
   // the docs
   canvasConstructor: 'OBLinkedItemLayout',
-  
+
   // never disable this one
-  isDisabled: function(){
+  isDisabled: function () {
     return false;
   }
-  
+
 });

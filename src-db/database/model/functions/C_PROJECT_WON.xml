@@ -16,7 +16,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -36,6 +36,7 @@
     v_adUserId varchar2(32);
     v_billToId varchar2(32);
     v_paymentRule VARCHAR(60) ;
+    v_FINpayment C_PROJECTPROPOSAL.FIN_Paymentmethod_ID%TYPE;
     v_cPaymenttermId varchar2(32);
     v_projectStatus VARCHAR(60) ;
     v_value NVARCHAR2(40) ;
@@ -82,12 +83,14 @@
         C_PROJECTPROPOSAL.AD_User_ID,
         MAX(C_BPARTNER_LOCATION.C_BPartner_Location_ID),
         C_PROJECTPROPOSAL.PaymentRule,
+        C_PROJECTPROPOSAL.FIN_Paymentmethod_ID,
         C_PROJECTPROPOSAL.C_Paymentterm_ID
       INTO v_cBPartnerId,
         v_cBPartnerLocationId,
         v_adUserId,
         v_billToId,
         v_paymentRule,
+        v_FINpayment,
         v_cPaymenttermId
       FROM C_PROJECTPROPOSAL,
         C_BPARTNER
@@ -100,6 +103,7 @@
         C_PROJECTPROPOSAL.C_BPartner_Location_ID,
         C_PROJECTPROPOSAL.AD_User_ID,
         C_PROJECTPROPOSAL.PaymentRule,
+        C_PROJECTPROPOSAL.FIN_Paymentmethod_ID,
         C_PROJECTPROPOSAL.C_Paymentterm_ID;
       IF(v_cProjectId IS NOT NULL) THEN
         v_ResultStr:='Update header';
@@ -124,6 +128,7 @@
           C_BPartner_Location_ID=v_cBPartnerLocationId, --Salesrep_ID = v_adUserId,
           BillTo_ID=v_billToId,
           PaymentRule=v_paymentRule,
+          FIN_paymentmethod_id=v_FINpayment,
           C_Paymentterm_ID=v_cPaymenttermId,
           accountno=v_Accountno
         WHERE C_Project_ID=v_cProjectId;

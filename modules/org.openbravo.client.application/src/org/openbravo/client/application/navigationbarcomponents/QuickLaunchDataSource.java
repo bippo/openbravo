@@ -27,8 +27,8 @@ import javax.inject.Inject;
 
 import org.openbravo.client.application.ApplicationConstants;
 import org.openbravo.client.application.MenuManager;
-import org.openbravo.client.application.MenuParameter;
 import org.openbravo.client.application.MenuManager.MenuOption;
+import org.openbravo.client.application.MenuParameter;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.service.datasource.ReadOnlyDataSourceService;
 import org.openbravo.service.json.JsonConstants;
@@ -116,6 +116,9 @@ public class QuickLaunchDataSource extends ReadOnlyDataSourceService {
         } else if (menuOption.isForm()) {
           data.put(OPTION_TYPE, OPTION_TYPE_URL);
           data.put(FORM_ID, menuOption.getFormId());
+        } else if (menuOption.isReport()) {
+          data.put(OPTION_TYPE, OPTION_TYPE_URL);
+          data.put(PROCESS_ID, menuOption.getMenu().getProcess().getId());
         } else {
           data.put(OPTION_TYPE, OPTION_TYPE_URL);
         }

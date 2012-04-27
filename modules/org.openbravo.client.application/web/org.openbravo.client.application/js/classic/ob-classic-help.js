@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -23,29 +23,28 @@
 // of the main layout. It is called from the OBHelpAbout widget displayed
 // in the navigation bar.
 //
-isc.defineClass('ClassicOBHelp', isc.HTMLPane).addProperties( {
-  showsItself : false,
-  contentsType : 'page',
-  windowId : null,
+isc.defineClass('ClassicOBHelp', isc.HTMLPane).addProperties({
+  showsItself: false,
+  contentsType: 'page',
+  windowId: null,
   windowType: null,
   windowName: null,
-  recordId : '',
-  command : 'DEFAULT',
-  showEdges : false,
-  styleName : 'obClassicWindow',
-  //contentsURL : OB.Application.contextUrl + 'ad_help/DisplayHelp.html',
-  appURL : OB.Application.contextUrl + 'security/Menu.html',
-  padding : 0,
-  margin : 0,
-  height : '100%',
-  width : '100%'
+  recordId: '',
+  command: 'DEFAULT',
+  showEdges: false,
+  styleName: 'obClassicWindow',
+  appURL: OB.Application.contextUrl + 'security/Menu.html',
+  padding: 0,
+  margin: 0,
+  height: '100%',
+  width: '100%'
 });
 
 // get the label and set it in the class
 OB.I18N.getLabel('OBUIAPP_Loading', null, isc.ClassicOBHelp, 'loadingMessage');
 
-isc.ClassicOBHelp.addMethods( {
-  initWidget : function(args) {
+isc.ClassicOBHelp.addMethods({
+  initWidget: function (args) {
     this.contentsURL = this.appURL + '?url=/ad_help/DisplayHelp.html&hideMenu=true&noprefs=true';
     if (this.windowId) {
       this.contentsURL = this.contentsURL + '&inpwindowId=' + this.windowId;
@@ -61,7 +60,7 @@ isc.ClassicOBHelp.addMethods( {
 
   // The following methods are involved in making sure that a help tab for a 
   // certain window is only opened once.
-  getBookMarkParams: function() {
+  getBookMarkParams: function () {
     var result = {};
     if (this.windowId) {
       result.windowId = this.windowId;
@@ -75,8 +74,8 @@ isc.ClassicOBHelp.addMethods( {
     result.viewId = 'ClassicOBHelp';
     return result;
   },
-  
-  isEqualParams: function(params) {
+
+  isEqualParams: function (params) {
     if (!params || params.viewId !== 'ClassicOBHelp') {
       return false;
     }
@@ -91,15 +90,15 @@ isc.ClassicOBHelp.addMethods( {
     if ((this.windowName || params.windowName) && params.windowName !== this.windowName) {
       return false;
     }
-    
+
     return true;
   },
-  
-  isSameTab : function(viewId, params) {
+
+  isSameTab: function (viewId, params) {
     if (viewId !== 'ClassicOBHelp') {
       return false;
     }
-    
+
     if (this.isEqualParams(params)) {
       return true;
     }

@@ -32,6 +32,7 @@ import org.openbravo.model.materialmgmt.transaction.ProductionPlan;
 import org.openbravo.model.materialmgmt.transaction.ProductionTransaction;
 import org.openbravo.scheduling.ProcessBundle;
 import org.openbravo.service.db.CallProcess;
+import org.openbravo.service.db.DalConnectionProvider;
 
 public class ValidateWorkEffort_ProductionRun implements org.openbravo.scheduling.Process {
 
@@ -102,7 +103,7 @@ public class ValidateWorkEffort_ProductionRun implements org.openbravo.schedulin
       if (pInstance.getResult() == 0) {
         // Error Processing
         OBError myMessage = Utility.getProcessInstanceMessage(conn, vars,
-            PInstanceProcessData.select(conn, pInstance.getId()));
+            PInstanceProcessData.select(new DalConnectionProvider(), pInstance.getId()));
         throw new OBException("ERROR: " + myMessage.getMessage());
       }
     } finally {

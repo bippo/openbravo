@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -19,16 +19,15 @@
 
 // = OBGettingStartedView =
 // Implements the Getting Started view
-
 isc.defineClass('OBGettingStartedView', isc.VLayout);
 
 isc.OBGettingStartedView.addProperties({
   width: '100%',
   height: '100%',
   iframe: null,
-  initWidget: function(args) {
+  initWidget: function (args) {
 
-    if(!args.contentsURL) {
+    if (!args.contentsURL) {
       isc.Log.logError('contentsURL parameter is required');
     }
 

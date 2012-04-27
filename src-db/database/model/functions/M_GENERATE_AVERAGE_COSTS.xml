@@ -16,7 +16,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -33,9 +33,11 @@
   v_Price NUMBER;
   v_DateOld DATE;
   v_MinDateCosting DATE;
+  v_MinFirstInOut DATE;
   v_FirstIteration BOOLEAN;
   v_CheckResultStr VARCHAR2(2000):='';
   v_CumQty NUMBER;
+  v_PermanentQty NUMBER;
   v_Processed VARCHAR2(60) ;
   v_count NUMBER;
   v_Deleted NUMBER;
@@ -44,6 +46,8 @@
   v_PriceNew NUMBER;
   v_Client VARCHAR2(32);
   v_BaseCurrency VARCHAR2(32);
+  v_Incremental BOOLEAN := FALSE;
+  v_doNothing BOOLEAN := FALSE;
   -- Parameter
   TYPE RECORD IS REF CURSOR;
     Cur_Parameter RECORD;
@@ -85,6 +89,9 @@
       v_Record_ID:=Cur_Parameter.Record_ID;
       v_User:=Cur_Parameter.AD_User_ID;
       v_Client:=Cur_Parameter.AD_Client_ID;
+      IF (Cur_Parameter.ParameterName = 'IsIncremental') THEN
+        v_Incremental := COALESCE(Cur_Parameter.P_String, 'N')='Y';
+      END IF;
     END LOOP; --  Get Parameter
     SELECT AD_CLIENT.C_CURRENCY_ID 
       INTO v_BaseCurrency
@@ -94,16 +101,50 @@
     -- BEGIN CHECK IF COST USED TO POST A DOCUMENT
     -- If a document has been posted, and in the entry the costing has been used to calculate any amount,
     -- process is not allowed to be launched.
-    SELECT MIN(DATEFROM)
-    INTO v_MinDateCosting
-    FROM M_COSTING
-    WHERE ISPERMANENT='N'
-      AND ISMANUAL='N'
-      AND COSTTYPE='AV'
-      AND ISPRODUCTION = 'N'
-      AND AD_CLIENT_ID = v_Client;
+
+    SELECT MIN(M_INOUT.MOVEMENTDATE)
+      INTO v_MinFirstInOut
+      FROM M_INOUT, M_INOUTLINE, M_PRODUCT
+      WHERE M_INOUT.M_INOUT_ID=M_INOUTLINE.M_INOUT_ID
+        AND M_INOUTLINE.M_PRODUCT_ID=M_PRODUCT.M_PRODUCT_ID
+        AND M_PRODUCT.COSTTYPE='AV'
+        AND M_INOUT.ISSOTRX='N'
+        AND M_INOUT.PROCESSED='Y'
+        AND M_INOUTLINE.MOVEMENTQTY>0
+        AND M_INOUT.DOCSTATUS <> 'DR' AND M_INOUT.DOCSTATUS <> 'RE' AND M_INOUT.DOCSTATUS <> 'VO'
+        AND M_INOUT.AD_CLIENT_ID = v_Client
+        AND NOT EXISTS
+           (SELECT 1 FROM M_COSTING WHERE M_INOUTLINE_ID=M_INOUTLINE.M_INOUTLINE_ID);
+
+
+    IF (v_Incremental) THEN
+      -- In case of incremental computation, calculate since first m_inOut.MovementDate from the ones
+      -- not included yet in any costing
+       v_MinDateCosting := v_MinFirstInOut;
+       IF (v_MinDateCosting IS NOT NULL) THEN
+         v_MinDateCosting := TRUNC(v_MinDateCosting);
+       ELSE
+         -- There is no M_InOut with lines without costing, nothing to do
+         v_Message := '@NoNewCostingGenerationNeeded@';
+         v_doNothing := TRUE;
+       END IF;
+    ELSE
+      SELECT MIN(DATEFROM)
+      INTO v_MinDateCosting
+      FROM M_COSTING
+      WHERE ISPERMANENT='N'
+        AND ISMANUAL='N'
+        AND COSTTYPE='AV'
+        AND ISPRODUCTION = 'N'
+        AND AD_CLIENT_ID = v_Client;
+
+      IF (v_MinDateCosting IS NULL OR v_MinFirstInOut < v_MinDateCosting) THEN
+        v_MinDateCosting := v_MinFirstInOut;
+      END IF;
+    END IF;
 
     v_CheckResultStr := '';
+   IF (NOT v_doNothing) THEN
     SELECT MAX(MOVEMENTDATE) INTO v_Date FROM M_MOVEMENT WHERE AD_CLIENT_ID=v_Client AND POSTED='Y';
     IF (v_MinDateCosting <= v_Date) THEN
       v_FirstIteration:=TRUE;
@@ -123,11 +164,15 @@
         ELSE
           v_CheckResultStr := v_CheckResultStr || ', ';
         END IF;
-        v_CheckResultStr := v_CheckResultStr || Cur_Docs.DOCUMENTNO;
+	  IF (COALESCE(LENGTH(v_CheckResultStr),0) > 1900) THEN
+	    v_CheckResultStr:=SUBSTR(v_CheckResultStr,1,1900) || '(...)';
+	  ELSE
+	    v_CheckResultStr := v_CheckResultStr || Cur_Docs.DOCUMENTNO;
+	  END IF;
       END LOOP;
       v_CheckResultStr:=v_CheckResultStr || '.';
     END IF;
-
+   
     SELECT MAX(MOVEMENTDATE) INTO v_Date FROM M_INVENTORY WHERE AD_CLIENT_ID=v_Client AND POSTED='Y';
     IF (v_MinDateCosting <= v_Date) THEN
       v_FirstIteration:=TRUE;
@@ -148,7 +193,11 @@
         ELSE
           v_CheckResultStr := v_CheckResultStr || ', ';
         END IF;
-        v_CheckResultStr := v_CheckResultStr || Cur_Docs.INVENTORY || '(@Warehouse@ ' || Cur_Docs.WAREHOUSE || ')';
+	  IF (COALESCE(LENGTH(v_CheckResultStr),0) > 1900) THEN
+	    v_CheckResultStr:=SUBSTR(v_CheckResultStr,1,1900) || '(...)';
+	  ELSE
+	    v_CheckResultStr := v_CheckResultStr || Cur_Docs.INVENTORY || '(@Warehouse@ ' || Cur_Docs.WAREHOUSE || ')';
+	  END IF;
       END LOOP;
       v_CheckResultStr:=v_CheckResultStr || '.';
     END IF;
@@ -172,7 +221,11 @@
         ELSE
           v_CheckResultStr := v_CheckResultStr || ', ';
         END IF;
-        v_CheckResultStr := v_CheckResultStr || Cur_Docs.DOCUMENTNO;
+	  IF (COALESCE(LENGTH(v_CheckResultStr),0) > 1900) THEN
+	    v_CheckResultStr:=SUBSTR(v_CheckResultStr,1,1900) || '(...)';
+	  ELSE
+	    v_CheckResultStr := v_CheckResultStr || Cur_Docs.DOCUMENTNO;
+	  END IF;
       END LOOP;
       v_CheckResultStr:=v_CheckResultStr || '.';
     END IF;
@@ -197,7 +250,11 @@
         ELSE
           v_CheckResultStr := v_CheckResultStr || ', ';
         END IF;
-        v_CheckResultStr := v_CheckResultStr || Cur_Docs.DOCUMENTNO;
+	  IF (COALESCE(LENGTH(v_CheckResultStr),0) > 1900) THEN
+	    v_CheckResultStr:=SUBSTR(v_CheckResultStr,1,1900) || '(...)';
+	  ELSE
+	    v_CheckResultStr := v_CheckResultStr || Cur_Docs.DOCUMENTNO;
+	  END IF;
       END LOOP;
       v_CheckResultStr:=v_CheckResultStr || '.';
     END IF;
@@ -226,28 +283,35 @@
         ELSE
           v_CheckResultStr := v_CheckResultStr || ', ';
         END IF;
-        v_CheckResultStr := v_CheckResultStr || Cur_Docs.DATEINVOICED || ' (' || '@Invoice@ @SOS_DOCUMENTNO@' || Cur_Docs.DOCUMENTNO || ')';
+	  IF (COALESCE(LENGTH(v_CheckResultStr),0) > 1900) THEN
+	    v_CheckResultStr:=SUBSTR(v_CheckResultStr,1,1900) || '(...)';
+	  ELSE
+	    v_CheckResultStr := v_CheckResultStr || Cur_Docs.DATEINVOICED || ' (' || '@Invoice@ @SOS_DOCUMENTNO@' || Cur_Docs.DOCUMENTNO || ')';
+	  END IF;
       END LOOP;
       v_CheckResultStr:=v_CheckResultStr || '.';
     END IF;
-
+  
     IF (COALESCE(length(v_CheckResultStr),0) > 0) THEN
       RAISE_APPLICATION_ERROR(-20000, v_CheckResultStr);
     END IF;
     -- END CHECK IF COST USED TO POST A DOCUMENT
 
-    DELETE
-    FROM M_COSTING
-    WHERE ISPERMANENT='N'
-      AND ISMANUAL='N'
-      AND COSTTYPE='AV'
-      AND ISPRODUCTION = 'N'
-      AND AD_CLIENT_ID = v_Client;
-    v_rowcount:=SQL%ROWCOUNT;
-    v_Deleted:=v_Deleted + v_rowcount;
-    v_rowcount:=SQL%ROWCOUNT;
-    DBMS_OUTPUT.PUT_LINE('  deleted=' || v_rowcount) ;
-    --RECALCULATE THE DATETO OF MANUAL COSTS
+    IF (NOT v_Incremental) THEN
+      DELETE
+      FROM M_COSTING
+      WHERE ISPERMANENT='N'
+        AND ISMANUAL='N'
+        AND COSTTYPE='AV'
+        AND ISPRODUCTION = 'N'
+        AND AD_CLIENT_ID = v_Client;
+      v_rowcount:=SQL%ROWCOUNT;
+      v_Deleted:=v_Deleted + v_rowcount;
+      v_rowcount:=SQL%ROWCOUNT;
+      DBMS_OUTPUT.PUT_LINE('  deleted=' || v_rowcount) ;
+    END IF;
+
+    --RECALCULATE THE DATETO OF ALREADY CALCULATED COSTS
     FOR Cur_ManualCost IN
       (SELECT M_COSTING_ID, M_PRODUCT_ID, DATEFROM
        FROM M_COSTING
@@ -284,12 +348,33 @@
       ORDER BY M_PRODUCT.M_PRODUCT_ID, M_INOUT.MOVEMENTDATE, M_INOUTLINE.MOVEMENTQTY DESC
       )
     LOOP
-      v_ResultStr:='new albaran:   '||Cur_InOutLine.M_INOUTLINE_ID;
+	
+      IF (COALESCE(LENGTH(v_ResultStr),0) > 1900) THEN
+	v_ResultStr:=SUBSTR(v_ResultStr,1,1900) || '(...)';
+      ELSE
+        v_ResultStr:='new albaran:   '||Cur_InOutLine.M_INOUTLINE_ID;
+      END IF;
+
+      SELECT SUM(QTY)
+      INTO v_PermanentQty
+      FROM M_COSTING
+      WHERE ISPERMANENT='Y'
+        AND COSTTYPE='AV'
+        AND ISPRODUCTION = 'N'
+        AND M_INOUTLINE_ID IS NOT NULL
+        AND AD_CLIENT_ID = v_Client
+        AND M_PRODUCT_ID=Cur_InOutLine.M_PRODUCT_ID
+        AND DATEFROM = Cur_InOutLine.MOVEMENTDATE;
+
+      IF (v_PermanentQty IS NULL) THEN
+        v_PermanentQty:=0;
+      END IF;
+      
       IF(Cur_InOutLine.M_PRODUCT_ID<>v_ProductOld) THEN
         v_Date:=NULL;
-        v_CumQty:=0;
+        v_CumQty:=v_PermanentQty;
       ELSIF (Cur_InOutLine.MOVEMENTDATE<>v_DateOld) THEN
-        v_CumQty:=0;
+        v_CumQty:=v_PermanentQty;
       END IF;
       SELECT COUNT(*)
       INTO v_Count
@@ -335,7 +420,12 @@
       ELSE
         v_Qty:=0;
       END IF;
-      v_ResultStr:='invoice albaran:   '||Cur_InOutLine.M_INOUTLINE_ID;
+      IF (COALESCE(LENGTH(v_ResultStr),0) > 1900) THEN
+	v_ResultStr:=SUBSTR(v_ResultStr,1,1900) || '(...)';
+      ELSE
+        v_ResultStr:='invoice albaran:   '||Cur_InOutLine.M_INOUTLINE_ID;
+      END IF;
+      
       SELECT CASE WHEN SUM(QTYINVOICED) <=0 THEN 0 ELSE SUM(C_INVOICELINE.QTYINVOICED*C_CURRENCY_CONVERT_PRECISION(C_INVOICELINE.PRICEACTUAL, C_INVOICE.C_CURRENCY_ID, v_BaseCurrency, TO_DATE(COALESCE(C_INVOICE.DATEINVOICED, Cur_InOutLine.MOVEMENTDATE)), NULL, C_INVOICELINE.AD_CLIENT_ID, C_INVOICELINE.AD_ORG_ID, 'C')) /SUM(QTYINVOICED) END,
              CASE WHEN SUM(QTYINVOICED) <=0 THEN 0 ELSE COUNT(C_INVOICELINE.C_INVOICELINE_ID) END
       INTO v_Price, v_Count
@@ -345,8 +435,13 @@
         AND C_INVOICE.C_INVOICE_ID = C_INVOICELINE.C_INVOICE_ID
         AND QTYINVOICED<>0;
       IF(v_Count=0) THEN
-        v_ResultStr:='order albaran:   '||Cur_InOutLine.M_INOUTLINE_ID;
-        SELECT CASE WHEN SUM(C_ORDERLINE.QTYORDERED) <=0 THEN 0 ELSE SUM(C_ORDERLINE.QTYORDERED*C_CURRENCY_CONVERT_PRECISION(C_ORDERLINE.PRICEACTUAL, COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), v_BaseCurrency, TO_DATE(COALESCE(C_ORDERLINE.DATEORDERED, C_ORDER.DATEORDERED, Cur_InOutLine.MOVEMENTDATE)), NULL, C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID, 'C')) /SUM(C_ORDERLINE.QTYORDERED) END,
+        IF (COALESCE(LENGTH(v_ResultStr),0) > 1900) THEN
+	  v_ResultStr:=SUBSTR(v_ResultStr,1,1900) || '(...)';
+        ELSE
+          v_ResultStr:='order albaran:   '||Cur_InOutLine.M_INOUTLINE_ID;
+        END IF;
+        
+        SELECT CASE WHEN SUM(C_ORDERLINE.QTYORDERED) <=0 THEN 0 ELSE SUM(C_ORDERLINE.QTYORDERED*C_CURRENCY_CONVERT_PRECISION(C_ORDERLINE.PRICEACTUAL, COALESCE(C_ORDERLINE.C_CURRENCY_ID, C_ORDER.C_CURRENCY_ID), v_BaseCurrency, TO_DATE(COALESCE(C_ORDER.DATEORDERED, Cur_InOutLine.MOVEMENTDATE)), NULL, C_ORDERLINE.AD_CLIENT_ID, C_ORDERLINE.AD_ORG_ID, 'C')) /SUM(C_ORDERLINE.QTYORDERED) END,
                CASE WHEN SUM(C_ORDERLINE.QTYORDERED) <=0 THEN 0 ELSE COUNT(C_ORDERLINE.C_ORDERLINE_ID) END
         INTO v_Price, v_Count
         FROM M_MATCHPO, C_ORDERLINE, C_ORDER
@@ -417,7 +512,12 @@
 	      v_Message := v_Message || '. @CannotCalcPrevCost@';
 	END IF;
       ELSE     
-	      v_ResultStr:='insert costing:   '||Cur_InOutLine.M_INOUTLINE_ID;
+              IF (COALESCE(LENGTH(v_ResultStr),0) > 1900) THEN
+	        v_ResultStr:=SUBSTR(v_ResultStr,1,1900) || '(...)';
+	      ELSE
+		v_ResultStr:='insert costing:   '||Cur_InOutLine.M_INOUTLINE_ID;
+	      END IF;
+	      
 	      INSERT
 	      INTO M_COSTING
 		(
@@ -441,6 +541,7 @@
       v_DateOld:=Cur_InOutLine.MOVEMENTDATE;
       v_ProductOld:=Cur_InOutLine.M_PRODUCT_ID;
     END LOOP;
+   END IF;  
     --<<FINISH_PROCESS>>
     --  Update AD_PInstance
     DBMS_OUTPUT.PUT_LINE('Updating PInstance - Finished ' || v_Message);

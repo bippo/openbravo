@@ -11,45 +11,48 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 module('org.openbravo.client.application.navigationbarcomponents');
 
-test('Basic requirements', function() {
+test('Basic requirements', function () {
   expect(1);
-  ok( OB.RecentUtilities, 'recent utilities defined' );
+  ok(OB.RecentUtilities, 'recent utilities defined');
 });
 
-test('Test user info data read', function() {
-	stop(1000);
+test('Test user info data read', function () {
+  stop(1000);
 
-	expect(16);
-	
-	var callback = function(rpcResponse, data, rpcRequest) {
-		ok(data.language, 'Language present');
-		ok(data.language.value, 'Language value present');
-		ok(data.language.valueMap, 'Language valueMap present');
-		ok(data.language.value, 'Language value present');
-		
-		ok(data.initialValues.role, 'Initial role value set');
-		ok(data.initialValues.client, 'Initial client value set');
-		ok(data.initialValues.organization, 'Initial organization value set');
-		ok(data.initialValues.language, 'Initial language value set');
-		
-		ok(data.role, 'Role set');
-		ok(data.role.value, 'Role value set');
-		ok(data.role.valueMap, 'Role valueMap set');
-		ok(data.role.roles, 'Role info set');
-		ok(data.role.roles.length > 0, 'More than one role present');
-		ok(data.role.roles[0].id, 'Role id set');
-		ok(data.role.roles[0].organizationValueMap, 'Role org value map set');
-		ok(data.role.roles[0].warehouseValueMap, 'Role wh value map set');
+  expect(16);
 
-		start();
-	};
-	var action = 'org.openbravo.client.application.navigationbarcomponents.UserInfoWidgetActionHandler';
-	OB.RemoteCallManager.call(action, {}, {'command': 'data'}, callback);	
+  var callback;
+  callback = function (rpcResponse, data, rpcRequest) {
+    ok(data.language, 'Language present');
+    ok(data.language.value, 'Language value present');
+    ok(data.language.valueMap, 'Language valueMap present');
+    ok(data.language.value, 'Language value present');
+
+    ok(data.initialValues.role, 'Initial role value set');
+    ok(data.initialValues.client, 'Initial client value set');
+    ok(data.initialValues.organization, 'Initial organization value set');
+    ok(data.initialValues.language, 'Initial language value set');
+
+    ok(data.role, 'Role set');
+    ok(data.role.value, 'Role value set');
+    ok(data.role.valueMap, 'Role valueMap set');
+    ok(data.role.roles, 'Role info set');
+    ok(data.role.roles.length > 0, 'More than one role present');
+    ok(data.role.roles[0].id, 'Role id set');
+    ok(data.role.roles[0].organizationValueMap, 'Role org value map set');
+    ok(data.role.roles[0].warehouseValueMap, 'Role wh value map set');
+
+    start();
+  };
+  var action = 'org.openbravo.client.application.navigationbarcomponents.UserInfoWidgetActionHandler';
+  OB.RemoteCallManager.call(action, {}, {
+    'command': 'data'
+  }, callback);
 });

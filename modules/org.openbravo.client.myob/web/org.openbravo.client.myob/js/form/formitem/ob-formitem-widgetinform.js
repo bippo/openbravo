@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,17 +22,17 @@
 isc.ClassFactory.defineClass('OBWidgetInFormItem', isc.CanvasItem);
 
 isc.OBWidgetInFormItem.addProperties({
-  widgetInstance : null,
+  widgetInstance: null,
   autoDestroy: true,
-  
+
   cellStyle: 'OBFormField',
   titleStyle: 'OBFormFieldLabel',
   widgetProperties: {
     height: '0px',
-    inWidgetInFormMode : true
+    inWidgetInFormMode: true
   },
 
-  createCanvas: function(){
+  createCanvas: function () {
     var widgetProperties, i, w, widgetClass, widgetParameters, locAvailWidgetClasses;
 
     locAvailWidgetClasses = OB.MyOB.availableWidgetClasses;
@@ -46,7 +46,7 @@ isc.OBWidgetInFormItem.addProperties({
 
     // make a local copy which can be changed
     widgetProperties = isc.addProperties({}, this.widgetProperties);
-    
+
     // add link to form so widget can possibly use it
     widgetProperties.viewForm = this.form;
 
@@ -54,7 +54,7 @@ isc.OBWidgetInFormItem.addProperties({
 
     if (!widgetClass && this.isPreviewFormItem) {
       widgetClass = isc.OBWidget;
-      widgetProperties.createWindowContents = function() {
+      widgetProperties.createWindowContents = function () {
         return isc.Label.create({
           width: 1,
           height: 1,
@@ -62,13 +62,13 @@ isc.OBWidgetInFormItem.addProperties({
         });
       };
     }
-    
+
     this.widgetInstance = isc.ClassFactory.newInstance(widgetClass, widgetProperties);
     return this.widgetInstance;
   },
 
   // called via processFICReturn
-  refresh: function() {
+  refresh: function () {
     // refresh widget, passing special parameter which is link to formValues for currently displayed record
     if (this.widgetInstance) {
       this.widgetInstance.parameters.formValues = this.form.values;
@@ -76,4 +76,3 @@ isc.OBWidgetInFormItem.addProperties({
     }
   }
 });
-

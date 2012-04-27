@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -43,7 +43,9 @@ import org.openbravo.erpCommon.utility.PropertyNotFoundException;
 import org.openbravo.model.ad.domain.Preference;
 import org.openbravo.model.common.invoice.Invoice;
 import org.openbravo.model.financialmgmt.payment.DebtPayment;
+import org.openbravo.model.financialmgmt.payment.FIN_OrigPaymentScheduleDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment;
+import org.openbravo.model.financialmgmt.payment.FIN_PaymentSchedInvV;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentSchedule;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentScheduleDetail;
 import org.openbravo.scheduling.ProcessBundle;
@@ -81,8 +83,10 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
       int counter = 0;
       final OBCriteria<Invoice> obc = OBDal.getInstance().createCriteria(Invoice.class);
       obc.add(Restrictions.eq(Invoice.PROPERTY_PROCESSED, true));
-      obc.add(Restrictions.or(Restrictions.eq(Invoice.PROPERTY_PAYMENTCOMPLETE, false),
-          Restrictions.ne(Invoice.PROPERTY_OUTSTANDINGAMOUNT, BigDecimal.ZERO)));
+      obc.add(Restrictions.or(
+          Restrictions.or(Restrictions.eq(Invoice.PROPERTY_PAYMENTCOMPLETE, false),
+              Restrictions.ne(Invoice.PROPERTY_OUTSTANDINGAMOUNT, BigDecimal.ZERO)),
+          Restrictions.isNull(Invoice.PROPERTY_FINALSETTLEMENTDATE)));
 
       // For Background process execution at system level
       if (OBContext.getOBContext().isInAdministratorMode()) {
@@ -141,12 +145,44 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
       invoice.setPaymentComplete(invoice.getOutstandingAmount().compareTo(BigDecimal.ZERO) == 0);
       invoice.setDueAmount(amounts.get("overdueAmt").add(oldFlowAmounts.get("overdueAmt")));
       invoice.setDaysTillDue(getDaysTillDue(invoice));
+      if (invoice.getOutstandingAmount().compareTo(BigDecimal.ZERO) == 0) {
+        Date finalSettlementDate = getFinalSettlementDate(invoice);
+        invoice.setFinalSettlementDate(finalSettlementDate);
+        invoice.setDaysSalesOutstanding(FIN_Utility.getDaysBetween(invoice.getInvoiceDate(),
+            finalSettlementDate));
+      }
+      invoice.setPercentageOverdue(amounts.get("overdueOriginal").multiply(new BigDecimal(100))
+          .divide(invoice.getGrandTotalAmount(), BigDecimal.ROUND_HALF_UP).longValue());
       invoice.setLastCalculatedOnDate(new Date());
 
       OBDal.getInstance().save(invoice);
       OBDal.getInstance().flush();
     } finally {
       OBContext.restorePreviousMode();
+    }
+  }
+
+  /**
+   * Returns the date in which last payment for this invoice took place
+   * 
+   * @param invoice
+   * @return
+   */
+  private static Date getFinalSettlementDate(Invoice invoice) {
+    final OBCriteria<FIN_PaymentSchedInvV> obc = OBDal.getInstance().createCriteria(
+        FIN_PaymentSchedInvV.class);
+    // For Background process execution at system level
+    if (OBContext.getOBContext().isInAdministratorMode()) {
+      obc.setFilterOnReadableClients(false);
+      obc.setFilterOnReadableOrganization(false);
+    }
+    obc.add(Restrictions.eq(FIN_PaymentSchedInvV.PROPERTY_INVOICE, invoice));
+    obc.setProjection(Projections.max(FIN_PaymentSchedInvV.PROPERTY_LASTPAYMENT));
+    Object o = obc.list().get(0);
+    if (o != null) {
+      return ((Date) o);
+    } else {
+      return null;
     }
   }
 
@@ -176,6 +212,7 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
     BigDecimal paidAmt = BigDecimal.ZERO;
     BigDecimal outstandingAmt = BigDecimal.ZERO;
     BigDecimal overdueAmt = BigDecimal.ZERO;
+    BigDecimal overdueOriginal = BigDecimal.ZERO;
     for (FIN_PaymentSchedule paymentSchedule : invoice.getFINPaymentScheduleList()) {
       BigDecimal paid = BigDecimal.ZERO;
       for (FIN_PaymentScheduleDetail psd : paymentSchedule
@@ -189,6 +226,16 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
                 psd)) {
           paid = paid.add(psd.getAmount().add(psd.getWriteoffAmount()));
         }
+        if (psd.getFINOrigPaymentScheduleDetailList() != null)
+          for (FIN_OrigPaymentScheduleDetail opsd : psd.getFINOrigPaymentScheduleDetailList()) {
+            // If an amount has been paid, let's check if -according to the archived payment plan-,
+            // any amount was paid late
+            Date paymentDate = opsd.getPaymentScheduleDetail().getPaymentDetails().getFinPayment()
+                .getPaymentDate();
+            Date origDueDate = opsd.getArchivedPaymentPlan().getDueDate();
+            if (paymentDate.after(origDueDate))
+              overdueOriginal = overdueOriginal.add(opsd.getAmount());
+          }
       }
 
       if (paymentSchedule.getPaidAmount().compareTo(paid) != 0) {
@@ -220,6 +267,7 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
     amounts.put("paidAmt", paidAmt);
     amounts.put("outstandingAmt", outstandingAmt);
     amounts.put("overdueAmt", overdueAmt);
+    amounts.put("overdueOriginal", overdueOriginal);
     return amounts;
   }
 

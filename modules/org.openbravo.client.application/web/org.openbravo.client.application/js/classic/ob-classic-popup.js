@@ -11,42 +11,42 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 // This file contains declarations for 3 types:
 // - OBPopupClassicWindow: opens a popup to show a url, a classic OB process window.
 // - OBClassicPopupModal: Opens a classic compatibility modal popup
 // - OBClassicPopup: shows popups like heartbeat
-
 // = Popup Classic OB Window =
 //
 // Opens a popup to show a url. Is used to show a classic OB process window.
 //
 isc.defineClass('OBPopupClassicWindow', isc.Class).addProperties({
   showsItself: true,
-  command : 'DEFAULT',
-  appURL : OB.Application.contextUrl + 'security/Menu.html',
+  command: 'DEFAULT',
+  appURL: OB.Application.contextUrl + 'security/Menu.html',
   obManualURL: '',
-  height: 450, 
-  width: 625});
+  height: 450,
+  width: 625
+});
 
 isc.OBPopupClassicWindow.addMethods({
-  show: function() {
+  show: function () {
     var urlCharacter = '?',
         contentsURL;
     if (this.appURL.indexOf('?') !== -1) {
-        urlCharacter = '&';
+      urlCharacter = '&';
     }
-    if(this.obManualURL !== '') {
+    if (this.obManualURL !== '') {
       contentsURL = OB.Utilities.applicationUrl(this.obManualURL) + '?Command=' + this.command;
     } else {
       contentsURL = this.appURL + urlCharacter + 'Command=' + this.command + '&noprefs=true&tabId=' + this.tabId + '&hideMenu=true';
     }
-    
+
     OB.Utilities.openProcessPopup(contentsURL, false, this.postParams, this.height, this.width);
   }
 });
@@ -57,10 +57,10 @@ isc.OBPopupClassicWindow.addMethods({
 //
 isc.defineClass('OBClassicPopupModal', isc.Class).addProperties({
   showsItself: true,
-  show: function() {
-    OB.Layout.ClassicOBCompatibility.Popup.open(this.id, 625, 450,  OB.Utilities.applicationUrl(this.obManualURL) + '?Command='+this.command, '', null, false, false, true);
+  show: function () {
+    OB.Layout.ClassicOBCompatibility.Popup.open(this.id, 625, 450, OB.Utilities.applicationUrl(this.obManualURL) + '?Command=' + this.command, '', null, false, false, true);
   }
-  
+
 });
 
 isc.ClassFactory.defineClass('OBClassicPopup', isc.OBPopup);
@@ -71,7 +71,8 @@ isc.ClassFactory.defineClass('OBClassicPopup', isc.OBPopup);
 // the OBPopup type (declared in the ob-popup.js file).
 //
 isc.OBClassicPopup.addProperties({
-  init: function() {
+
+  init: function () {
     if (typeof this.width === 'string' && this.width.indexOf('%') !== -1) {
       this.percentualWidth = true;
     }
@@ -80,19 +81,18 @@ isc.OBClassicPopup.addProperties({
     }
     this.Super('init', arguments);
   },
-  initWidget: function() {
+
+  initWidget: function () {
     this.items = [
-      isc.OBPopupHTMLFlow.create({
-        contentsURL: ''
-      })
-    ];
+    isc.OBPopupHTMLFlow.create({
+      contentsURL: ''
+    })];
     this.Super('initWidget', arguments);
-    var frameWidth,
-        frameHeight;
+    var frameWidth, frameHeight;
     if (!this.percentualWidth) {
       frameWidth = this.width;
       frameWidth = parseInt(frameWidth, 10);
-      frameWidth = frameWidth + this.edgeSize + this.edgeSize;  // Smartclient to calculate the width takes into account the margin width
+      frameWidth = frameWidth + this.edgeSize + this.edgeSize; // Smartclient to calculate the width takes into account the margin width
       frameWidth = parseInt(frameWidth, 10);
       if (frameWidth > OB.Layout.getVisibleWidth()) {
         frameWidth = OB.Layout.getVisibleWidth();
@@ -102,7 +102,7 @@ isc.OBClassicPopup.addProperties({
     if (!this.percentualHeight) {
       frameHeight = this.height;
       frameHeight = parseInt(frameHeight, 10);
-      frameHeight = frameHeight + this.edgeBottom + this.edgeTop;  // Smartclient to calculate the height takes into account the margin width
+      frameHeight = frameHeight + this.edgeBottom + this.edgeTop; // Smartclient to calculate the height takes into account the margin width
       frameHeight = parseInt(frameHeight, 10);
       if (frameHeight > OB.Layout.getVisibleHeight()) {
         frameHeight = OB.Layout.getVisibleHeight();
@@ -110,8 +110,9 @@ isc.OBClassicPopup.addProperties({
       this.setHeight(frameHeight);
     }
   },
+
   autoSize: false,
-  showMaximizeButton : true,
+  showMaximizeButton: true,
   showHeaderIcon: true,
   showCloseButton: true,
   showMinimizeButton: true,
@@ -121,13 +122,13 @@ isc.OBClassicPopup.addProperties({
   height: 500,
   percentualWidth: false,
   percentualHeight: false,
-  getIframeHtmlObj: function() {
-    var container, 
-        iframes;
+
+  getIframeHtmlObj: function () {
+    var container, iframes;
     container = this.getHandle();
-    if(container && container.getElementsByTagName) {
+    if (container && container.getElementsByTagName) {
       iframes = container.getElementsByTagName('iframe');
-      if(iframes) {
+      if (iframes) {
         return iframes[0];
       }
     }

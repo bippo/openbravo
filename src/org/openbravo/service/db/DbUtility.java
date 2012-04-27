@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.BatchUpdateException;
+import java.sql.SQLException;
 
 import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBSingleton;
@@ -37,20 +38,35 @@ import org.openbravo.base.provider.OBSingleton;
 public class DbUtility implements OBSingleton {
 
   /**
-   * This method will take care of finding the real underlying exception. When a jdbc
-   * {@link BatchUpdateException} occurs then not the whole stack trace is available in the log
-   * because the {@link BatchUpdateException} does not place the underlying exception in the
-   * {@link Throwable#getCause()} but in the {@link BatchUpdateException#getNextException()}.
+   * This method will take care of finding the real underlying exception. When a jdbc or hibernate
+   * exception occurs then the whole stack trace is not available in the log because the exception
+   * does not return the underlying exception using the {@link Throwable#getCause()} but using the
+   * {@link SQLException#getNextException()}.
    * 
    * @param throwable
    *          the throwable to analyze
    * @return the underlying sql exception or the original throwable if none found
    */
   public static Throwable getUnderlyingSQLException(Throwable throwable) {
+
     if (throwable.getCause() instanceof BatchUpdateException
         && ((BatchUpdateException) throwable.getCause()).getNextException() != null) {
       final BatchUpdateException bue = (BatchUpdateException) throwable.getCause();
       return bue.getNextException();
+    }
+    if (throwable.getCause() instanceof org.hibernate.exception.GenericJDBCException
+        && ((org.hibernate.exception.GenericJDBCException) throwable.getCause()).getSQLException()
+            .getNextException() != null) {
+      final org.hibernate.exception.GenericJDBCException gjdbce = (org.hibernate.exception.GenericJDBCException) throwable
+          .getCause();
+      return gjdbce.getSQLException().getNextException();
+    }
+    if (throwable.getCause() instanceof org.hibernate.exception.ConstraintViolationException
+        && ((org.hibernate.exception.ConstraintViolationException) throwable.getCause())
+            .getSQLException().getNextException() != null) {
+      final org.hibernate.exception.ConstraintViolationException cve = (org.hibernate.exception.ConstraintViolationException) throwable
+          .getCause();
+      return cve.getSQLException().getNextException();
     }
     return throwable;
   }

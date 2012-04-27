@@ -11,11 +11,11 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 
 isc.OBMessageBar.addProperties({
@@ -23,7 +23,7 @@ isc.OBMessageBar.addProperties({
   width: '100%',
   height: 40,
   overflow: 'visible',
-  setTypeStyle: function(type) {
+  setTypeStyle: function (type) {
     this.mainIcon.setSrc('');
     this.closeIcon.setSrc('');
     this.setStyleName('OBMessageBar_' + type);
@@ -45,8 +45,10 @@ isc.OBMessageBarDescriptionText.addProperties({
 
 isc.OBMessageBarCloseIcon.addProperties({
   baseStyle: 'OBMessageBarCloseIcon',
-  width: 12, // 10 + 2 of the margin set in the CSS
-  height: 12, // 10 + 2 of the margin set in the CSS
+  width: 12,
+  // 10 + 2 of the margin set in the CSS
+  height: 12,
+  // 10 + 2 of the margin set in the CSS
   align: 'left',
   showRollOver: true,
   showDown: false,

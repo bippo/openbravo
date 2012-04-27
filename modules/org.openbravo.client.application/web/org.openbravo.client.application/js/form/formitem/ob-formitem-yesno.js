@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -24,10 +24,10 @@ isc.ClassFactory.defineClass('OBYesNoItem', isc.ComboBoxItem);
 isc.OBYesNoItem.addProperties({
   operator: 'equals',
   addUnknownValues: false,
-  
+
   // solves:
   // https://issues.openbravo.com/view.php?id=18592
-  setValue: function(value) {
+  setValue: function (value) {
     if (value === 'true') {
       this.Super('setValue', [true]);
     } else if (value === 'false') {
@@ -36,9 +36,9 @@ isc.OBYesNoItem.addProperties({
       this.Super('setValue', arguments);
     }
   },
-  
+
   // is needed because addUnknownValues is false
-  isUnknownValue: function(enteredValue) {
+  isUnknownValue: function (enteredValue) {
     var i, vm = this.getValueMap();
     if (vm !== null) {
       for (i = 0; i < vm.length; i++) {
@@ -49,11 +49,11 @@ isc.OBYesNoItem.addProperties({
     }
     return this.Super('isUnknownValue', arguments);
   },
-  
-  mapValueToDisplay: function(value, a, b, c){
+
+  mapValueToDisplay: function (value, a, b, c) {
     return OB.Utilities.getYesNoDisplayValue(value);
   },
-  formatPickListValue: function(value, record, field, rowNum, colNum){
+  formatPickListValue: function (value, record, field, rowNum, colNum) {
     return OB.Utilities.getYesNoDisplayValue(value);
   }
 });

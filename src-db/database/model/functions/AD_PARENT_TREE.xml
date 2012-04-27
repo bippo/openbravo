@@ -19,7 +19,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2008 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -33,8 +33,12 @@ BEGIN
    WHERE node_id = p_node_id
      AND ad_tree_id = p_tree_id;
 
+    IF vp IS NULL THEN
+      RETURN ' ';
+    ELSE
+      p := ad_parent_tree(p_tree_id, vp);
+    END IF;
 
-    p := ad_parent_tree(p_tree_id, vp);
     IF p != ' ' THEN
       RETURN '|'||vp||'|'||p;
     END IF;

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ *************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2012 Openbravo SLU
+ * All Rights Reserved.
+ * Contributor(s):  ______________________________________.
+ ************************************************************************
+-->
+<SqlClass name="PopulateOriginalPaymentPlanData" package="org.openbravo.modulescript">
+  <SqlClassComment></SqlClassComment>
+  <SqlMethod name="select" type="preparedStatement" return="multiple">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      select FIN_PAYMENT_SCHEDULE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED,
+             CREATEDBY, UPDATED, UPDATEDBY, C_INVOICE_ID, C_ORDER_ID, DUEDATE,
+             FIN_PAYMENTMETHOD_ID, C_CURRENCY_ID, AMOUNT,
+             ISACTIVE, FIN_PAYMENT_PRIORITY_ID, UPDATE_PAYMENT_PLAN,
+             get_uuid() AS FIN_ORIG_PAYMENT_SCHEDULE_ID
+      from fin_payment_schedule PS
+      where not exists (
+              select 1
+              from fin_orig_payment_schedule ops
+              where ps.c_invoice_id = ops.c_invoice_id
+              )
+      AND PS.C_INVOICE_ID IS NOT NULL
+      ]]>
+    </Sql>
+  </SqlMethod>
+  <SqlMethod name="populateOPS" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+      insert into fin_orig_payment_schedule(FIN_ORIG_PAYMENT_SCHEDULE_ID, AD_CLIENT_ID , AD_ORG_ID, CREATED,
+                                            CREATEDBY, UPDATED, UPDATEDBY, C_INVOICE_ID, C_ORDER_ID, DUEDATE,
+                                            FIN_PAYMENTMETHOD_ID , C_CURRENCY_ID, AMOUNT,
+                                            ISACTIVE, FIN_PAYMENT_PRIORITY_ID,
+                                            UPDATE_PAYMENT_PLAN)
+      select ?, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+             C_INVOICE_ID, C_ORDER_ID, DUEDATE, FIN_PAYMENTMETHOD_ID, C_CURRENCY_ID, AMOUNT,
+             ISACTIVE, FIN_PAYMENT_PRIORITY_ID, UPDATE_PAYMENT_PLAN
+      from fin_payment_schedule ps
+      where fin_payment_schedule_id = ?
+      ]]>
+    </Sql>
+    <Parameter name="FinOrigPaymentScheduleID"/>
+    <Parameter name="FinPaymentScheduleID"/>
+  </SqlMethod>
+  <SqlMethod name="populateOPSD" type="preparedStatement" return="rowcount">
+    <SqlMethodComment></SqlMethodComment>
+    <Sql><![CDATA[
+        INSERT INTO fin_orig_paym_scheddetail(FIN_ORIG_PAYM_SCHEDDETAIL_ID,
+                                              AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+                                              FIN_ORIG_PAYMENT_SCHEDULE_ID, FIN_PAYMENT_SCHEDULEDETAIL_ID,
+                                              AMOUNT, ISACTIVE, WRITEOFFAMT, ISCANCELED)
+        SELECT get_uuid() as FIN_ORIG_PAYM_SCHEDDETAIL_ID,
+               AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, UPDATED, UPDATEDBY,
+               ? as FIN_ORIG_PAYMENT_SCHEDULE_ID, FIN_PAYMENT_SCHEDULEDETAIL_ID,
+               AMOUNT, ISACTIVE, WRITEOFFAMT, ISCANCELED
+        FROM FIN_PAYMENT_SCHEDULEDETAIL PSD
+        WHERE NOT EXISTS (
+                      select 1
+                      from fin_orig_paym_scheddetail opsd
+                      WHERE OPSD.FIN_PAYMENT_SCHEDULEDETAIL_ID = PSD.FIN_PAYMENT_SCHEDULEDETAIL_ID
+        )
+          and psd.fin_payment_schedule_invoice=?
+          and psd.fin_payment_detail_id is not null
+      ]]>
+    </Sql>
+    <Parameter name="FinOrigPaymentScheduleID"/>
+    <Parameter name="FinPaymentScheduleID"/>
+  </SqlMethod>
+</SqlClass>

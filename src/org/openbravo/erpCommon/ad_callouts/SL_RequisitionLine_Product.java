@@ -37,6 +37,7 @@ import org.openbravo.erpCommon.utility.DateTimeData;
 import org.openbravo.erpCommon.utility.Utility;
 import org.openbravo.model.common.plm.AttributeSet;
 import org.openbravo.model.common.plm.Product;
+import org.openbravo.model.pricing.pricelist.PriceList;
 import org.openbravo.utils.FormatUtilities;
 import org.openbravo.xmlEngine.XmlDocument;
 
@@ -83,10 +84,19 @@ public class SL_RequisitionLine_Product extends HttpSecureAppServlet {
         "org/openbravo/erpCommon/ad_callouts/CallOut").createXmlDocument();
     String strMessage = "";
 
-    StringBuffer resultado = new StringBuffer();
+    StringBuffer strResult = new StringBuffer();
 
-    resultado.append("var calloutName='SL_Requisition_Product';\n\n");
-    resultado.append("var respuesta = new Array(\n");
+    strResult.append("var calloutName='SL_Requisition_Product';\n\n");
+    strResult.append("var respuesta = new Array(\n");
+
+    OBContext.setAdminMode(true);
+    try {
+      PriceList pList = OBDal.getInstance().get(PriceList.class, strPriceListId);
+      strResult.append("new Array(\"inpcCurrencyId\", \"" + pList.getCurrency().getId() + "\"),\n");
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+
     if (!strMProductID.equals("")) {
       String strDueDate = vars.getStringParameter("inpneedbydate", DateTimeData.today(this));
       if (strPriceListId.equals(""))
@@ -121,11 +131,11 @@ public class SL_RequisitionLine_Product extends HttpSecureAppServlet {
                     BigDecimal.ROUND_HALF_EVEN)).multiply(new BigDecimal("100"))).setScale(2,
                     BigDecimal.ROUND_HALF_UP);
               }
-              resultado.append("new Array(\"inppricelist\", "
+              strResult.append("new Array(\"inppricelist\", "
                   + (strPriceList.equals("") ? "\"\"" : strPriceList) + "),\n");
-              resultado.append("new Array(\"inppriceactual\", "
+              strResult.append("new Array(\"inppriceactual\", "
                   + (strPriceActual.equals("") ? "\"\"" : strPriceActual) + "),\n");
-              resultado.append("new Array(\"inpdiscount\", \"" + discount.toString() + "\"),\n");
+              strResult.append("new Array(\"inpdiscount\", \"" + discount.toString() + "\"),\n");
             }
           } else
             strMessage = "PriceNotFound";
@@ -135,12 +145,12 @@ public class SL_RequisitionLine_Product extends HttpSecureAppServlet {
     }
 
     if (strChanged.equals("inpmProductId")) {
-      resultado.append("new Array(\"inpcUomId\", "
+      strResult.append("new Array(\"inpcUomId\", "
           + (strUOM.equals("") ? "\"\"" : "\"" + strUOM + "\"") + "),\n");
       if (strAttribute.startsWith("\""))
         strAttribute = strAttribute.substring(1, strAttribute.length() - 1);
-      resultado.append("new Array(\"inpmAttributesetinstanceId\", \"" + strAttribute + "\"),\n");
-      resultado.append("new Array(\"inpmAttributesetinstanceId_R\", \""
+      strResult.append("new Array(\"inpmAttributesetinstanceId\", \"" + strAttribute + "\"),\n");
+      strResult.append("new Array(\"inpmAttributesetinstanceId_R\", \""
           + FormatUtilities.replaceJS(SLRequisitionLineProductData.attribute(this, strAttribute))
           + "\"),\n");
       String strAttrSet, strAttrSetValueType;
@@ -157,13 +167,13 @@ public class SL_RequisitionLine_Product extends HttpSecureAppServlet {
       } finally {
         OBContext.restorePreviousMode();
       }
-      resultado.append("new Array(\"inpattributeset\", \"" + FormatUtilities.replaceJS(strAttrSet)
+      strResult.append("new Array(\"inpattributeset\", \"" + FormatUtilities.replaceJS(strAttrSet)
           + "\"),\n");
-      resultado.append("new Array(\"inpattrsetvaluetype\", \""
+      strResult.append("new Array(\"inpattrsetvaluetype\", \""
           + FormatUtilities.replaceJS(strAttrSetValueType) + "\"),\n");
       String strHasSecondaryUOM = SLRequisitionLineProductData.hasSecondaryUOM(this, strMProductID);
-      resultado.append("new Array(\"inphasseconduom\", " + strHasSecondaryUOM + "),\n");
-      resultado.append("new Array(\"inpmProductUomId\", ");
+      strResult.append("new Array(\"inphasseconduom\", " + strHasSecondaryUOM + "),\n");
+      strResult.append("new Array(\"inpmProductUomId\", ");
       FieldProvider[] tld = null;
       try {
         ComboTableData comboTableData = new ComboTableData(vars, this, "TABLEDIR",
@@ -178,30 +188,30 @@ public class SL_RequisitionLine_Product extends HttpSecureAppServlet {
       }
 
       if (tld != null && tld.length > 0) {
-        resultado.append("new Array(");
+        strResult.append("new Array(");
         for (int i = 0; i < tld.length; i++) {
-          resultado.append("\n\tnew Array(\"" + tld[i].getField("id") + "\", \""
+          strResult.append("\n\tnew Array(\"" + tld[i].getField("id") + "\", \""
               + FormatUtilities.replaceJS(tld[i].getField("name")) + "\", \"false\")");
           if (i < tld.length - 1)
-            resultado.append(",");
+            strResult.append(",");
         }
-        resultado.append(")");
+        strResult.append(")");
       } else
-        resultado.append("null");
-      resultado.append("),\n");
+        strResult.append("null");
+      strResult.append("),\n");
       // To set the cursor focus in the amount field
       if (!strMProductID.equals("")) {
-        resultado.append("new Array(\"CURSOR_FIELD\", \"inpqty\"),\n");
+        strResult.append("new Array(\"CURSOR_FIELD\", \"inpqty\"),\n");
       }
     }
 
     if (!strMessage.equals(""))
-      resultado.append("new Array('MESSAGE', \""
+      strResult.append("new Array('MESSAGE', \""
           + FormatUtilities.replaceJS(Utility.messageBD(this, strMessage, vars.getLanguage()))
           + "\"),\n");
-    resultado.append("new Array(\"EXECUTE\", \"displayLogic();\")\n");
-    resultado.append(");");
-    xmlDocument.setParameter("array", resultado.toString());
+    strResult.append("new Array(\"EXECUTE\", \"displayLogic();\")\n");
+    strResult.append(");");
+    xmlDocument.setParameter("array", strResult.toString());
     xmlDocument.setParameter("frameName", "appFrame");
     response.setContentType("text/html; charset=UTF-8");
     PrintWriter out = response.getWriter();

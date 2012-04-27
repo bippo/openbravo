@@ -31,6 +31,7 @@
     ************************************************************************/
     v_Tree_ID VARCHAR2(32);
   v_Parent_ID VARCHAR2(32);
+    v_Count NUMBER;
   --
   TYPE RECORD IS REF CURSOR;
     Cur_Defaults RECORD;
@@ -110,6 +111,13 @@ BEGIN
       )
       ;
     ELSIF (UPDATING) THEN
+     SELECT COUNT(*) INTO v_Count FROM C_PROJECTPHASE WHERE C_PROJECT_ID = :new.C_PROJECT_ID;
+     IF(v_Count > 0) THEN
+      UPDATE C_PROJECTPHASE
+      SET AD_ORG_ID = :new.AD_ORG_ID
+      WHERE C_PROJECT_ID = :new.C_PROJECT_ID;
+     END IF;
+     
      UPDATE C_PROJECT_ACCT SET AD_ORG_ID = :new.AD_ORG_ID
      WHERE C_PROJECT_ID = :new.C_PROJECT_ID;
     END IF;

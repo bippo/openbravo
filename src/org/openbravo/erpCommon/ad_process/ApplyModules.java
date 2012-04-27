@@ -394,6 +394,9 @@ public class ApplyModules extends HttpSecureAppServlet {
    */
   private void startApply(HttpServletResponse response, VariablesSecureApp vars)
       throws IOException, ServletException {
+    if (vars.getSessionValue("ApplyModules|BuildRunning").equals("Y")) {
+      return;
+    }
 
     OBContext.setAdminMode();
     PreparedStatement ps3 = null;
@@ -424,6 +427,7 @@ public class ApplyModules extends HttpSecureAppServlet {
       final Vector<String> tasks = new Vector<String>();
       tasks.add("UIrebuild");
 
+      vars.setSessionValue("ApplyModules|BuildRunning", "Y");
       ant.runTask(tasks);
 
       vars.setSessionValue("ApplyModules|ProcessFinished", "Y");
@@ -435,6 +439,7 @@ public class ApplyModules extends HttpSecureAppServlet {
       createModuleLog(false, e.getMessage());
       OBDal.getInstance().commitAndClose();
     } finally {
+      vars.setSessionValue("ApplyModules|BuildRunning", "");
       try {
         Properties props = new Properties();
         props.setProperty("log4j.rootCategory", "INFO,R");

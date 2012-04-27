@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -27,15 +27,15 @@ isc.OBSelectorPopupWindow.addProperties({
   animateMinimize: false,
   showMaximizeButton: true,
   headerControls: ['headerIcon', 'headerLabel', 'minimizeButton', 'maximizeButton', 'closeButton'],
-//  headerIconProperties: {
-//    width: 16,
-//    height: 16,
-//    src: 'OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/search_picker.png'
-//  },
+  //  headerIconProperties: {
+  //    width: 16,
+  //    height: 16,
+  //    src: 'OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/search_picker.png'
+  //  },
   buttonBarHeight: 40,
   buttonBarSpace: 20,
   buttonBarStyleName: null,
-  
+
   selectorGridProperties: {
     width: '100%',
     height: '100%',
@@ -47,8 +47,8 @@ isc.OBSelectorItem.addProperties(isc.addProperties({}, OB.Styles.OBFormField.Def
 
 isc.OBSelectorItem.addProperties({
   newTabIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/ico-to-new-tab.png',
-  newTabIconSize: 8,  
-  
+  newTabIconSize: 8,
+
   popupIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/search_picker.png',
   popupIconWidth: 21,
   popupIconHeight: 21,
@@ -64,13 +64,15 @@ isc.OBSelectorLinkItem.addProperties({
   pickerIconHeight: 21,
   pickerIconWidth: 21,
   height: 21,
-  pickerIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/search_picker.png',  
+  pickerIconSrc: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/search_picker.png',
   showPickerIcon: true,
-  clearIcon: {        
-    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/clear-field.png',
-    height: 15,
-    width: 15,
-    showHover: true,
+  clearIcon: {
+    showRollOver: true,
+    showDown: true,
+    height: 21,
+    width: 21,
+    hspace: 0,
+    src: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/form/clearField.png',
     prompt: OB.I18N.getLabel('OBUIAPP_ClearIconPrompt')
   }
 });

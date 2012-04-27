@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -26,9 +26,9 @@ isc.OBFKFilterTextItem.addProperties({
   allowExpressions: true,
   validateOnExit: false,
   validateOnChange: false,
-  
+
   // solve a small bug in the value expressions
-  buildValueExpressions: function() {
+  buildValueExpressions: function () {
     var ret = this.Super('buildValueExpressions', arguments);
     if (isc.isA.String(ret) && ret.contains('undefined')) {
       return ret.replace('undefined', '');

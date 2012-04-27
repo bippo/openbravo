@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -27,7 +27,7 @@ public class FIN_MatchedTransaction {
   public static final String WEAK = "AP";
   public static final String NOMATCH = "NO";
   public static final String MANUALMATCH = "MA";
-  private String level = "NO";
+  private String level = NOMATCH;
 
   public FIN_MatchedTransaction(FIN_FinaccTransaction _transaction, String _level) {
     transaction = _transaction;

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -478,15 +478,28 @@ class WadActionButton {
             // html.append(Sqlc.TransformaNombreColumna(data[i].columnname));
             html.append(data[i].columnname);
             html.append("R\", ");
+
             if (!tabName.equals("")) {
               html.append(tabName);
               html.append("Data.selectActDef");
               html.append(FormatUtilities.replace(data[i].columnname));
               html.append("(this");
-              html.append(((data[i].defaultvalue.equals("") || data[i].defaultvalue.indexOf("@") == -1) ? ", \""
-                  + data[i].defaultvalue + "\""
-                  : WadUtility.getWadContext(data[i].defaultvalue, vecFields, vecParams, null,
-                      false, isSOTrx, window)));
+
+              if (data[i].defaultvalue.startsWith("@SQL=")) {
+                String strDefaultSQL = (tabName.equals("") ? "ActionButtonSQLDefault" : tabName)
+                    + "Data.selectActP" + data[i].id + "_"
+                    + FormatUtilities.replace(data[i].columnname);
+                strDefaultSQL += "(this"
+                    + WadUtility.getWadContext(data[i].defaultvalue, vecFields, vecParams, null,
+                        false, isSOTrx, window);
+                strDefaultSQL += ")";
+                html.append(", " + strDefaultSQL);
+              } else {
+                html.append(((data[i].defaultvalue.equals("") || data[i].defaultvalue.indexOf("@") == -1) ? ", \""
+                    + data[i].defaultvalue + "\""
+                    : WadUtility.getWadContext(data[i].defaultvalue, vecFields, vecParams, null,
+                        false, isSOTrx, window)));
+              }
               html.append(")");
             } else {
               html.append("\"\"");

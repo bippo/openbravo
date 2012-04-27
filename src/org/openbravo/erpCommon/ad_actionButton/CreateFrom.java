@@ -472,7 +472,7 @@ public class CreateFrom extends HttpSecureAppServlet {
                 Utility.getContext(this, vars, "#User_Client", strWindowId),
                 Utility.getContext(this, vars, "#User_Org", strWindowId), strPO);
           else
-            data = CreateFromInvoiceData.selectFromPO(this, vars.getLanguage(),
+            data = CreateFromInvoiceData.selectFromPO(this, vars.getLanguage(), strKey,
                 Utility.getContext(this, vars, "#User_Client", strWindowId),
                 Utility.getContext(this, vars, "#User_Org", strWindowId), strPO);
         } else {
@@ -481,7 +481,7 @@ public class CreateFrom extends HttpSecureAppServlet {
                 Utility.getContext(this, vars, "#User_Client", strWindowId),
                 Utility.getContext(this, vars, "#User_Org", strWindowId), strPO);
           else
-            data = CreateFromInvoiceData.selectFromPOTrl(this, vars.getLanguage(),
+            data = CreateFromInvoiceData.selectFromPOTrl(this, vars.getLanguage(), strKey,
                 Utility.getContext(this, vars, "#User_Client", strWindowId),
                 Utility.getContext(this, vars, "#User_Org", strWindowId), strPO);
         }
@@ -1478,7 +1478,7 @@ public class CreateFrom extends HttpSecureAppServlet {
           if (isSOTrx.equals("Y"))
             data = CreateFromInvoiceData.selectFromPOUpdateSOTrx(conn, this, ids[k]);
           else
-            data = CreateFromInvoiceData.selectFromPOUpdate(conn, this, ids[k]);
+            data = CreateFromInvoiceData.selectFromPOUpdate(conn, this, strKey, ids[k]);
         }
         if (data != null) {
           for (int i = 0; i < data.length; i++) {

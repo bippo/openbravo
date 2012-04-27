@@ -19,19 +19,28 @@
 package org.openbravo.client.application;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.apache.log4j.Logger;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.openbravo.base.exception.OBException;
+import org.openbravo.base.model.Entity;
+import org.openbravo.base.model.ModelProvider;
 import org.openbravo.client.application.personalization.PersonalizationHandler;
 import org.openbravo.client.kernel.BaseActionHandler;
 import org.openbravo.client.kernel.StaticResourceComponent;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.businessUtility.Preferences;
+import org.openbravo.model.ad.access.FieldAccess;
+import org.openbravo.model.ad.access.TabAccess;
+import org.openbravo.model.ad.access.WindowAccess;
+import org.openbravo.model.ad.ui.Field;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.Window;
 import org.openbravo.service.db.DalConnectionProvider;
@@ -83,6 +92,39 @@ public class WindowSettingsActionHandler extends BaseActionHandler {
               .getCurrentOrganization(), OBContext.getOBContext().getUser(), OBContext
               .getOBContext().getRole(), window);
       json.put("showAutoSaveConfirmation", "Y".equals(showConfirmationStr));
+
+      // Field Level Roles
+      final JSONArray tabs = new JSONArray();
+      json.put("tabs", tabs);
+      for (WindowAccess winAccess : window.getADWindowAccessList()) {
+        if (winAccess.getRole().getId().equals(roleId)) {
+          for (TabAccess tabAccess : winAccess.getADTabAccessList()) {
+            boolean tabEditable = tabAccess.isEditableField();
+            final Entity entity = ModelProvider.getInstance().getEntityByTableId(
+                tabAccess.getTab().getTable().getId());
+            final JSONObject jTab = new JSONObject();
+            tabs.put(jTab);
+            jTab.put("tabId", tabAccess.getTab().getId());
+            jTab.put("updatable", tabEditable);
+            final JSONObject jFields = new JSONObject();
+            jTab.put("fields", jFields);
+            final Set<String> fields = new TreeSet<String>();
+            for (Field field : tabAccess.getTab().getADFieldList()) {
+              fields.add(entity.getPropertyByColumnName(
+                  field.getColumn().getDBColumnName().toLowerCase()).getName());
+            }
+            for (FieldAccess fieldAccess : tabAccess.getADFieldAccessList()) {
+              final String name = entity.getPropertyByColumnName(
+                  fieldAccess.getField().getColumn().getDBColumnName().toLowerCase()).getName();
+              jFields.put(name, fieldAccess.isEditableField());
+              fields.remove(name);
+            }
+            for (String name : fields) {
+              jFields.put(name, tabEditable);
+            }
+          }
+        }
+      }
 
       return json;
     } catch (Exception e) {

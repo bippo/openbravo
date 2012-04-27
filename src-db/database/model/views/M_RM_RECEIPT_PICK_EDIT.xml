@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
   <database name="VIEW M_RM_RECEIPT_PICK_EDIT">
-    <view name="M_RM_RECEIPT_PICK_EDIT"><![CDATA[SELECT get_uuid() AS m_rm_receipt_pick_edit_id, ol.ad_client_id, COALESCE(iol.ad_org_id, ol.ad_org_id) AS ad_org_id, ol.isactive, ol.created, ol.createdby, COALESCE(iol.updated, ol.updated) AS updated, ol.updatedby, iol.m_inout_id, 
+    <view name="M_RM_RECEIPT_PICK_EDIT"><![CDATA[SELECT ol.c_orderline_id AS m_rm_receipt_pick_edit_id, ol.ad_client_id, COALESCE(iol.ad_org_id, ol.ad_org_id) AS ad_org_id, ol.isactive, ol.created, ol.createdby, COALESCE(iol.updated, ol.updated) AS updated, ol.updatedby, iol.m_inout_id, 
 CASE
 WHEN iol.m_inoutline_id IS NOT NULL THEN 'Y'
 ELSE 'N'
@@ -12,6 +12,5 @@ JOIN c_doctype dt ON dt.c_doctype_id = o.c_doctypetarget_id AND dt.isreturn = 'Y
 LEFT JOIN (SELECT il2.m_inoutline_id, il2.ad_client_id, il2.ad_org_id, il2.isactive, il2.created, il2.createdby, il2.updated, il2.updatedby, il2.line, il2.description, il2.m_inout_id, il2.c_orderline_id, il2.m_locator_id, il2.m_product_id, il2.c_uom_id, il2.movementqty, il2.isinvoiced, il2.m_attributesetinstance_id, il2.isdescription, il2.quantityorder, il2.m_product_uom_id, il2.m_condition_goods_id
 FROM m_inoutline il2
 JOIN m_inout i2 ON il2.m_inout_id = i2.m_inout_id AND i2.processed = 'N') iol ON iol.c_orderline_id = ol.c_orderline_id
-LEFT JOIN m_inout io ON io.m_inout_id = iol.m_inout_id AND io.processed = 'N'
 WHERE (ol.qtyordered - ol.qtydelivered) <> 0]]></view>
   </database>

@@ -42,9 +42,11 @@
   v_AD_Org_ID VARCHAR2(32);
   v_DateAcct DATE;
   v_DocType_ID VARCHAR2(32);
+  v_BatchOrg_ID VARCHAR2(32);
   -- Parameter
   TYPE RECORD IS REF CURSOR;
     Cur_Parameter RECORD;
+    Cur_Org_Lines RECORD;
     -- Parameter Variables
     -- Other Variables
     v_DocStatus GL_Journal.DocStatus%TYPE;
@@ -206,6 +208,33 @@
       IF (v_is_included=-1) THEN
         RAISE_APPLICATION_ERROR(-20000, '@LinesAndHeaderDifferentLEorBU@');
       END IF;   
+
+      FOR Cur_Org_Lines IN
+        (SELECT gll.ad_org_id,
+             gll.ad_client_id
+        FROM gl_journalline gll
+        WHERE gll.gl_journal_id = v_Record_id
+        )
+      LOOP
+        SELECT AD_ISORGINCLUDED(Cur_Org_Lines.ad_org_id, v_AD_Org_ID, Cur_Org_Lines.ad_client_id)
+        INTO v_is_included
+        FROM DUAL;
+
+        IF (v_is_included=-1) THEN
+          RAISE_APPLICATION_ERROR(-20000, '@ForcedOrgNotMatchDocument@');
+        END IF;
+      END LOOP;
+
+      SELECT ad_org_id
+      INTO v_BatchOrg_ID
+      FROM gl_journalbatch
+      WHERE gl_journalbatch_id = (select gl_journalbatch_id
+                                 from gl_journal
+                                 where gl_journal_id = v_Record_id);
+      
+      IF (v_BatchOrg_ID <> v_AD_Org_ID) THEN
+        RAISE_APPLICATION_ERROR(-20000, '@BatchAndHeaderDifferentOrg@');
+      END IF;
       
       -- Check the period control is opened (only if it is legal entity with accounting)
       -- Gets the BU or LE of the document

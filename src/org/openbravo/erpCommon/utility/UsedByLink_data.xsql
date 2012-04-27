@@ -12,7 +12,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -38,11 +38,13 @@
         (CASE WHEN (SELECT COUNT(*)
                      FROM AD_WINDOW_ACCESS WA
                     WHERE W.AD_WINDOW_ID = WA.AD_WINDOW_ID
+                      AND WA.ISACTIVE = 'Y'
                       AND WA.AD_ROLE_ID = ?)=0 THEN 'N'
                                                ELSE 'Y' 
                                                END) AS ACCESSIBLE,
         W.AD_WINDOW_ID as AD_WINDOW_ID,
-        '' as AD_MENU_NAME
+        '' as AD_MENU_NAME,
+        '' as UIPATTERN
         FROM  (
           SELECT AD_COLUMN_ID, ? as referenced_column_id 
             FROM AD_COLUMN
@@ -196,7 +198,8 @@
         tab1.AD_TAB_ID AS AD_TAB_ID,
         tab1.AD_WINDOW_ID AS AD_WINDOW_ID,
         table1.NAME AS TABLENAME,
-        menu1.NAME AS AD_MENU_NAME
+        menu1.NAME AS AD_MENU_NAME,
+        tab1.UIPATTERN
         FROM AD_WINDOW
         LEFT OUTER JOIN AD_TAB   tab1 ON (tab1.AD_TAB_ID = TO_CHAR(?))
         LEFT OUTER JOIN AD_TABLE table1 ON (tab1.AD_TABLE_ID = table1.AD_TABLE_ID)

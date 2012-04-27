@@ -4,24 +4,28 @@
  * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
  * Version 1.1  with a permitted attribution clause; you may not  use this
  * file except in compliance with the License. You  may  obtain  a copy of
- * the License at http://www.openbravo.com/legal/license.html 
+ * the License at http://www.openbravo.com/legal/license.html
  * Software distributed under the License  is  distributed  on  an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
  * License for the specific  language  governing  rights  and  limitations
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 isc.OBWidgetMenu.addProperties({
-  baseStyle: 'OBWidgetMenuCell', // menu in standard SC
-  styleName: 'OBWidgetMenu', // normal in standard sc
-  bodyStyleName: 'OBWidgetMenuBody', // normal in standard sc
-  tableStyle: 'OBWidgetMenuTable', // menuTable in standard SC
+  // menu in standard SC
+  baseStyle: 'OBWidgetMenuCell',
+  //normal in standard SC
+  styleName: 'OBWidgetMenu',
+  //normal in standard SC
+  bodyStyleName: 'OBWidgetMenuBody',
+  //menuTable in standard SC
+  tableStyle: 'OBWidgetMenuTable',
   iconBodyStyleName: 'OBWidgetMenuTable'
 });
 
@@ -46,33 +50,34 @@ isc.OBWidgetMenuItem.addProperties({
 
 isc.OBWidget.addProperties({
   headerStyle: 'OBWidgetHeader',
-  showEdges:true,
+  showEdges: true,
   edgeImage: OB.Styles.skinsPath + 'Default/org.openbravo.client.myob/images/widget/window.png',
-  customEdges:null,
-  edgeSize:2,
-  edgeTop:29,
-  edgeBottom:2,
-  edgeOffsetTop:2,
-  edgeOffsetRight:2,
-  edgeOffsetBottom:2,
-  edgeOffsetLeft:2,
-  showHeaderBackground:false, // part of edges
-  showHeaderIcon:true,
+  customEdges: null,
+  edgeSize: 2,
+  edgeTop: 29,
+  edgeBottom: 2,
+  edgeOffsetTop: 2,
+  edgeOffsetRight: 2,
+  edgeOffsetBottom: 2,
+  edgeOffsetLeft: 2,
+  //part of edges
+  showHeaderBackground: false,
+  showHeaderIcon: true,
 
-      // clear backgroundColor and style since corners are rounded
-  backgroundColor:null,
+  // clear backgroundColor and style since corners are rounded
+  backgroundColor: null,
   border: null,
-  edgeCenterBackgroundColor:"#FFFFFF",
-  bodyColor:"transparent",
-  bodyStyle:"windowBody",
+  edgeCenterBackgroundColor: "#FFFFFF",
+  bodyColor: "transparent",
+  bodyStyle: "windowBody",
 
-  layoutMargin:0,
-  membersMargin:0,
+  layoutMargin: 0,
+  membersMargin: 0,
 
-  showFooter:false,
+  showFooter: false,
 
-  showShadow:false,
-  shadowDepth:5
+  showShadow: false,
+  shadowDepth: 5
 });
 
 isc.OBWidget.changeDefaults('headerDefaults', {
@@ -114,59 +119,59 @@ isc.OBWidget.changeDefaults('minimizeButtonDefaults', {
 });
 
 // MyOpenbravo dialogs (left menu)
-
 isc.OBMyOBDialog.addProperties({
-  styleName : 'OBMyOBDialog',
-  headerStyle : 'OBMyOBDialogHeader',
-  bodyStyle : "OBMyOBDialogBody",
-  showEdges : true,
-  edgeImage : OB.Styles.skinsPath + 'Default/org.openbravo.client.myob/images/dialog/window.png',
-  customEdges : null,
-  edgeSize : 6,
-  edgeTop : 23,
-  edgeBottom : 6,
-  edgeOffsetTop : 2,
-  edgeOffsetRight : 5,
-  edgeOffsetBottom : 5,
-  showHeaderBackground : false, // part of edges
-  showHeaderIcon : true,
+  styleName: 'OBMyOBDialog',
+  headerStyle: 'OBMyOBDialogHeader',
+  bodyStyle: "OBMyOBDialogBody",
+  showEdges: true,
+  edgeImage: OB.Styles.skinsPath + 'Default/org.openbravo.client.myob/images/dialog/window.png',
+  customEdges: null,
+  edgeSize: 6,
+  edgeTop: 23,
+  edgeBottom: 6,
+  edgeOffsetTop: 2,
+  edgeOffsetRight: 5,
+  edgeOffsetBottom: 5,
+  showHeaderBackground: false,
+  // part of edges
+  showHeaderIcon: true,
 
-  border : null,
+  border: null,
 
-  layoutMargin : 0,
-  membersMargin : 0,
+  layoutMargin: 0,
+  membersMargin: 0,
 
-  showFooter : false,
+  showFooter: false,
 
-  showShadow : false,
-  shadowDepth : 5
+  showShadow: false,
+  shadowDepth: 5
 });
 
 isc.OBMyOBDialog.changeDefaults('headerDefaults', {
-  layoutMargin : 0,
-  height : 24
+  layoutMargin: 0,
+  height: 24
 });
 
 isc.OBMyOBDialog.changeDefaults('headerLabelDefaults', {
-  styleName : 'OBMyOBDialogHeaderText',
-  align : isc.Canvas.CENTER
+  styleName: 'OBMyOBDialogHeaderText',
+  align: isc.Canvas.CENTER
 });
 
 isc.OBMyOBDialog.changeDefaults("closeButtonDefaults", {
   src: OB.Styles.skinsPath + 'Default/org.openbravo.client.myob/images/dialog/headerIcons/close.png',
-  showRollOver:true,
-  showDown:false,
-  width:15,
-  height:15
+  showRollOver: true,
+  showDown: false,
+  width: 15,
+  height: 15
 });
 
 isc.OBWidgetInFormItem.changeDefaults("widgetProperties", {
   edgeImage: OB.Styles.skinsPath + 'Default/org.openbravo.client.myob/images/form/border.png',
-  edgeSize : 1,
-  edgeTop : 1,
-  edgeBottom : 1,
-  edgeOffsetTop:1,
-  edgeOffsetRight:1,
-  edgeOffsetBottom:1,
-  edgeOffsetLeft:1
+  edgeSize: 1,
+  edgeTop: 1,
+  edgeBottom: 1,
+  edgeOffsetTop: 1,
+  edgeOffsetRight: 1,
+  edgeOffsetBottom: 1,
+  edgeOffsetLeft: 1
 });

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -114,7 +114,7 @@ public class SL_Order_DocType extends HttpSecureAppServlet {
         }
         resultado.append("new Array(\"inpordertype\", \"" + DocSubTypeSO + "\")\n");
         PaymentRule = "P";
-        InvoiceRule = (DocSubTypeSO.equals("PR") ? "I" : "D");
+        InvoiceRule = (DocSubTypeSO.equals("PR") || DocSubTypeSO.equals("WI") ? "I" : "D");
         DeliveryRule = "A";
         if (dataNew[0].isdocnocontrolled.equals("Y")) {
           if (!newDocNo
@@ -148,7 +148,8 @@ public class SL_Order_DocType extends HttpSecureAppServlet {
             if (!s.equals(""))
               PaymentRule = s;
           }
-          InvoiceRule = (DocSubTypeSO.equals("PR") ? "I" : dataBP[0].invoicerule);
+          InvoiceRule = (DocSubTypeSO.equals("PR") || DocSubTypeSO.equals("WI") ? "I"
+              : dataBP[0].invoicerule);
           DeliveryRule = dataBP[0].deliveryrule;
           if (!dataBP[0].deliveryviarule.equals(""))
             resultado.append(", new Array(\"inpdeliveryviarule\", \"" + dataBP[0].deliveryviarule

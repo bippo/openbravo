@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -55,6 +55,8 @@ public class GenerateInvoicesmanual extends HttpSecureAppServlet {
       String strDateFrom = vars.getGlobalVariable("inpDateFrom", "GenerateInvoicesmanual|DateFrom",
           "");
       String strDateTo = vars.getGlobalVariable("inpDateTo", "GenerateInvoicesmanual|DateTo", "");
+      String strInvDate = vars
+          .getGlobalVariable("inpInvDate", "GenerateInvoicesmanual|invDate", "");
       String strC_BPartner_ID = vars.getGlobalVariable("inpcBpartnerId",
           "GenerateInvoicesmanual|C_BPartner_ID", "");
       String strAD_Org_ID = vars.getGlobalVariable("inpadOrgId",
@@ -62,12 +64,14 @@ public class GenerateInvoicesmanual extends HttpSecureAppServlet {
       String strIncludeTaxes = vars.getGlobalVariable("inpinctaxes",
           "GenerateInvoicesmanual|withtax", "");
       printPageDataSheet(response, vars, strC_BPartner_ID, strAD_Org_ID, strDateFrom, strDateTo,
-          strIncludeTaxes);
+          strIncludeTaxes, strInvDate);
     } else if (vars.commandIn("FIND")) {
       String strDateFrom = vars.getRequestGlobalVariable("inpDateFrom",
           "GenerateInvoicesmanual|DateFrom");
       String strDateTo = vars
           .getRequestGlobalVariable("inpDateTo", "GenerateInvoicesmanual|DateTo");
+      String strInvDate = vars.getRequestGlobalVariable("inpInvDate",
+          "GenerateInvoicesmanual|invDate");
       String strC_BPartner_ID = vars.getRequestGlobalVariable("inpcBpartnerId",
           "GenerateInvoicesmanual|C_BPartner_ID");
       String strAD_Org_ID = vars.getRequestGlobalVariable("inpadOrgId",
@@ -75,9 +79,11 @@ public class GenerateInvoicesmanual extends HttpSecureAppServlet {
       String strIncludeTaxes = vars.getRequestGlobalVariable("inpinctaxes",
           "GenerateInvoicesmanual|withtax");
       printPageDataSheet(response, vars, strC_BPartner_ID, strAD_Org_ID, strDateFrom, strDateTo,
-          strIncludeTaxes);
+          strIncludeTaxes, strInvDate);
     } else if (vars.commandIn("GENERATE")) {
       String strCOrderId = vars.getInStringParameter("inpOrder", IsIDFilter.instance);
+      String strInvDate = vars.getRequestGlobalVariable("inpInvDate",
+          "GenerateInvoicesmanual|invDate");
       if (strCOrderId.equals(""))
         strCOrderId = "('0')";
       GenerateInvoicesmanualData.initUpdate(this);
@@ -87,6 +93,10 @@ public class GenerateInvoicesmanual extends HttpSecureAppServlet {
           vars.getClient(), vars.getOrg());
       PInstanceProcessData.insertPInstanceParam(this, pinstance, "1", "Selection", "Y",
           vars.getClient(), vars.getOrg(), vars.getUser());
+      if (strInvDate != null && !"".equals(strInvDate)) {
+        PInstanceProcessData.insertPInstanceParamDate(this, pinstance, "2", "DateInvoiced",
+            strInvDate, vars.getClient(), vars.getOrg(), vars.getUser());
+      }
       ActionButtonData.process134(this, pinstance);
       PInstanceProcessData[] pinstanceData = PInstanceProcessData.select(this, pinstance);
       OBError myMessage = new OBError();
@@ -104,7 +114,7 @@ public class GenerateInvoicesmanual extends HttpSecureAppServlet {
 
   private void printPageDataSheet(HttpServletResponse response, VariablesSecureApp vars,
       String strC_BPartner_ID, String strAD_Org_ID, String strDateFrom, String strDateTo,
-      String strIncludeTaxes) throws IOException, ServletException {
+      String strIncludeTaxes, String strInvDate) throws IOException, ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: dataSheet");
     response.setContentType("text/html; charset=UTF-8");
@@ -182,6 +192,9 @@ public class GenerateInvoicesmanual extends HttpSecureAppServlet {
     xmlDocument.setParameter("dateTo", strDateTo);
     xmlDocument.setParameter("dateTodisplayFormat", vars.getSessionValue("#AD_SqlDateFormat"));
     xmlDocument.setParameter("dateTosaveFormat", vars.getSessionValue("#AD_SqlDateFormat"));
+    xmlDocument.setParameter("invDate", strInvDate);
+    xmlDocument.setParameter("invDatedisplayFormat", vars.getSessionValue("#AD_SqlDateFormat"));
+    xmlDocument.setParameter("invDatesaveFormat", vars.getSessionValue("#AD_SqlDateFormat"));
     xmlDocument.setParameter("paramBPartnerDescription",
         GenerateInvoicesmanualData.bPartnerDescription(this, strC_BPartner_ID));
     xmlDocument.setParameter("incTaxes", strIncludeTaxes);

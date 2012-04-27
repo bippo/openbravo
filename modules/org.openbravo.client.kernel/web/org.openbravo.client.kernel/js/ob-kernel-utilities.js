@@ -1,4 +1,4 @@
- /*
+/*
  *************************************************************************
  * The contents of this file are subject to the Openbravo  Public  License
  * Version  1.0  (the  "License"),  being   the  Mozilla   Public  License
@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -26,7 +26,7 @@ OB.KernelUtilities = {};
 // Parameters:
 // * {{{msg}}}: Translatable message to show
 // * {{{params}}}: Optional parameters to add to the message
-OB.KernelUtilities.handleUserException = function(msg, params) {
+OB.KernelUtilities.handleUserException = function (msg, params) {
   // todo: make this nice
   OB.I18N.getLabel(msg, params, isc, 'warn');
 };

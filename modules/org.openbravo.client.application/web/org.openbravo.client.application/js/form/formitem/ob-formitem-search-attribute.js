@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -24,12 +24,16 @@ isc.ClassFactory.defineClass('OBPAttributeSearchItem', isc.OBSearchItem);
 isc.OBPAttributeSearchItem.addProperties({
   operator: 'iContains',
 
-  showPicker: function(){
+  showPicker: function () {
     if (this.isDisabled()) {
       return;
     }
-    var parameters = [], index = 0, i = 0, length, propDef, inpName, values;
-    var form = this.form, view = form.view;
+    var parameters = [],
+        index = 0,
+        i = 0,
+        length, propDef, inpName, values;
+    var form = this.form,
+        view = form.view;
     if (this.isFocusable()) {
       this.focusInItem();
     }
@@ -48,5 +52,4 @@ isc.OBPAttributeSearchItem.addProperties({
     parameters[index++] = values.inpmProductId;
     this.openSearchWindow('/info/AttributeSetInstance.html', parameters, this.getValue());
   }
-
 });

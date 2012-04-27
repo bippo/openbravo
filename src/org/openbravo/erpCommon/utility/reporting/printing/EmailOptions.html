@@ -74,7 +74,7 @@
 	
 	function resizeWindow()
 	{
-		popupResizeTo(750, 500);
+		popupResizeTo(750, 550);
 	}
 
 	function doDelete(myId)
@@ -83,6 +83,12 @@
 		submitThisPage('DEL');
 		
 	}
+
+	var toEmailOrig;
+	var ccEmailOrig;
+	var bccEmailOrig;
+	var replyToEmailOrig;
+
 	function onLoadDo(){
     modifyInputFile('inpFile');
 		if (document.getElementById("paramArchive").value == "Y"){
@@ -93,6 +99,25 @@
 		{
 			closeThisPage();
 		}
+
+		toEmailOrig = document.getElementById('toEmailOrig').value;
+		ccEmailOrig = document.getElementById('ccEmailOrig').value;
+		bccEmailOrig = document.getElementById('bccEmailOrig').value;
+		replyToEmailOrig = document.getElementById('replyToEmailOrig').value;
+		manageFieldValueChange('toEmail');
+		manageFieldValueChange('ccEmail');
+		manageFieldValueChange('bccEmail');
+		manageFieldValueChange('replyToEmail');
+
+		if (document.getElementById('ccEmail').value !== '') {
+			document.getElementById('cc').style.display = '';
+			document.getElementById('cc_bottomMargin').style.display = '';
+		}
+		if (document.getElementById('bccEmail').value !== '') {
+			document.getElementById('bcc').style.display = '';
+			document.getElementById('bcc_bottomMargin').style.display = '';
+		}
+
 		this.windowTables = new Array(
 		  new windowTableId('client')
 		);
@@ -116,6 +141,31 @@
 	function onResizeDo(){
 		//resizeArea(); // Removed to avoid double-scroll problems, since the html is not built using 2.50 standards
 	}
+
+	function showMoreFields() {
+		document.getElementById('from').style.display = '';
+		document.getElementById('from_bottomMargin').style.display = '';
+		document.getElementById('cc').style.display = '';
+		document.getElementById('cc_bottomMargin').style.display = '';
+		document.getElementById('bcc').style.display = '';
+		document.getElementById('bcc_bottomMargin').style.display = '';
+		document.getElementById('showMoreFields').style.display = 'none';
+		document.getElementById('showMoreFields_bottomMargin').style.display = 'none';
+	}
+
+	function manageFieldValueChange(field) {
+		var fieldName = field.substring(0, field.length-5)+'Name';
+		if (document.getElementById(field) && document.getElementById(fieldName)) {
+			currentValue = document.getElementById(field).value;
+			originalValue = eval(field + 'Orig');
+			if (originalValue !== currentValue) {
+				document.getElementById(fieldName).style.display = 'none';
+			} else {
+				document.getElementById(fieldName).style.display = '';
+			}
+		}
+	}
+
 	function storeDoc(){
 		if (document.getElementById("paramArchive").value=='' || document.getElementById("paramArchive").value=='N') {
 			document.getElementById("paramArchive").value='Y';
@@ -180,6 +230,11 @@
 	<input type="hidden" name="draftDocumentIds" id="draftDocumentIds" value=""></input>
 	<input type="hidden" name="closed" id="closed" value=""></input>
 	<input type="hidden" name="idToDelete" id="idToDelete" value=""></input>
+
+	<input type="hidden" name="toEmailOrig" id="toEmailOrig" value=""></input>
+	<input type="hidden" name="ccEmailOrig" id="ccEmailOrig" value=""></input>
+	<input type="hidden" name="bccEmailOrig" id="bccEmailOrig" value=""></input>
+	<input type="hidden" name="replyToEmailOrig" id="replyToEmailOrig" value=""></input>
 	
 	
 
@@ -223,41 +278,104 @@
 
 		<table cellspacing="0" cellpadding="0 style="height: 150px; overflow: auto;" class="form_table">
 
-					<tr id="multipleCustomer">
-						<td>
+					<tr id="from" style="display: none;">
+						<td style="width: 1%; text-align: right;">
+							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">From</span>
 						</td>
-						<td class="LabelText"><span id="multCustomer">This email will be sent to </span><span id="multCusCount" name="multCusCount"></span><span id="multCustomer"> customers</span><span id="multSalesRep"> by </span><span id="multSalesRepCount" name="multSalesRepCount" ></span><span id="multSalesRep"> sales reps</span>.</td>
+						<td id="fromEmailArea"colspan="2">
+							<input type="hidden" name="fromEmailId" id="fromEmailId" value=""></input>
+							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
+									class="dojoValidateValid readonly TextBox_btn_TwoCells_width"
+									maxlength="200" name="fromEmail" id="fromEmail" value=""
+									readonly="true"><span class="LabelText" name="fromName" id="fromName" value="" style="padding-left: 10px"></span>
+									
+						</td>
+					</tr>
+					<tr id="from_bottomMargin" style="display: none; height: 8px;">
 					</tr>
 
-					<tr id="customer">
+					<tr id="to">
 						<td style="width: 1%; text-align: right;">
 							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">To</span>
 						</td>
-						<td id="contactEmailArea"colspan="2">
+						<td id="toEmailArea"colspan="2">
 							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
 									class="dojoValidateValid required TextBox_btn_TwoCells_width"
-									maxlength="200" name="contactEmail" id="contactEmail" value=""
-									required="true"><span class="LabelText" name="contactName" id="contactName" value="" style="padding-left: 10px"></span>
+									maxlength="200" name="toEmail" id="toEmail" value=""
+									onkeyup="manageFieldValueChange(this.id);" onchange="manageFieldValueChange(this.id);"
+									required="true"><span class="LabelText" name="toName" id="toName" value="" style="padding-left: 10px"></span>
 									
 						</td>
 					</tr>
-					<tr style="height: 8px">
+					<tr id="to_bottomMargin"style="height: 8px">
 					</tr>
 
-					<tr id="salesRep">
+					<tr id="multipleCustomer">
+						<td>
+						</td>
+						<td class="LabelText"><span id="multCustomer">This email will be sent to </span>&nbsp;<span id="multCusCount" name="multCusCount"></span>&nbsp;<span id="multCustomer"> customers</span><span id="multSalesRep"><span>&nbsp;</span> by <span>&nbsp;</span></span><span id="multSalesRepCount" name="multSalesRepCount" ></span><span id="multSalesRep"><span>&nbsp;</span> sales reps</span>.</td>
+					</tr>
+					<tr id="multipleCustomer_bottomMargin"style="height: 8px">
+					</tr>
+
+					<tr id="cc" style="display: none;">
 						<td style="width: 1%; text-align: right;">
-							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">Reply-to</span>
-						</td>						
-						<td id="salesrepEmailArea" colspan="2">
+							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">CC</span>
+						</td>
+						<td id="ccEmailArea"colspan="2">
 							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
-									class="dojoValidateValid required TextBox_btn_TwoCells_width"
-									maxlength="200" name="salesrepEmail" id="salesrepEmail" value=""
-									required="true"><span class="LabelText" name="salesrepName" id="salesrepName" value="" style="padding-left: 10px"></span>
+									class="dojoValidateValid TextBox_btn_TwoCells_width"
+									maxlength="200" name="ccEmail" id="ccEmail" value=""
+									onkeyup="manageFieldValueChange(this.id);" onchange="manageFieldValueChange(this.id);"
+									><span class="LabelText" name="ccName" id="ccName" value="" style="padding-left: 10px"></span>
 									
 						</td>
 					</tr>
-					<tr style="height: 8px">
-                    </tr>
+					<tr id="cc_bottomMargin" style="display: none; height: 8px;">
+					</tr>
+
+					<tr id="bcc" style="display: none;">
+						<td style="width: 1%; text-align: right;">
+							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">BCC</span>
+						</td>
+						<td id="ccEmailArea"colspan="2">
+							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
+									class="dojoValidateValid TextBox_btn_TwoCells_width"
+									maxlength="200" name="bccEmail" id="bccEmail" value=""
+									onkeyup="manageFieldValueChange(this.id);" onchange="manageFieldValueChange(this.id);"
+									><span class="LabelText" name="bccName" id="bccName" value="" style="padding-left: 10px"></span>
+									
+						</td>
+					</tr>
+					<tr id="bcc_bottomMargin" style="display: none; height: 8px;">
+					</tr>
+
+					<tr id="replyTo">
+						<td style="width: 1%; text-align: right;">
+							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText">Reply-to</span>
+						</td>
+						<td id="replyToEmailArea" colspan="2">
+							<input style="width: 55%;" type="text" dojoType="openbravo:ValidationTextBox"
+									class="dojoValidateValid required TextBox_btn_TwoCells_width"
+									maxlength="200" name="replyToEmail" id="replyToEmail" value=""
+									onkeyup="manageFieldValueChange(this.id);" onchange="manageFieldValueChange(this.id);"
+									required="true"><span class="LabelText" name="replyToName" id="replyToName" value="" style="padding-left: 10px"></span>
+									
+						</td>
+					</tr>
+					<tr id="replyTo_bottomMargin"style="height: 8px">
+					</tr>
+
+					<tr id="showMoreFields">
+						<td style="width: 1%; text-align: right;">
+							<span style="white-space: nowrap; padding-right: 10px;" class="LabelText"></span>
+						</td>
+						<td id="showMoreFieldsArea" class="DataGrid_Body_Cell" style="border: 0; background-color: transparent;" colspan="2">
+							<a href="#" class="LabelLink_noicon" onclick="showMoreFields(); return false;">[ Show More Fields ]</a>
+						</td>
+					</tr>
+					<tr id="showMoreFields_bottomMargin" style="height: 8px">
+					</tr>
 
 					<tr id="emailField03">
 						<td style="width: 1%; text-align: right;">

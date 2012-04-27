@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -34,11 +34,10 @@ isc.OBSEIG_AccountAssociationView.addProperties({
     return result;
   },
 
-  OK_BUTTON: isc.addProperties({},
-    isc.Dialog.OK, {
-      click: function () {
-        this.topElement.cancelClick();
-        top.location.href= OB.Application.contextUrl + 'org.openbravo.service.integration.google/auth.html?is_association=true';
+  OK_BUTTON: isc.addProperties({}, isc.Dialog.OK, {
+    click: function () {
+      this.topElement.cancelClick();
+      top.location.href = OB.Application.contextUrl + 'org.openbravo.service.integration.google/auth.html?is_association=true';
     }
   }),
 
@@ -53,7 +52,7 @@ isc.OBSEIG_AccountAssociationView.addProperties({
       width: '100%'
     });
 
-    if(community) {
+    if (community) {
       this.toolbarButtons = [isc.Dialog.OK];
     } else {
       this.toolbarButtons = [this.OK_BUTTON, isc.Dialog.CANCEL];

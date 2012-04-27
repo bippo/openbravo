@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2001-2011 Openbravo SLU
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -246,9 +246,11 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
     String strFinancialOrgFamily = getFinancialFamily(strTreeOrg, strOrg, vars.getClient());
     String strExistsInitialDate = ReportGeneralLedgerData.yearInitialDate(this,
         vars.getSessionValue("#AD_SqlDateFormat"), strDateFrom,
-        Utility.getContext(this, vars, "#User_Client", "ReportGeneralLedger"), strFinancialOrgFamily);
+        Utility.getContext(this, vars, "#User_Client", "ReportGeneralLedger"),
+        strFinancialOrgFamily);
     String strYearInitialDate = strDateFrom;
-    if (strExistsInitialDate.equals("")) strYearInitialDate = strExistsInitialDate;
+    if (strExistsInitialDate.equals(""))
+      strYearInitialDate = strExistsInitialDate;
     String toDatePlusOne = DateTimeData.nDaysAfter(this, strDateTo, "1");
 
     String strGroupByText = (strGroupBy.equals("BPartner") ? Utility.messageBD(this, "BusPartner",
@@ -312,7 +314,7 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
       // of previous screen, so same sql -but from the beginning of the fiscal year- is executed
 
       ReportGeneralLedgerData[] dataTotal = null;
-      if (data != null && data.length > 1) {
+      if (data != null && data.length >= 1) {
         dataTotal = ReportGeneralLedgerData.select(this, rowNum, strGroupByText, strGroupBy,
             vars.getLanguage(), strDateFrom, toDatePlusOne, strAllaccounts, strcelementvaluefrom,
             strcelementvalueto,
@@ -330,7 +332,6 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
         previousCredit = previousCredit.add(new BigDecimal(dataTotal[i].amtacctcr));
       }
       String strOld = "";
-      int j = 0;
       ReportGeneralLedgerData[] subreportElement = new ReportGeneralLedgerData[1];
       for (int i = 0; data != null && i < data.length; i++) {
         if (!strOld.equals(data[i].groupbyid + data[i].id)) {
@@ -341,18 +342,30 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
             subreportElement[0].totalacctdr = previousDebit.toPlainString();
             subreportElement[0].totalacctcr = previousCredit.toPlainString();
             subreportElement[0].total = previousDebit.subtract(previousCredit).toPlainString();
-          } else
-            subreportElement = ReportGeneralLedgerData.selectTotal(this, strDateFrom,
-                toDatePlusOne, (strGroupBy.equals("BPartner") ? "('" + data[i].groupbyid + "')"
-                    : strcBpartnerId), (strGroupBy.equals("Product") ? "('" + data[i].groupbyid
-                    + "')" : strmProductId), (strGroupBy.equals("Project") ? "('"
-                    + data[i].groupbyid + "')" : strcProjectId), strcAcctSchemaId, data[i].id,
-                strYearInitialDate, strDateFrom, strOrgFamily, strHide);
+          } else {
+            if ("".equals(data[i].groupbyid)) {
+              // The argument " " is used to simulate one value and put the optional parameter-->
+              // AND FACT_ACCT.C_PROJECT_ID IS NULL for example
+              subreportElement = ReportGeneralLedgerData.selectTotal(this, strDateFrom,
+                  toDatePlusOne, null, (strGroupBy.equals("BPartner") ? " " : null), null,
+                  (strGroupBy.equals("Product") ? " " : null), null,
+                  (strGroupBy.equals("Project") ? " " : null), strcAcctSchemaId, data[i].id,
+                  strYearInitialDate, strDateFrom, strOrgFamily, strHide);
+            } else {
+              subreportElement = ReportGeneralLedgerData.selectTotal(this, strDateFrom,
+                  toDatePlusOne, (strGroupBy.equals("BPartner") ? "('" + data[i].groupbyid + "')"
+                      : strcBpartnerId), null, (strGroupBy.equals("Product") ? "('"
+                      + data[i].groupbyid + "')" : strmProductId), null, (strGroupBy
+                      .equals("Project") ? "('" + data[i].groupbyid + "')" : strcProjectId), null,
+                  strcAcctSchemaId, data[i].id, strYearInitialDate, strDateFrom, strOrgFamily,
+                  strHide);
+            }
+          }
           data[i].totalacctdr = subreportElement[0].totalacctdr;
           data[i].totalacctcr = subreportElement[0].totalacctcr;
-          data[i].totalacctsub = subreportElement[0].total;
-          j++;
         }
+        data[i].totalacctsub = subreportElement[0].total;
+
         data[i].previousdebit = subreportElement[0].totalacctdr;
         data[i].previouscredit = subreportElement[0].totalacctcr;
         data[i].previoustotal = subreportElement[0].total;
@@ -364,12 +377,23 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
       for (int i = 0; data != null && i < data.length; i++) {
         if (!strTotal.equals(data[i].groupbyid + data[i].id)) {
           subreportElement = new ReportGeneralLedgerData[1];
-          subreportElement = ReportGeneralLedgerData.selectTotal(this, strDateFrom, toDatePlusOne,
-              (strGroupBy.equals("BPartner") ? "('" + data[i].groupbyid + "')" : strcBpartnerId),
-              (strGroupBy.equals("Product") ? "('" + data[i].groupbyid + "')" : strmProductId),
-              (strGroupBy.equals("Project") ? "('" + data[i].groupbyid + "')" : strcProjectId),
-              strcAcctSchemaId, data[i].id, strYearInitialDate, toDatePlusOne, strOrgFamily,
-              strHide);
+          if ("".equals(data[i].groupbyid)) {
+            // The argument " " is used to simulate one value and put the optional parameter--> AND
+            // FACT_ACCT.C_PROJECT_ID IS NULL for example
+            subreportElement = ReportGeneralLedgerData.selectTotal(this, strDateFrom,
+                toDatePlusOne, null, (strGroupBy.equals("BPartner") ? " " : null), null,
+                (strGroupBy.equals("Product") ? " " : null), null,
+                (strGroupBy.equals("Project") ? " " : null), strcAcctSchemaId, data[i].id,
+                strYearInitialDate, toDatePlusOne, strOrgFamily, strHide);
+          } else {
+            subreportElement = ReportGeneralLedgerData.selectTotal(this, strDateFrom,
+                toDatePlusOne, (strGroupBy.equals("BPartner") ? "('" + data[i].groupbyid + "')"
+                    : strcBpartnerId), null, (strGroupBy.equals("Product") ? "('"
+                    + data[i].groupbyid + "')" : strmProductId), null, (strGroupBy
+                    .equals("Project") ? "('" + data[i].groupbyid + "')" : strcProjectId), null,
+                strcAcctSchemaId, data[i].id, strYearInitialDate, toDatePlusOne, strOrgFamily,
+                strHide);
+          }
           g++;
         }
         data[i].finaldebit = subreportElement[0].totalacctdr;
@@ -477,9 +501,9 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
       if (strExistsInitialDate.equals("") && vars.commandIn("FIND")) {
         xmlDocument.setParameter("messageType", "WARNING");
         xmlDocument.setParameter("messageTitle",
-           Utility.messageBD(this, "ProcessStatus-W", vars.getLanguage()));
+            Utility.messageBD(this, "ProcessStatus-W", vars.getLanguage()));
         xmlDocument.setParameter("messageMessage",
-           Utility.messageBD(this, "InitialDateNotFoundCalendar", vars.getLanguage()));
+            Utility.messageBD(this, "InitialDateNotFoundCalendar", vars.getLanguage()));
       }
       if (strGroupBy.equals(""))
         xmlDocument.setData("structure1", data);
@@ -525,8 +549,10 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
     String strFinancialOrgFamily = getFinancialFamily(strTreeOrg, strOrg, vars.getClient());
     String strYearInitialDate = ReportGeneralLedgerData.yearInitialDate(this,
         vars.getSessionValue("#AD_SqlDateFormat"), strDateFrom,
-        Utility.getContext(this, vars, "#User_Client", "ReportGeneralLedger"), strFinancialOrgFamily);
-    if (strYearInitialDate.equals("")) strYearInitialDate = strDateFrom;
+        Utility.getContext(this, vars, "#User_Client", "ReportGeneralLedger"),
+        strFinancialOrgFamily);
+    if (strYearInitialDate.equals(""))
+      strYearInitialDate = strDateFrom;
     String toDatePlusOne = DateTimeData.nDaysAfter(this, strDateTo, "1");
 
     String strGroupByText = (strGroupBy.equals("BPartner") ? Utility.messageBD(this, "BusPartner",
@@ -565,12 +591,23 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
       subreport = new ReportGeneralLedgerData[data.length];
       for (int i = 0; data != null && i < data.length; i++) {
         if (!strOld.equals(data[i].groupbyid + data[i].id)) {
-          subreport = ReportGeneralLedgerData.selectTotal(this, strDateFrom, DateTimeData
-              .nDaysAfter(this, strDateTo, "1"), (strGroupBy.equals("BPartner") ? "('"
-              + data[i].groupbyid + "')" : strcBpartnerId), (strGroupBy.equals("Product") ? "('"
-              + data[i].groupbyid + "')" : strmProductId), (strGroupBy.equals("Project") ? "('"
-              + data[i].groupbyid + "')" : strcProjectId), strcAcctSchemaId, data[i].id,
-              strYearInitialDate, strDateFrom, strOrgFamily, strHide);
+          if ("".equals(data[i].groupbyid)) {
+            // The argument " " is used to simulate one value and put the optional parameter--> AND
+            // FACT_ACCT.C_PROJECT_ID IS NULL for example
+            subreport = ReportGeneralLedgerData.selectTotal(this, strDateFrom, DateTimeData
+                .nDaysAfter(this, strDateTo, "1"), null, (strGroupBy.equals("BPartner") ? " "
+                : null), null, (strGroupBy.equals("Product") ? " " : null), null, (strGroupBy
+                .equals("Project") ? " " : null), strcAcctSchemaId, data[i].id, strYearInitialDate,
+                strDateFrom, strOrgFamily, strHide);
+          } else {
+            subreport = ReportGeneralLedgerData.selectTotal(this, strDateFrom, DateTimeData
+                .nDaysAfter(this, strDateTo, "1"), (strGroupBy.equals("BPartner") ? "('"
+                + data[i].groupbyid + "')" : strcBpartnerId), null,
+                (strGroupBy.equals("Product") ? "('" + data[i].groupbyid + "')" : strmProductId),
+                null, (strGroupBy.equals("Project") ? "('" + data[i].groupbyid + "')"
+                    : strcProjectId), null, strcAcctSchemaId, data[i].id, strYearInitialDate,
+                strDateFrom, strOrgFamily, strHide);
+          }
           totalDebit = BigDecimal.ZERO;
           totalCredit = BigDecimal.ZERO;
           subTotal = BigDecimal.ZERO;
@@ -627,8 +664,10 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
     String strFinancialOrgFamily = getFinancialFamily(strTreeOrg, strOrg, vars.getClient());
     String strYearInitialDate = ReportGeneralLedgerData.yearInitialDate(this,
         vars.getSessionValue("#AD_SqlDateFormat"), strDateFrom,
-        Utility.getContext(this, vars, "#User_Client", "ReportGeneralLedger"), strFinancialOrgFamily);
-    if (strYearInitialDate.equals("")) strYearInitialDate = strDateFrom;
+        Utility.getContext(this, vars, "#User_Client", "ReportGeneralLedger"),
+        strFinancialOrgFamily);
+    if (strYearInitialDate.equals(""))
+      strYearInitialDate = strDateFrom;
     String toDatePlusOne = DateTimeData.nDaysAfter(this, strDateTo, "1");
 
     String strAllaccounts = "Y";
@@ -681,8 +720,8 @@ public class ReportGeneralLedger extends HttpSecureAppServlet {
   private String getFinancialFamily(String strTree, String strChild, String strClientId)
       throws IOException, ServletException {
     log4j.debug("Tree.getFinancialMembers");
-    ReportGeneralLedgerData[] data = ReportGeneralLedgerData
-        .getFinancialOrgs(this, strTree, strChild, strClientId);
+    ReportGeneralLedgerData[] data = ReportGeneralLedgerData.getFinancialOrgs(this, strTree,
+        strChild, strClientId);
 
     boolean bolFirstLine = true;
     String strText = "";

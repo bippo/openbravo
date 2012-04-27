@@ -11,11 +11,12 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
+
 // = Openbravo Number Utilities =
 // Defines utility methods related to handling numbers on the client, for 
 // example formatting. 
@@ -30,7 +31,7 @@ OB.Utilities.Number = {};
 // * {{{dec}}}: the JS number of decimals
 // Return:
 // * The rounded JS number
-OB.Utilities.Number.roundJSNumber = function(/* Number */num, /* Number */ dec){
+OB.Utilities.Number.roundJSNumber = function (num, dec) {
   var result = Math.round(num * Math.pow(10, dec)) / Math.pow(10, dec);
   return result;
 };
@@ -45,16 +46,16 @@ OB.Utilities.Number.roundJSNumber = function(/* Number */num, /* Number */ dec){
 // * {{{groupSeparator}}}: the group separator of the OB number
 // Return:
 // * The plain OB number
-OB.Utilities.Number.OBMaskedToOBPlain = function(/* String */number, /* String */ decSeparator, /* String */ groupSeparator){
+OB.Utilities.Number.OBMaskedToOBPlain = function (number, decSeparator, groupSeparator) {
   number = number.toString();
   var plainNumber = number;
-  
+
   // Remove group separators
   if (groupSeparator) {
     var groupRegExp = new RegExp('\\' + groupSeparator, 'g');
     plainNumber = plainNumber.replace(groupRegExp, '');
   }
-  
+
   // Catch sign
   var numberSign = '';
   if (plainNumber.substring(0, 1) === '+') {
@@ -64,31 +65,29 @@ OB.Utilities.Number.OBMaskedToOBPlain = function(/* String */number, /* String *
     numberSign = '-';
     plainNumber = plainNumber.substring(1, number.length);
   }
-  
+
   // Remove ending decimal '0'
   if (plainNumber.indexOf(decSeparator) !== -1) {
     while (plainNumber.substring(plainNumber.length - 1, plainNumber.length) === '0') {
       plainNumber = plainNumber.substring(0, plainNumber.length - 1);
     }
   }
-  
+
   // Remove starting integer '0'
-  while (plainNumber.substring(0, 1) === '0' &&
-  plainNumber.substring(1, 2) !== decSeparator &&
-  plainNumber.length > 1) {
+  while (plainNumber.substring(0, 1) === '0' && plainNumber.substring(1, 2) !== decSeparator && plainNumber.length > 1) {
     plainNumber = plainNumber.substring(1, plainNumber.length);
   }
-  
+
   // Remove decimal separator if is the last character
   if (plainNumber.substring(plainNumber.length - 1, plainNumber.length) === decSeparator) {
     plainNumber = plainNumber.substring(0, plainNumber.length - 1);
   }
-  
+
   // Re-set sign
   if (plainNumber !== '0') {
     plainNumber = numberSign + plainNumber;
   }
-  
+
   // Return plain number
   return plainNumber;
 };
@@ -106,19 +105,16 @@ OB.Utilities.Number.OBMaskedToOBPlain = function(/* String */number, /* String *
 // * {{{groupInterval}}}: The group interval of the OB number
 // Return:
 // * The OB formatted number.
-OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String */ maskNumeric, /* String */ decSeparator, /* String */ groupSeparator, /* String */ groupInterval){
+OB.Utilities.Number.OBPlainToOBMasked = function (number, maskNumeric, decSeparator, groupSeparator, groupInterval) {
   if (number === '' || number === null || number === undefined) {
     return number;
   }
-  
+
   // Management of the mask
   if (maskNumeric.indexOf('+') === 0 || maskNumeric.indexOf('-') === 0) {
     maskNumeric = maskNumeric.substring(1, maskNumeric.length);
   }
-  if (groupSeparator && maskNumeric.indexOf(groupSeparator) !== -1 &&
-  maskNumeric.indexOf(decSeparator) !== -1 &&
-  maskNumeric.indexOf(groupSeparator) >
-  maskNumeric.indexOf(decSeparator)) {
+  if (groupSeparator && maskNumeric.indexOf(groupSeparator) !== -1 && maskNumeric.indexOf(decSeparator) !== -1 && maskNumeric.indexOf(groupSeparator) > maskNumeric.indexOf(decSeparator)) {
     var fixRegExp = new RegExp('\\' + groupSeparator, 'g');
     maskNumeric = maskNumeric.replace(fixRegExp, '');
   }
@@ -129,9 +125,8 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
   }
   var intMask = maskNumeric.substring(0, decMaskPosition);
   var decMask = maskNumeric.substring(decMaskPosition + 1, maskLength);
-  
-  if ((groupSeparator && decMask.indexOf(groupSeparator) !== -1) ||
-      decMask.indexOf(decSeparator) !== -1) {
+
+  if ((groupSeparator && decMask.indexOf(groupSeparator) !== -1) || decMask.indexOf(decSeparator) !== -1) {
     if (groupSeparator) {
       var fixRegExp_1 = new RegExp('\\' + groupSeparator, 'g');
       decMask = decMask.replace(fixRegExp_1, '');
@@ -139,7 +134,7 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
     var fixRegExp_2 = new RegExp('\\' + decSeparator, 'g');
     decMask = decMask.replace(fixRegExp_2, '');
   }
-  
+
   // Management of the number
   number = number.toString();
   number = OB.Utilities.Number.OBMaskedToOBPlain(number, decSeparator, groupSeparator);
@@ -151,7 +146,7 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
     numberSign = '-';
     number = number.substring(1, number.length);
   }
-  
+
   // //Splitting the number
   var formattedNumber = '';
   var numberLength = number.length;
@@ -161,7 +156,7 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
   }
   var intNumber = number.substring(0, decPosition);
   var decNumber = number.substring(decPosition + 1, numberLength);
-  
+
   // //Management of the decimal part
   if (decNumber.length > decMask.length) {
     decNumber = '0.' + decNumber;
@@ -174,10 +169,11 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
     }
     decNumber = decNumber.substring(2, decNumber.length);
   }
-  
+
   if (decNumber.length < decMask.length) {
     var decNumber_temp = '',
-        decMaskLength = decMask.length, i;
+        decMaskLength = decMask.length,
+        i;
     for (i = 0; i < decMaskLength; i++) {
       if (decMask.substring(i, i + 1) === '#') {
         if (decNumber.substring(i, i + 1) !== '') {
@@ -193,10 +189,10 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
     }
     decNumber = decNumber_temp;
   }
-  
+
   // Management of the integer part
   var isGroup = false;
-  
+
   if (groupSeparator) {
     if (intMask.indexOf(groupSeparator) !== -1) {
       isGroup = true;
@@ -209,17 +205,16 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
   var intNumber_temp;
   if (intNumber.length < intMask.length) {
     intNumber_temp = '';
-    var diff = intMask.length - intNumber.length, j;
+    var diff = intMask.length - intNumber.length,
+        j;
     for (j = intMask.length; j > 0; j--) {
       if (intMask.substring(j - 1, j) === '#') {
         if (intNumber.substring(j - 1 - diff, j - diff) !== '') {
-          intNumber_temp = intNumber.substring(j - 1 - diff, j - diff) +
-          intNumber_temp;
+          intNumber_temp = intNumber.substring(j - 1 - diff, j - diff) + intNumber_temp;
         }
       } else if (intMask.substring(j - 1, j) === '0') {
         if (intNumber.substring(j - 1 - diff, j - diff) !== '') {
-          intNumber_temp = intNumber.substring(j - 1 - diff, j - diff) +
-          intNumber_temp;
+          intNumber_temp = intNumber.substring(j - 1 - diff, j - diff) + intNumber_temp;
         } else {
           intNumber_temp = '0' + intNumber_temp;
         }
@@ -230,24 +225,24 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
 
   if (isGroup === true) {
     intNumber_temp = '';
-    var groupCounter = 0, k;
+    var groupCounter = 0,
+        k;
     for (k = intNumber.length; k > 0; k--) {
       intNumber_temp = intNumber.substring(k - 1, k) + intNumber_temp;
       groupCounter++;
-      if (groupCounter.toString() === groupInterval.toString() &&
-      k !== 1) {
+      if (groupCounter.toString() === groupInterval.toString() && k !== 1) {
         groupCounter = 0;
         intNumber_temp = groupSeparator + intNumber_temp;
       }
     }
     intNumber = intNumber_temp;
   }
-  
+
   // Building the final number
   if (intNumber === '' && decNumber !== '') {
     intNumber = '0';
   }
-  
+
   formattedNumber = numberSign + intNumber;
   if (decNumber !== '') {
     formattedNumber += decSeparator + decNumber;
@@ -266,7 +261,7 @@ OB.Utilities.Number.OBPlainToOBMasked = function(/* Number */number, /* String *
 // * {{{groupSeparator}}}: The group separator of the OB number
 // Return:
 // * The JS number.
-OB.Utilities.Number.OBMaskedToJS = function(numberStr, decSeparator, groupSeparator){
+OB.Utilities.Number.OBMaskedToJS = function (numberStr, decSeparator, groupSeparator) {
   if (!numberStr || numberStr.trim() === '') {
     return null;
   }
@@ -292,7 +287,7 @@ OB.Utilities.Number.OBMaskedToJS = function(numberStr, decSeparator, groupSepara
 // * {{{groupInterval}}}: The group interval of the OB number
 // Return:
 // * The OB formatted number.
-OB.Utilities.Number.JSToOBMasked = function(number, maskNumeric, decSeparator, groupSeparator, groupInterval){
+OB.Utilities.Number.JSToOBMasked = function (number, maskNumeric, decSeparator, groupSeparator, groupInterval) {
   if (!isc.isA.Number(number)) {
     return number;
   }
@@ -303,19 +298,19 @@ OB.Utilities.Number.JSToOBMasked = function(number, maskNumeric, decSeparator, g
   return formattedNumber;
 };
 
-OB.Utilities.Number.IsValidValueString = function(type, numberStr){
+OB.Utilities.Number.IsValidValueString = function (type, numberStr) {
   var maskNumeric = type.maskNumeric;
   // note 0 is also okay to return true
   if (!numberStr) {
     return true;
   }
-  
+
   var bolNegative = true;
   if (maskNumeric.indexOf('+') === 0) {
     bolNegative = false;
     maskNumeric = maskNumeric.substring(1, maskNumeric.length);
   }
-  
+
   var bolDecimal = true;
   if (maskNumeric.indexOf(type.decSeparator) === -1) {
     bolDecimal = false;

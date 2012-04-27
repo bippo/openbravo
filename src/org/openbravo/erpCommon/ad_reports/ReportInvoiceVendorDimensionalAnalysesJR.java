@@ -1,5 +1,4 @@
 /*
- * 
  * The contents of this file are subject to the Openbravo Public License Version
  * 1.0 (the "License"), being the Mozilla Public License Version 1.1 with a
  * permitted attribution clause; you may not use this file except in compliance
@@ -9,7 +8,7 @@
  * either express or implied. See the License for the specific language
  * governing rights and limitations under the License. The Original Code is
  * Openbravo ERP. The Initial Developer of the Original Code is Openbravo SLU All
- * portions are Copyright (C) 2001-2010 Openbravo SLU All Rights Reserved.
+ * portions are Copyright (C) 2001-2012 Openbravo SLU All Rights Reserved.
  * Contributor(s): ______________________________________.
  */
 
@@ -514,33 +513,36 @@ public class ReportInvoiceVendorDimensionalAnalysesJR extends HttpSecureAppServl
       }
     }
     strConvRateErrorMsg = myMessage.getMessage();
+
     // If a conversion rate is missing for a certain transaction, an error
     // message window pops-up.
     if (!strConvRateErrorMsg.equals("") && strConvRateErrorMsg != null) {
       advisePopUp(request, response, "ERROR",
           Utility.messageBD(this, "NoConversionRateHeader", vars.getLanguage()),
           strConvRateErrorMsg);
-    } else { // Otherwise, the report is launched
+    } else {
       String strReportPath = "";
       if (strComparative.equals("Y")) {
         strReportPath = "@basedesign@/org/openbravo/erpCommon/ad_reports/SimpleDimensionalComparative.jrxml";
       } else {
         strReportPath = "@basedesign@/org/openbravo/erpCommon/ad_reports/SimpleDimensionalNoComparative.jrxml";
       }
-      if (data.length == 0 || data == null) {
-        data = ReportInvoiceVendorDimensionalAnalysesJRData.set();
+      if (data == null || data.length == 0) {
+        advisePopUp(request, response, "WARNING",
+            Utility.messageBD(this, "ProcessStatus-W", vars.getLanguage()),
+            Utility.messageBD(this, "NoDataFound", vars.getLanguage()));
+      } else {
+        HashMap<String, Object> parameters = new HashMap<String, Object>();
+        parameters.put("LEVEL1_LABEL", strLevelLabel[0]);
+        parameters.put("LEVEL2_LABEL", strLevelLabel[1]);
+        parameters.put("LEVEL3_LABEL", strLevelLabel[2]);
+        parameters.put("LEVEL4_LABEL", strLevelLabel[3]);
+        parameters.put("LEVEL5_LABEL", strLevelLabel[4]);
+        parameters.put("DIMENSIONS", new Integer(intDiscard));
+        parameters.put("REPORT_SUBTITLE", strTitle);
+        parameters.put("PRODUCT_LEVEL", new Integer(intProductLevel));
+        renderJR(vars, response, strReportPath, strOutput, parameters, data, null);
       }
-
-      HashMap<String, Object> parameters = new HashMap<String, Object>();
-      parameters.put("LEVEL1_LABEL", strLevelLabel[0]);
-      parameters.put("LEVEL2_LABEL", strLevelLabel[1]);
-      parameters.put("LEVEL3_LABEL", strLevelLabel[2]);
-      parameters.put("LEVEL4_LABEL", strLevelLabel[3]);
-      parameters.put("LEVEL5_LABEL", strLevelLabel[4]);
-      parameters.put("DIMENSIONS", new Integer(intDiscard));
-      parameters.put("REPORT_SUBTITLE", strTitle);
-      parameters.put("PRODUCT_LEVEL", new Integer(intProductLevel));
-      renderJR(vars, response, strReportPath, strOutput, parameters, data, null);
     }
   }
 

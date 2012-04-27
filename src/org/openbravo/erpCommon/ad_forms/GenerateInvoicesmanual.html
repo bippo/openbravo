@@ -13,7 +13,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -60,18 +60,48 @@ function validate(action) {
   var frm=document.frmMain;
   if (action=="GENERATE") {
     if (radioValue(frm.inpOrder)==null) {
-    showJSMessage(1);
-    return false;
+      showJSMessage(1);
+      return false;
+    }
+    dateField = document.getElementById('paramInvDate');
+    if (dateField.value!=null && dateField.value!="" && !isValidDate(dateField.value, dateField.getAttribute('displayFormat'))) {
+      setWindowElementFocus(dateField);
+      showJSMessage(5);
+      return false;
     }
     setProcessingMode('window', true);
   } else if (action=="FIND") {
     if (frm.inpadOrgId.value==null || frm.inpadOrgId.value=="") {
-    setWindowElementFocus(frm.inpadOrgId);
-    showJSMessage(7);
-    return false;
+      setWindowElementFocus(frm.inpadOrgId);
+      showJSMessage(7);
+      return false;
+    }
+    dateField = document.getElementById('paramDateFrom');
+    if (dateField.value!=null && dateField.value!="" && !isValidDate(dateField.value, dateField.getAttribute('displayFormat'))) {
+      setWindowElementFocus(dateField);
+      showJSMessage(5);
+      return false;
+    }
+    dateField = document.getElementById('paramDateTo');
+    if (dateField.value!=null && dateField.value!="" && !isValidDate(dateField.value, dateField.getAttribute('displayFormat'))) {
+      setWindowElementFocus(dateField);
+      showJSMessage(5);
+      return false;
     }
   }
   return true;
+}
+
+function sendForm(action) {
+	if (!validate(action)) {
+      return false;
+	}
+	if (action==('FIND')){
+	  submitCommandForm('FIND', true);
+	}
+    if (action==('GENERATE')){
+      submitCommandForm('GENERATE', true, null, null, null, true);
+	}
 }
 </script>
 	<script language="JavaScript" type="text/javascript">
@@ -330,7 +360,7 @@ function validate(action) {
                 </tr>             
                 <tr>
                   <td class="TitleCell">
-                    <SPAN class="LabelText">Lines include taxes</SPAN>
+                    <SPAN class="LabelText">Lines Include Taxes</SPAN>
                   </td>
                   <td class="Radio_Check_ContentCell">
                     <SPAN class="Checkbox_container_Focused">
@@ -347,7 +377,7 @@ function validate(action) {
                       <button type="button" 
                         id="buttonSearch" 
                         class="ButtonLink" 
-                        onclick="submitCommandForm('FIND', true);return false;" 
+                        onclick="sendForm('FIND');return false;" 
                         onfocus="buttonEvent('onfocus', this); window.status='Search'; return true;" 
                         onblur="buttonEvent('onblur', this);" 
                         onkeyup="buttonEvent('onkeyup', this);" 
@@ -429,22 +459,46 @@ function validate(action) {
         </div>
             <div >
              <div class="Main_ContentPane_Client" style="overflow: auto; border-top: 0px none;" id="tdbottomButtons">
-              <table class="Main_Client_TableEdition" cellspacing="0" cellpadding="0" style="width: 435px">
+              <table class="Main_Client_TableEdition" cellspacing="0" cellpadding="0">
                 <tr>
                   <td class="TableEdition_OneCell_width"></td>
                   <td class="TableEdition_OneCell_width"></td>
                   <td class="TableEdition_OneCell_width"></td>
-
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
+                  <td class="TableEdition_OneCell_width"></td>
                 </tr>
 
                 <tr>
-                  <td></td>
+                  <td class="TitleCell"><span class="LabelText">Invoice Date</span></td>
+                  <td class="TextBox_btn_ContentCell">
+                    <table border="0" cellspacing="0" cellpadding="0" summary=""  style="padding-top: 0px;">
+                      <tr>
+                        <td class="TextBox_ContentCell">
+                          <input dojoType="openbravo:DateTextbox" displayFormat="xx" saveFormat="yy"  class="TextBox_btn_OneCell_width" type="text" name="inpInvDate" id="paramInvDate" size="10" maxlength="10" value="" onkeyup="autoCompleteDate(this.textbox, this.displayFormat);return true;"></input><script>djConfig.searchIds.push("paramInvDate");</script>
+                        </td>
+                        <td class="FieldButton_ContentCell">
+                          <a class="FieldButtonLink" href="#" onfocus="setWindowElementFocus(this); window.status='Calendar'; return true;" onblur="window.status=''; return true;" onkeypress="this.className='FieldButtonLink_active'; return true;" onkeyup="this.className='FieldButtonLink_focus'; return true;"  onclick="showCalendar('frmMain.inpInvDate', document.frmMain.inpInvDate.value, false);return false;">
+                          <table class="FieldButton" onmouseout="this.className='FieldButton';window.status='';return true;" onmouseover="this.className='FieldButton_hover';window.status='Show calendar';return true;" onmousedown="this.className='FieldButton_active';return true;" onmouseup="this.className='FieldButton';return true;">
+                            <tr>
+                              <td class="FieldButton_bg">
+                                <img alt="Calendar" class="FieldButton_Icon FieldButton_Icon_Calendar" title="Calendar" src="../../../../../web/images/blank.gif" border="0"></img>
+                              </td>
+                            </tr>
+                          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td class="TitleCell"></td>
+                  <td class="ContentCell"></td>
                   <td class="Button_LeftAlign_ContentCell">
                     <div>
                       <button type="button"
                         id="buttonProcess"
                         class="ButtonLink" 
-                        onclick="submitCommandForm('GENERATE', true, null, null, null, true);return false;"
+                        onclick="sendForm('GENERATE'); return false;"
                         onfocus="buttonEvent('onfocus', this); window.status='Process'; return true;"
                         onblur="buttonEvent('onblur', this);"
                         onkeyup="buttonEvent('onkeyup', this);"
@@ -464,10 +518,6 @@ function validate(action) {
                       </button>
                     </div>
                   </td>
-                  <td class="TitleCell"></td>
-                  <td class="ContentCell"></td>
-                  <td class="TitleCell"></td>
-                  <td class="ContentCell"></td>
                 </tr>
               </table>
             </div>

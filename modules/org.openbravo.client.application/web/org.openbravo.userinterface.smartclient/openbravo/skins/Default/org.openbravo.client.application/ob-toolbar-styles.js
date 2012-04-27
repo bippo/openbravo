@@ -11,11 +11,11 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
-*/
+ */
 
 isc.OBToolbar.addProperties({
   width: '100%',
@@ -29,7 +29,7 @@ isc.OBToolbar.addProperties({
 isc.OBToolbarIconButton.addProperties({
   width: 30,
   height: 28,
-  menuButtonImage: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/toolbar/iconButton-menu-unfold.png'  /** There is a CSS hack to avoid showing it when no menu available. this.menuButtonImage inside initWidget doesn't run **/
+  menuButtonImage: OB.Styles.skinsPath + 'Default/org.openbravo.client.application/images/toolbar/iconButton-menu-unfold.png' /** There is a CSS hack to avoid showing it when no menu available. this.menuButtonImage inside initWidget doesn't run **/
 });
 
 isc.OBToolbarTextButton.addProperties({

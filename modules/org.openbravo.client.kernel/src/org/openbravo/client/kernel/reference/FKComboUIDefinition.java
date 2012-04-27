@@ -46,11 +46,6 @@ public class FKComboUIDefinition extends ForeignKeyUIDefinition {
     JSONObject value;
     try {
       value = new JSONObject(super.getFieldProperties(field, getValueFromSession));
-      if (!getSafeBoolean(field.isDisplayed()) && !getSafeBoolean(field.isShowInGridView())
-          && !getSafeBoolean(field.isShownInStatusBar())
-          && field.getColumn().getDefaultValue() == null && !field.getColumn().isMandatory()) {
-        return value.toString();
-      }
       return getValueInComboReference(field, getValueFromSession, value.getString("classicValue"));
     } catch (JSONException e) {
       throw new OBException("Error while computing combo data", e);

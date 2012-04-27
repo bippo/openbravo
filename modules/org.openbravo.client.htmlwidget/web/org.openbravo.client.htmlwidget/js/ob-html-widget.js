@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -23,12 +23,12 @@
 isc.defineClass('OBHTMLWidget', isc.OBWidget).addProperties({
   contentSource: null,
 
-  initWidget: function(){
+  initWidget: function () {
     this.Super('initWidget', arguments);
     this.setWidgetHeight();
   },
 
-  createWindowContents: function(){
+  createWindowContents: function () {
     if (!this.contentSource && this.parameters.htmlcode) {
       this.contentSource = this.evaluateContents(this.parameters.htmlcode);
     }
@@ -42,7 +42,7 @@ isc.defineClass('OBHTMLWidget', isc.OBWidget).addProperties({
     });
   },
 
-  refresh: function(){
+  refresh: function () {
     this.setWidgetHeight();
     if (this.parameters.widgetTitle) {
       this.setTitle(this.parameters.widgetTitle);
@@ -53,15 +53,17 @@ isc.defineClass('OBHTMLWidget', isc.OBWidget).addProperties({
     this.windowContents.contents = this.contentSource;
   },
 
-  setWidgetHeight: function (){
-    if (!isc.isA.Number(this.parameters.widgetHeight)) {
-      return;
-    }
+  setWidgetHeight: function () {
     var currentHeight = this.getHeight(),
         contentHeight = this.parameters.widgetHeight,
         edgeTop = this.edgeTop,
         edgeBottom = this.edgeBottom,
         newHeight = contentHeight + edgeTop + edgeBottom;
+
+    if (!isc.isA.Number(this.parameters.widgetHeight)) {
+      return;
+    }
+
     this.setHeight(newHeight);
     if (this.parentElement) {
       var heightDiff = newHeight - currentHeight,

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -58,6 +58,7 @@ import org.openbravo.model.ad.system.SystemInformation;
 import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.enterprise.Warehouse;
 import org.openbravo.service.db.DalConnectionProvider;
+import org.openbravo.service.json.JsonConstants;
 import org.openbravo.utils.FormatUtilities;
 
 /**
@@ -160,9 +161,13 @@ public class UserInfoWidgetActionHandler extends BaseActionHandler {
     final List<Role> roles = getRoles(parameters);
     final List<Role> sortedRoles = new ArrayList<Role>(roles);
     DalUtil.sortByIdentifier(sortedRoles);
-    final JSONObject valueMap = new JSONObject();
+    final JSONArray valueMap = new JSONArray();
     for (Role role : sortedRoles) {
-      valueMap.put(role.getId(), role.getIdentifier() + " - " + role.getClient().getIdentifier());
+      final JSONObject valueMapItem = new JSONObject();
+      valueMapItem.put(JsonConstants.ID, role.getId());
+      valueMapItem.put(JsonConstants.IDENTIFIER, role.getIdentifier() + " - "
+          + role.getClient().getIdentifier());
+      valueMap.put(valueMapItem);
     }
     formItemInfo.put("valueMap", valueMap);
 
@@ -177,9 +182,12 @@ public class UserInfoWidgetActionHandler extends BaseActionHandler {
 
       // now set the organizations
       final List<Organization> orgs = getOrganizations(role.getId());
-      final JSONObject orgValueMap = new JSONObject();
+      final JSONArray orgValueMap = new JSONArray();
       for (Organization org : orgs) {
-        orgValueMap.put(org.getId(), org.getIdentifier());
+        final JSONObject orgValueMapItem = new JSONObject();
+        orgValueMapItem.put(JsonConstants.ID, org.getId());
+        orgValueMapItem.put(JsonConstants.IDENTIFIER, org.getIdentifier());
+        orgValueMap.put(orgValueMapItem);
       }
       jsonRole.put("organizationValueMap", orgValueMap);
       jsonRole.put("warehouseOrgMap", getWarehouses(role.getClient().getId()));
@@ -254,15 +262,17 @@ public class UserInfoWidgetActionHandler extends BaseActionHandler {
     return initialValues;
   }
 
-  private JSONObject createValueMapObject(List<? extends BaseOBObject> objects)
-      throws JSONException {
+  private JSONArray createValueMapObject(List<? extends BaseOBObject> objects) throws JSONException {
     // sort the list by their identifier
     DalUtil.sortByIdentifier(objects);
-    final JSONObject jsonObject = new JSONObject();
+    final JSONArray jsonArray = new JSONArray();
     for (BaseOBObject bob : objects) {
-      jsonObject.append((String) bob.getId(), bob.getIdentifier());
+      final JSONObject jsonArrayItem = new JSONObject();
+      jsonArrayItem.put(JsonConstants.ID, (String) bob.getId());
+      jsonArrayItem.put(JsonConstants.IDENTIFIER, (String) bob.getIdentifier());
+      jsonArray.put(jsonArrayItem);
     }
-    return jsonObject;
+    return jsonArray;
   }
 
   protected List<Role> getRoles(Map<String, Object> parameters) {

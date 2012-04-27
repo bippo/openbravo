@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -25,14 +25,15 @@ isc.ClassFactory.mixInInterface('OBFKItem', 'OBLinkTitleItem');
 
 isc.OBFKItem.addProperties({
   operator: 'iContains',
-  
+
   // set the identifier field also, that's what gets displayed in the grid
   changed: function (form, item, value) {
     if (!this._pickedValue && value) {
       return;
     }
 
-    var display = this.mapValueToDisplay(value), identifierFieldName = this.name + '.' + OB.Constants.IDENTIFIER;
+    var display = this.mapValueToDisplay(value),
+        identifierFieldName = this.name + '.' + OB.Constants.IDENTIFIER;
     form.setValue(identifierFieldName, display);
     // make sure that the grid does not display the old identifier
     if (form.grid) {
@@ -41,4 +42,3 @@ isc.OBFKItem.addProperties({
     return this.Super('changed', arguments);
   }
 });
-

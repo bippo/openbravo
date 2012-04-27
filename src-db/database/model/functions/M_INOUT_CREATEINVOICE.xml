@@ -93,6 +93,7 @@
       v_PriceActual NUMBER;
       v_PriceLimit NUMBER;
       --
+      v_taxBaseAmt NUMBER;
       v_LineNetAmt NUMBER;
       v_TotalNet NUMBER;
       -- v_Offer_ID       varchar2(32);
@@ -256,6 +257,14 @@
                 v_c_Tax_ID
               FROM C_ORDERLINE
               WHERE C_OrderLine_ID=CUR_ShipmentLines.C_OrderLine_ID;
+
+	   -- Get Tax Base Amount
+	      SELECT COALESCE(co.taxbaseamt,0) * C_DIVIDE((l.MovementQty-SUM(COALESCE(mi.Qty,0))),COALESCE(co.qtyordered,1)) as taxbaseamt
+	      INTO v_taxBaseAmt
+	      FROM M_INOUTLINE l left join M_MATCHINV mi on l.M_InOutLine_ID=mi.M_InOutLine_ID
+                left join C_ORDERLINE co ON co.C_ORDERLINE_ID=l.C_ORDERLINE_ID
+	      WHERE l.m_inoutline_id=CUR_ShipmentLines.m_inoutline_id
+	      GROUP BY co.taxbaseamt,l.MovementQty,co.qtyordered;
             ELSE
               v_ResultStr:='GettingPrice-PList';
               SELECT COALESCE(MAX(PriceList), 0),
@@ -290,7 +299,7 @@
                 PriceActual, PriceLimit, LineNetAmt, C_Charge_ID,
                 ChargeAmt, C_UOM_ID,
                 C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
-                QuantityOrder, M_Product_Uom_ID, PriceStd
+                QuantityOrder, M_Product_Uom_ID, PriceStd, taxbaseamt
               )
               VALUES
               (
@@ -301,7 +310,7 @@
                 v_PriceActual, v_PriceLimit, v_LineNetAmt, NULL,
                 0, v_C_UOM_ID,
                 v_C_Tax_ID,  --MODIFIED BY F.IRIAZABAL
-                CUR_ShipmentLines.QuantityOrder, CUR_ShipmentLines.M_Product_Uom_ID, v_PriceActual
+                CUR_ShipmentLines.QuantityOrder, CUR_ShipmentLines.M_Product_Uom_ID, v_PriceActual,v_taxBaseAmt
               )
               ;
             v_TotalNet:=v_TotalNet + v_LineNetAmt;

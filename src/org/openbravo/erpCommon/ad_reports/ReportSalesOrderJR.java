@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2007-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2007-2012 Openbravo SLU 
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -55,12 +55,10 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
           "ReportSalesOrderJR|projectId", "");
       String strmWarehouseId = vars.getGlobalVariable("inpmWarehouseId",
           "ReportSalesOrderJR|warehouseId", "");
-      String strProjectpublic = vars.getGlobalVariable("inpProjectpublic",
-          "ReportSalesOrderJR|projectpublic", "");
       String strCurrencyId = vars.getGlobalVariable("inpCurrencyId", "ReportSalesOrderJR|currency",
           strUserCurrencyId);
       printPageDataSheet(response, vars, strdateFrom, strdateTo, strmWarehouseId, strcProjectId,
-          strProjectpublic, strCurrencyId);
+          strCurrencyId);
     } else if (vars.commandIn("EDIT_HTML", "EDIT_PDF")) {
       String strdateFrom = vars.getRequestGlobalVariable("inpDateFrom",
           "ReportSalesOrderJR|dateFrom");
@@ -69,14 +67,10 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
           "ReportSalesOrderJR|warehouseId");
       String strcProjectId = vars.getRequestGlobalVariable("inpcProjectId",
           "ReportSalesOrderJR|projectId");
-      String strProjectpublic = vars.getRequestGlobalVariable("inpProjectpublic",
-          "ReportSalesOrderJR|projectpublic");
       String strcRegionId = vars.getRequestInGlobalVariable("inpcRegionId",
           "ReportSalesOrderJR|regionId", IsIDFilter.instance);
       String strmProductCategoryId = vars.getRequestInGlobalVariable("inpmProductCategoryId",
           "ReportSalesOrderJR|productCategoryId", IsIDFilter.instance);
-      String strProjectkind = vars.getRequestInGlobalVariable("inpProjectkind",
-          "ReportSalesOrderJR|projectKind", IsIDFilter.instance);
       String strcBpartnerId = vars.getRequestInGlobalVariable("inpcBPartnerId_IN",
           "ReportSalesOrderJR|bpartnerId", IsIDFilter.instance);
       String strmProductId = vars.getRequestInGlobalVariable("inpmProductId_IN",
@@ -84,15 +78,15 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
       String strCurrencyId = vars.getGlobalVariable("inpCurrencyId", "ReportSalesOrderJR|currency",
           strUserCurrencyId);
       printPageHtml(request, response, vars, strdateFrom, strdateTo, strmWarehouseId,
-          strcProjectId, strProjectpublic, strcRegionId, strmProductCategoryId, strProjectkind,
-          strcBpartnerId, strmProductId, strCurrencyId);
+          strcProjectId, strcRegionId, strmProductCategoryId, strcBpartnerId, strmProductId,
+          strCurrencyId);
     } else
       pageErrorPopUp(response);
   }
 
   private void printPageDataSheet(HttpServletResponse response, VariablesSecureApp vars,
       String strdateFrom, String strdateTo, String strmWarehouseId, String strcProjectId,
-      String strProjectpublic, String strCurrencyId) throws IOException, ServletException {
+      String strCurrencyId) throws IOException, ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: dataSheet");
     XmlDocument xmlDocument = null;
@@ -148,9 +142,7 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
     xmlDocument.setParameter("mWarehouseId", strmWarehouseId);
     xmlDocument.setParameter("cProjectId", strcProjectId);
     xmlDocument.setParameter("projectName", OrderEditionData.selectProject(this, strcProjectId));
-    xmlDocument.setParameter("cProjectKind", "");
     xmlDocument.setParameter("cRegionId", "");
-    xmlDocument.setParameter("cProjectPublic", strProjectpublic);
     xmlDocument.setParameter("mProductCatId", "");
     try {
       ComboTableData comboTableData = new ComboTableData(vars, this, "TABLEDIR", "M_Warehouse_ID",
@@ -164,36 +156,12 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
     }
 
     try {
-      ComboTableData comboTableData = new ComboTableData(vars, this, "LIST", "C_Projectkind_ID",
-          "Projectkind", "", Utility.getContext(this, vars, "#AccessibleOrgTree",
-              "SalesOrderFilterJR"), Utility.getContext(this, vars, "#User_Client",
-              "SalesOrderFilterJR"), 0);
-      Utility.fillSQLParameters(this, vars, null, comboTableData, "SalesOrderFilterJR", "");
-      xmlDocument.setData("reportC_PROJECTKIND", "liststructure", comboTableData.select(false));
-      comboTableData = null;
-    } catch (Exception ex) {
-      throw new ServletException(ex);
-    }
-
-    try {
       ComboTableData comboTableData = new ComboTableData(vars, this, "TABLEDIR", "C_Region_ID", "",
           "C_Region of Country", Utility.getContext(this, vars, "#AccessibleOrgTree",
               "SalesOrderFilterJR"), Utility.getContext(this, vars, "#User_Client",
               "SalesOrderFilterJR"), 0);
       Utility.fillSQLParameters(this, vars, null, comboTableData, "SalesOrderFilterJR", "");
       xmlDocument.setData("reportC_REGIONID", "liststructure", comboTableData.select(false));
-      comboTableData = null;
-    } catch (Exception ex) {
-      throw new ServletException(ex);
-    }
-
-    try {
-      ComboTableData comboTableData = new ComboTableData(vars, this, "LIST", "C_Projectkind_ID",
-          "PublicPrivate", "", Utility.getContext(this, vars, "#AccessibleOrgTree",
-              "SalesOrderFilterJR"), Utility.getContext(this, vars, "#User_Client",
-              "SalesOrderFilterJR"), 0);
-      Utility.fillSQLParameters(this, vars, null, comboTableData, "SalesOrderFilter", "");
-      xmlDocument.setData("reportC_PROJECTKIND", "liststructure", comboTableData.select(false));
       comboTableData = null;
     } catch (Exception ex) {
       throw new ServletException(ex);
@@ -241,9 +209,9 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
 
   private void printPageHtml(HttpServletRequest request, HttpServletResponse response,
       VariablesSecureApp vars, String strdateFrom, String strdateTo, String strmWarehouseId,
-      String strcProjectId, String strProjectpublic, String strcRegionId,
-      String strmProductCategoryId, String strProjectkind, String strcBpartnerId,
-      String strmProductId, String strCurrencyId) throws IOException, ServletException {
+      String strcProjectId, String strcRegionId, String strmProductCategoryId,
+      String strcBpartnerId, String strmProductId, String strCurrencyId) throws IOException,
+      ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: print html");
 
@@ -258,8 +226,8 @@ public class ReportSalesOrderJR extends HttpSecureAppServlet {
       data = OrderEditionData.select(this, strCurrencyId,
           Utility.getContext(this, vars, "#AccessibleOrgTree", "SalesOrderFilterJR"),
           Utility.getContext(this, vars, "#User_Client", "SalesOrderFilterJR"), strdateFrom,
-          strdateTo, strmWarehouseId, strcProjectId, strProjectpublic, strcRegionId,
-          strmProductCategoryId, strProjectkind, strcBpartnerId, strmProductId);
+          strdateTo, strmWarehouseId, strcProjectId, strcRegionId, strmProductCategoryId,
+          strcBpartnerId, strmProductId);
     } catch (ServletException ex) {
       myMessage = Utility.translateError(this, vars, vars.getLanguage(), ex.getMessage());
     }

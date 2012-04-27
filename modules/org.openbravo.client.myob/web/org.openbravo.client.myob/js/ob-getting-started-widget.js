@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -23,16 +23,11 @@
 //
 isc.defineClass('OBGettingStartedWidget', isc.OBWidget).addProperties({
   contentSource: null,
-  widgetContentUrl: 'https://butler.openbravo.com/heartbeat-server/org.openbravo.butler.communitybranding/CommunityBranding.html' +
-                    '?uimode=gettingStarted&language=' + OB.Application.language_string,
-  createWindowContents: function() {
+  widgetContentUrl: 'https://butler.openbravo.com/heartbeat-server/org.openbravo.butler.communitybranding/CommunityBranding.html' + '?uimode=gettingStarted&language=' + OB.Application.language_string,
+  createWindowContents: function () {
     var loc = document.location;
 
-    this.contentSource = this.widgetContentUrl + '&appurl=' +
-                          encodeURIComponent(loc.protocol + '//' + loc.hostname +
-                                            (loc.port ? ':' + loc.port : '') +
-                                            OB.Application.contextUrl) +
-                         '&nocache=' + Math.random();
+    this.contentSource = this.widgetContentUrl + '&appurl=' + encodeURIComponent(loc.protocol + '//' + loc.hostname + (loc.port ? ':' + loc.port : '') + OB.Application.contextUrl) + '&nocache=' + Math.random();
 
     return isc.HTMLFlow.create({
       contentsType: 'page',
@@ -41,7 +36,7 @@ isc.defineClass('OBGettingStartedWidget', isc.OBWidget).addProperties({
       width: '100%'
     });
   },
-  refresh: function(){
+  refresh: function () {
     this.windowContents.setContentsURL(this.contentSource);
   }
 });

@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -31,13 +31,12 @@ isc.OBQuickRun.addClassProperties({
   // The current OBQuickRun widget which is expanded (or null if none is
   // expanded).
   currentQuickRun: null,
-  
+
   // ** {{{ hide }}} **
   // Class method which hides the one visible quick run widget layout (if one is
   // expanded).
-  hide: function(){
-    if (isc.OBQuickRun.currentQuickRun &&
-    isc.OBQuickRun.currentQuickRun.showing) {
+  hide: function () {
+    if (isc.OBQuickRun.currentQuickRun && isc.OBQuickRun.currentQuickRun.showing) {
       var tempQuickRun = isc.OBQuickRun.currentQuickRun;
       this.currentQuickRun = null;
       tempQuickRun.doHide();
@@ -54,52 +53,58 @@ isc.OBQuickRun.addProperties({
   showFocused: false,
   showDown: false,
   overflow: 'visible',
-  
+
   // ** {{{ layout }}} **
   // The layout which is expanded down when clicking the quick run button.
   layout: null,
-  
+
   // ** {{{ layoutProperties }}} **
   // Properties which are used to configure the layout
   layoutProperties: {},
-  
+
   // ** {{{ members }}} **
   // The members of the layout.
   members: [],
-  
+
   // ** {{{ showing }}} **
   // Is set to true when the layout is showing/visible.
   showing: false,
-  
+
   selectedHideLayout: null,
-  
-  draw: function(){
+
+  draw: function () {
+    var me = this,
+        ksAction;
+
     if (!this.keyboardShortcutId) {
       return this.Super('draw', arguments);
     }
-    var me = this;
-    var ksAction = function(){
+
+    ksAction = function () {
       me.getLayoutContainer().setStyleName('OBNavBarComponentSelected');
       if (!me.showing) {
         isc.EH.clickMaskClick();
       }
-      setTimeout(function() {me.click();}, 10); //setTimeout to avoid delayCall function that manages the focus
+      setTimeout(function () {
+        me.click();
+      }, 10); //setTimeout to avoid delayCall function that manages the focus
       return false; //To avoid keyboard shortcut propagation
     };
+
     OB.KeyboardManager.Shortcuts.set(this.keyboardShortcutId, 'Canvas', ksAction);
     this.Super('draw', arguments);
   },
-  
+
   // ** {{{ initWidget }}} **
   // Creates the layout (invisible as a default).
-  initWidget: function(){
+  initWidget: function () {
     // Always call the superclass implementation when overriding initWidget
     this.Super('initWidget', arguments);
-    
+
     this.computeSetContent();
   },
-  
-  computeSetContent: function() {
+
+  computeSetContent: function () {
     // set some defaults
     var defaultLayoutProperties = {
       styleName: 'OBFlyoutLayout',
@@ -112,7 +117,8 @@ isc.OBQuickRun.addProperties({
     // compute the height
     if (this.members) {
       defaultLayoutProperties.members = this.members;
-      var computedHeight = 0, i, length = this.members.length;
+      var computedHeight = 0,
+          i, length = this.members.length;
       for (i = 0; i < length; i++) {
         if (this.members[i].height) {
           computedHeight = computedHeight + this.members[i].height;
@@ -132,8 +138,8 @@ isc.OBQuickRun.addProperties({
     // this.overCanvas = this.layout;
     // this.showOverCanvas = true;
   },
-  
-  resetLayout: function() {
+
+  resetLayout: function () {
     if (this.layout) {
       this.layout.destroy();
       this.layout = null;
@@ -142,7 +148,7 @@ isc.OBQuickRun.addProperties({
 
   // ** {{{ click }}} **
   // clicking the button shows or hides the layout.
-  click: function(){
+  click: function () {
     if (this.showing) {
       this.doHide();
       return false;
@@ -153,13 +159,13 @@ isc.OBQuickRun.addProperties({
 
   // 16012: Double click and single click on nav bar flyouts are treated the same
   // https://issues.openbravo.com/view.php?id=16012
-  doubleClick: function(){
+  doubleClick: function () {
     this.click();
   },
 
   // ** {{{ keyPress }}} **
   // handle the escape and enter keys, these should hide the layout.
-  keyPress: function(){
+  keyPress: function () {
     var key = isc.EventHandler.getKey();
     if (key === 'Escape' || key === 'Enter') {
       if (isc.OBQuickRun.currentQuickRun) {
@@ -171,7 +177,7 @@ isc.OBQuickRun.addProperties({
 
   // ** {{{ doShow }}} **
   // Called to actually show the layout.
-  doShow: function(){
+  doShow: function () {
     // start with clean form values
     // if (this.layout) {
     // for (var i=0; i < this.layout.members.length; i++) {
@@ -203,10 +209,9 @@ isc.OBQuickRun.addProperties({
       styleName: 'OBNavBarComponentHideLine',
       height: 3,
       width: layoutContainer.getVisibleWidth() - 2,
-      top: layoutContainer.getPageTop() +
-      layoutContainer.getVisibleHeight() -
-      1, 
-      left: layoutContainer.getPageLeft() + 1 , overflow: 'hidden'      
+      top: layoutContainer.getPageTop() + layoutContainer.getVisibleHeight() - 1,
+      left: layoutContainer.getPageLeft() + 1,
+      overflow: 'hidden'
     });
     this.selectedHideLayout.show();
     this.selectedHideLayout.moveAbove(this.layout);
@@ -214,11 +219,11 @@ isc.OBQuickRun.addProperties({
     this.showing = true;
   },
 
-  getLayoutContainer: function(){
+  getLayoutContainer: function () {
     return this.parentElement;
   },
 
-  getLeftPosition: function(){
+  getLeftPosition: function () {
     return this.parentElement.getPageLeft() - 1;
   },
 
@@ -226,12 +231,11 @@ isc.OBQuickRun.addProperties({
   // Intended to be overridden, is called just before the layout.show()
   // method
   // is called.
-  beforeShow: function(){
-  },
+  beforeShow: function () {},
 
   // ** {{{ doHide }}} **
   // Hide the expanded layout.
-  doHide: function(){
+  doHide: function () {
     this.hideClickMask();
     this.layout.hide();
 

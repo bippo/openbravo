@@ -40,8 +40,8 @@ import org.openbravo.base.session.OBPropertiesProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.ad_process.buildStructure.Build;
 import org.openbravo.erpCommon.ad_process.buildStructure.BuildTranslation;
+import org.openbravo.erpCommon.utility.BasicUtility;
 import org.openbravo.erpCommon.utility.OBError;
-import org.openbravo.erpCommon.utility.Utility;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
@@ -125,7 +125,7 @@ public class TranslationManager {
     } else {
       log4j.error("Can't write on directory: " + strFTPDirectory);
       myMessage.setType("Error");
-      myMessage.setMessage(Utility.messageBD(conn, "CannotWriteDirectory", uiLanguage) + " "
+      myMessage.setMessage(BasicUtility.messageBD(conn, "CannotWriteDirectory", uiLanguage) + " "
           + strFTPDirectory);
       return myMessage;
     }
@@ -154,11 +154,11 @@ public class TranslationManager {
     } catch (final Exception e) {
       log4j.error(e);
       myMessage.setType("Error");
-      myMessage.setMessage(Utility.messageBD(conn, "Error", uiLanguage));
+      myMessage.setMessage(BasicUtility.messageBD(conn, "Error", uiLanguage));
       return myMessage;
     }
     myMessage.setType("Success");
-    myMessage.setMessage(Utility.messageBD(conn, "Success", uiLanguage));
+    myMessage.setMessage(BasicUtility.messageBD(conn, "Success", uiLanguage));
     return myMessage;
   }
 
@@ -235,7 +235,7 @@ public class TranslationManager {
     } else {
       log4j.error("Can't read on directory: " + directory);
       myMessage.setType("Error");
-      myMessage.setMessage(Utility.messageBD(cp, "CannotReadDirectory", UILanguage) + " "
+      myMessage.setMessage(BasicUtility.messageBD(cp, "CannotReadDirectory", UILanguage) + " "
           + directory);
       return myMessage;
     }
@@ -249,7 +249,7 @@ public class TranslationManager {
     } catch (final Exception e) {
       log4j.error(e.toString());
       myMessage.setType("Error");
-      myMessage.setMessage(Utility.messageBD(cp, "Error", UILanguage));
+      myMessage.setMessage(BasicUtility.messageBD(cp, "Error", UILanguage));
       return myMessage;
     }
 
@@ -265,7 +265,7 @@ public class TranslationManager {
     }
 
     myMessage.setType("Success");
-    myMessage.setMessage(Utility.messageBD(cp, "Success", UILanguage));
+    myMessage.setMessage(BasicUtility.messageBD(cp, "Success", UILanguage));
     return myMessage;
   }
 

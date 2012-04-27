@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -117,6 +117,7 @@ public class Property {
   private Property trlOneToManyProperty;
 
   private Integer seqno;
+  private boolean usedSequence;
 
   /**
    * Initializes this Property using the information from the Column.
@@ -137,6 +138,7 @@ public class Property {
     setStoredInSession(fromColumn.isStoredInSession());
 
     setDomainType(fromColumn.getDomainType());
+    setUsedSequence(fromColumn.isUsedSequence());
 
     // if one of the old hardcoded pwd-column -> move to new-style reference
     // Companion-code in UIDefinitionController (for for UIDefinition)
@@ -1239,5 +1241,15 @@ public class Property {
 
   public void setSeqno(Integer seqno) {
     this.seqno = seqno;
+  }
+
+  public boolean isUsedSequence() {
+    return usedSequence;
+  }
+
+  public void setUsedSequence(boolean usedSequence) {
+    this.usedSequence = "documentno".equalsIgnoreCase(columnName)
+        || (usedSequence && "Value".equals(columnName));
+    ;
   }
 }

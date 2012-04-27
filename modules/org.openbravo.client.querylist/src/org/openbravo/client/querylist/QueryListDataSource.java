@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -338,17 +337,8 @@ public class QueryListDataSource extends ReadOnlyDataSourceService {
                     + " column " + column.getDisplayExpression()
                     + " is of enum type but does not define sub reference.");
               } else {
-                Set<String> allowedValues = new HashSet<String>();
-
-                final String hql = "select al.searchKey from ADList al"
-                    + " where al.reference=:ref";
-                final Query qry = OBDal.getInstance().getSession().createQuery(hql);
-                qry.setParameter("ref", column.getReferenceSearchKey());
-                for (Object o : qry.list()) {
-                  final String value = (String) o;
-                  allowedValues.add(value);
-                }
-
+                Set<String> allowedValues = DataSourceProperty.getAllowedValues(column
+                    .getReferenceSearchKey());
                 dsProperty.setAllowedValues(allowedValues);
                 dsProperty.setValueMap(DataSourceProperty.createValueMap(allowedValues, column
                     .getReferenceSearchKey().getId()));

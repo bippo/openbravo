@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -22,7 +22,7 @@
 // TestRegistry using a unique name, selenium tests can then easily retrieve components from the test registry
 // using the unique name.
 //
-(function(OB, isc){
+(function (OB, isc) {
 
   if (!OB || !isc) {
     throw {
@@ -40,14 +40,13 @@
     isc.Log.logDebug('No Test Environment, registering test components disabled', 'OB');
   }
 
-  function TestRegistry(){
-  }
+  function TestRegistry() {}
 
   TestRegistry.prototype = {
 
     registry: {},
-    
-    register: function(key, object){
+
+    register: function (key, object) {
       if (isTestEnvironment || OB.Application.testEnvironment) {
         isc.Log.logDebug('Registering ' + key + ' in test registry ', 'OB');
         this.registry[key] = object;

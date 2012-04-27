@@ -6,6 +6,18 @@ LEFT JOIN fin_payment_detail pd ON pd.fin_payment_id = p.fin_payment_id
 LEFT JOIN fin_payment_scheduledetail psd ON pd.fin_payment_detail_id = psd.fin_payment_detail_id
 WHERE ps.c_invoice_id IS NOT NULL AND psd.fin_payment_schedule_invoice = ps.fin_payment_schedule_id) AS lastpayment, (SELECT count(*) AS count
 FROM fin_payment_detail pd, fin_payment_scheduledetail psd
-WHERE pd.fin_payment_detail_id = psd.fin_payment_detail_id AND ps.c_invoice_id IS NOT NULL AND psd.fin_payment_schedule_invoice = ps.fin_payment_schedule_id) AS numberofpayments, ps.fin_payment_priority_id, ps.update_payment_plan
+WHERE pd.fin_payment_detail_id = psd.fin_payment_detail_id AND ps.c_invoice_id IS NOT NULL AND psd.fin_payment_schedule_invoice = ps.fin_payment_schedule_id) AS numberofpayments, ps.fin_payment_priority_id, ps.update_payment_plan, to_char('Y') AS ob_selected, (SELECT 
+CASE
+WHEN to_number(max(pdv.paymentdate) - min(ops.duedate)) > 0 THEN to_number(max(pdv.paymentdate) - min(ops.duedate))
+ELSE 0
+END AS "case"
+FROM fin_orig_paym_scheddetail opsd
+LEFT JOIN fin_orig_payment_schedule ops ON opsd.fin_orig_payment_schedule_id = ops.fin_orig_payment_schedule_id
+LEFT JOIN fin_payment_scheduledetail psd ON psd.fin_payment_scheduledetail_id = opsd.fin_payment_scheduledetail_id
+LEFT JOIN fin_payment_detail_v pdv ON pdv.fin_payment_detail_v_id = psd.fin_payment_scheduledetail_id
+WHERE psd.fin_payment_schedule_invoice = ps.fin_payment_schedule_id) AS daysoverdue, COALESCE((SELECT sum(psd.amount) AS sum
+FROM fin_payment_scheduledetail psd, fin_payment_detail pd
+LEFT JOIN fin_payment p ON pd.fin_payment_id = p.fin_payment_id
+WHERE psd.fin_payment_schedule_invoice = ps.fin_payment_schedule_id AND psd.fin_payment_detail_id = pd.fin_payment_detail_id AND p.status = 'RPAE'), 0) AS awaiting_execution
 FROM fin_payment_schedule ps]]></view>
   </database>

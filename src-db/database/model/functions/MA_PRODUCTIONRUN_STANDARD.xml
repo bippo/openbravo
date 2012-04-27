@@ -131,6 +131,14 @@
       v_Message:='@ProductionRunProcessed@';
       RAISE_APPLICATION_ERROR(-20000, v_Message);
     END IF;
+
+    IF (v_DoneQuantity <= 0) THEN
+      v_ResultStr:='Completed Quantity must be greater than zero';
+      DBMS_OUTPUT.PUT_LINE('Completed Quantity must be greater than zero') ;
+      v_Message:='@CompletedQuantityGreaterZero@';
+      RAISE_APPLICATION_ERROR(-20000, v_Message);
+    END IF;
+    
       --Insert toolsets if necessary
       v_ResultStr:='ToolsetProcess Processing';
       FOR Cur_ToolsetProcess IN
@@ -309,14 +317,16 @@
               AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '60', 'AuxID', v_Production_ID, null, null, null, null, null);
               AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '70', 'TableId', '325', null, null, null, null, null);
               AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '80', 'LineNo', null, null, v_PlanLine, null, null, null);
+              AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '90', 'ProcessID', '800105', null, null, null, null, null);
+              
               SELECT COALESCE(SP.UNIQUEATTCONSUM, 'N')
                 INTO v_UniqueAttConsum
               FROM MA_WRPHASEPRODUCT WRPP
                       LEFT JOIN MA_SEQUENCEPRODUCT SP ON WRPP.MA_SEQUENCEPRODUCT_ID = SP.MA_SEQUENCEPRODUCT_ID
               WHERE MA_WRPHASEPRODUCT_ID = Cur_WRPUsed.MA_WRPhaseProduct_ID;
               IF (v_UniqueAttConsum='Y') THEN 
-                AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '90', 'UniqueAttribute', v_UniqueAttConsum, null, null, null, null, null);
-                AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '100', 'Quantity', null, null, v_DoneQuantity*Cur_WRPUsed.MovementQty, null, null, null);
+                AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '100', 'UniqueAttribute', v_UniqueAttConsum, null, null, null, null, null);
+                AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '110', 'Quantity', null, null, v_DoneQuantity*Cur_WRPUsed.MovementQty, null, null, null);
               END IF;
               M_GET_STOCK(v_AD_Pinstance_ID, 'N');
               -- Check result
@@ -455,7 +465,7 @@
           END IF;
         ELSE
           IF Cur_WRPUsed.M_Locator_ID IS NULL THEN
-            v_Message:='El producto ' || Cur_WRPUsed.pname || ' no tiene almacen definido.';
+            v_Message:='@DefineLocatorProduct@ ' || Cur_WRPUsed.pname;
             RAISE_APPLICATION_ERROR(-20000, v_Message);
           END IF;
           IF (v_GlobalUse='Y') THEN

@@ -49,7 +49,9 @@ import org.openbravo.xmlEngine.XmlDocument;
 public class Menu extends HttpSecureAppServlet {
   private static final long serialVersionUID = 1L;
   private static String[] hideMenuValues = { "", "true", "false" };
+  private static String[] scrollingValues = { "", "yes", "no", "auto" };
   private static ValueListFilter menuFilter = new ValueListFilter(Menu.hideMenuValues);
+  private static ValueListFilter scrollingFilter = new ValueListFilter(Menu.scrollingValues);
 
   private static String DEFAULT_MENU_WIDTH = "25"; // Percentage of the page width used by the menu
 
@@ -90,6 +92,7 @@ public class Menu extends HttpSecureAppServlet {
     }
 
     String hideMenu = vars.getStringParameter("hideMenu", menuFilter);
+    String vScroll = vars.getStringParameter("vScroll", scrollingFilter);
 
     String textDirection = vars.getSessionValue("#TextDirection", "LTR");
 
@@ -105,12 +108,12 @@ public class Menu extends HttpSecureAppServlet {
     }
 
     printPageFrameIdentificacion(response, menuURL, (targetmenu.equals("") ? "../utility/Home.html"
-        : targetmenu), menuLoadingURL, textDirection, hideMenu);
+        : targetmenu), menuLoadingURL, textDirection, hideMenu, vScroll);
   }
 
   private void printPageFrameIdentificacion(HttpServletResponse response, String strMenu,
-      String strDetalle, String strMenuLoading, String textDirection, String hideMenu)
-      throws IOException, ServletException {
+      String strDetalle, String strMenuLoading, String textDirection, String hideMenu,
+      String vScroll) throws IOException, ServletException {
     XmlDocument xmlDocument;
     if (textDirection.equals("RTL")) {
       xmlDocument = xmlEngine.readXmlTemplate("org/openbravo/erpCommon/security/Login_FS_RTL")
@@ -131,6 +134,9 @@ public class Menu extends HttpSecureAppServlet {
     xmlDocument.setParameter("frameMenuLoading", strMenuLoading);
     xmlDocument.setParameter("frameMenu", strMenu);
     xmlDocument.setParameter("frame1", strDetalle);
+    if (!"".equals(vScroll)) {
+      xmlDocument.setParameter("vScroll", vScroll);
+    }
     response.setContentType("text/html; charset=UTF-8");
     PrintWriter out = response.getWriter();
     out.println(xmlDocument.print());

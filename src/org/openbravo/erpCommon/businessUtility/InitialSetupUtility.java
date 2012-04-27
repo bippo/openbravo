@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -1646,6 +1646,7 @@ public class InitialSetupUtility {
       final OBCriteria<DataSet> obcDataSets = OBDal.getInstance().createCriteria(DataSet.class);
       obcDataSets.add(Restrictions.eq(DataSet.PROPERTY_MODULE, module));
       obcDataSets.add(Restrictions.in(DataSet.PROPERTY_DATAACCESSLEVEL, accessLevel));
+      obcDataSets.addOrder(Order.asc(DataSet.PROPERTY_NAME));
       if (obcDataSets.list().size() > 0) {
         return obcDataSets.list();
       } else {

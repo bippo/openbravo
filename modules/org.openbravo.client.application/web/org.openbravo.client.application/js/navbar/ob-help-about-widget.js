@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -28,47 +28,55 @@ isc.ClassFactory.defineClass('OBHelpAbout', isc.OBQuickRun);
 isc.OBHelpAbout.addProperties({
 
   layoutProperties: {},
-  
+
   title: OB.I18N.getLabel('UINAVBA_Help'),
-  
+
   // Set to empty to prevent an icon from being displayed on the button.
   src: '',
-  
+
   showTitle: true,
-  
-  initWidget: function(){
+
+  initWidget: function () {
     OB.TestRegistry.register('org.openbravo.client.application.HelpAboutWidget', this);
     this.Super('initWidget', arguments);
   },
 
-  doShow: function(){
+  doShow: function () {
     this.Super('doShow', arguments);
-    var me = this, focusInFirstHelpItem;
-    focusInFirstHelpItem = function() {
+    var me = this,
+        focusInFirstHelpItem;
+    focusInFirstHelpItem = function () {
       if (me.members[0].members[1]) {
-        me.members[0].members[1].focus(); 
+        me.members[0].members[1].focus();
       }
       if (isc.EH.getFocusCanvas() === me.members[0].members[1]) { // Sometimes the focus is not positioned in the previous step
         return;
       } else {
-        setTimeout(function() { focusInFirstHelpItem(); }, 10);
+        setTimeout(function () {
+          focusInFirstHelpItem();
+        }, 10);
       }
     };
     focusInFirstHelpItem();
   },
-  
-  beforeShow: function(){
+
+  beforeShow: function () {
     // determine if the help should be displayed or not
-    var tabPane = null, aboutLink = null, helpLink = null, helpView = null, dummyFirstField = null, dummyLastField = null;
+    var tabPane = null,
+        aboutLink = null,
+        helpLink = null,
+        helpView = null,
+        dummyFirstField = null,
+        dummyLastField = null;
 
     dummyFirstField = isc.OBFocusButton.create({
-      getFocusTarget: function() {
-        return isc.OBQuickRun.currentQuickRun.members[0].members[isc.OBQuickRun.currentQuickRun.members[0].getMembers().length-2];
+      getFocusTarget: function () {
+        return isc.OBQuickRun.currentQuickRun.members[0].members[isc.OBQuickRun.currentQuickRun.members[0].getMembers().length - 2];
       }
     });
 
     dummyLastField = isc.OBFocusButton.create({
-      getFocusTarget: function() {
+      getFocusTarget: function () {
         return isc.OBQuickRun.currentQuickRun.members[0].members[1];
       }
     });
@@ -76,7 +84,7 @@ isc.OBHelpAbout.addProperties({
     aboutLink = isc.OBHelpAboutLinkButton.create({
       name: 'aboutLink',
       title: OB.I18N.getLabel('UINAVBA_About'),
-      keyPress: function(){
+      keyPress: function () {
         var key = isc.EventHandler.getKey();
         if (key === 'Escape') {
           if (isc.OBQuickRun.currentQuickRun) {
@@ -85,16 +93,16 @@ isc.OBHelpAbout.addProperties({
         }
         return true;
       },
-      action: function(){
+      action: function () {
         isc.OBQuickRun.hide();
         OB.Layout.ClassicOBCompatibility.Popup.open('About', 620, 500, OB.Application.contextUrl + 'ad_forms/about.html', '', window);
       }
     });
-    
+
     helpLink = isc.OBHelpAboutLinkButton.create({
       name: 'helpLink',
       title: OB.I18N.getLabel('UINAVBA_Help'),
-      keyPress: function(){
+      keyPress: function () {
         var key = isc.EventHandler.getKey();
         if (key === 'Escape') {
           if (isc.OBQuickRun.currentQuickRun) {
@@ -103,12 +111,12 @@ isc.OBHelpAbout.addProperties({
         }
         return true;
       },
-      action: function(){
+      action: function () {
         isc.OBQuickRun.hide();
         OB.Layout.ViewManager.openView(helpView.viewId, helpView);
       }
     });
-    
+
     // get the selected tab
     var selectedTab = OB.MainView.TabSet.getSelectedTab();
     if (selectedTab && selectedTab.pane && selectedTab.pane.getHelpView) {
@@ -118,7 +126,7 @@ isc.OBHelpAbout.addProperties({
     // destroy the current members
     if (this.members[0].getMembers()) {
       this.members[0].destroyAndRemoveMembers(this.members[0].getMembers().duplicate());
-    } 
+    }
     if (!tabPane) {
       this.members[0].addMembers([aboutLink]);
     } else {
@@ -134,14 +142,14 @@ isc.OBHelpAbout.addProperties({
     OB.TestRegistry.register('org.openbravo.client.application.HelpAbout.HelpLink', helpLink);
     OB.TestRegistry.register('org.openbravo.client.application.HelpAbout.AboutLink', aboutLink);
   },
-  
+
   members: [isc.VLayout.create({
     height: 1,
-    initWidget: function(){
+    initWidget: function () {
       OB.TestRegistry.register('org.openbravo.client.application.HelpAbout', this);
       this.Super('initWidget', arguments);
     }
   })],
-  
+
   keyboardShortcutId: 'NavBar_OBHelpAbout'
 });

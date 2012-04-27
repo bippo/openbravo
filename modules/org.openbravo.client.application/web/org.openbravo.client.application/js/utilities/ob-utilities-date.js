@@ -11,11 +11,12 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2009-2011 Openbravo SLU
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
  */
+
 // = Openbravo Date Utilities =
 // Defines utility methods related to handling date, incl. formatting.
 OB.Utilities.Date = {};
@@ -27,15 +28,14 @@ OB.Utilities.Date = {};
 OB.Utilities.Date.centuryReference = 50; // Notice that change this value
 // implies that also the QUnit test
 // case should be changed
-
 // ** {{{ OB.Utilities.Date.normalizeDisplayFormat }}} **
 // Repairs the displayFormat definition (passed in as a parameter) to a value
 // expected by the rest of the system. For example mm is replaced by MM,
 // dd is replacecd by DD, YYYY to %Y.
 //
 // Parameters:
-// * {{{displayFormat}}}: the displayFormat definition to repair.
-OB.Utilities.Date.normalizeDisplayFormat = function(/* String */displayFormat){
+// * {{{displayFormat}}}: the string displayFormat definition to repair.
+OB.Utilities.Date.normalizeDisplayFormat = function (displayFormat) {
   var newFormat = '';
   displayFormat = displayFormat.replace('mm', 'MM').replace('dd', 'DD').replace('yyyy', 'YYYY').replace('yy', 'YY');
   displayFormat = displayFormat.replace('%D', '%d').replace('%M', '%m');
@@ -72,29 +72,29 @@ OB.Utilities.Date.normalizeDisplayFormat = function(/* String */displayFormat){
 // * {{{dateFormat}}}: the dateFormat pattern to use
 // Return:
 // * a Date object or null if conversion was not possible.
-OB.Utilities.Date.OBToJS = function(/* String */OBDate, /* String */ dateFormat){
+OB.Utilities.Date.OBToJS = function (OBDate, dateFormat) {
   if (!OBDate) {
     return null;
   }
-  
+
   // if already a date then return true
   var isADate = Object.prototype.toString.call(OBDate) === '[object Date]';
   if (isADate) {
     return OBDate;
   }
-  
+
   dateFormat = OB.Utilities.Date.normalizeDisplayFormat(dateFormat);
   var dateSeparator = dateFormat.substring(2, 3);
   var timeSeparator = dateFormat.substring(11, 12);
   var isFullYear = (dateFormat.indexOf('%Y') !== -1);
-  
+
   if ((isFullYear ? OBDate.length - 2 : OBDate.length) !== dateFormat.length) {
     return null;
   }
   if (isFullYear) {
     dateFormat = dateFormat.replace('%Y', '%YYY');
   }
-  
+
   if (dateFormat.indexOf('-') !== -1 && OBDate.indexOf('-') === -1) {
     return null;
   } else if (dateFormat.indexOf('/') !== -1 && OBDate.indexOf('/') === -1) {
@@ -104,7 +104,7 @@ OB.Utilities.Date.OBToJS = function(/* String */OBDate, /* String */ dateFormat)
   } else if (dateFormat.indexOf('.') !== -1 && OBDate.indexOf('.') === -1) {
     return null;
   }
-  
+
   var year = dateFormat.indexOf('%y') !== -1 ? OBDate.substring(dateFormat.indexOf('%y'), dateFormat.indexOf('%y') + 2) : 0;
   var fullYear = dateFormat.indexOf('%Y') !== -1 ? OBDate.substring(dateFormat.indexOf('%Y'), dateFormat.indexOf('%Y') + 4) : 0;
   var month = dateFormat.indexOf('%m') !== -1 ? OBDate.substring(dateFormat.indexOf('%m'), dateFormat.indexOf('%m') + 2) : 0;
@@ -119,19 +119,17 @@ OB.Utilities.Date.OBToJS = function(/* String */OBDate, /* String */ dateFormat)
   minutes = parseInt(minutes, 10);
   seconds = parseInt(seconds, 10);
 
-  if (day < 1 || day > 31 || month < 1 || month > 12 || year > 99 ||
-  fullYear > 9999) {
+  if (day < 1 || day > 31 || month < 1 || month > 12 || year > 99 || fullYear > 9999) {
     return null;
   }
-  
+
   if (hours > 23 || minutes > 59 || seconds > 59) {
     return null;
   }
-  
+
   // alert('year: ' + year + '\n' + 'fullYear: ' + fullYear + '\n' + 'month: ' +
   // month + '\n' + 'day: ' + day + '\n' + 'hours: ' + hours + '\n' + 'minutes:
   // ' + minutes + '\n' + 'seconds: ' + seconds);
-  
   // var JSDate = isc.Date.create(); /**It doesn't work in IE**/
   var JSDate = new Date();
   var centuryReference = OB.Utilities.Date.centuryReference;
@@ -144,7 +142,7 @@ OB.Utilities.Date.OBToJS = function(/* String */OBDate, /* String */ dateFormat)
   }
 
   fullYear = parseInt(fullYear, 10);
-  JSDate.setFullYear(fullYear, month-1, day);
+  JSDate.setFullYear(fullYear, month - 1, day);
   JSDate.setHours(hours);
   JSDate.setMinutes(minutes);
   JSDate.setSeconds(seconds);
@@ -165,14 +163,14 @@ OB.Utilities.Date.OBToJS = function(/* String */OBDate, /* String */ dateFormat)
 // * {{{dateFormat}}}: the dateFormat pattern to use
 // Return:
 // * a String or null if the JSDate is not a date.
-OB.Utilities.Date.JSToOB = function(/* Date */JSDate, /* String */ dateFormat){
+OB.Utilities.Date.JSToOB = function (JSDate, dateFormat) {
   dateFormat = OB.Utilities.Date.normalizeDisplayFormat(dateFormat);
-  
+
   var isADate = Object.prototype.toString.call(JSDate) === '[object Date]';
   if (!isADate) {
     return null;
   }
-  
+
   var year = JSDate.getYear().toString();
   var fullYear = JSDate.getFullYear().toString();
   var month = (JSDate.getMonth() + 1).toString();
@@ -180,11 +178,10 @@ OB.Utilities.Date.JSToOB = function(/* Date */JSDate, /* String */ dateFormat){
   var hours = JSDate.getHours().toString();
   var minutes = JSDate.getMinutes().toString();
   var seconds = JSDate.getSeconds().toString();
-  
+
   var centuryReference = OB.Utilities.Date.centuryReference;
   if (dateFormat.indexOf('%y') !== -1) {
-    if (parseInt(fullYear, 10) >= 1900 + centuryReference &&
-    parseInt(fullYear, 10) < 2100 - centuryReference) {
+    if (parseInt(fullYear, 10) >= 1900 + centuryReference && parseInt(fullYear, 10) < 2100 - centuryReference) {
       if (parseInt(year, 10) >= 100) {
         year = parseInt(year, 10) - 100;
         year = year.toString();
@@ -193,7 +190,7 @@ OB.Utilities.Date.JSToOB = function(/* Date */JSDate, /* String */ dateFormat){
       return null;
     }
   }
-  
+
   while (year.length < 2) {
     year = '0' + year;
   }
@@ -223,6 +220,6 @@ OB.Utilities.Date.JSToOB = function(/* Date */JSDate, /* String */ dateFormat){
   OBDate = OBDate.replace('%H', hours);
   OBDate = OBDate.replace('%M', minutes);
   OBDate = OBDate.replace('%S', seconds);
-  
+
   return OBDate;
 };

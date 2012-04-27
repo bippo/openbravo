@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+  <database name="VIEW FIN_ORIG_PAYM_SCHED_DET_V">
+    <view name="FIN_ORIG_PAYM_SCHED_DET_V"><![CDATA[SELECT opsd.fin_orig_paym_scheddetail_id AS fin_orig_paym_sched_det_v_id, opsd.ad_client_id, opsd.ad_org_id, opsd.created, opsd.createdby, opsd.updated, opsd.updatedby, opsd.fin_orig_payment_schedule_id, opsd.fin_payment_scheduledetail_id, ops.amount AS expected, opsd.isactive, opsd.writeoffamt, opsd.iscanceled, opsd.fin_payment_scheduledetail_id AS fin_payment_detail_v_id, opsd.fin_orig_payment_schedule_id AS fin_orig_payment_sched_v_id, p.paymentdate, COALESCE(psi.duedate, pso.duedate) AS duedate, p.documentno AS paymentno, p.fin_paymentmethod_id, opsd.amount AS paidamt, p.fin_financial_account_id
+FROM fin_orig_paym_scheddetail opsd
+LEFT JOIN fin_orig_payment_schedule ops ON ops.fin_orig_payment_schedule_id = opsd.fin_orig_payment_schedule_id
+LEFT JOIN fin_payment_scheduledetail psd ON psd.fin_payment_scheduledetail_id = opsd.fin_payment_scheduledetail_id
+LEFT JOIN fin_payment_detail pd ON psd.fin_payment_detail_id = pd.fin_payment_detail_id
+LEFT JOIN fin_payment p ON p.fin_payment_id = pd.fin_payment_id
+LEFT JOIN fin_payment_schedule psi ON psd.fin_payment_schedule_invoice = psi.fin_payment_schedule_id
+LEFT JOIN fin_payment_schedule pso ON psd.fin_payment_schedule_order = pso.fin_payment_schedule_id]]></view>
+  </database>

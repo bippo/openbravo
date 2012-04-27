@@ -64,6 +64,8 @@
   v_Count NUMBER;
   v_Aux_ID VARCHAR2(32);
   v_ParentLine VARCHAR2(32);
+  v_AD_Pinstance_ID VARCHAR2(32);
+  v_QtyOnHand NUMBER;
 
   FINISH_PROCESS BOOLEAN DEFAULT FALSE;
   --  Parameter
@@ -77,14 +79,11 @@
 BEGIN
   BEGIN --BODY
     -- Get Parameters
-    FOR Cur_Product IN (SELECT p.M_Product_ID, COALESCE(sd.qtyonhand,0) AS qtyonhand,
+    FOR Cur_Product IN (SELECT p.M_Product_ID,
                         COALESCE(po.STOCKMIN, p.STOCKMIN, 0) AS STOCKMIN,
                         COALESCE(po.MRP_PlanningMethod_ID, p.MRP_PlanningMethod_ID) AS MRP_PlanningMethod_ID
                         FROM M_PRODUCT p LEFT JOIN M_PRODUCT_ORG po ON p.M_PRODUCT_ID = po.M_PRODUCT_ID
                                                                        AND po.AD_ORG_ID = p_Org_ID
-                                         LEFT JOIN (SELECT M_Product_ID, SUM(qtyonhand) as qtyonhand
-                                                    FROM M_STORAGE_DETAIL
-                                                    GROUP BY M_Product_ID) sd ON p.M_Product_ID = sd.M_Product_ID
                         WHERE (p_product_ID IS NULL OR p.M_PRODUCT_ID = p_Product_ID)
                           AND (p_Product_Category_ID IS NULL OR p.M_PRODUCT_CATEGORY_ID = p_Product_Category_ID)
                           AND (p_Planner_ID IS NULL OR COALESCE(po.MRP_PLANNER_ID, p.MRP_Planner_ID) = p_Planner_ID)
@@ -114,7 +113,7 @@ BEGIN
                                             AND ol.DatePromised IS NOT NULL
                                             AND Mrp_Check_Planningmethod(
                                                     COALESCE(po.MRP_PlanningMethod_ID, p.MRP_PlanningMethod_ID),
-                                                    'SO', TO_NUMBER(ol.DatePromised - p_PlanningDate), p_TimeHorizon) <> -1
+                                                    'SO', TO_NUMBER(COALESCE(ol.DatePromised, ol.DateOrdered, o.DateOrdered) - p_PlanningDate), p_TimeHorizon) <> -1
                                             AND Ad_Isorgincluded(o.AD_ORG_ID, p_Org_ID, p_Client_ID) > -1)
                                OR EXISTS (SELECT 1
                                           FROM MRP_SALESFORECAST sf, MRP_SALESFORECASTLINE sfl
@@ -141,7 +140,7 @@ BEGIN
                                            AND ol.DatePromised IS NOT NULL
                                            AND Mrp_Check_Planningmethod(
                                                     COALESCE(po.MRP_PlanningMethod_ID, p.MRP_PlanningMethod_ID),
-                                                    'SO', TO_NUMBER(ol.DatePromised - p_PlanningDate), p_TimeHorizon) <> -1
+                                                    'SO', TO_NUMBER(COALESCE(ol.DatePromised, ol.DateOrdered, o.DateOrdered) - p_PlanningDate), p_TimeHorizon) <> -1
                                            AND Ad_Isorgincluded(o.AD_ORG_ID, p_Org_ID, p_Client_ID) > -1)
                                 OR EXISTS (SELECT 1
                                            FROM MRP_SALESFORECAST sf, MRP_SALESFORECASTLINE sfl, C_BPARTNER bp
@@ -170,15 +169,58 @@ BEGIN
             AND inouttrxtype = 'MS';
         END IF;
 
+	-- Call M_GET_STOCK
+	DECLARE
+		v_pinstance_result AD_PInstance.result%TYPE;
+		v_pinstance_msg AD_PInstance.errormsg%TYPE;
+	BEGIN
+		v_AD_Pinstance_ID := GET_UUID();
+		INSERT INTO AD_PINSTANCE (
+		  AD_PINSTANCE_ID, AD_PROCESS_ID, RECORD_ID, ISACTIVE, 
+		  AD_USER_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY,
+		  UPDATED, UPDATEDBY
+		) VALUES (
+		  v_AD_Pinstance_ID,'FF80818132C964E30132C9747257002E',p_Run,'Y',
+		  p_user_id, p_client_id, p_org_id, now(), p_user_id,
+		  now(), p_user_id
+		);
+
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '10', 'AD_Client_ID', p_client_id, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '20', 'AD_Org_ID', p_org_id, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '30', 'M_Product_ID', Cur_Product.M_Product_ID, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '60', 'AuxID', p_Run, null, null, null, null, null);
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '70', 'TableId', '800219', null, null, null, null, null);
+	 IF (p_production = 'Y') THEN
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '80', 'ProcessID', '800162', null, null, null, null, null); 	 
+	 ELSE
+	 AD_PINSTANCE_PARA_INSERT(v_AD_Pinstance_ID, '90', 'ProcessID', '800164', null, null, null, null, null); 	
+	 END IF;
+
+	 M_GET_STOCK(v_AD_Pinstance_ID, 'N');
+		-- Check result
+		SELECT result, errormsg
+		INTO v_pinstance_result, v_pinstance_msg
+		FROM ad_pinstance
+		WHERE ad_pinstance_id = v_ad_pinstance_id;
+		IF (v_pinstance_result = 0) THEN
+			-- Error on m_get_stock
+			RAISE_APPLICATION_ERROR(-20000, v_pinstance_msg);
+		END IF;
+	END; -- End Call M_GET_STOCK
+
+	SELECT COALESCE(SUM(quantity),0) INTO v_QtyOnHand
+	FROM M_STOCK_PROPOSED
+	WHERE AD_PINSTANCE_ID = v_AD_Pinstance_ID;
+
         IF (v_Count = 0) THEN -- First time on this product
           v_ResultStr := 'Inserting stock lines product: ' || Cur_Product.M_Product_ID;
-          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, (-1 * Cur_Product.STOCKMIN), 0, NULL, 'MS', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'Y', NULL, v_Aux_ID);
-          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, Cur_Product.QtyOnHand, 0, NULL, 'ST', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'Y', NULL, v_Aux_ID);
+          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, (-1 * Cur_Product.STOCKMIN), 0, NULL, 'MS', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'N', NULL, v_Aux_ID);
+          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, v_QtyOnHand, 0, NULL, 'ST', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'Y', NULL, v_Aux_ID);
 
           v_ResultStr := 'Inserting Order lines product: ' || Cur_Product.M_Product_ID;
           FOR Cur_OrderLine IN (SELECT Mrp_Check_Planningmethod(Cur_Product.MRP_PlanningMethod_ID,
                                                                 (CASE o.IsSOTrx WHEN 'Y' THEN 'SO' ELSE 'PO' END),
-                                                                TO_NUMBER(ol.DatePromised - p_PlanningDate), p_TimeHorizon) AS WEIGHTING,
+                                                                TO_NUMBER(COALESCE(ol.DatePromised, ol.DateOrdered, o.DateOrdered) - p_PlanningDate), p_TimeHorizon) AS WEIGHTING,
                                       (ol.QTYORDERED - COALESCE(ol.QTYDELIVERED, 0) - COALESCE(matchpo.qty,0)) AS qty,
                                       ol.C_OrderLine_ID, GREATEST(COALESCE(ol.DatePromised, ol.DateOrdered, o.DateOrdered), p_PlanningDate) AS planningDate,
                                       COALESCE(ol.DateOrdered, o.Dateordered) AS dateordered,

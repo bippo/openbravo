@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -270,7 +270,12 @@ public class ToolBar {
       return isRelation ? "submitCommandForm('EDIT', true, null, '" + servlet_action
           + (isSrcWindow ? "" : "_Relation") + ".html', '_self', null, false);" : "";
     } else {
-      return "submitCommandForm('" + (name.equals("REFRESH") ? "DEFAULT" : name) + "', "
+      String action = "";
+
+      if ("NEW".equals(name)) {
+        action = "disableToolBarButton('linkButtonNew'); ";
+      }
+      return action + "submitCommandForm('" + (name.equals("REFRESH") ? "DEFAULT" : name) + "', "
           + (name.equals("NEW") && (this.grid_id.equals("")) ? "true" : "false") + ", null, '"
           + servlet_action + (isSrcWindow ? "" : "_Relation") + ".html', '"
           + (isFrame ? "_parent" : "_self") + "', null, " + (debug ? "true" : "false") + ");";

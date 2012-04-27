@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -74,7 +74,7 @@ public class SessionListener implements HttpSessionListener, ServletContextListe
             .deactivate((ConnectionProvider) event.getServletContext()
                 .getAttribute("openbravoPool"), sessionId);
         this.context = null;
-        log.info("Deactivated session:" + sessionId);
+        log.info("Deactivated session: " + sessionId);
       } catch (ServletException e1) {
         log.error(e1.getMessage(), e1);
       }
@@ -126,6 +126,14 @@ public class SessionListener implements HttpSessionListener, ServletContextListe
     } catch (Exception e) {
       log.error("Error activating audit trail", e);
     }
+
+    try {
+      SessionInfo.setUsageAuditActive(SessionLoginData
+          .isUsageAuditEnabled((ConnectionProvider) SessionListener.context
+              .getAttribute("openbravoPool")));
+    } catch (Exception e) {
+      log.error("Error activating usage audit", e);
+    }
   }
 
   private boolean checkSessionInRemoteContext(String sessionId, String serverUrl) {
@@ -158,9 +166,9 @@ public class SessionListener implements HttpSessionListener, ServletContextListe
         return false;
       }
     } catch (SocketTimeoutException e) {
-      log.error("Timeout connecting to " + serverUrl + " to check session " + sessionId);
+      log.debug("Timeout connecting to " + serverUrl + " to check session " + sessionId);
     } catch (Exception e) {
-      log.error("Error checking remote session " + sessionId + " in context " + serverUrl, e);
+      log.debug("Error checking remote session " + sessionId + " in context " + serverUrl, e);
     }
     return false;
   }

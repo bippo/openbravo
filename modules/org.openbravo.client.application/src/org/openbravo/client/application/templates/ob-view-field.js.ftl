@@ -106,6 +106,14 @@ the outputted value is already covered by a default.
         <#if field.validationFunction != "">
             validationFn: ${field.validationFunction},
         </#if>
+        <#if field.showSummary>
+            showGridSummary: true,
+            <#if field.summaryFunction != "">
+              summaryFunction: ${field.summaryFunction},
+            <#else>
+              summaryFunction: 'sum',
+            </#if>
+        </#if>
 </@compress>
     </#if>
     <#if field.type = "OBSectionItem" || field.type = "OBNoteSectionItem" || field.type = "OBLinkedItemSectionItem"  || field.type = "OBAttachmentsSectionItem" || field.type = "OBAuditSectionItem">

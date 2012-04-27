@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -25,7 +25,9 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -66,7 +68,9 @@ import org.openbravo.model.financialmgmt.payment.FIN_BankStatementLine;
 import org.openbravo.model.financialmgmt.payment.FIN_FinaccTransaction;
 import org.openbravo.model.financialmgmt.payment.FIN_FinancialAccount;
 import org.openbravo.model.financialmgmt.payment.FIN_Payment;
+import org.openbravo.model.financialmgmt.payment.FIN_PaymentDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentMethod;
+import org.openbravo.model.financialmgmt.payment.FIN_PaymentSchedule;
 import org.openbravo.model.financialmgmt.payment.FIN_PaymentScheduleDetail;
 import org.openbravo.model.financialmgmt.payment.FIN_Reconciliation;
 import org.openbravo.model.financialmgmt.payment.FIN_ReconciliationLineTemp;
@@ -568,10 +572,8 @@ public class MatchTransaction extends HttpSecureAppServlet {
               .getFINPaymentDetailList().get(0).getFINPaymentScheduleDetailList().get(0)
               .getInvoicePaymentSchedule() == null && transaction.getFinPayment()
               .getFINPaymentDetailList().get(0).getFINPaymentScheduleDetailList().get(0)
-              .getOrderPaymentSchedule() == null) ? MATCHED_AGAINST_CREDIT : (transaction
-              .getFinPayment().getFINPaymentDetailList().get(0).getFINPaymentScheduleDetailList()
-              .get(0).getInvoicePaymentSchedule() != null ? MATCHED_AGAINST_INVOICE
-              : MATCHED_AGAINST_ORDER)));
+              .getOrderPaymentSchedule() == null) ? MATCHED_AGAINST_CREDIT
+              : (isInvoiceMatch(transaction) ? MATCHED_AGAINST_INVOICE : MATCHED_AGAINST_ORDER)));
           String bpName = "";
           if (transaction.getFinPayment() != null) {
             if (transaction.getFinPayment().getBusinessPartner() != null) {
@@ -670,8 +672,12 @@ public class MatchTransaction extends HttpSecureAppServlet {
               && !reconciledLine.getFinancialAccountTransaction().getFinPayment()
                   .isCreatedByAlgorithm()) {
             lineTemp.setPayment(reconciledLine.getPayment());
-          } else if (reconciledLine.getFinancialAccountTransaction().getFinPayment()
-              .getFINPaymentDetailList().get(0).getFINPaymentScheduleDetailList() != null
+          } else if (reconciledLine.getFinancialAccountTransaction() != null
+              && reconciledLine.getFinancialAccountTransaction().getFinPayment() != null
+              && reconciledLine.getFinancialAccountTransaction().getFinPayment()
+                  .getFINPaymentDetailList().size() > 0
+              && reconciledLine.getFinancialAccountTransaction().getFinPayment()
+                  .getFINPaymentDetailList().get(0).getFINPaymentScheduleDetailList() != null
               && reconciledLine.getFinancialAccountTransaction().getFinPayment()
                   .getFINPaymentDetailList().get(0).getFINPaymentScheduleDetailList().size() > 0
               && (reconciledLine.getFinancialAccountTransaction().getFinPayment()
@@ -1182,6 +1188,31 @@ public class MatchTransaction extends HttpSecureAppServlet {
     new FIN_TransactionProcess().execute(pb);
     myMessage = (OBError) pb.getResult();
     return myMessage;
+  }
+
+  private boolean isInvoiceMatch(FIN_FinaccTransaction transaction) {
+    if (transaction.getFinPayment() == null) {
+      return false;
+    } else {
+      OBCriteria<FIN_PaymentScheduleDetail> obc = OBDal.getInstance().createCriteria(
+          FIN_PaymentScheduleDetail.class);
+      obc.createAlias(FIN_PaymentScheduleDetail.PROPERTY_PAYMENTDETAILS, "pd");
+      obc.add(Restrictions.eq("pd." + FIN_PaymentDetail.PROPERTY_FINPAYMENT,
+          transaction.getFinPayment()));
+      Set<FIN_PaymentSchedule> invoiceplans = new HashSet<FIN_PaymentSchedule>();
+      for (FIN_PaymentScheduleDetail paymentScheduleDetail : obc.list()) {
+        if (!invoiceplans.contains(paymentScheduleDetail.getInvoicePaymentSchedule())) {
+          invoiceplans.add(paymentScheduleDetail.getInvoicePaymentSchedule());
+        }
+        if (invoiceplans.size() > 1) {
+          return false;
+        }
+      }
+      if (invoiceplans.size() == 1) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String getServletInfo() {

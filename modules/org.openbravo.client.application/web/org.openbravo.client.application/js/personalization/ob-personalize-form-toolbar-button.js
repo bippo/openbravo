@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s): ___________
  ************************************************************************
@@ -21,15 +21,14 @@
 // Registers buttons to open the form layout manager from a normal form/grid
 // view and from the Window Personalization view.
 (function () {
-  var personalizationButtonProperties, 
-    windowPersonalizationTabButtonProperties;
+  var personalizationButtonProperties, windowPersonalizationTabButtonProperties;
 
   personalizationButtonProperties = {
-    action: function() {
+    action: function () {
       var tabIdentifier, personalizeForm;
-      
+
       if (!OB.Utilities.checkProfessionalLicense(
-          OB.I18N.getLabel('OBUIAPP_ActivateMessagePersonalization'))) {
+      OB.I18N.getLabel('OBUIAPP_ActivateMessagePersonalization'))) {
         return;
       }
 
@@ -38,7 +37,7 @@
       } else {
         tabIdentifier = this.view.standardWindow.tabTitle + ' - ' + this.view.tabTitle;
       }
-      
+
       personalizeForm = isc.OBPersonalizeFormLayout.create({
         form: this.view.viewForm,
         openedInForm: true,
@@ -50,13 +49,12 @@
     disabled: false,
     buttonType: 'personalization',
     prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_Button'),
-    updateState: function(){
+    updateState: function () {
       var propValue, undef;
-      
+
       // set it 
       if (this.userWindowPersonalizationAllowed === undef) {
-        propValue = OB.PropertyStore.get('OBUIAPP_WindowPersonalization_Override', 
-            this.view.standardWindow ? this.view.standardWindow.windowId : null);
+        propValue = OB.PropertyStore.get('OBUIAPP_WindowPersonalization_Override', this.view.standardWindow ? this.view.standardWindow.windowId : null);
         if (propValue === 'false' || propValue === 'N') {
           this.userWindowPersonalizationAllowed = false;
         } else {
@@ -72,25 +70,26 @@
     },
     keyboardShortcutId: 'ToolBar_Personalization'
   };
-  
-  OB.ToolbarRegistry.registerButton(personalizationButtonProperties.buttonType, 
-      isc.OBToolbarIconButton, personalizationButtonProperties, 310, null);
+
+  OB.ToolbarRegistry.registerButton(personalizationButtonProperties.buttonType, isc.OBToolbarIconButton, personalizationButtonProperties, 310, null);
 
   // and register the toolbar button the window personalization tab  
   windowPersonalizationTabButtonProperties = {
-    action: function() {
-      var personalizationData = {}, personalizeForm, view = this.view, grid = view.viewGrid,
-        record = grid.getSelectedRecord();
+    action: function () {
+      var personalizationData = {},
+          personalizeForm, view = this.view,
+          grid = view.viewGrid,
+          record = grid.getSelectedRecord();
       if (record.value) {
         personalizationData = isc.JSON.decode(record.value);
       }
       personalizationData.personalizationId = record.id;
       personalizationData.canDelete = false;
-      
+
       personalizeForm = isc.OBPersonalizeFormLayout.create({
         personalizationData: personalizationData,
-        
-        maintenanceView: view, 
+
+        maintenanceView: view,
         openedFromMaintenanceWindow: true,
 
         tabId: record.tab,
@@ -102,18 +101,20 @@
         roleId: record.visibleAtRole,
         roleIdentifier: record['visibleAtRole._identifier'],
         userId: record.user,
-        userIdentifier: record['user._identifier']        
+        userIdentifier: record['user._identifier']
       });
       personalizeForm.doOpen();
     },
     disabled: false,
     buttonType: 'edit_personalization',
     prompt: OB.I18N.getLabel('OBUIAPP_Personalization_Toolbar_Edit_Button'),
-    updateState: function(){
-      var view = this.view, form = view.viewForm, 
-        grid = view.viewGrid, length, 
-        selectedRecords = grid.getSelectedRecords(), i;
-      
+    updateState: function () {
+      var view = this.view,
+          form = view.viewForm,
+          grid = view.viewGrid,
+          length, selectedRecords = grid.getSelectedRecords(),
+          i;
+
       // only show for records which can be edited
       if (selectedRecords.length !== 1) {
         this.setDisabled(true);
@@ -137,18 +138,15 @@
         }
       }
       if (view.isShowingForm) {
-        this.setDisabled(form.isSaving || form.readOnly || view.singleRecord ||
-            !view.hasValidState() || form.isNew);
+        this.setDisabled(form.isSaving || form.readOnly || view.singleRecord || !view.hasValidState() || form.isNew);
       } else {
-        this.setDisabled(view.readOnly || view.singleRecord || !view.hasValidState() ||
-            !grid.getSelectedRecords() || grid.getSelectedRecords().length !== 1);
+        this.setDisabled(view.readOnly || view.singleRecord || !view.hasValidState() || !grid.getSelectedRecords() || grid.getSelectedRecords().length !== 1);
       }
     },
     keyboardShortcutId: 'ToolBar_Personalization_Edit'
   };
-  
+
   // register only for the window personalization tab
-  OB.ToolbarRegistry.registerButton(windowPersonalizationTabButtonProperties.buttonType, isc.OBToolbarIconButton, 
-      windowPersonalizationTabButtonProperties, 320, 'FF8081813157AED2013157BF6D810023');
-  
+  OB.ToolbarRegistry.registerButton(windowPersonalizationTabButtonProperties.buttonType, isc.OBToolbarIconButton, windowPersonalizationTabButtonProperties, 320, 'FF8081813157AED2013157BF6D810023');
+
 }());

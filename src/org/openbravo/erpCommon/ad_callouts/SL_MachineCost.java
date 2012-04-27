@@ -168,16 +168,34 @@ public class SL_MachineCost extends HttpSecureAppServlet {
     StringBuffer resultado = new StringBuffer();
     resultado.append("var calloutName='SL_MachineCost';\n\n");
     resultado.append("var respuesta = new Array(");
-    resultado.append("new Array(\"inppurchaseamt\", " + strPurchaseAmt + "),\n");
-    resultado.append("new Array(\"inptoolsetamt\", " + strToolsetAmt + "),\n");
-    resultado.append("new Array(\"inpyearvalue\", " + strYearValue + "),\n");
-    resultado.append("new Array(\"inpamortization\", " + strAmortization + "), \n");
-    resultado.append("new Array(\"inpdaysyear\", " + strDaysYear + "),\n");
-    resultado.append("new Array(\"inpdayhours\", " + strDayHours + "),\n");
-    resultado
-        .append("new Array(\"inpimproductivehoursyear\", " + strImproductiveHoursYear + "),\n");
-    resultado.append("new Array(\"inpcostuomyear\", " + strCostUomYear + "),\n");
-    resultado.append("new Array(\"inpcost\", " + strCost + ") \n");
+    if (!"".equals(strPurchaseAmt) && strPurchaseAmt != null) {
+      resultado.append("new Array(\"inppurchaseamt\", " + strPurchaseAmt + "),\n");
+    }
+    if (!"".equals(strToolsetAmt) && strToolsetAmt != null) {
+      resultado.append("new Array(\"inptoolsetamt\", " + strToolsetAmt + "),\n");
+    }
+    if (!"".equals(strYearValue) && strYearValue != null) {
+      resultado.append("new Array(\"inpyearvalue\", " + strYearValue + "),\n");
+    }
+    if (!"".equals(strAmortization) && strAmortization != null) {
+      resultado.append("new Array(\"inpamortization\", " + strAmortization + "), \n");
+    }
+    if (!"".equals(strDaysYear) && strDaysYear != null) {
+      resultado.append("new Array(\"inpdaysyear\", " + strDaysYear + "),\n");
+    }
+    if (!"".equals(strDayHours) && strDayHours != null) {
+      resultado.append("new Array(\"inpdayhours\", " + strDayHours + "),\n");
+    }
+    if (!"".equals(strImproductiveHoursYear) && strImproductiveHoursYear != null) {
+      resultado.append("new Array(\"inpimproductivehoursyear\", " + strImproductiveHoursYear
+          + "),\n");
+    }
+    if (!"".equals(strCostUomYear) && strCostUomYear != null) {
+      resultado.append("new Array(\"inpcostuomyear\", " + strCostUomYear + "),\n");
+    }
+    if (!"".equals(strCost) && strCost != null) {
+      resultado.append("new Array(\"inpcost\", " + strCost + ") \n");
+    }
     resultado.append(");\n");
     xmlDocument.setParameter("array", resultado.toString());
     response.setContentType("text/html; charset=UTF-8");

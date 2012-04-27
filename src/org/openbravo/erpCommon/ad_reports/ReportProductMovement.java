@@ -60,8 +60,10 @@ public class ReportProductMovement extends HttpSecureAppServlet {
           "-1");
       String strProduction = vars.getGlobalVariable("inpProduction",
           "ReportProductMovement|production", "-1");
+      String strInternalConsumption = vars.getGlobalVariable("inpInternalConsumption",
+              "ReportProductMovement|internalConsumption", "-1");
       printPageDataSheet(response, vars, strDateFrom, strDateTo, strcBpartnerId, strmProductId,
-          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId);
+          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId, strInternalConsumption);
     } else if (vars.commandIn("DIRECT")) {
       String strDateFrom = vars.getGlobalVariable("inpDateFrom", "ReportProductMovement|dateFrom",
           "");
@@ -79,9 +81,11 @@ public class ReportProductMovement extends HttpSecureAppServlet {
           "");
       String strProduction = vars.getGlobalVariable("inpProduction",
           "ReportProductMovement|production", "");
+      String strInternalConsumption = vars.getGlobalVariable("inpInternalConsumption",
+              "ReportProductMovement|internalConsumption", "");
       setHistoryCommand(request, "DIRECT");
       printPageDataSheet(response, vars, strDateFrom, strDateTo, strcBpartnerId, strmProductId,
-          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId);
+          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId, strInternalConsumption);
     } else if (vars.commandIn("FIND")) {
       String strDateFrom = vars.getRequestGlobalVariable("inpDateFrom",
           "ReportProductMovement|dateFrom");
@@ -99,9 +103,11 @@ public class ReportProductMovement extends HttpSecureAppServlet {
           "ReportProductMovement|movement");
       String strProduction = vars.getRequestGlobalVariable("inpProduction",
           "ReportProductMovement|production");
+      String strInternalConsumption = vars.getRequestGlobalVariable("inpInternalConsumption",
+              "ReportProductMovement|internalConsumption");
       setHistoryCommand(request, "DIRECT");
       printPageDataSheet(response, vars, strDateFrom, strDateTo, strcBpartnerId, strmProductId,
-          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId);
+          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId, strInternalConsumption);
     } else
       pageError(response);
   }
@@ -109,7 +115,7 @@ public class ReportProductMovement extends HttpSecureAppServlet {
   private void printPageDataSheet(HttpServletResponse response, VariablesSecureApp vars,
       String strDateFrom, String strDateTo, String strcBpartnerId, String strmProductId,
       String strInout, String strInventory, String strMovement, String strProduction,
-      String strmAttributesetinstanceId) throws IOException, ServletException {
+      String strmAttributesetinstanceId, String strInternalConsumption) throws IOException, ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: dataSheet");
     response.setContentType("text/html; charset=UTF-8");
@@ -119,7 +125,8 @@ public class ReportProductMovement extends HttpSecureAppServlet {
     ReportProductMovementData[] data1 = null;
     ReportProductMovementData[] data2 = null;
     ReportProductMovementData[] data3 = null;
-    String discard[] = { "discard", "discard", "discard", "discard" };
+    ReportProductMovementData[] data4 = null;
+    String discard[] = { "discard", "discard", "discard", "discard", "discard" };
     if (strDateFrom.equals("") && strDateTo.equals("")) {
       strDateTo = DateTimeData.today(this);
       strDateFrom = DateTimeData.weekBefore(this);
@@ -181,15 +188,31 @@ public class ReportProductMovement extends HttpSecureAppServlet {
         discard[3] = "selEliminar4";
         data3 = ReportProductMovementData.set();
       }
+      if (strInternalConsumption.equals("-1")) {
+          data4 = ReportProductMovementData.selectInternalConsumption(this,
+              Utility.getContext(this, vars, "#User_Client", "ReportProductMovement"),
+              Utility.getContext(this, vars, "#AccessibleOrgTree", "ReportProductMovement"),
+              strDateFrom, DateTimeData.nDaysAfter(this, strDateTo, "1"), strcBpartnerId,
+              strmProductId);
+          if (data4 == null || data4.length == 0) {
+            discard[4] = "selEliminar5";
+            data4 = ReportProductMovementData.set();
+          }
+        } else {
+          discard[4] = "selEliminar5";
+          data4 = ReportProductMovementData.set();
+        }
     } else {
       discard[0] = "selEliminar1";
       discard[1] = "selEliminar2";
       discard[2] = "selEliminar3";
       discard[3] = "selEliminar4";
+      discard[4] = "selEliminar5";
       data = ReportProductMovementData.set();
       data1 = ReportProductMovementData.set();
       data2 = ReportProductMovementData.set();
       data3 = ReportProductMovementData.set();
+      data4 = ReportProductMovementData.set();
     }
     xmlDocument = xmlEngine.readXmlTemplate(
         "org/openbravo/erpCommon/ad_reports/ReportProductMovement", discard).createXmlDocument();
@@ -253,10 +276,12 @@ public class ReportProductMovement extends HttpSecureAppServlet {
     xmlDocument.setParameter("inventory", strInventory);
     xmlDocument.setParameter("movement", strMovement);
     xmlDocument.setParameter("production", strProduction);
+    xmlDocument.setParameter("internalConsumption", strInternalConsumption);
     xmlDocument.setData("structure1", data);
     xmlDocument.setData("structure2", data1);
     xmlDocument.setData("structure3", data2);
     xmlDocument.setData("structure4", data3);
+    xmlDocument.setData("structure5", data4);
 
     out.println(xmlDocument.print());
     out.close();

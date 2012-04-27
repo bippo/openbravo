@@ -11,7 +11,7 @@
  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
  * Contributor(s): Openbravo SLU
- * Contributions are Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Contributions are Copyright (C) 2001-2012 Openbravo S.L.U.
  ******************************************************************************
  */
 package org.openbravo.erpCommon.ad_forms;
@@ -19,15 +19,18 @@ package org.openbravo.erpCommon.ad_forms;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.SequenceIdData;
+import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.common.plm.Product;
 
 public class DocInventory extends AcctServer {
@@ -158,6 +161,13 @@ public class DocInventory extends AcctServer {
     FactLine dr = null;
     FactLine cr = null;
     log4jDocInventory.debug("CreateFact - before loop");
+    String costCurrencyId = as.getC_Currency_ID();
+    OBContext.setAdminMode(false);
+    try {
+      costCurrencyId = OBDal.getInstance().get(Client.class, AD_Client_ID).getCurrency().getId();
+    } finally {
+      OBContext.restorePreviousMode();
+    }
     for (int i = 0; i < p_lines.length; i++) {
       DocLine_Material line = (DocLine_Material) p_lines[i];
       String costs = line.getProductCosts(DateAcct, as, conn, con);
@@ -174,13 +184,13 @@ public class DocInventory extends AcctServer {
       }
       if (b_Costs.compareTo(BigDecimal.ZERO) == 0
           && DocInOutData.existsCost(conn, DateAcct, line.m_M_Product_ID).equals("0")) {
-        Product product = OBDal.getInstance().get(Product.class, line.m_M_Product_ID);
-        log4j.error("No Cost Associated to product: " + product.getName());
-        setStatus(STATUS_InvalidCost);
-        break;
+        Map<String, String> parameters = getInvalidCostParameters(
+            OBDal.getInstance().get(Product.class, line.m_M_Product_ID).getIdentifier(), DateAcct);
+        setMessageResult(conn, STATUS_InvalidCost, "error", parameters);
+        throw new IllegalStateException();
       }
       // Inventory DR CR
-      dr = fact.createLine(line, assetAccount, as.getC_Currency_ID(), costs, Fact_Acct_Group_ID,
+      dr = fact.createLine(line, assetAccount, costCurrencyId, costs, Fact_Acct_Group_ID,
           nextSeqNo(SeqNo), DocumentType, conn);
       // may be zero difference - no line created.
       if (dr == null) {
@@ -196,7 +206,7 @@ public class DocInventory extends AcctServer {
         invDiff = getAccount(AcctServer.ACCTTYPE_InvDifferences, as, conn);
       }
       log4jDocInventory.debug("CreateFact - after getAccount - invDiff; " + invDiff);
-      cr = fact.createLine(line, invDiff, as.getC_Currency_ID(), (b_Costs.negate()).toString(),
+      cr = fact.createLine(line, invDiff, costCurrencyId, (b_Costs.negate()).toString(),
           Fact_Acct_Group_ID, nextSeqNo(SeqNo), DocumentType, conn);
       if (cr == null) {
         continue;

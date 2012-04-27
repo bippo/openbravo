@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -29,6 +29,11 @@ isc.OBListItem.addProperties({
   completeOnTab: true,
   validateOnExit: true,
 
+  // https://issues.openbravo.com/view.php?id=19876
+  selectOnFocus: false,
+  // still do select on focus initially
+  doInitialSelectOnFocus: true,
+
   // textMatchStyle is used for the client-side picklist
   textMatchStyle: 'substring',
 
@@ -42,23 +47,22 @@ isc.OBListItem.addProperties({
   // with addUnknownValues (to false) as this will 
   // cause the picklist not to show
   // changeOnKeypress: false,
-
   moveFocusOnPickValue: true,
 
-  hidePickListOnBlur: function() {
-    
+  hidePickListOnBlur: function () {
+
     // when the form gets redrawn the the focus may not be in
     // the item but it is still the item which gets the focus
     // after redrawing
     if (this.form && this.form._isRedrawing && this.form.getFocusItem() === this) {
       return;
     }
-    
+
     this.Super('hidePickListOnBlur', arguments);
   },
-  
+
   // is overridden to keep track that a value has been explicitly picked
-  pickValue: function(value) {
+  pickValue: function (value) {
     this._pickedValue = true;
     this.Super('pickValue', arguments);
     delete this._pickedValue;
@@ -69,7 +73,7 @@ isc.OBListItem.addProperties({
     }
   },
 
-  changed: function(form, item, value) {
+  changed: function (form, item, value) {
     this.Super('changed', arguments);
     // if not picking a value then don't do a fic call
     // otherwise every keypress would result in a fic call
@@ -90,16 +94,17 @@ isc.OBListItem.addProperties({
   // the solution is to keep a separate entries array with the
   // records in the correct order, see also the setEntries/setEntry
   // methods
-  getClientPickListData: function() {
+  getClientPickListData: function () {
     if (this.entries) {
       return this.entries;
     }
     return this.Super('getClientPickListData', arguments);
   },
 
-  setEntries: function(entries) {
-    var length = entries.length, i, id, identifier,
-      valueField = this.getValueFieldName(), valueMap = {};
+  setEntries: function (entries) {
+    var length = entries.length,
+        i, id, identifier, valueField = this.getValueFieldName(),
+        valueMap = {};
     this.entries = [];
     for (i = 0; i < length; i++) {
       id = entries[i][OB.Constants.ID] || '';
@@ -111,9 +116,11 @@ isc.OBListItem.addProperties({
     this.setValueMap(valueMap);
   },
 
-  setEntry: function(id, identifier) {
-    var i, entries = this.entries || [], entry = {}, valueField = this
-        .getValueFieldName(), length = entries.length;
+  setEntry: function (id, identifier) {
+    var i, entries = this.entries || [],
+        entry = {},
+        valueField = this.getValueFieldName(),
+        length = entries.length;
     for (i = 0; i < length; i++) {
       if (entries[i][valueField] === id) {
         return;
@@ -128,7 +135,7 @@ isc.OBListItem.addProperties({
   },
 
   // prevent ids from showing up
-  mapValueToDisplay: function(value) {
+  mapValueToDisplay: function (value) {
     var ret = this.Super('mapValueToDisplay', arguments);
     if (this.valueMap && this.valueMap[value]) {
       return this.valueMap[value];
@@ -136,10 +143,14 @@ isc.OBListItem.addProperties({
     if (ret === value && this.isDisabled()) {
       return '';
     }
-    if (ret === value && !this.valueMap) {
-      this.valueMap = {};
-      this.valueMap[value] = '';
-      return '';
+    if (ret === value) {
+      if (!this.valueMap) {
+        this.valueMap = {};
+        this.valueMap[value] = '';
+        return '';
+      } else if (!this.valueMap[value]) {
+        return '';
+      }
     }
     return ret;
   }

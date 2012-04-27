@@ -74,7 +74,7 @@ public class RptM_Requisition extends HttpSecureAppServlet {
       e.printStackTrace();
       throw new ServletException(e.getMessage());
     }
-    strmRequisitionId = strmRequisitionId.replaceAll("\\(|\\)|'", "");
+
     parameters.put("SR_LINES", jasperReportLines);
     parameters.put("REQUISITION_ID", strmRequisitionId);
     renderJR(vars, response, null, "pdf", parameters, null, null);

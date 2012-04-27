@@ -17,7 +17,7 @@
     * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
     * All Rights Reserved.
     * Contributor(s): Openbravo SLU
-    * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+    * Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
     *
     * Specifically, this derivative work is based upon the following Compiere
     * file and version.
@@ -76,12 +76,23 @@ BEGIN
      'Y', now(), '0',
     now(), '0',  'Y'
   FROM AD_Role r
-   WHERE isManual='N';
+   WHERE isManual='N'
+     AND (r.IsAdvanced = 'Y' OR :new.IsAdvancedFeature='N');
  END IF;
  -- Inserting
  -- AD_Window update trigger
  --  synchronize name,...
  IF UPDATING THEN
+  IF (:new.IsAdvancedFeature ='Y' and :old.IsAdvancedFeature ='N') THEN
+    delete from ad_window_access a
+    where a.ad_window_id = :new.ad_window_id
+      and exists (select 1 
+                    from ad_role r
+                   where r.ad_role_id = a.ad_role_id
+                    and r.isManual = 'N'
+                    and r.IsAdvanced = 'N');
+  END IF;
+  
   IF(COALESCE(:old.Name, '.') <> COALESCE(:NEW.Name, '.')
   OR COALESCE(:old.Description, '.') <> COALESCE(:NEW.Description, '.')
   OR COALESCE(:old.Help, '.') <> COALESCE(:NEW.Help, '.'))

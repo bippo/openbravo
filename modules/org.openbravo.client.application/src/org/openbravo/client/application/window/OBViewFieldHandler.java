@@ -688,6 +688,10 @@ public class OBViewFieldHandler {
       return "";
     }
 
+    public boolean isShowSummary() {
+      return false;
+    }
+
   }
 
   public class OBClientClassField implements OBViewFieldDefinition {
@@ -933,6 +937,10 @@ public class OBViewFieldHandler {
     public String getValidationFunction() {
       return "";
     }
+
+    public boolean isShowSummary() {
+      return false;
+    }
   }
 
   public class OBViewField implements OBViewFieldDefinition {
@@ -992,7 +1000,12 @@ public class OBViewFieldHandler {
     }
 
     public String getGridFieldProperties() {
-      return uiDefinition.getGridFieldProperties(field);
+      String props = uiDefinition.getGridFieldProperties(field);
+      if (!props.contains("canFilter") && field.getTab().isObuiappCanDelete()
+          && field.getTab().getWindow().getWindowType().equals("OBUIAPP_PickAndExecute")) {
+        props = props + ", canFilter: false";
+      }
+      return props;
     }
 
     public String getFilterEditorProperties() {
@@ -1289,6 +1302,20 @@ public class OBViewFieldHandler {
     public String getValidationFunction() {
       if (field.getObuiappValidator() != null) {
         return field.getObuiappValidator();
+      }
+      return "";
+    }
+
+    public boolean isShowSummary() {
+      if (field.isOBUIAPPShowSummary() != null) {
+        return field.isOBUIAPPShowSummary();
+      }
+      return false;
+    }
+
+    public String getSummaryFunction() {
+      if (field.getObuiappSummaryfn() != null) {
+        return field.getObuiappSummaryfn();
       }
       return "";
     }

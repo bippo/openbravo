@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2011 Openbravo SLU
+ * All portions are Copyright (C) 2011-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -37,72 +37,71 @@ isc.OBAlertGrid.addProperties({
   showCellContextMenus: true,
   selectOnEdit: false,
   dataPageSize: 100,
- 
+
   // keeps track if we are in objectSelectionMode or in toggleSelectionMode
   // objectSelectionMode = singleRecordSelection === true
   singleRecordSelection: false,
 
   dataProperties: {
-    useClientFiltering: false//,
+    useClientFiltering: false //,
     //useClientSorting: false
   },
-  
-  gridFields: [
-    { name: 'alertRule',
-      title: OB.I18N.getLabel('OBUIAPP_AlertGrid_AlertRule'),
-      displayField: 'alertRule._identifier',
-      canFilter: true,
-      canEdit: false,
-      filterOnKeypress: true,
-      filterEditorType: 'OBFKFilterTextItem',
-      type: '_id_19'
+
+  gridFields: [{
+    name: 'alertRule',
+    title: OB.I18N.getLabel('OBUIAPP_AlertGrid_AlertRule'),
+    displayField: 'alertRule._identifier',
+    canFilter: true,
+    canEdit: false,
+    filterOnKeypress: true,
+    filterEditorType: 'OBFKFilterTextItem',
+    type: '_id_19'
+  }, {
+    name: 'description',
+    title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Alert'),
+    canFilter: true,
+    canEdit: false,
+    filterOnKeypress: true,
+    filterEditorType: 'OBTextItem',
+    type: '_id_10'
+  }, {
+    name: 'creationDate',
+    title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Time'),
+    canFilter: true,
+    canEdit: false,
+    filterEditorType: 'OBMiniDateRangeItem',
+    type: '_id_16'
+  }, {
+    name: 'comments',
+    title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Note'),
+    canFilter: true,
+    canEdit: true,
+    filterOnKeypress: true,
+    filterEditorType: 'OBTextItem',
+    editorType: 'OBTextItem',
+    editorProperties: {
+      width: '90%',
+      columnName: 'comments',
+      disabled: false,
+      updatable: true
     },
-    { name: 'description',
-      title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Alert'),
-      canFilter: true,
-      canEdit: false,
-      filterOnKeypress: true,
-      filterEditorType: 'OBTextItem',
-      type: '_id_10'
-    },
-    { name: 'creationDate',
-      title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Time'),
-      canFilter: true,
-      canEdit: false,
-      filterEditorType: 'OBMiniDateRangeItem',
-      type: '_id_16'
-    },
-    { name: 'comments',
-      title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Note'),
-      canFilter: true,
-      canEdit: true,
-      filterOnKeypress: true,
-      filterEditorType: 'OBTextItem',
-      editorType: 'OBTextItem',
-      editorProperties: {
-        width: '90%',
-        columnName: 'comments',
-        disabled: false,
-        updatable: true
-      },
-      type: '_id_10'
-    },
-    { name: 'recordID',
-      title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Record'),
-      canFilter: true,
-      canEdit: false,
-      isLink: true,
-      filterOnKeypress: true,
-      filterEditorType: 'OBTextItem',
-      type: '_id_10',
-      formatCellValueFunctionReplaced: true,
-      formatCellValue: function(value, record, rowNum, colNum, grid){
-          return '';
-        }
+    type: '_id_10'
+  }, {
+    name: 'recordID',
+    title: OB.I18N.getLabel('OBUIAPP_AlertGrid_Record'),
+    canFilter: true,
+    canEdit: false,
+    isLink: true,
+    filterOnKeypress: true,
+    filterEditorType: 'OBTextItem',
+    type: '_id_10',
+    formatCellValueFunctionReplaced: true,
+    formatCellValue: function (value, record, rowNum, colNum, grid) {
+      return '';
     }
-    ],
-  
-  initWidget: function() {
+  }],
+
+  initWidget: function () {
     // added for showing counts in the filtereditor row
     this.checkboxFieldDefaults = isc.addProperties(this.checkboxFieldDefaults, {
       canFilter: true,
@@ -116,58 +115,63 @@ isc.OBAlertGrid.addProperties({
       filterEditorType: 'StaticTextItem'
     });
 
-    this.contextMenu = this.getMenuConstructor().create({items: []});
-    
+    this.contextMenu = this.getMenuConstructor().create({
+      items: []
+    });
+
     OB.Datasource.get('ADAlert', this, null, true);
 
     this.Super('initWidget', arguments);
   },
-  
-  setDataSource: function(ds) {
+
+  setDataSource: function (ds) {
     this.Super('setDataSource', [ds, this.gridFields]);
     // Some properties need to be set when the datasource is loaded to avoid errors when form is
     // open the first time.
     this.setSelectionAppearance('checkbox');
-    
+
     // this extra call is needed to solve this issue:
     // https://issues.openbravo.com/view.php?id=17145
     this.refreshFields();
-    
+
     this.sort('creationDate', 'descending');
 
     this.fetchData();
   },
 
-  dataArrived: function(startRow, endRow){
+  dataArrived: function (startRow, endRow) {
     this.getGridTotalRows();
     return this.Super('dataArrived', arguments);
   },
 
-  getGridTotalRows: function(){
-    var criteria = this.getCriteria() || {}, requestProperties = {};
+  getGridTotalRows: function () {
+    var criteria = this.getCriteria() || {},
+        requestProperties = {};
 
     if (!OB.AlertManagement.sections[this.alertStatus].expanded) {
       // fetch to the datasource with an empty criteria to get all the rows
       requestProperties.params = requestProperties.params || {};
       requestProperties.params[OB.Constants.WHERE_PARAMETER] = this.getFilterClause();
-      requestProperties.clientContext = {alertStatus: this.alertStatus};
-      this.dataSource.fetchData(criteria, function(dsResponse, data, dsRequest){
-          OB.AlertManagement.setTotalRows(dsResponse.totalRows, dsResponse.clientContext.alertStatus);
-        }, requestProperties );
+      requestProperties.clientContext = {
+        alertStatus: this.alertStatus
+      };
+      this.dataSource.fetchData(criteria, function (dsResponse, data, dsRequest) {
+        OB.AlertManagement.setTotalRows(dsResponse.totalRows, dsResponse.clientContext.alertStatus);
+      }, requestProperties);
 
     } else {
       OB.AlertManagement.setTotalRows(this.getTotalRows(), this.alertStatus);
     }
   },
-  
-  onFetchData: function(criteria, requestProperties){
+
+  onFetchData: function (criteria, requestProperties) {
     requestProperties = requestProperties || {};
     requestProperties.params = requestProperties.params || {};
 
     requestProperties.params[OB.Constants.WHERE_PARAMETER] = this.getFilterClause();
   },
-  
-  getFilterClause: function() {
+
+  getFilterClause: function () {
     var i, filterClause = '',
         alertRuleIds = '',
         arlength = OB.AlertManagement.alertRules.length,
@@ -177,13 +181,13 @@ isc.OBAlertGrid.addProperties({
       if (alertRuleIds !== '') {
         alertRuleIds += ',';
       }
-      alertRuleIds += '\'' + OB.AlertManagement.alertRules[i].alertRuleId +'\'';
+      alertRuleIds += '\'' + OB.AlertManagement.alertRules[i].alertRuleId + '\'';
       // if an alertRule has some alerts to filter by, add them to the where clause as:
       // alerts are of a different alertRule or only the alerts predefined
       // this only happens if the alertRule has an SQL filter expression defined
       if (OB.AlertManagement.alertRules[i].alerts) {
         filterClause += ' and (e.alertRule.id != \'' + OB.AlertManagement.alertRules[i].alertRuleId + '\'';
-        filterClause += ' or e.id in (' +OB.AlertManagement.alertRules[i].alerts + '))';
+        filterClause += ' or e.id in (' + OB.AlertManagement.alertRules[i].alerts + '))';
       }
     }
     if (alertRuleIds !== '') {
@@ -196,8 +200,8 @@ isc.OBAlertGrid.addProperties({
     }
     return whereClause;
   },
-  
-  headerClick: function(fieldNum, header, autoSaveDone){
+
+  headerClick: function (fieldNum, header, autoSaveDone) {
     var field = this.fields[fieldNum];
     if (this.isCheckboxField(field) && this.singleRecordSelection) {
       this.deselectAllRecords();
@@ -205,10 +209,10 @@ isc.OBAlertGrid.addProperties({
     }
     return this.Super('headerClick', arguments);
   },
-  
+
   cellClick: function (record, rowNum, colNum) {
     var i, tabId, field = this.getField(colNum),
-      length = OB.AlertManagement.alertRules.length;
+        length = OB.AlertManagement.alertRules.length;
     for (i = 0; i < length; i++) {
       if (OB.AlertManagement.alertRules[i].alertRuleId === record.alertRule) {
         tabId = OB.AlertManagement.alertRules[i].tabId;
@@ -218,15 +222,15 @@ isc.OBAlertGrid.addProperties({
       OB.Utilities.openDirectTab(tabId, record.referenceSearchKey);
     }
   },
-  
-  recordClick: function(viewer, record, recordNum, field, fieldNum, value, rawValue){
+
+  recordClick: function (viewer, record, recordNum, field, fieldNum, value, rawValue) {
     this.handleRecordSelection(viewer, record, recordNum, field, fieldNum, value, rawValue, false, true);
   },
-  
- 
+
+
   // +++++++++++++++++++++++++++++ Record Selection Handling +++++++++++++++++++++++
   // Functions based on the ob-view-grid.js Record Selection Handling.
-  deselectAllRecords: function(preventUpdateSelectInfo, autoSaveDone){
+  deselectAllRecords: function (preventUpdateSelectInfo, autoSaveDone) {
     this.allSelected = false;
     var ret = this.Super('deselectAllRecords', arguments);
     this.lastSelectedRecord = null;
@@ -236,14 +240,14 @@ isc.OBAlertGrid.addProperties({
     return ret;
   },
 
-  selectAllRecords: function(autoSaveDone){
+  selectAllRecords: function (autoSaveDone) {
     this.allSelected = true;
     var ret = this.Super('selectAllRecords', arguments);
     this.selectionUpdated();
     return ret;
   },
 
-  updateSelectedCountDisplay: function(){
+  updateSelectedCountDisplay: function () {
     var selection = this.getSelection();
     var selectionLength = selection.getLength();
     var newValue = '&nbsp;';
@@ -259,7 +263,7 @@ isc.OBAlertGrid.addProperties({
   // consider using the selectionChanged method, but that
   // one has as disadvantage that it is called multiple times
   // for one select/deselect action
-  selectionUpdated: function(record, recordList){
+  selectionUpdated: function (record, recordList) {
 
     this.stopHover();
     this.updateSelectedCountDisplay();
@@ -269,16 +273,17 @@ isc.OBAlertGrid.addProperties({
       this.lastSelectedRecord = this.getSelectedRecord();
     }
   },
-  
-  selectOnMouseDown: function(record, recordNum, fieldNum, autoSaveDone){
+
+  selectOnMouseDown: function (record, recordNum, fieldNum, autoSaveDone) {
     // don't change selection on right mouse down
-    var EH = isc.EventHandler, eventType;
-    
+    var EH = isc.EventHandler,
+        eventType;
+
     // don't do anything if right-clicking on a selected record
     if (EH.rightButtonDown() && this.isSelected(record)) {
       return;
     }
-    
+
     var previousSingleRecordSelection = this.singleRecordSelection;
     var currentSelectedRecordSelected = (this.getSelectedRecord() === record);
     if (this.getCheckboxFieldPosition() === fieldNum) {
@@ -287,7 +292,7 @@ isc.OBAlertGrid.addProperties({
       }
       this.singleRecordSelection = false;
       this.Super('selectOnMouseDown', arguments);
-      
+
       // handle a special case:
       // - singlerecordmode: checkbox is not checked
       // - user clicks on checkbox
@@ -295,9 +300,9 @@ isc.OBAlertGrid.addProperties({
       if (previousSingleRecordSelection && currentSelectedRecordSelected) {
         this.selectSingleRecord(record);
       }
-      
+
       this.selectionUpdated();
-      
+
       this.markForRedraw('Selection checkboxes need to be redrawn');
     } else {
       // do some checking, the handleRecordSelection should only be called
@@ -312,26 +317,26 @@ isc.OBAlertGrid.addProperties({
       }
     }
   },
-  
-  handleRecordSelection: function(viewer, record, recordNum, field, fieldNum, value, rawValue, fromSelectOnMouseDown){
+
+  handleRecordSelection: function (viewer, record, recordNum, field, fieldNum, value, rawValue, fromSelectOnMouseDown) {
     var EH = isc.EventHandler;
     var keyName = EH.getKey();
-    
+
     // do nothing, click in the editrow itself
     if ((this.getEditRow() || this.getEditRow() === 0) && this.getEditRow() === recordNum) {
       return;
     }
-    
+
     // if the arrow key was pressed and no ctrl/shift pressed then
     // go to single select mode
     var arrowKeyPressed = keyName && (keyName === isc.OBViewGrid.ARROW_UP_KEY_NAME || keyName === isc.OBViewGrid.ARROW_DOWN_KEY_NAME);
-    
+
     var previousSingleRecordSelection = this.singleRecordSelection;
     if (arrowKeyPressed) {
       if ((EH.ctrlKeyDown() && !EH.altKeyDown() && !EH.shiftKeyDown()) || (!EH.ctrlKeyDown() && !EH.altKeyDown() && EH.shiftKeyDown())) {
         // move to multi-select mode, let the standard do it for us
         this.singleRecordSelection = false;
-      } else if (!(!EH.ctrlKeyDown() && EH.altKeyDown() && EH.shiftKeyDown())) {  // 'if' statement to avoid do an action when the KS to move to a child tab is fired
+      } else if (!(!EH.ctrlKeyDown() && EH.altKeyDown() && EH.shiftKeyDown())) { // 'if' statement to avoid do an action when the KS to move to a child tab is fired
         this.doSelectSingleRecord(record);
       }
     } else if (this.getCheckboxFieldPosition() === fieldNum) {
@@ -363,7 +368,7 @@ isc.OBAlertGrid.addProperties({
       // click on the record which was already selected
       this.doSelectSingleRecord(record);
     }
-    
+
     this.updateSelectedCountDisplay();
 
     // mark some redraws if there are lines which don't
@@ -373,13 +378,12 @@ isc.OBAlertGrid.addProperties({
       this.markForRedraw('Selection checkboxes need to be redrawn');
     }
   },
-  
+
   //selectRecordForEdit: function(record){
   //  this.Super('selectRecordForEdit', arguments);
   //  this.doSelectSingleRecord(record);
   //},
-  
-  doSelectSingleRecord: function(record){
+  doSelectSingleRecord: function (record) {
     // if this record is already selected and the only one then do nothing
     // note that when navigating with the arrow key that at a certain 2 are
     // selected
@@ -389,17 +393,18 @@ isc.OBAlertGrid.addProperties({
     }
     this.singleRecordSelection = true;
     this.selectSingleRecord(record);
-    
+
     // deselect the checkbox in the top
-    var fieldNum = this.getCheckboxFieldPosition(), field = this.fields[fieldNum];
+    var fieldNum = this.getCheckboxFieldPosition(),
+        field = this.fields[fieldNum];
     var icon = this.checkboxFieldFalseImage || this.booleanFalseImage;
     var title = this.getValueIconHTML(icon, field);
-    
+
     this.setFieldTitle(fieldNum, title);
   },
-  
+
   // overridden to prevent the checkbox to be shown when only one record is selected.
-  getCellValue: function(record, recordNum, fieldNum, gridBody){
+  getCellValue: function (record, recordNum, fieldNum, gridBody) {
     var field = this.fields[fieldNum];
     if (!field || this.allSelected) {
       return this.Super('getCellValue', arguments);
@@ -425,22 +430,21 @@ isc.OBAlertGrid.addProperties({
       if (!record || record[this.recordEnabledProperty] === false) {
         icon = icon.replace('.', '_Disabled.');
       }
-      
+
       var html = this.getValueIconHTML(icon, field);
-      
+
       return html;
     } else {
       return this.Super('getCellValue', arguments);
     }
   },
-  
-  getSelectedRecords: function(){
+
+  getSelectedRecords: function () {
     return this.getSelection();
   },
   // ++++++++++++++ end of Record Selection handling ++++++++++++++
-  
   // overridden to support hover on the header for the checkbox field
-  setFieldProperties: function(field, properties){
+  setFieldProperties: function (field, properties) {
     var localField = field;
     if (isc.isA.Number(localField)) {
       localField = this.fields[localField];
@@ -449,24 +453,26 @@ isc.OBAlertGrid.addProperties({
       properties.showHover = true;
       properties.prompt = OB.I18N.getLabel('OBUIAPP_GridSelectAllColumnPrompt');
     }
-    
+
     return this.Super('setFieldProperties', arguments);
   },
-  
-  cellHoverHTML: function(record, rowNum, colNum){
-    var field = this.getField(colNum), cellErrors, msg = '', i;
+
+  cellHoverHTML: function (record, rowNum, colNum) {
+    var field = this.getField(colNum),
+        cellErrors, msg = '',
+        i;
     if (this.isCheckboxField(field)) {
       return OB.I18N.getLabel('OBUIAPP_GridSelectColumnPrompt');
     }
   },
-  
-  makeCellContextItems: function(record, rowNum, colNum){
+
+  makeCellContextItems: function (record, rowNum, colNum) {
     var menuItems = [];
     var grid = this;
     if (grid.alertStatus === 'Acknowledged' || grid.alertStatus === 'Suppressed') {
       menuItems.add({
         title: OB.I18N.getLabel('OBUIAPP_MoveToStatus', [OB.AlertManagement.translatedStatus.New]),
-        click: function(){
+        click: function () {
           OB.AlertManagement.moveToStatus(record.id, grid.alertStatus, 'New');
         }
       });
@@ -474,7 +480,7 @@ isc.OBAlertGrid.addProperties({
     if (grid.alertStatus === 'New' || grid.alertStatus === 'Suppressed') {
       menuItems.add({
         title: OB.I18N.getLabel('OBUIAPP_MoveToStatus', [OB.AlertManagement.translatedStatus.Acknowledged]),
-        click: function(){
+        click: function () {
           OB.AlertManagement.moveToStatus(record.id, grid.alertStatus, 'Acknowledged');
         }
       });
@@ -482,14 +488,14 @@ isc.OBAlertGrid.addProperties({
     if (grid.alertStatus === 'New' || grid.alertStatus === 'Acknowledged') {
       menuItems.add({
         title: OB.I18N.getLabel('OBUIAPP_MoveToStatus', [OB.AlertManagement.translatedStatus.Suppressed]),
-        click: function(){
+        click: function () {
           OB.AlertManagement.moveToStatus(record.id, grid.alertStatus, 'Suppressed');
         }
       });
     }
     return menuItems;
   },
-  
+
   // a trick to prevent a javascript error, draw the first time
   // without record components
   // this topic needs to be revisited after a certain time
@@ -498,17 +504,17 @@ isc.OBAlertGrid.addProperties({
   // https://issues.openbravo.com/view.php?id=17289
   // https://issues.openbravo.com/view.php?id=17784
   firstTimeRedrawCalled: true,
-  draw: function() {
-   if (this.firstTimeRedrawCalled && this.showRecordComponents) {
-     this.showRecordComponents = false;
-     this.Super('draw', arguments);
-     this.showRecordComponents = true;
-     delete this.firstTimeRedrawCalled;
-     this.Super('redraw', arguments);
-     return;
-   } 
-   delete this.firstTimeRedrawCalled;
-   this.Super('draw', arguments);
+  draw: function () {
+    if (this.firstTimeRedrawCalled && this.showRecordComponents) {
+      this.showRecordComponents = false;
+      this.Super('draw', arguments);
+      this.showRecordComponents = true;
+      delete this.firstTimeRedrawCalled;
+      this.Super('redraw', arguments);
+      return;
+    }
+    delete this.firstTimeRedrawCalled;
+    this.Super('draw', arguments);
   }
 
 });
