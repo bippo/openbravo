@@ -214,8 +214,9 @@ BEGIN
 
         IF (v_Count = 0) THEN -- First time on this product
           v_ResultStr := 'Inserting stock lines product: ' || Cur_Product.M_Product_ID;
-          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, (-1 * Cur_Product.STOCKMIN), 0, NULL, 'MS', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'N', NULL, v_Aux_ID);
-          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, v_QtyOnHand, 0, NULL, 'ST', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'Y', NULL, v_Aux_ID);
+
+          Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, (-1 * Cur_Product.STOCKMIN), 0, NULL, 'MS', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, (CASE WHEN Cur_Product.STOCKMIN > 0 THEN 'N' ELSE 'Y' END), NULL, v_Aux_ID);
+	  Mrp_Run_Insertlines(p_Client_ID, p_Org_ID, p_User_ID, p_Run, Cur_Product.M_Product_ID, v_QtyOnHand, 0, NULL, 'ST', 'Y', NULL, NULL, NULL, NULL, NULL, p_PlanningDate, NULL, p_Production, 'Y', NULL, v_Aux_ID);
 
           v_ResultStr := 'Inserting Order lines product: ' || Cur_Product.M_Product_ID;
           FOR Cur_OrderLine IN (SELECT Mrp_Check_Planningmethod(Cur_Product.MRP_PlanningMethod_ID,

@@ -32,7 +32,9 @@ isc.OBToolbar.addClassProperties({
 
   SAVE_BUTTON_PROPERTIES: {
     action: function () {
+      this.view.savingWithShortcut = true;
       this.view.saveRow();
+      delete this.view.savingWithShortcut;
     },
     disabled: true,
     buttonType: 'save',

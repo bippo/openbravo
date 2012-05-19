@@ -1220,7 +1220,7 @@ public class PrintController extends HttpSecureAppServlet {
       } else {
         final String[] discardAux = new String[discard.length + 1];
         for (int i = 0; i < discard.length; i++) {
-          discardAux[0] = discard[0];
+          discardAux[i] = discard[i];
         }
         discardAux[discard.length] = "discardSelect";
         return discardAux;

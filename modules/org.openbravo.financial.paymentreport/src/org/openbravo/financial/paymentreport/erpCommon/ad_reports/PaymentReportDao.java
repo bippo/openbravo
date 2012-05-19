@@ -1407,13 +1407,6 @@ public class PaymentReportDao {
             || (transaction.getCurrency().getISOCode().toString()
                 .compareTo(data.getField("TRANS_CURRENCY")) < 0);
       }
-      if (strOrdCritList[i].contains("Date")) {
-        Date transactionDate = transaction.getDateAcct();
-        Date dataDate = FIN_Utility.getDate(data.getField("DUE_DATE"));
-        if (transactionDate.before(dataDate)) {
-          isBefore = true;
-        }
-      }
       return isBefore;
     } else {
       if (strOrdCritList[i].contains("Project")) {
@@ -1465,17 +1458,13 @@ public class PaymentReportDao {
               strProject);
         }
       } else if (strOrdCritList[i].contains("Date")) {
-        Date transactionDate = transaction.getDateAcct();
-        Date dataDate = FIN_Utility.getDate(data.getField("DUE_DATE"));
-        if (transactionDate.before(dataDate)) {
-          isBefore = true;
-        } else if (transactionDate.equals(dataDate)) {
+        Date dataDate = FIN_Utility.getDate(data.getField("INVOICE_DATE"));
+        if (dataDate != null) {
+          isBefore = false;
+        } else {
           isBefore = isBeforeOrder(transaction, data, strOrdCritList, i + 1, BPName, BPCategory,
               strProject);
         }
-      } else {
-        isBefore = isBeforeOrder(transaction, data, strOrdCritList, i + 1, BPName, BPCategory,
-            strProject);
       }
       return isBefore;
     }
