@@ -148,7 +148,7 @@ isc.OBListItem.addProperties({
         this.valueMap = {};
         this.valueMap[value] = '';
         return '';
-      } else if (!this.valueMap[value]) {
+      } else if (!this.valueMap[value] && OB.Utilities.isUUID(value)) {
         return '';
       }
     }

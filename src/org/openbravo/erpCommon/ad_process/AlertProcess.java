@@ -140,8 +140,8 @@ public class AlertProcess implements Process {
         // the 'Client' tab or in the 'Email Configuration' tab.
         // The SMTP server configured in 'Client' tab way is @Deprecated in 3.0
 
-        final String adClientId = alert[0].adClientId;
-        final String adOrgId = alert[0].adOrgId;
+        final String adClientId = alertRule.adClientId;
+        final String adOrgId = alertRule.adOrgId;
         final String deprecatedMailHost = OBDal.getInstance().get(Client.class, adClientId)
             .getMailHost();
         boolean isDeprecatedMode = false;
@@ -162,6 +162,8 @@ public class AlertProcess implements Process {
                 .createCriteria(EmailServerConfiguration.class);
             mailConfigCriteria.add(Restrictions.eq(EmailServerConfiguration.PROPERTY_CLIENT, OBDal
                 .getInstance().get(Client.class, adClientId)));
+            mailConfigCriteria.setFilterOnReadableClients(false);
+            mailConfigCriteria.setFilterOnReadableOrganization(false);
             final List<EmailServerConfiguration> mailConfigList = mailConfigCriteria.list();
 
             if (mailConfigList.size() > 0) {
@@ -194,6 +196,8 @@ public class AlertProcess implements Process {
                   .createCriteria(AlertRecipient.class);
               alertRecipientsCriteria.add(Restrictions.eq(AlertRecipient.PROPERTY_ALERTRULE, OBDal
                   .getInstance().get(AlertRule.class, alertRule.adAlertruleId)));
+              alertRecipientsCriteria.setFilterOnReadableClients(false);
+              alertRecipientsCriteria.setFilterOnReadableOrganization(false);
 
               final List<AlertRecipient> alertRecipientsList = alertRecipientsCriteria.list();
 
