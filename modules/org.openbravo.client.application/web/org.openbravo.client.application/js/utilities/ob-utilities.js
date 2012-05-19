@@ -910,3 +910,17 @@ OB.Utilities.getTimePassedInterval = function (timeInMiliseconds) {
 OB.Utilities.getValue = function (object, property) {
   return object[property];
 };
+
+/* This function will return true if it receives a string parameter, and 
+ * which complies with the OB UUID format (that is, its a
+ * hexadecimal number of length 32)
+ */
+OB.Utilities.isUUID = function(object) {
+  if(typeof object !=='string'){
+    return false;
+  }
+  if(object.length!==32){
+    return false;
+  }
+  return (/[A-Fa-f0-9]{32,32}/).test(object);
+};

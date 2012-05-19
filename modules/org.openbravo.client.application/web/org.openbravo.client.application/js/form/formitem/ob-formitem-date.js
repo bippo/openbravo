@@ -243,7 +243,13 @@ isc.OBDateItem.addProperties(OB.DateItemProperties, {
   // update the value in update value as this is called from cellEditEnd in the
   // grid, after losing the focus on the form and when autosaving
   updateValue: function () {
-    if (this.grid && this.grid._preventDateParsing && !this.grid._autoSaving) {
+    var savingWithShortcut;
+    if (this.grid && this.grid.view && this.grid.view.savingWithShortcut) {
+      savingWithShortcut = this.grid.view.savingWithShortcut;
+    } else {
+      savingWithShortcut = false;
+    }
+    if (this.grid && this.grid._preventDateParsing && !this.grid._autoSaving && !savingWithShortcut) {
       return;
     }
     if (this.textField._textChanged) {

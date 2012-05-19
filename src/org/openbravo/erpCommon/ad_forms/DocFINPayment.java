@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -324,12 +324,14 @@ public class DocFINPayment extends AcctServer {
         }
       }
       FIN_Payment payment = OBDal.getInstance().get(FIN_Payment.class, Record_ID);
-      fact.createLine(
-          null,
-          getAccount(conn, payment.getPaymentMethod(), payment.getAccount(), as,
-              payment.isReceipt()), C_Currency_ID, (payment.isReceipt() ? Amounts[AMTTYPE_Gross]
-              : ""), (payment.isReceipt() ? "" : Amounts[AMTTYPE_Gross]), Fact_Acct_Group_ID,
-          "999999", DocumentType, conn);
+      if (BigDecimal.ZERO.compareTo(new BigDecimal(Amounts[AMTTYPE_Gross])) != 0) {
+        fact.createLine(
+            null,
+            getAccount(conn, payment.getPaymentMethod(), payment.getAccount(), as,
+                payment.isReceipt()), C_Currency_ID, (payment.isReceipt() ? Amounts[AMTTYPE_Gross]
+                : ""), (payment.isReceipt() ? "" : Amounts[AMTTYPE_Gross]), Fact_Acct_Group_ID,
+            "999999", DocumentType, conn);
+      }
       // Pre-payment is consumed when Used Credit Amount not equals Zero. When consuming Credit no
       // credit is generated
       if (new BigDecimal(usedAmount).compareTo(ZERO) != 0
