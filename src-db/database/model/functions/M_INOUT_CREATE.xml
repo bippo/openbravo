@@ -115,6 +115,7 @@
       COALESCE(T.M_PRODUCT_UOM_ID, '0')=COALESCE(p_Product_UOM, '0') AND
       COALESCE(T.M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_Attribute, COALESCE(T.M_ATTRIBUTESETINSTANCE_ID, '0')) AND
       COALESCE(T.QtyOnHand, 0)>0
+      AND L.ISACTIVE='Y'
     ORDER BY L.PRIORITYNO,
       A.CREATED, T.CREATED;
     
@@ -492,7 +493,8 @@
                         END IF;
                         SELECT MIN(M_LOCATOR_ID) INTO v_Locator_ID
                         FROM M_LOCATOR
-                        WHERE M_WAREHOUSE_ID=ol.M_Warehouse_ID;
+                        WHERE M_WAREHOUSE_ID=ol.M_Warehouse_ID
+                        AND M_LOCATOR.ISACTIVE = 'Y';
                         --
                         DBMS_OUTPUT.PUT_LINE('    Line ' || ol.Line || '  Qty=' || v_LocatorQty) ;
                         v_ResultStr:='CreateInOutLine';

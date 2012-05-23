@@ -39,26 +39,14 @@
 		from
 			c_poc_emaildefinition emaildefinitions
 		where
-			emaildefinitions.ad_org_id = ? and
+			ad_isorgincluded(?,emaildefinitions.ad_org_id, emaildefinitions.ad_client_id)<>-1 and
 			emaildefinitions.c_poc_doctype_template_id = ?
-        union
-		select
-		    '2' as position,		
-			emaildefinitions.ad_language as ad_language,
-			emaildefinitions.subject as subject,
-			emaildefinitions.body as body,
-			emaildefinitions.isdefault as isdefault
-		from
-			c_poc_emaildefinition emaildefinitions
-		where
-			emaildefinitions.ad_org_id = '0' and
-			emaildefinitions.c_poc_doctype_template_id = ?        			
-		order by position asc, isdefault desc
+		order by ad_isorgincluded(?,emaildefinitions.ad_org_id, emaildefinitions.ad_client_id) desc
         ]]>
         </Sql>
         <Parameter name="adOrgId"/>
         <Parameter name="docTypeTemplateId"/>
-        <Parameter name="docTypeTemplateId"/>        
+        <Parameter name="adOrgId"/>
    </SqlMethod>
  
 </SqlClass>

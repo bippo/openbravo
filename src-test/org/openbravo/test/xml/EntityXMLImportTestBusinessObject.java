@@ -339,7 +339,7 @@ public class EntityXMLImportTestBusinessObject extends XMLBaseTest {
     final List<PaymentTerm> result = new ArrayList<PaymentTerm>();
     for (int i = 0; i < NO_OF_PT; i++) {
       final PaymentTerm source = OBDal.getInstance().get(PaymentTerm.class,
-          "0A12CF4558584952932FDA3539F69118");
+          "66BA1164A7394344BB9CD1A6ECEED05D");
       final PaymentTerm pt = (PaymentTerm) DalUtil.copy(source, false);
       pt.setName(PREFIX + " test " + i);
       pt.setOrganization(OBContext.getOBContext().getCurrentOrganization());

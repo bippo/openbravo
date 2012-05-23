@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -68,6 +68,8 @@ public class ProcessBundle {
 
   private String processId;
 
+  private String processRequestId;
+
   private String impl;
 
   private Map<String, Object> params;
@@ -122,6 +124,37 @@ public class ProcessBundle {
   }
 
   /**
+   * Creates a new ProcessBundle object with the given parameters.
+   * 
+   * @param processId
+   *          the process id
+   * @param processRequestId
+   *          the process request id (the id of the schedule configuration definition record)
+   * @param vars
+   *          clients security/application context variables
+   * @param channel
+   *          the channel through which this process was scheduled/executed
+   * @param client
+   *          the client that scheduled/executed this process
+   * @param organization
+   *          the organization under which this process will run
+   */
+  public ProcessBundle(String processId, String processRequestId, VariablesSecureApp vars,
+      Channel channel, String client, String organization, boolean roleSecurity) {
+    this(processId, vars, channel, client, organization, roleSecurity);
+    this.processRequestId = processRequestId;
+  }
+
+  /**
+   * Returns the unique id for the schedule configuration of this process.
+   * 
+   * @return the process request's id (primary key within the ProcessRequest entity)
+   */
+  public String getProcessRequestId() {
+    return this.processRequestId;
+  }
+
+  /**
    * Returns the unique id for the implementation of this process.
    * 
    * @return the process' id
@@ -167,8 +200,14 @@ public class ProcessBundle {
    * Returns a string representation of the process parameters in key=value pairs.
    * 
    * @return a deflated string representation of the process' parameter map
+   * 
+   * @deprecated Use instead {@link #getParamsDeflated()}
    */
   public String getParamsDefalated() {
+    return this.getParamsDeflated();
+  }
+
+  public String getParamsDeflated() {
     final XStream xstream = new XStream(new JettisonMappedXmlDriver());
     return xstream.toXML(getParams());
   }
@@ -317,8 +356,8 @@ public class ProcessBundle {
 
     final String processId = data.processId;
     final boolean isRoleSecurity = data.isrolesecurity != null && data.isrolesecurity.equals("Y");
-    final ProcessBundle bundle = new ProcessBundle(processId, vars, Channel.SCHEDULED, data.client,
-        data.organization, isRoleSecurity).init(conn);
+    final ProcessBundle bundle = new ProcessBundle(processId, requestId, vars, Channel.SCHEDULED,
+        data.client, data.organization, isRoleSecurity).init(conn);
 
     final String paramString = data.params;
     if (paramString == null || paramString.trim().equals("")) {

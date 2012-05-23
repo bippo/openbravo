@@ -145,7 +145,7 @@ public class DalTest extends BaseTest {
   // test querying for a specific currency and then updating it
   // should fail for a user
   public void testUpdateCurrencyByUser() {
-    setUserContext("30BB6B32AE984CF08705C57A6C7FAFB9");
+    setUserContext("E12DC7B3FF8C4F64924A98195223B1F8");
     final OBCriteria<Currency> obc = OBDal.getInstance().createCriteria(Currency.class);
     obc.add(Restrictions.eq(Currency.PROPERTY_ISOCODE, "USD"));
     final List<Currency> cs = obc.list();
@@ -329,40 +329,42 @@ public class DalTest extends BaseTest {
    */
   public void testCashBookTrigger() {
     setTestUserContext();
-    addReadWriteAccess(Currency.class);
-    addReadWriteAccess(CashBook.class);
-    addReadWriteAccess(CashBookAccounts.class);
-    String cashBookId = "";
-    {
-      final OBCriteria<Currency> cc = OBDal.getInstance().createCriteria(Currency.class);
-      cc.add(Restrictions.eq(Currency.PROPERTY_ISOCODE, "USD"));
-      final List<Currency> cs = cc.list();
-      final Currency currency = cs.get(0);
-      final CashBook c = OBProvider.getInstance().get(CashBook.class);
-      c.setName("c_" + System.currentTimeMillis());
-      c.setDescription("test");
-      c.setDefault(false);
-      c.set(CashBook.PROPERTY_CURRENCY, currency);
+    OBContext.setAdminMode(true);
+    try {
+      String cashBookId = "";
+      {
+        final OBCriteria<Currency> cc = OBDal.getInstance().createCriteria(Currency.class);
+        cc.add(Restrictions.eq(Currency.PROPERTY_ISOCODE, "USD"));
+        final List<Currency> cs = cc.list();
+        final Currency currency = cs.get(0);
+        final CashBook c = OBProvider.getInstance().get(CashBook.class);
+        c.setName("c_" + System.currentTimeMillis());
+        c.setDescription("test");
+        c.setDefault(false);
+        c.set(CashBook.PROPERTY_CURRENCY, currency);
 
-      OBDal.getInstance().save(c);
-      cashBookId = c.getId();
-      SessionHandler.getInstance().commitAndClose();
-    }
+        OBDal.getInstance().save(c);
+        cashBookId = c.getId();
+        SessionHandler.getInstance().commitAndClose();
+      }
 
-    // now check if the save indeed worked out by seeing if there is a
-    // cashbook account
-    final OBCriteria<CashBookAccounts> cbc = OBDal.getInstance().createCriteria(
-        CashBookAccounts.ENTITY_NAME);
-    cbc.add(Restrictions.eq(CashBookAccounts.PROPERTY_CASHBOOK + "." + CashBook.PROPERTY_ID,
-        cashBookId));
-    final List<?> cbas = cbc.list();
-    assertTrue(cbas.size() > 0);
-    for (final Object co : cbas) {
-      final CashBookAccounts cba = (CashBookAccounts) co;
-      log.debug(cba.getUpdated() + " " + cba.getCashbook().getName());
-      OBDal.getInstance().remove(cba);
+      // now check if the save indeed worked out by seeing if there is a
+      // cashbook account
+      final OBCriteria<CashBookAccounts> cbc = OBDal.getInstance().createCriteria(
+          CashBookAccounts.ENTITY_NAME);
+      cbc.add(Restrictions.eq(CashBookAccounts.PROPERTY_CASHBOOK + "." + CashBook.PROPERTY_ID,
+          cashBookId));
+      final List<?> cbas = cbc.list();
+      assertTrue(cbas.size() > 0);
+      for (final Object co : cbas) {
+        final CashBookAccounts cba = (CashBookAccounts) co;
+        log.debug(cba.getUpdated() + " " + cba.getCashbook().getName());
+        OBDal.getInstance().remove(cba);
+      }
+      OBDal.getInstance().remove(OBDal.getInstance().get(CashBook.class, cashBookId));
+    } finally {
+      OBContext.restorePreviousMode();
     }
-    OBDal.getInstance().remove(OBDal.getInstance().get(CashBook.class, cashBookId));
   }
 
   public void testGetPropertyFromColumnName() {

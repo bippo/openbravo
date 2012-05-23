@@ -69,33 +69,14 @@
 			C_poc_doctype_template documenttemplate
 		where
 			documenttemplate.c_doctype_id = ? and
-			documenttemplate.ad_org_id = ? and
+			ad_isorgincluded(?,documenttemplate.ad_org_id,documenttemplate.ad_client_id)<>-1 and
 			documenttemplate.isactive = 'Y'
-	    union 
-		select
-		    '2' as position,
-			documenttemplate.ad_org_id as ad_org_id,
-			documenttemplate.c_poc_doctype_template_id as c_poc_doctype_template_id,		
-			documenttemplate.c_poc_doctype_template_id as id,			
-			documenttemplate.templatelocation as template_location,
-			documenttemplate.templatefilename as template_filename,
-			documenttemplate.name as name,
-			documenttemplate.reportfilename as report_filename,
-            documenttemplate.showlogo as show_logo,
-            documenttemplate.showcompanydata as show_company_data,
-            documenttemplate.headermargin as header_margin
-		from
-			C_poc_doctype_template documenttemplate
-		where
-			documenttemplate.c_doctype_id = ? and
-			documenttemplate.ad_org_id = '0' and
-			documenttemplate.isactive = 'Y'
-		order by position asc, ad_org_id desc
+		order by ad_isorgincluded(?,documenttemplate.ad_org_id,documenttemplate.ad_client_id) desc
         ]]>
         </Sql>
         <Parameter name="docTypeId"/>
         <Parameter name="adOrgId"/>
-        <Parameter name="docTypeId"/>        
+        <Parameter name="adOrgId"/>      
    </SqlMethod>
    
    <!-- SqlMethod name="getDocumentTemplatesComboData" type="preparedStatement" return="multiple">

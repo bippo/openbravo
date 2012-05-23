@@ -37,7 +37,8 @@
         (SELECT GL2.DATEDOC FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS DATEDOC,
         (SELECT GL2.DATEACCT FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS DATEACCT,
         '' AS TOTALDR, '' AS TOTALCR, '' AS PROCESSING, '' AS PROCESSED, '' AS POSTED,
-        (SELECT GL2.AD_ORG_ID FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS AD_ORG_ID
+        (SELECT GL2.AD_ORG_ID FROM GL_JOURNALBATCH GL2 WHERE GL2.GL_JOURNALBATCH_ID = ?) AS AD_ORG_ID,'' AS USER1_ID, '' AS USER2_ID, 
+        '' AS C_CAMPAIGN_ID, '' AS C_PROJECT_ID, '' AS C_ACTIVITY_ID, '' AS C_SALESREGION_ID, '' AS M_PRODUCT_ID, '' AS C_BPARTNER_ID
         FROM GL_JOURNAL GL
         WHERE GL.GL_JOURNALBATCH_ID = ?
       ]]>
@@ -54,7 +55,8 @@
     <Sql>
       <![CDATA[
         SELECT LINE, ISGENERATED, DESCRIPTION, AMTSOURCEDR, AMTSOURCECR, C_CURRENCY_ID, CURRENCYRATETYPE, CURRENCYRATE,
-        AMTACCTDR, AMTACCTCR, C_UOM_ID, QTY, C_VALIDCOMBINATION_ID
+        AMTACCTDR, AMTACCTCR, C_UOM_ID, QTY, C_VALIDCOMBINATION_ID,USER1_ID, USER2_ID, C_CAMPAIGN_ID, C_PROJECT_ID, C_ACTIVITY_ID, 
+        C_SALESREGION_ID, M_PRODUCT_ID, C_BPARTNER_ID
         FROM GL_JOURNALLINE
         WHERE GL_JOURNAL_ID = ?
       ]]>
@@ -133,8 +135,10 @@
       <![CDATA[
         INSERT INTO GL_JOURNALLINE (GL_JOURNALLINE_ID, AD_CLIENT_ID, AD_ORG_ID, CREATED, CREATEDBY, 
         UPDATED, UPDATEDBY, GL_JOURNAL_ID,LINE, ISGENERATED, DESCRIPTION,AMTSOURCEDR, AMTSOURCECR, C_CURRENCY_ID, 
-        CURRENCYRATETYPE, CURRENCYRATE, DATEACCT,AMTACCTDR, AMTACCTCR, C_UOM_ID,QTY, C_VALIDCOMBINATION_ID) 
-        VALUES (?,?,?,now(),?,now(),?,?,TO_NUMBER(?),?,?,TO_NUMBER(?),TO_NUMBER(?),?,?,TO_NUMBER(?),now(),TO_NUMBER(?),TO_NUMBER(?),?,TO_NUMBER(?),?)
+        CURRENCYRATETYPE, CURRENCYRATE, DATEACCT,AMTACCTDR, AMTACCTCR, C_UOM_ID,QTY, C_VALIDCOMBINATION_ID,
+        USER1_ID, USER2_ID, C_CAMPAIGN_ID, C_PROJECT_ID, C_ACTIVITY_ID, C_SALESREGION_ID, M_PRODUCT_ID, C_BPARTNER_ID) 
+        VALUES (?,?,?,now(),?,now(),?,?,TO_NUMBER(?),?,?,TO_NUMBER(?),TO_NUMBER(?),?,?,TO_NUMBER(?),now(),TO_NUMBER(?),
+        TO_NUMBER(?),?,TO_NUMBER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ]]>
     </Sql>
     <Parameter name="gl_journalline_id"/>
@@ -156,5 +160,13 @@
     <Parameter name="c_uom_id"/>
     <Parameter name="qty"/>
     <Parameter name="c_validcombination_id"/>
+    <Parameter name="user1_id"/>
+    <Parameter name="user2_id"/>
+    <Parameter name="c_campaign_id"/>
+    <Parameter name="c_project_id"/>
+    <Parameter name="c_activity_id"/>
+    <Parameter name="c_salesregion_id"/>
+    <Parameter name="m_product_id"/>
+    <Parameter name="c_bpartner_id"/>
   </SqlMethod>
 </SqlClass>

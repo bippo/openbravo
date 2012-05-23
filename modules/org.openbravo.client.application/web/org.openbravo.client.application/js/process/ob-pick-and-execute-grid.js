@@ -101,6 +101,8 @@ isc.OBPickAndExecuteGrid.addProperties({
       filterEditorType: 'StaticTextItem'
     });
 
+    OB.TestRegistry.register('org.openbravo.client.application.process.pickandexecute.Grid', this);
+
     this.Super('initWidget', arguments);
   },
 

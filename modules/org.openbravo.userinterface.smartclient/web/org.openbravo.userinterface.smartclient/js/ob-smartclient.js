@@ -25,7 +25,6 @@
 // NOTE: causes issue https://issues.openbravo.com/view.php?id=16014
 // NOTE: disabled as now timezone is send from the client to the server
 // Time.setDefaultDisplayTimezone(0);
-
 // Call duplicated - we include SmartClient embedded in StaticResources for classic windows
 isc.setAutoDraw(false);
 isc.screenReader = false;
@@ -391,6 +390,11 @@ isc.FormItem.addProperties({
 
   // always take up space when an item is hidden in a form
   alwaysTakeSpace: true,
+
+  // If an item has an optiomDataSource, a fetch is made in the init() or setValue() ...
+  // "The fetch occurs if the item value is non null on initial draw of the form or whenever setValue() is called"
+  // http://www.smartclient.com/docs/8.1/a/b/c/go.html#attr..FormItem.fetchMissingValues
+  fetchMissingValues: false,
 
   // disable tab to icons
   canTabToIcons: false,

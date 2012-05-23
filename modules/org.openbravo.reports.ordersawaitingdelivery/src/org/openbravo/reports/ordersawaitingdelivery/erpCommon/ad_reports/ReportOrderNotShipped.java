@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -28,7 +28,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
-import org.openbravo.erpCommon.ad_combos.OrganizationComboData;
 import org.openbravo.erpCommon.businessUtility.WindowTabs;
 import org.openbravo.erpCommon.utility.ComboTableData;
 import org.openbravo.erpCommon.utility.DateTimeData;
@@ -153,8 +152,18 @@ public class ReportOrderNotShipped extends HttpSecureAppServlet {
     xmlDocument.setParameter("orderDocNo", strOrderDocNo);
     xmlDocument.setParameter("orderRef", strOrderRef);
     xmlDocument.setParameter("adOrgId", strCOrgId);
-    xmlDocument.setData("reportAD_ORGID", "liststructure",
-        OrganizationComboData.selectCombo(this, vars.getRole()));
+    try {
+      ComboTableData comboTableData = new ComboTableData(vars, this, "TABLEDIR", "AD_Org_ID", "",
+          "49DC1D6F086945AB82F84C66F5F13F16", Utility.getContext(this, vars, "#AccessibleOrgTree",
+              "ReportOrderNotShipped"), Utility.getContext(this, vars, "#User_Client",
+              "ReportOrderNotShipped"), 0);
+      Utility.fillSQLParameters(this, vars, null, comboTableData, "ReportOrderNotShipped", "");
+      xmlDocument.setData("reportAD_ORGID", "liststructure", comboTableData.select(false));
+      comboTableData = null;
+
+    } catch (Exception ex) {
+      throw new ServletException(ex);
+    }
     response.setContentType("text/html; charset=UTF-8");
     PrintWriter out = response.getWriter();
     out.println(xmlDocument.print());

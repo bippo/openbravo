@@ -19,6 +19,7 @@
   v_AttrSetValueType M_Product.AttrSetValueType%TYPE;
   V_COUNT  NUMBER;
   v_ISSOTRX CHAR(1);
+  v_QTYVARIABLE CHAR(1);
 /******************************************************************************
  * The contents of this file are subject to the   Compiere License  Version 1.1
  * ("License"); You may not use this file except in compliance with the License
@@ -31,7 +32,7 @@
  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
  * Contributor(s): Openbravo SLU
- * Contributions are Copyright (C) 2001-2010 Openbravo S.L.U.
+ * Contributions are Copyright (C) 2001-2012 Openbravo S.L.U.
  ******************************************************************************/
      
 BEGIN
@@ -74,7 +75,13 @@ BEGIN
    FROM M_INOUT
    WHERE M_INOUT_ID = :NEW.M_INOUT_ID;
 
-   IF (v_ISSOTRX = 'Y' AND :NEW.C_ORDERLINE_ID IS NOT NULL) THEN
+   IF (:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+     SELECT ISQUANTITYVARIABLE INTO v_QTYVARIABLE
+     FROM M_PRODUCT
+     WHERE M_PRODUCT_ID = :NEW.M_PRODUCT_ID;
+   END IF;
+
+   IF (v_QTYVARIABLE <> 'Y' AND v_ISSOTRX = 'Y' AND :NEW.C_ORDERLINE_ID IS NOT NULL) THEN
       SELECT COUNT(*) INTO V_COUNT FROM C_ORDERLINE ol 
       WHERE ol.C_ORDERLINE_ID = :NEW.C_ORDERLINE_ID 
       AND ABS(:NEW.MOVEMENTQTY) > ABS(ol.QTYORDERED);

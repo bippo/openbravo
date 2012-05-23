@@ -19,14 +19,18 @@
 
 package org.openbravo.test.xml;
 
+import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import org.openbravo.base.provider.OBProvider;
 import org.openbravo.base.structure.BaseOBObject;
 import org.openbravo.dal.core.DalUtil;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.dal.xml.EntityXMLConverter;
 import org.openbravo.model.ad.datamodel.Column;
 import org.openbravo.model.ad.system.Client;
 import org.openbravo.model.common.businesspartner.Greeting;
@@ -162,5 +166,39 @@ public class EntityXMLIssues extends XMLBaseTest {
     assertTrue(column2 != column);
     assertTrue(column2.getLength() == 60);
     OBDal.getInstance().rollbackAndClose();
+  }
+
+  /**
+   * 20357: There should be a way to define with properties i want to export in a EntityXMLConverter
+   * call
+   */
+  public void testIssue20357() {
+
+    final OBCriteria<BaseOBObject> obc = OBDal.getInstance().createCriteria("Product");
+    final EntityXMLConverter exc = EntityXMLConverter.newInstance();
+
+    exc.setOptionIncludeChildren(false);
+    exc.setOptionEmbedChildren(false);
+    exc.setOptionIncludeReferenced(false);
+    exc.setOptionExportClientOrganizationReferences(false);
+
+    StringWriter sw = new StringWriter();
+    exc.setOutput(sw);
+
+    exc.process(obc.list());
+
+    // We only need the id, name of the products
+    exc.setIncludedProperties(Arrays.asList("id", "name"));
+
+    StringWriter sw2 = new StringWriter();
+    exc.setOutput(sw2);
+
+    exc.process(obc.list());
+
+    assertFalse(sw2.toString().contains("<searchKey>"));
+    assertTrue(sw.toString().contains("<searchKey>"));
+
+    // dummy assert
+    assertNotSame("Exported XML is the same", sw.toString(), sw2.toString());
   }
 }

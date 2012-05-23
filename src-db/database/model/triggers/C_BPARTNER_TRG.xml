@@ -17,7 +17,7 @@
   * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
   * All Rights Reserved.
   * Contributor(s): Openbravo SLU
-  * Contributions are Copyright (C) 2001-2010 Openbravo, S.L.U.
+  * Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
   *
   * Specifically, this derivative work is based upon the following Compiere
   * file and version.
@@ -60,11 +60,12 @@ BEGIN
 		SELECT AD_IsOrgIncluded(:new.AD_Org_ID, a.AD_Org_ID, :new.AD_Client_ID),
     a.ad_sequence_bp_id, a.isbpnewaccount, a.acct_length, a.subacct_length, a.createdby, a.updatedby,	a.C_AcctSchema_ID, 
     d1.ad_client_id, d1.C_Receivable_Acct, d1.C_Prepayment_Acct, d1.V_Liability_Acct,	d1.V_Liability_Services_Acct, 
-    d1.V_Prepayment_Acct, d1.status 
+    d1.V_Prepayment_Acct, d1.status, d1.ISACTIVE 
    	FROM  C_BP_Group_Acct d1, ad_Org_AcctSchema a
 		WHERE d1.C_BP_Group_ID=:new.C_BP_Group_ID
 		AND d1.C_AcctSchema_ID = a.C_AcctSchema_ID
-		AND (AD_IsOrgIncluded(a.AD_Org_ID, :new.AD_Org_ID, :new.AD_Client_ID)<>-1
+		AND a.ISACTIVE = 'Y'
+      		AND (AD_IsOrgIncluded(a.AD_Org_ID, :new.AD_Org_ID, :new.AD_Client_ID)<>-1
 		OR AD_IsOrgIncluded(:new.AD_Org_ID, a.AD_Org_ID, :new.AD_Client_ID)<>-1)
 		ORDER BY 1 DESC
 	)
@@ -108,7 +109,7 @@ BEGIN
               C_Receivable_Acct, C_Prepayment_Acct, Status)
               VALUES
               (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
-              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              :new.AD_Client_ID, :new.AD_Org_ID, Cur_Defaults.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
               v_C_Receivable_Acct, v_C_Prepayment_Acct, Cur_Defaults.Status);
          ELSE
         			/*
@@ -121,7 +122,7 @@ BEGIN
               C_Receivable_Acct, C_Prepayment_Acct, Status)
               VALUES
               (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
-              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              :new.AD_Client_ID, :new.AD_Org_ID, Cur_Defaults.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
               Cur_Defaults.C_Receivable_Acct, Cur_Defaults.C_Prepayment_Acct, Cur_Defaults.Status);
          END IF;
 			--  Vendor
@@ -156,7 +157,7 @@ BEGIN
               V_Liability_Acct, V_Liability_Services_Acct, V_Prepayment_Acct, Status)
               VALUES
               (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
-              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              :new.AD_Client_ID, :new.AD_Org_ID, Cur_Defaults.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
               v_V_Liability_Acct, v_V_Liability_Services_Acct, v_V_Prepayment_Acct, Cur_Defaults.Status);
 		     ELSE
               /*
@@ -168,7 +169,7 @@ BEGIN
               V_Liability_Acct, V_Liability_Services_Acct, V_Prepayment_Acct, Status)
               VALUES
               (v_BP_Acct_ID,:new.C_BPartner_ID, Cur_Defaults.C_AcctSchema_ID,
-              :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+              :new.AD_Client_ID, :new.AD_Org_ID, Cur_Defaults.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
               Cur_Defaults.V_Liability_Acct, Cur_Defaults.V_Liability_Services_Acct, Cur_Defaults.V_Prepayment_Acct, Cur_Defaults.Status);
          END IF;
               
@@ -180,9 +181,10 @@ BEGIN
               FOR Cur_Defaults2 IN (
               SELECT AD_IsOrgIncluded(:new.AD_Org_ID, oa.AD_Org_ID, :new.AD_Org_ID),
               oa.ad_sequence_bp_id, oa.isbpnewaccount, oa.acct_length, oa.subacct_length, oa.createdby, oa.updatedby,
-              d2.E_Expense_Acct, d2.E_Prepayment_Acct, d2.AD_Client_ID, d2.C_AcctSchema_ID
+              d2.E_Expense_Acct, d2.E_Prepayment_Acct, d2.AD_Client_ID, d2.C_AcctSchema_ID, d2.ISACTIVE
               FROM C_AcctSchema_Default d2, AD_Org_AcctSchema oa 
               WHERE d2.C_AcctSchema_ID = oa.C_AcctSchema_ID
+              AND oa.ISACTIVE = 'Y'
               AND oA.AD_Client_ID = d2.AD_Client_ID
               AND (AD_IsOrgIncluded(oa.AD_Org_ID, :new.AD_Org_ID, :new.AD_Org_ID)<>-1
               OR AD_IsOrgIncluded(:new.AD_Org_ID, oa.AD_Org_ID, :new.AD_Org_ID)<>-1)
@@ -220,7 +222,7 @@ BEGIN
                 E_Expense_Acct, E_Prepayment_Acct)
                VALUES
                 (get_uuid(), :new.C_BPartner_ID, Cur_Defaults2.C_AcctSchema_ID,
-                :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+                :new.AD_Client_ID, :new.AD_Org_ID, Cur_Defaults2.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
                 v_E_Expense_Acct, v_E_Prepayment_Acct);
             ELSE
                 INSERT INTO C_BP_Employee_Acct
@@ -229,7 +231,7 @@ BEGIN
                 E_Expense_Acct, E_Prepayment_Acct)
                VALUES
                 (get_uuid(), :new.C_BPartner_ID, Cur_Defaults2.C_AcctSchema_ID,
-                :new.AD_Client_ID, :new.AD_Org_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+                :new.AD_Client_ID, :new.AD_Org_ID, Cur_Defaults2.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
                 Cur_Defaults2.E_Expense_Acct, Cur_Defaults2.E_Prepayment_Acct);
             
             END IF;

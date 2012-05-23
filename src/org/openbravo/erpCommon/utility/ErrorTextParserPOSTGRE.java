@@ -144,8 +144,10 @@ class ErrorTextParserPOSTGRE extends ErrorTextParser {
      * to be run through parseTranslation. Criteria: if text contains two times an @ as template
      * placeholder => parseTranslation else => old behavior to try to find matching constraint
      */
-
-    if (myMessage.matches(".*@.+@.*")) {
+    // The regular expression . matches any character except a line terminator unless the DOTALL
+    // flag is specified.
+    Pattern pattern = Pattern.compile(".*@.+@.*", Pattern.DOTALL);
+    if (pattern.matcher(myMessage).matches()) {
       // if the message is a directly from postgres generated one, it has an 'ERROR :' prefix
       // if it is passed via an AD_PINSTACE result, then the 'ERROR: ' has already been stripped
       if ((myMessage.length() > 7) && (myMessage.startsWith("ERROR: "))) {

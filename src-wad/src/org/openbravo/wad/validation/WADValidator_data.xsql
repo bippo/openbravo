@@ -36,6 +36,12 @@
     <Field name="objecttype" value=""/>
     <Field name="currentvalue" value=""/>
     <Field name="expectedvalue" value=""/>
+    <Field name="fieldname" value=""/>
+    <Field name="tabid" value=""/>
+    <Field name="tabname" value=""/>
+    <Field name="windowname" value=""/>
+    <Field name="columnname" value=""/>
+    <Field name="columnid" value=""/>
     <Parameter name="module" optional="true" type="replace" after="m.javapackage in (" text="'1'"/>
     <Parameter name="checkAll"/>
   </SqlMethod>
@@ -321,5 +327,25 @@
     <Parameter name="module" optional="true" type="replace" after="m.javapackage in (" text="'1'"/>
     <Parameter name="checkAll"/>
   </SqlMethod>
-  
+  <SqlMethod name="checkTabsWithMultipleFieldsForSameColumn" type="preparedStatement" return="multiple">
+    <Sql>
+      <![CDATA[
+      select ad_tab.ad_tab_id as tabid, ad_column.ad_column_id as columnid, ad_window.name as windowname, ad_tab.name as tabname,
+             ad_field.name as fieldname,ad_column.name as columnname, ad_field.ad_module_id as moduleid, ad_module.name as modulename
+      from ad_window, ad_tab, ad_field, ad_column, ad_module
+      where ad_field.ad_column_id = ad_column.ad_column_id
+      and ad_field.ad_module_id = ad_module.ad_module_id
+      and ad_tab.ad_tab_id = ad_field.ad_tab_id
+      and ad_window.ad_window_id = ad_tab.ad_window_id
+      and (ad_module.javapackage in ('1') or to_char('Y')=to_char(?))
+      and exists (select * from ad_field subFld where
+            subFld.ad_tab_id = ad_field.ad_tab_id
+            and subFld.ad_column_id = ad_field.ad_column_id
+            and ad_field.ad_field_id <> subFld.ad_field_id)
+      order by ad_tab.ad_tab_id, ad_column.ad_column_id
+      ]]>
+    </Sql>
+    <Parameter name="module" optional="true" type="replace" after="ad_module.javapackage in (" text="'1'"/>
+    <Parameter name="checkAll"/>
+  </SqlMethod>
 </SqlClass>

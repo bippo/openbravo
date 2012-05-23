@@ -49,6 +49,9 @@ public class DalUtil {
 
   private static final String IDENTIFIER_PART_PATH = "_identifier";
 
+  public static final String FIELDSEPARATOR = ".";
+  public static final String DOT = ".";
+
   /**
    * Sorts the passed list according to the identifier of the objects.
    * 

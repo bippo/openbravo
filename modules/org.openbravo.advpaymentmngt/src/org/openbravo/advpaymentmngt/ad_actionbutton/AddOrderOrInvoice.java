@@ -328,13 +328,18 @@ public class AddOrderOrInvoice extends HttpSecureAppServlet {
     xmlDocument.setParameter("generatedCredit", payment.getGeneratedCredit() != null ? payment
         .getGeneratedCredit().toString() : BigDecimal.ZERO.toString());
 
-    final Currency financialAccountCurrency = payment.getAccount().getCurrency();
-    if (financialAccountCurrency != null) {
-      xmlDocument.setParameter("financialAccountCurrencyId", financialAccountCurrency.getId());
-      xmlDocument.setParameter("financialAccountCurrencyName",
-          financialAccountCurrency.getISOCode());
-      xmlDocument.setParameter("financialAccountCurrencyPrecision", financialAccountCurrency
-          .getStandardPrecision().toString());
+    OBContext.setAdminMode(true);
+    try {
+      final Currency financialAccountCurrency = payment.getAccount().getCurrency();
+      if (financialAccountCurrency != null) {
+        xmlDocument.setParameter("financialAccountCurrencyId", financialAccountCurrency.getId());
+        xmlDocument.setParameter("financialAccountCurrencyName",
+            financialAccountCurrency.getISOCode());
+        xmlDocument.setParameter("financialAccountCurrencyPrecision", financialAccountCurrency
+            .getStandardPrecision().toString());
+      }
+    } finally {
+      OBContext.restorePreviousMode();
     }
     xmlDocument.setParameter("exchangeRate",
         payment.getFinancialTransactionConvertRate() == null ? "" : payment

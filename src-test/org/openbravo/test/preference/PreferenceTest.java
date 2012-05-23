@@ -53,27 +53,27 @@ public class PreferenceTest extends BaseTest {
   /**
    * F&B International Group
    */
-  private static final String ORG_B = "3C816D72B14D4BBCB8571404B794AB84";
+  private static final String ORG_B = "19404EAD144C49A0AF37D54377CF452D";
 
   /**
    * F&B US, Inc.
    */
-  private static final String ORG_B1 = "B9C7088AB859483A9B1FB342AC2BE17A";
+  private static final String ORG_B1 = "2E60544D37534C0B89E765FE29BC0B43";
 
   /**
    * F&B US East Coast
    */
-  private static final String ORG_B11 = "378AF0EAE1A2479EAAA33436645E9433";
+  private static final String ORG_B11 = "7BABA5FF80494CAFA54DEBD22EC46F01";
 
   /**
    * F&B US West Coast
    */
-  private static final String ORG_B12 = "90A1F59849E84AFABD04814B3D15A691";
+  private static final String ORG_B12 = "BAE22373FEBE4CCCA24517E23F0C8A48";
 
   /**
    * F&B España, S.A.
    */
-  private static final String ORG_B2 = "4F68EB1C1B734E79B27DE9D2DF56089F";
+  private static final String ORG_B2 = "B843C30461EA4501935CB1D125C9C25A";
 
   public void testCreatePreference() {
     setSystemAdministratorContext();

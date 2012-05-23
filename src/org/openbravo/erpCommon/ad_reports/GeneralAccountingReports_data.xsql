@@ -262,20 +262,22 @@
    <SqlMethod name="selectOrgsDouble" type="preparedStatement" return="multiple">
       <SqlMethodComment></SqlMethodComment>
       <Sql><![CDATA[
-      SELECT S.C_ACCTSCHEMA_ID||R.C_ACCT_RPT_ID AS PADRE, O.AD_ORG_ID AS ID, O.NAME AS NAME
+      SELECT S.C_ACCTSCHEMA_ID||R.C_ACCT_RPT_ID AS PADRE, ORG.AD_ORG_ID AS ID, ORG.NAME AS NAME
       FROM C_ACCT_RPT R, AD_ORG_ACCTSCHEMA S, (
                                               SELECT AD_ORG.AD_ORG_ID, AD_ORG.NAME, AD_ORG.AD_CLIENT_ID,
                                                 (CASE WHEN AD_ORGTYPE.ISBUSINESSUNIT='Y' OR AD_ORGTYPE.ISLEGALENTITY='Y' THEN 'Y' ELSE 'N' END) AS BALANCED
                                               FROM AD_ORG, AD_ORGTYPE
                                               WHERE AD_ORGTYPE.AD_ORGTYPE_ID = AD_ORG.AD_ORGTYPE_ID
                                               AND AD_ORG.ISACTIVE = 'Y'
-                                             ) O
+                                             ) O, AD_ORG ORG
       WHERE R.C_ACCTSCHEMA_ID = S.C_ACCTSCHEMA_ID
         AND AD_ISORGINCLUDED(O.AD_ORG_ID, S.AD_ORG_ID, S.AD_CLIENT_ID) <> -1
         AND AD_ISORGINCLUDED(O.AD_ORG_ID, R.AD_ORG_ID, R.AD_CLIENT_ID) <> -1
         AND S.AD_CLIENT_ID = ?
         AND (R.ISORGBALANCED <> 'N' OR COALESCE(R.REPORTTYPE,'N') <> 'N')
-        AND O.BALANCED = 'Y'
+        AND O.BALANCED = 'Y' 
+        AND AD_ISORGINCLUDED(O.AD_ORG_ID, ORG.AD_ORG_ID, S.AD_CLIENT_ID) <> -1
+        AND ORG.AD_ORG_ID <> '0'
       UNION
       SELECT S.C_ACCTSCHEMA_ID||R.C_ACCT_RPT_ID AS PADRE, O.AD_ORG_ID AS ID, O.NAME AS NAME
       FROM C_ACCT_RPT R, AD_ORG_ACCTSCHEMA S, (

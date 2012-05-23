@@ -57,9 +57,11 @@
 * Contributor(s):  ______________________________________.
 ************************************************************************/
   v_cuenta NUMBER;
+  v_count NUMBER;
   v_qtyorder NUMBER;
   v_preqtyorder NUMBER;
   v_Storage_ID VARCHAR2(32);
+
 BEGIN
   v_qtyorder:=p_qtyorder;
   v_preqtyorder:=p_preqtyorder;
@@ -116,6 +118,28 @@ BEGIN
       AND COALESCE(M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_attributesetinstance, '0')
       AND C_UOM_ID=p_uom
       AND COALESCE(M_PRODUCT_UOM_ID, '-1')=COALESCE(p_product_uom, '-1') ;
+   
+    SELECT MAX(SD.M_STORAGE_DETAIL_ID) 
+    INTO v_Storage_ID
+    FROM m_product p join m_attributeset aset ON p.m_attributeset_id = aset.m_attributeset_id 
+                     JOIN M_STORAGE_DETAIL SD ON SD.M_PRODUCT_ID=p.m_product_id
+            AND SD.M_LOCATOR_ID=p_locator
+            AND COALESCE(SD.M_ATTRIBUTESETINSTANCE_ID, '0')=COALESCE(p_attributesetinstance, '0')
+            AND SD.C_UOM_ID=p_uom
+            AND COALESCE(SD.M_PRODUCT_UOM_ID, '-1')=COALESCE(p_product_uom, '-1')
+    WHERE COALESCE(p.attrsetvaluetype, '-') <> 'F'
+    AND aset.isoneattrsetvalrequired = 'Y'
+    AND QTYONHAND = 0
+    AND (QTYORDERONHAND=0 OR QTYORDERONHAND IS NULL)
+    AND PREQTYONHAND=0
+    AND (PREQTYORDERONHAND=0 OR PREQTYORDERONHAND IS NULL)
+    AND P.M_PRODUCT_ID=p_product
+    AND NOT EXISTS (SELECT 1 FROM m_stock_aux WHERE M_STORAGE_DETAIL_ID = SD.M_STORAGE_DETAIL_ID);
+
+    IF (v_Storage_ID IS NOT NULL) THEN    
+      DELETE FROM M_STORAGE_DETAIL WHERE M_STORAGE_DETAIL_ID =v_Storage_ID;
+    END IF;
+
   END IF;
 END M_UPDATE_INVENTORY
 ]]></body>

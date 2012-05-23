@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2010-2011 Openbravo SLU
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  *************************************************************************
@@ -39,10 +39,9 @@ import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.dal.core.OBContext;
 import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
-import org.openbravo.data.FieldProvider;
-import org.openbravo.erpCommon.ad_combos.OrganizationComboData;
 import org.openbravo.erpCommon.businessUtility.WindowTabs;
 import org.openbravo.erpCommon.info.SelectorUtility;
+import org.openbravo.erpCommon.utility.ComboTableData;
 import org.openbravo.erpCommon.utility.DateTimeData;
 import org.openbravo.erpCommon.utility.LeftTabsBar;
 import org.openbravo.erpCommon.utility.NavigationBar;
@@ -116,7 +115,7 @@ public class BatchPaymentExecution extends HttpSecureAppServlet {
 
     } else if (vars.commandIn("CALLOUTFINANCIALACCOUNT")) {
       String strFinancialAccountId = vars.getRequestGlobalVariable("inpFinancialAccount", "");
-      String strPaymentMethodId = vars.getRequiredStringParameter("inpPaymentMethod");
+      String strPaymentMethodId = vars.getRequestGlobalVariable("inpPaymentMethod", "");
       String strOrgId = vars.getRequestGlobalVariable("inpOrgId", "");
       String strCurrencyId = vars.getRequestGlobalVariable("inpCurrencyId", "");
       boolean isReceipt = "Y".equals(vars.getGlobalVariable("inpIsReceipt",
@@ -149,16 +148,22 @@ public class BatchPaymentExecution extends HttpSecureAppServlet {
     xmlDocument.setParameter("inpChkIsReceipt", strIsReceipt);
 
     String newOrg = strOrganizationId;
-    if (!"0".equals(strOrganizationId)) {
+    if (null != strOrganizationId) {
       xmlDocument.setParameter("orgId", strOrganizationId);
-    } else {
-      FieldProvider[] fp = OrganizationComboData.selectCombo(this, vars.getRole());
-      if (fp != null && fp.length > 0) {
-        newOrg = fp[0].getField("id");
-      }
     }
-    xmlDocument.setData("reportAD_ORGID", "liststructure",
-        OrganizationComboData.selectCombo(this, vars.getRole()));
+    try {
+      ComboTableData comboTableData = new ComboTableData(vars, this, "TABLEDIR", "AD_Org_ID", "",
+          "49DC1D6F086945AB82F84C66F5F13F16", Utility.getContext(this, vars, "#User_Org",
+              "BatchPaymentExecution"), Utility.getContext(this, vars, "#User_Client",
+              "BatchPaymentExecution"), 0);
+      Utility.fillSQLParameters(this, vars, null, comboTableData, "PrintInvoices", "");
+      xmlDocument.setData("reportAD_ORGID", "liststructure", comboTableData.select(false));
+      comboTableData = null;
+
+    } catch (Exception ex) {
+      throw new ServletException(ex);
+    }
+
     xmlDocument.setParameter("dateFrom", strDateFrom);
     xmlDocument.setParameter("dateTo", strDateTo);
 

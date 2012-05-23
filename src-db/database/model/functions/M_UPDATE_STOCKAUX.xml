@@ -58,6 +58,7 @@
 ************************************************************************/
 
   v_count NUMBER;
+  v_StorageAux_ID VARCHAR2(32);
   v_StorageDetail_ID VARCHAR2(32);
   
 BEGIN
@@ -103,6 +104,33 @@ BEGIN
 	UPDATE M_STOCK_AUX 
 	SET QUANTITY = QUANTITY + p_qty, UPDATED = now()
 	WHERE M_STORAGE_DETAIL_ID = v_StorageDetail_ID;
+    END IF;
+    
+    SELECT MAX(sa.m_stock_aux_id)
+    INTO v_StorageAux_ID
+    FROM m_stock_aux sa
+    WHERE m_storage_detail_id=v_StorageDetail_ID
+    AND COALESCE(quantity, 0) = 0
+    AND COALESCE(qtyorder, 0) = 0;
+    
+    IF (v_StorageAux_ID IS NOT NULL) THEN
+	DELETE FROM M_STOCK_AUX WHERE M_STOCK_AUX_ID = v_StorageAux_ID;
+	
+	SELECT COUNT(*) 
+	INTO v_count
+	FROM M_STORAGE_DETAIL SD JOIN m_product p ON SD.M_PRODUCT_ID=p.m_product_id
+             JOIN m_attributeset aset ON p.m_attributeset_id = aset.m_attributeset_id 
+	WHERE COALESCE(p.attrsetvaluetype, '-') <> 'F'
+	AND aset.isoneattrsetvalrequired = 'Y'
+	AND QTYONHAND = 0
+	AND COALESCE(QTYORDERONHAND, 0) = 0
+	AND PREQTYONHAND=0
+	AND COALESCE(PREQTYORDERONHAND, 0) = 0
+	AND SD.M_STORAGE_DETAIL_ID = v_StorageDetail_ID;
+	
+	IF (v_count > 0) THEN
+	   DELETE FROM M_STORAGE_DETAIL WHERE M_STORAGE_DETAIL_ID = v_StorageDetail_ID;
+	END IF;
     END IF;
   END IF;
 END M_UPDATE_STOCKAUX

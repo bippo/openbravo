@@ -150,7 +150,7 @@ class QueryListUtils {
     }
   }
 
-  private static String getColumnLabel(OBCQL_QueryColumn column) {
+  public static String getColumnLabel(OBCQL_QueryColumn column) {
 
     final String userLanguageId = OBContext.getOBContext().getLanguage().getId();
     for (QueryColumnTrl trl : column.getOBCQLQueryColumnTrlList()) {

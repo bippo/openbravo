@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2011 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -45,6 +45,7 @@ import org.openbravo.model.ad.ui.Message;
 import org.openbravo.model.ad.ui.Tab;
 import org.openbravo.model.ad.ui.TextInterface;
 import org.openbravo.model.ad.ui.Window;
+import org.openbravo.model.ad.utility.DataSet;
 import org.openbravo.service.system.SystemValidationResult.SystemValidationType;
 
 /**
@@ -105,6 +106,8 @@ public class ModuleValidator implements SystemValidator {
     checkHasUIArtifact(module, result);
 
     checkTableName(module, result);
+
+    checkHasReferenceData(module, result);
 
     // disable this check until this issue has been commented:
     // https://issues.openbravo.com/view.php?id=7905
@@ -357,6 +360,24 @@ public class ModuleValidator implements SystemValidator {
               + "it is best to only use characters from a to z, A to Z, 0 to 9 or _");
         }
       }
+    }
+  }
+
+  private void checkHasReferenceData(Module module, SystemValidationResult result) {
+    OBCriteria<DataSet> datasetsCriteria = OBDal.getInstance().createCriteria(DataSet.class);
+    datasetsCriteria.add(Restrictions.eq(DataSet.PROPERTY_MODULE, module));
+    int numDatasets = datasetsCriteria.count();
+
+    if (module.isHasReferenceData() && numDatasets == 0) {
+      result.addWarning(SystemValidationType.MODULE_ERROR, "Module " + module.getName()
+          + " has been marked as 'has reference data' but it does not have any Dataset associated");
+    } else if (!module.isHasReferenceData() && numDatasets > 0) {
+      result
+          .addWarning(
+              SystemValidationType.MODULE_ERROR,
+              "Module "
+                  + module.getName()
+                  + " has at least one Dataset associated but it has not been marked as 'has reference data'");
     }
   }
 

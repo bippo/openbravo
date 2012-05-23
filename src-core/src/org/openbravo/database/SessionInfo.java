@@ -103,13 +103,16 @@ public class SessionInfo {
    *          Database, only action is take for POSTGRESQL
    */
   public static void initDB(Connection conn, String rdbms) {
-    try {
-      if (rdbms != null && rdbms.equals("POSTGRE")) {
-        // Create temporary table
-        ResultSet rs = getPreparedStatement(
+
+    if (rdbms != null && rdbms.equals("POSTGRE")) {
+      // Create temporary table
+      PreparedStatement psQuery = null;
+      PreparedStatement psCreate = null;
+      try {
+        psQuery = getPreparedStatement(
             conn,
-            "select count(*) from information_schema.tables where table_name='ad_context_info' and table_type = 'LOCAL TEMPORARY'")
-            .executeQuery();
+            "select count(*) from information_schema.tables where table_name='ad_context_info' and table_type = 'LOCAL TEMPORARY'");
+        ResultSet rs = psQuery.executeQuery();
 
         if (rs.next() && rs.getString(1).equals("0")) {
           StringBuffer sql = new StringBuffer();
@@ -118,11 +121,15 @@ public class SessionInfo {
           sql.append("  AD_SESSION_ID VARCHAR(32),");
           sql.append("  PROCESSTYPE VARCHAR(60), ");
           sql.append("  PROCESSID VARCHAR(32)) on commit preserve rows");
-          getPreparedStatement(conn, sql.toString()).execute();
+          psCreate = getPreparedStatement(conn, sql.toString());
+          psCreate.execute();
         }
+      } catch (Exception e) {
+        log4j.error("Error initializating audit infrastructure", e);
+      } finally {
+        releasePreparedStatement(psQuery);
+        releasePreparedStatement(psCreate);
       }
-    } catch (Exception e) {
-      log4j.error("Error initializating audit infrastructure", e);
     }
   }
 
@@ -155,27 +162,31 @@ public class SessionInfo {
    *          Connection where the session information will be stored in
    */
   public static void setDBSessionInfo(Connection conn) {
+    if (!isAuditActive) {
+      return;
+    }
+    log4j.debug("set session info");
+    // Clean up temporary table
+    PreparedStatement psCleanUp = null;
+    PreparedStatement psInsert = null;
     try {
-      if (!isAuditActive) {
-        return;
-      }
+      psCleanUp = getPreparedStatement(conn, "delete from ad_context_info");
+      psCleanUp.executeUpdate();
 
-      log4j.debug("set session info");
-      // Clean up temporary table
-      getPreparedStatement(conn, "delete from ad_context_info").executeUpdate();
-
-      PreparedStatement ps = getPreparedStatement(
+      psInsert = getPreparedStatement(
           conn,
           "insert into ad_context_info (ad_user_id, ad_session_id, processType, processId) values (?, ?, ?, ?)");
-      ps.setString(1, SessionInfo.getUserId());
-      ps.setString(2, SessionInfo.getSessionId());
-      ps.setString(3, SessionInfo.getProcessType());
-      ps.setString(4, SessionInfo.getProcessId());
-      ps.executeUpdate();
+      psInsert.setString(1, SessionInfo.getUserId());
+      psInsert.setString(2, SessionInfo.getSessionId());
+      psInsert.setString(3, SessionInfo.getProcessType());
+      psInsert.setString(4, SessionInfo.getProcessId());
+      psInsert.executeUpdate();
       changedInfo.set(false);
-
     } catch (Exception e) {
       log4j.error("Error setting audit info", e);
+    } finally {
+      releasePreparedStatement(psCleanUp);
+      releasePreparedStatement(psInsert);
     }
   }
 
@@ -237,6 +248,16 @@ public class SessionInfo {
       }
     }
     return (ps);
+  }
+
+  private static void releasePreparedStatement(PreparedStatement ps) {
+    if (ps != null) {
+      try {
+        ps.close();
+      } catch (Exception e) {
+        log4j.error("Error closing PreparedStatement", e);
+      }
+    }
   }
 
   public static void setUserId(String user) {

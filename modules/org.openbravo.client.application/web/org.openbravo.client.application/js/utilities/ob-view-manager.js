@@ -231,7 +231,7 @@
     // to initialize an instance.
     //
     openView: function (viewName, params, state) {
-
+      var recentObjProperties;
       params = params || {};
 
       // only add closable views to the recent items, this prevents the workspace
@@ -247,10 +247,15 @@
         if (!params.viewId) {
           params.viewId = viewName;
         }
-        // add and set a default icon
-        vmgr.recentManager.addRecent('OBUIAPP_RecentViewList', isc.addProperties({
-          icon: OB.Styles.OBApplicationMenu.Icons.window
-        }, params));
+        //If recents receives null in params the tab is not added to the recent list
+        recentObjProperties = null;
+        if (params.addToRecents === undefined || params.addToRecents === null || params.addToRecents === true) {
+          // add and set a default icon
+          recentObjProperties = isc.addProperties({
+            icon: OB.Styles.OBApplicationMenu.Icons.window
+          }, params);
+        }
+        vmgr.recentManager.addRecent('OBUIAPP_RecentViewList', recentObjProperties);
       }
 
       //

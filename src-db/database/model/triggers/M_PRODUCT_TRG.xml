@@ -17,7 +17,7 @@
   * parts created by ComPiere are Copyright (C) ComPiere, Inc.;
   * All Rights Reserved.
   * Contributor(s): Openbravo SLU
-  * Contributions are Copyright (C) 2001-2011 Openbravo, S.L.U.
+  * Contributions are Copyright (C) 2001-2012 Openbravo, S.L.U.
   *
   * Specifically, this derivative work is based upon the following Compiere
   * file and version.
@@ -81,11 +81,12 @@ BEGIN
 	SELECT  distinct AD_IsOrgIncluded(:new.AD_ORG_ID, a.AD_Org_ID, :new.AD_Client_ID), 
   a.ad_sequence_pr_id,a.isprnewaccount,a.acct_length,a.subacct_length, d.ad_client_id, 
   d.p_revenue_acct, d.p_expense_acct, d.p_asset_acct, d.p_cogs_acct, d.P_PurchasePriceVariance_Acct, d.P_InvoicePriceVariance_Acct,
-  d.P_TradeDiscountRec_Acct, d.P_TradeDiscountGrant_Acct, a.createdby, a.updatedby, a.C_AcctSchema_ID
+  d.P_TradeDiscountRec_Acct, d.P_TradeDiscountGrant_Acct, a.createdby, a.updatedby, a.C_AcctSchema_ID, d.ISACTIVE
   FROM  M_Product_Category_Acct d, ad_Org_AcctSchema a
 	WHERE  d.M_Product_Category_ID=:new.M_Product_Category_ID
 	AND d.C_AcctSchema_ID = a.C_AcctSchema_ID
-	AND (AD_IsOrgIncluded(a.AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
+	AND a.ISACTIVE = 'Y'
+    	AND (AD_IsOrgIncluded(a.AD_Org_ID, :new.AD_ORG_ID, :new.AD_Client_ID)<>-1
 	OR AD_IsOrgIncluded(:new.AD_ORG_ID, a.AD_Org_ID, :new.AD_Client_ID)<>-1)
 	ORDER BY 1 DESC
   ) LOOP
@@ -135,7 +136,7 @@ BEGIN
             P_TradeDiscountRec_Acct, P_TradeDiscountGrant_Acct)
             VALUES
             (get_uuid(), :new.M_Product_ID, Cur_Defaults.C_AcctSchema_ID,
-            :new.AD_Client_ID, :new.AD_ORG_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+            :new.AD_Client_ID, :new.AD_ORG_ID, Cur_Defaults.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
             v_P_Revenue_Acct, v_P_Expense_Acct, v_P_Asset_Acct, v_P_COGS_Acct,
             v_P_PurchasePriceVariance_Acct, v_P_InvoicePriceVariance_Acct,
             v_P_TradeDiscountRec_Acct, v_P_TradeDiscountGrant_Acct); 
@@ -150,7 +151,7 @@ BEGIN
             P_TradeDiscountRec_Acct, P_TradeDiscountGrant_Acct)
             VALUES
 			      (get_uuid(), :new.M_Product_ID, Cur_Defaults.C_AcctSchema_ID,
-			      :new.AD_Client_ID, :new.AD_ORG_ID, 'Y', now(), :new.CreatedBy, now(), :new.UpdatedBy,
+			      :new.AD_Client_ID, :new.AD_ORG_ID, Cur_Defaults.ISACTIVE, now(), :new.CreatedBy, now(), :new.UpdatedBy,
 			      Cur_Defaults.P_Revenue_Acct, Cur_Defaults.P_Expense_Acct, Cur_Defaults.P_Asset_Acct, Cur_Defaults.P_COGS_Acct,
             Cur_Defaults.P_PurchasePriceVariance_Acct, Cur_Defaults.P_InvoicePriceVariance_Acct,
             Cur_Defaults.P_TradeDiscountRec_Acct, Cur_Defaults.P_TradeDiscountGrant_Acct);

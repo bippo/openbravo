@@ -257,7 +257,7 @@ public class FormInitializationComponent extends BaseActionHandler {
       long t9 = System.currentTimeMillis();
       JSONObject finalObject = buildJSONObject(mode, tab, columnValues, row, changeEventCols,
           calloutMessages, attachments, jsExcuteCode, hiddenInputs, noteCount);
-      analyzeResponse(columnValues);
+      analyzeResponse(tab, columnValues);
       long t10 = System.currentTimeMillis();
       log.debug("Elapsed time: " + (System.currentTimeMillis() - iniTime) + "(" + (t2 - t1) + ","
           + (t3 - t2) + "," + (t4 - t3) + "," + (t5 - t4) + "," + (t6 - t5) + "," + (t7 - t6) + ","
@@ -278,7 +278,7 @@ public class FormInitializationComponent extends BaseActionHandler {
     return null;
   }
 
-  private void analyzeResponse(Map<String, JSONObject> columnValues) {
+  private void analyzeResponse(Tab tab, Map<String, JSONObject> columnValues) {
     int maxEntries = 1000;
     int i = 0;
     String heavyCols = "";
@@ -299,7 +299,11 @@ public class FormInitializationComponent extends BaseActionHandler {
       }
     }
     if (!"".equals(heavyCols)) {
-      log.warn("Warning: the combo fields "
+      log.warn("Warning: In the window "
+          + tab.getWindow().getName()
+          + ", in tab "
+          + tab.getName()
+          + " the combo fields "
           + heavyCols
           + " contain more than "
           + maxEntries

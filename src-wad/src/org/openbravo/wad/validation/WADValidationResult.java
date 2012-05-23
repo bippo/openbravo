@@ -50,7 +50,8 @@ class WADValidationResult {
         "Model Object"), MODEL_OBJECT_MAPPING("HTML Mapping"), COLUMN_NAME("Column Naming"), AUXILIARINPUT(
         "Auxiliary Input Name"), MULTIPLE_KEYS("Multiple Key Columns in Table"), BASEREFERENCE_WITH_PARENT(
         "Base Reference with Parent Reference"), PROCESS_WITHOUT_CLASS(
-        "Standard UI Processes without class");
+        "Standard UI Processes without class"), TABS_WITH_MULTIPLE_FIELDS_FOR_SAME_COLUMN(
+        "Tabs with multiple fields for same column");
 
     private String description;
 

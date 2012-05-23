@@ -24,9 +24,11 @@ import javax.servlet.ServletException;
 
 import org.apache.log4j.Logger;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.data.FieldProvider;
 import org.openbravo.database.ConnectionProvider;
 import org.openbravo.erpCommon.utility.SequenceIdData;
+import org.openbravo.model.financialmgmt.gl.GLJournal;
 
 public class DocGLJournal extends AcctServer {
   private static final long serialVersionUID = 1L;
@@ -259,6 +261,12 @@ public class DocGLJournal extends AcctServer {
    * not used
    */
   public boolean getDocumentConfirmation(ConnectionProvider conn, String strRecordId) {
+    final String STATUS_VOIDED = "VO";
+    if (STATUS_VOIDED.equals(OBDal.getInstance().get(GLJournal.class, strRecordId)
+        .getDocumentStatus())) {
+      setStatus(STATUS_DocumentDisabled);
+      return false;
+    }
     return true;
   }
 

@@ -97,9 +97,8 @@ public class CopyFromGLJournal extends HttpSecureAppServlet {
       CopyFromGLJournalData[] data = CopyFromGLJournalData.select(this, strKey, strGLJournalBatch);
       for (int i = 0; data != null && i < data.length; i++) {
         String strSequence = SequenceIdData.getUUID();
-        String strDocumentNo = Utility.getDocumentNo(this, vars, windowId, "GL_Journal",
-            "", data[i].cDoctypeId, false,
-            true);
+        String strDocumentNo = Utility.getDocumentNo(this, vars, windowId, "GL_Journal", "",
+            data[i].cDoctypeId, false, true);
         try {
           if (CopyFromGLJournalData.insertGLJournal(conn, this, strSequence, vars.getClient(),
               data[i].adOrgId, vars.getUser(), data[i].cAcctschemaId, data[i].cDoctypeId, "DR",
@@ -123,7 +122,10 @@ public class CopyFromGLJournal extends HttpSecureAppServlet {
                 dataLines[j].isgenerated, dataLines[j].description, dataLines[j].amtsourcedr,
                 dataLines[j].amtsourcecr, dataLines[j].cCurrencyId, dataLines[j].currencyratetype,
                 dataLines[j].currencyrate, dataLines[j].amtacctdr, dataLines[j].amtacctcr,
-                dataLines[j].cUomId, dataLines[j].qty, dataLines[j].cValidcombinationId) == 0)
+                dataLines[j].cUomId, dataLines[j].qty, dataLines[j].cValidcombinationId,
+                dataLines[j].user1Id, dataLines[j].user2Id, dataLines[j].cCampaignId,
+                dataLines[j].cProjectId, dataLines[j].cActivityId, dataLines[j].cSalesregionId,
+                dataLines[j].mProductId, dataLines[j].cBpartnerId) == 0)
               log4j.warn("Save: GLJournalLine record " + j + " not inserted. Sequence = "
                   + strLineSequence);
           } catch (ServletException ex) {

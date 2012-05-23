@@ -12,7 +12,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2011 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************
@@ -674,7 +674,7 @@ export.database: exports database structure and data to xml files.
     <ant dir="${base.src}" target="uninstallWebService" inheritAll="true" inheritRefs="true" />
   </target>
 
-  <target name="install.source" depends="init, create.database, wad.lib, trl.lib, compile.complete.deploy">
+  <target name="install.source" depends="init, cleanSubfolders, create.database, wad.lib, trl.lib, compile.complete.deploy">
     <echo message="applying modules" />    
     <antcall inheritall="true" inheritrefs="true" target="apply.module" />
 
@@ -689,7 +689,7 @@ export.database: exports database structure and data to xml files.
 		-->
   </target>
 
-  <target name="eclipse.install.source" depends="init, create.database">
+  <target name="eclipse.install.source" depends="init, cleanSubfolders, create.database">
     <fail unless="eclipse.running" message="eclipse.* tasks must be executed inside Eclipse" />
     <echo message="Building OpenbravoCore project..." level="info" />
     <eclipse.incrementalBuild project="OpenbravoCore" kind="full"/>
@@ -1136,4 +1136,11 @@ export.database: exports database structure and data to xml files.
     </taskdef>
     <showclassicwindows userId="0" adminMode="true" propertiesFile="${base.config}/Openbravo.properties"/>
   </target>
+  
+  <target name="cleanSubfolders" depends="init">
+      <ant dir="${base.src.core}" target="clean" inheritAll="true" inheritRefs="true" />
+      <ant dir="${base.src.trl}" target="clean" inheritAll="true" inheritRefs="true" />
+      <ant dir="${base.src.wad}" target="clean" inheritAll="true" inheritRefs="true" />
+    </target>
+  
 </project>

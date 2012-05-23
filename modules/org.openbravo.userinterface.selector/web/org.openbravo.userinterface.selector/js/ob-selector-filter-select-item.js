@@ -19,6 +19,7 @@
 isc.ClassFactory.defineClass('OBSelectorFilterSelectItem', isc.SelectItem);
 
 isc.OBSelectorFilterSelectItem.addProperties({
+  fetchMissingValues: true,
   operator: 'equals',
   valueField: OB.Constants.ID,
 

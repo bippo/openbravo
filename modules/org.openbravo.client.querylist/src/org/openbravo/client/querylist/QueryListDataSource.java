@@ -179,8 +179,11 @@ public class QueryListDataSource extends ReadOnlyDataSourceService {
               if (value instanceof Date) {
                 value = xmlDateFormat.format(value);
               }
-
-              data.put(queryAliases[i], value);
+              if (!isExport) {
+                data.put(queryAliases[i], value);
+              } else {
+                data.put(QueryListUtils.getColumnLabel(column), value);
+              }
             }
           }
         }

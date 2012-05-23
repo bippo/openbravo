@@ -43,7 +43,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2007 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -109,11 +109,11 @@ BEGIN
     --The first day of the week depends on the database configuration for oracle
     --It is used the Julian day to ensure that saturday and sunday are always
     --the days 6 and 7 of the week in both oracle and postgresql databases.
-    SELECT MOD(to_number(to_char(v_DueDate, 'J')), 7) + 1 INTO v_Aux from DUAL;
+    SELECT C_GET_ISOWEEK_DAY(v_DueDate) INTO v_Aux from DUAL;
     WHILE(v_Aux IN('6', '7'))
     LOOP
       v_DueDate := v_DueDate + 1;
-      SELECT MOD(to_number(to_char(v_DueDate, 'J')), 7) + 1 INTO v_Aux from DUAL;
+      SELECT C_GET_ISOWEEK_DAY(v_DueDate) INTO v_Aux from DUAL;
     END LOOP;
   END IF;
   RETURN COALESCE(v_DueDate, TRUNC(p_DocDate)) ;

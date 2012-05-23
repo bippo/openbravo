@@ -1657,7 +1657,7 @@ public class ModuleManagement extends HttpSecureAppServlet {
     if (upd == null || upd.length == 0)
       discard[1] = "moduleUpdate";
 
-    if (selected == null || selected.length == 0)
+    if (selected == null || selected.length == 0 || selected[0] == null)
       discard[2] = "moduleSelected";
 
     final XmlDocument xmlDocument = xmlEngine.readXmlTemplate(
@@ -1666,7 +1666,7 @@ public class ModuleManagement extends HttpSecureAppServlet {
     // Set positions to names in order to be able to use keyboard for
     // navigation in the box
     int position = 1;
-    if (selected != null && selected.length > 0) {
+    if (selected != null && selected.length > 0 && selected[0] != null) {
       final FieldProvider[] fp = FieldProviderFactory.getFieldProviderArray(selected);
       for (int i = 0; i < fp.length; i++)
         FieldProviderFactory.setField(fp[i], "position", new Integer(position++).toString());

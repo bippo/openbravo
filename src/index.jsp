@@ -3,6 +3,9 @@
 <%@ page import="org.openbravo.dal.core.OBContext"%>
 <%@ page import="org.openbravo.base.util.OBClassLoader" %>
 <%@ page import="org.openbravo.authentication.AuthenticationManager" %>
+<%@ page import="org.openbravo.client.kernel.KernelUtils" %>
+<%@ page import="org.openbravo.dal.core.OBContext" %>
+<%@ page import="org.openbravo.model.ad.module.Module" %>
 <%@ page import="org.apache.log4j.Logger" %>
 <%@ page contentType="text/html; charset=UTF-8" %>
 <%
@@ -38,6 +41,19 @@ authManager.init(s);
 String userId = authManager.authenticate(request, response);
 if(userId == null){
   return;
+}
+
+boolean uncompSC = false;
+String scDevModulePackage = "org.openbravo.userinterface.smartclient.dev";
+OBContext.setAdminMode();
+try {
+  if (KernelUtils.getInstance().isModulePresent(scDevModulePackage)) {
+    uncompSC = KernelUtils.getInstance().getModule(scDevModulePackage).isInDevelopment();
+  }
+} catch (Exception e) {
+  log.error("Error trying to acquire module \"" + scDevModulePackage + "\": " + e.getMessage(), e);
+} finally {
+  OBContext.restorePreviousMode();
 }
 
 String ua = request.getHeader( "User-Agent" );
@@ -161,8 +177,8 @@ function OBStartApplication() {
 %>
 }
 </script>
-<script type="text/javascript" src="./web/org.openbravo.userinterface.smartclient/isomorphic/ISC_Combined.js"></script>
-<script type="text/javascript" src="./web/org.openbravo.userinterface.smartclient/isomorphic/ISC_History.js"></script>
+<script type="text/javascript" src="./web/org.openbravo.userinterface.smartclient/isomorphic/ISC_Combined<%=(uncompSC ? ".uncompressed" : "")%>.js"></script>
+<script type="text/javascript" src="./web/org.openbravo.userinterface.smartclient/isomorphic/ISC_History<%=(uncompSC ? ".uncompressed" : "")%>.js"></script>
 <script type="text/javascript" src="./org.openbravo.client.kernel/OBCLKER_Kernel/StaticResources?_mode=3.00&_skinVersion=Default"></script>
 <iframe name="background_target" id="background_target" height="0" width="0" style="display:none;"></iframe>
 <form name="OBGlobalHiddenForm" method="post" action="blank.html" target="background_target">

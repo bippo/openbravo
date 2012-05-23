@@ -192,7 +192,7 @@ public class AccessLevelTest extends BaseTest {
     final Client c = OBDal.getInstance().get(Client.class, "0");
 
     final BusinessPartner bp = OBDal.getInstance().get(BusinessPartner.class,
-        "8A64B71A2B0B2946012B0FE1E82201F4");
+        "2C4C71BC828B47A0AF2A79855FD3BA7A");
     bp.setClient(c);
     try {
       commitTransaction();
@@ -230,7 +230,7 @@ public class AccessLevelTest extends BaseTest {
   public void testAccessLevelOrganization() {
     setSystemAdministratorContext();
     final Organization o = OBDal.getInstance().get(Organization.class, "0");
-    final Order c = OBDal.getInstance().get(Order.class, "CDA9CA3269D04F7497BFA71067A086C9");
+    final Order c = OBDal.getInstance().get(Order.class, "F8492493E92C4EE5B5251AC4574778B7");
     c.setOrganization(o);
 
     try {
