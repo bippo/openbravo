@@ -1,6 +1,6 @@
 /*
  ************************************************************************************
- * Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Copyright (C) 2001-2012 Openbravo S.L.U.
  * Licensed under the Apache Software License version 2.0
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to  in writing,  software  distributed
@@ -13,6 +13,7 @@ package org.openbravo.base.secureApp;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.openbravo.base.VariablesBase;
 import org.openbravo.dal.core.OBContext;
@@ -96,9 +97,34 @@ public class VariablesSecureApp extends VariablesBase {
    *          table.
    */
   public VariablesSecureApp(String strUser, String strClient, String strOrganization, String strRole) {
+    this(strUser, strClient, strOrganization, strRole, null);
+  }
+
+  /**
+   * Constructor used to make an empty/manual instance of this class.
+   * 
+   * @param strUser
+   *          ID of the user as specified by the AD_USER_ID column within the AD_USER database
+   *          table.
+   * @param strClient
+   *          ID of the client as specified by the AD_CLIENT_ID column within the AD_CLIENT database
+   *          table.
+   * @param strOrganization
+   *          ID of the organization as specified by the AD_ORG_ID column within the AD_ORG database
+   *          table.
+   * @param strLanguage
+   *          Language
+   */
+  public VariablesSecureApp(String strUser, String strClient, String strOrganization,
+      String strRole, String strLanguage) {
     this.user = strUser;
     this.role = strRole;
-    this.language = System.getProperty("user.language") + "_" + System.getProperty("user.country");
+    if (StringUtils.isEmpty(strLanguage)) {
+      this.language = System.getProperty("user.language") + "_"
+          + System.getProperty("user.country");
+    } else {
+      this.language = strLanguage;
+    }
     this.theme = "";
     this.client = strClient;
     this.organization = strOrganization;

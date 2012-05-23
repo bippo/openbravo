@@ -14,7 +14,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2009 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -26,6 +26,7 @@
   v_DocumentNo C_ORDER.DocumentNO%TYPE;
   v_IsSOTrx CHAR(1);
   v_Message VARCHAR2(2000):='';
+  v_QTYVARIABLE CHAR(1);
     
 BEGIN
     
@@ -48,6 +49,13 @@ BEGIN
         v_Docaction, v_DocStatus, v_DocumentNo, v_IsSOTrx
       FROM C_ORDER
       WHERE C_ORDER_ID=v_C_ORDER_ID;
+
+      IF (:NEW.M_PRODUCT_ID IS NOT NULL) THEN
+        SELECT ISQUANTITYVARIABLE INTO v_QTYVARIABLE
+        FROM M_PRODUCT
+        WHERE M_PRODUCT_ID = :NEW.M_PRODUCT_ID;
+      END IF;
+
       IF((COALESCE(:OLD.LINE, 0) <> COALESCE(:NEW.LINE, 0))
           OR(COALESCE(:OLD.M_PRODUCT_ID, '0') <> COALESCE(:NEW.M_PRODUCT_ID, '0'))
           OR(COALESCE(:OLD.QTYORDERED, 0) <> COALESCE(:NEW.QTYORDERED, 0))
@@ -70,7 +78,7 @@ BEGIN
         ELSIF (v_IsSOTrx ='Y' AND v_DocStatus = 'DR' AND (:OLD.QTYDELIVERED <> 0 OR :OLD.QTYINVOICED <> 0) AND (COALESCE(:OLD.PRICEACTUAL, 0) = COALESCE(:NEW.PRICEACTUAL, 0) OR :OLD.QTYINVOICED <> 0)) THEN
           RAISE_APPLICATION_ERROR(-20000, '@DeliveredInvoicedOrderline@');
         END IF;
-      ELSIF (v_IsSOTrx = 'Y' AND ABS(:new.QtyInvoiced) > ABS(:new.QtyOrdered)) THEN
+      ELSIF (v_QTYVARIABLE <> 'Y' AND v_IsSOTrx = 'Y' AND ABS(:new.QtyInvoiced) > ABS(:new.QtyOrdered)) THEN
         v_Message := '@OrderDocumentno@' || ' ' || v_DocumentNo || ' ' || '@line@' || :old.line || '. ';
         v_Message := v_Message || '@QtyInvoicedHigherOrdered@';
         RAISE_APPLICATION_ERROR(-20000, v_Message);

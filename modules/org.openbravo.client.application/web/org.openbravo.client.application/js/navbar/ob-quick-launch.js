@@ -192,7 +192,7 @@ isc.OBQuickLaunch.addProperties({
         getPickListFilterCriteria: function () {
           // only filter on identifier
           var criteria = {};
-          criteria[OB.Constants.IDENTIFIER] = this.getValue();
+          criteria[OB.Constants.IDENTIFIER] = this.getDisplayValue();
           return criteria;
         },
         pickListFields: [{

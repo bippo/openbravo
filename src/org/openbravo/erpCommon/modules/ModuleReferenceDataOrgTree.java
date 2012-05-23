@@ -11,7 +11,7 @@
  * under the License.
  * The Original Code is Openbravo ERP.
  * The Initial Developer of the Original Code is Openbravo SLU
- * All portions are Copyright (C) 2008-2010 Openbravo SLU
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -255,12 +255,13 @@ public class ModuleReferenceDataOrgTree extends ModuleTree {
       return;
     for (int i = 0; i < modules.length; i++) {
       if (modules[i].updateAvailable.equals("Y")) {
-        modules[i].linkname = Utility.messageBD(conn, "UpdateAvailable", lang);
+        modules[i].updatelabel = Utility.messageBD(conn, "UpdateAvailable", lang);
+        // modules[i].linkname = Utility.messageBD(conn, "UpdateAvailable", lang);
         // modules[i].linkclick="submitCommandFormParameter('OK', frmMain.inpNodes,'"+
         // modules[i].nodeId + "',false); return false;";
-        String moduleId = modules[i].nodeId;
-        modules[i].linkclick = "gt_submitUpdateData('OK','" + modules[i].nodeId
-            + "'); return false;";
+        // String moduleId = modules[i].nodeId;
+        // modules[i].linkclick = "gt_submitUpdateData('OK','" + modules[i].nodeId
+        // + "'); return false;";
         // modules[i].linkclick="gt_getUpdateDescription('"+modules[i].nodeId+"'); return false;";
       }
       /*

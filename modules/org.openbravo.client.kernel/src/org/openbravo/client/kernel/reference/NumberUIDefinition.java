@@ -187,6 +187,16 @@ public abstract class NumberUIDefinition extends UIDefinition {
     }
   }
 
+  public static class BigDecimalUIDefinition extends NumberUIDefinition {
+    public String getParentType() {
+      return "float";
+    }
+
+    public String getFormat() {
+      return "generalQtyEdition";
+    }
+  }
+
   public static class IntegerUIDefinition extends NumberUIDefinition {
     public String getParentType() {
       return "integer";

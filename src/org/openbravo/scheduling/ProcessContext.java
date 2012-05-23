@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -104,7 +104,7 @@ public class ProcessContext {
    * @see #getUser()
    */
   public VariablesSecureApp toVars() {
-    return new VariablesSecureApp(user, client, organization, role);
+    return new VariablesSecureApp(user, client, organization, role, language);
   }
 
   /**

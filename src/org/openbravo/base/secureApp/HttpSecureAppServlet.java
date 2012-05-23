@@ -49,6 +49,7 @@ import net.sf.jasperreports.engine.export.JExcelApiExporterParameter;
 import net.sf.jasperreports.engine.export.JRHtmlExporter;
 import net.sf.jasperreports.engine.export.JRHtmlExporterParameter;
 
+import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.criterion.Restrictions;
 import org.openbravo.authentication.AuthenticationManager;
 import org.openbravo.base.HttpBaseServlet;
@@ -959,6 +960,29 @@ public class HttpSecureAppServlet extends HttpBaseServlet {
 
     xmlDocument.setParameter("language", "defaultLang=\"" + vars.getLanguage() + "\";");
     xmlDocument.setParameter("href", path.equals("") ? "null" : "'" + path + "'");
+    response.setContentType("text/html; charset=UTF-8");
+    final PrintWriter out = response.getWriter();
+    out.println(xmlDocument.print());
+    out.close();
+  }
+
+  protected void printPageClosePopUp(HttpServletResponse response, VariablesSecureApp vars,
+      String path, String tabTitle) throws IOException, ServletException {
+    if (log4j.isDebugEnabled())
+      log4j.debug("Output: PopUp Response");
+    final XmlDocument xmlDocument = xmlEngine.readXmlTemplate(
+        "org/openbravo/base/secureApp/PopUp_Response").createXmlDocument();
+    JSONObject js = new JSONObject();
+    try {
+      js.put("tabTitle", tabTitle);
+      js.put("addToRecents", false);
+    } catch (Exception e) {
+      js = null;
+    }
+    xmlDocument.setParameter("language", "defaultLang=\"" + vars.getLanguage() + "\";");
+    xmlDocument.setParameter("href", path.equals("") ? "null" : "'" + path + "'");
+    xmlDocument.setParameter("details", js == null ? "var newTabParams={};" : "var newTabParams="
+        + js.toString() + ";");
     response.setContentType("text/html; charset=UTF-8");
     final PrintWriter out = response.getWriter();
     out.println(xmlDocument.print());

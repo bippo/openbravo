@@ -29,7 +29,7 @@
     <Sql>
     <![CDATA[
       SELECT wr.DocumentNo AS wrname, AD_MESSAGE_GET2(wr.CLOSED, to_char(?)) AS wrclosed, wr.LAUNCHDATE AS wrlaunch, wr.STARTDATE AS wrstart, wr.ENDDATE AS wrend,
-        wrp.SeqNo AS wrpname, wrp.QUANTITY AS wrpqty, wrp.DONEQUANTITY AS wrpdone, (wrp.QUANTITY - wrp.DONEQUANTITY ) AS wrpleft,
+        wrp.SeqNo AS wrpname, wrp.QUANTITY AS wrpqty, wrp.DONEQUANTITY AS wrpdone, (CASE WHEN pr.closephase = 'N' THEN (wrp.QUANTITY - wrp.DONEQUANTITY ) ELSE 0 END) AS wrpleft,
         p.NAME AS pname, wrp.COSTCENTERUSE AS wrpph, wrp.PREPTIME AS wrppt, AD_MESSAGE_GET2(wrp.CLOSED, to_char(?)) AS wrpclosed,
         pr.LINE AS prname, we.DocumentNo AS wename, pr.NEEDEDQUANTITY AS prneeded, pr.PRODUCTIONQTY AS prdone, pr.REJECTEDQUANTITY As prrej,
         wrp.SEQNO AS wrpseq, we.MOVEMENTDATE AS wedate, wr.MA_WorkRequirement_ID AS wrid, wrp.MA_WRPhase_ID AS wrpid

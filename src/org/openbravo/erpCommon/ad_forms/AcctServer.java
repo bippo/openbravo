@@ -608,8 +608,8 @@ public abstract class AcctServer {
     // Filter the right acct schemas for the organization
     for (int i = 0; i < (this.m_as).length; i++) {
       acct = m_as[i];
-      if (AcctSchemaData.selectAcctSchemaTable2(connectionProvider, acct.m_C_AcctSchema_ID,
-          AD_Table_ID, adOrgId)) {
+      if (AcctSchemaData.selectAcctSchemaTable(connectionProvider, acct.m_C_AcctSchema_ID,
+          AD_Table_ID)) {
         new_as.add(new AcctSchema(connectionProvider, acct.m_C_AcctSchema_ID));
       }
     }
@@ -2046,6 +2046,9 @@ public abstract class AcctServer {
   // return amt;
   // }
 
+  /*
+   * Returns an amount without applying currency precision for rounding purposes
+   */
   public BigDecimal convertAmount(BigDecimal _amount, boolean isReceipt, String dateAcct,
       String table_ID, String record_ID, String currencyIDFrom, String currencyIDTo, DocLine line,
       AcctSchema as, Fact fact, String Fact_Acct_Group_ID, String seqNo, ConnectionProvider conn)
@@ -2128,10 +2131,8 @@ public abstract class AcctServer {
       } else {
         amtTo = new BigDecimal(getConvertedAmt(_amount.toString(), currencyIDFrom, currencyIDTo,
             conversionDate, "", AD_Client_ID, AD_Org_ID, conn));
-        Currency currency = OBDal.getInstance().get(Currency.class, currencyIDFrom);
-        amtFromSourcecurrency = amtFrom.multiply(_amount)
-            .divide(amtTo, conversionRatePrecision, BigDecimal.ROUND_HALF_EVEN)
-            .setScale(currency.getStandardPrecision().intValue(), BigDecimal.ROUND_HALF_EVEN);
+        amtFromSourcecurrency = amtFrom.multiply(_amount).divide(amtTo, conversionRatePrecision,
+            BigDecimal.ROUND_HALF_EVEN);
       }
     }
     amtDiff = (amtTo).subtract(amtFrom);
@@ -2140,9 +2141,9 @@ public abstract class AcctServer {
     // AccountingRateCurrencyFromCurrencyTo)-AccountingRateCurrencyDocCurrencyTo)
     amtDiff = amtDiff.add(calculateMultipleRatesDifferences(_amount, currencyIDFrom, currencyIDTo,
         line, conn));
-    // Currency currencyTo = OBDal.getInstance().get(Currency.class, currencyIDTo);
-    // amtDiff = amtDiff.setScale(currencyTo.getStandardPrecision().intValue(),
-    // BigDecimal.ROUND_HALF_EVEN);
+    Currency currencyTo = OBDal.getInstance().get(Currency.class, currencyIDTo);
+    amtDiff = amtDiff.setScale(currencyTo.getStandardPrecision().intValue(),
+        BigDecimal.ROUND_HALF_EVEN);
     if ((!isReceipt && amtDiff.compareTo(BigDecimal.ZERO) == 1)
         || (isReceipt && amtDiff.compareTo(BigDecimal.ZERO) == -1)) {
       fact.createLine(line, getAccount(AcctServer.ACCTTYPE_ConvertGainDefaultAmt, as, conn),
@@ -2391,17 +2392,16 @@ public abstract class AcctServer {
         currencyFrom.getStandardPrecision().intValue(), BigDecimal.ROUND_HALF_EVEN);
   }
 
+  /*
+   * Returns an amount without applying currency precision for rounding purposes
+   */
   public static BigDecimal applyRate(BigDecimal _amount, ConversionRateDoc conversionRateDoc,
       boolean multiply) {
     BigDecimal amount = _amount;
     if (multiply) {
-      return amount.multiply(conversionRateDoc.getRate()).setScale(
-          conversionRateDoc.getToCurrency().getStandardPrecision().intValue(),
-          BigDecimal.ROUND_HALF_EVEN);
+      return amount.multiply(conversionRateDoc.getRate());
     } else {
-      return amount.divide(conversionRateDoc.getRate(), 6, BigDecimal.ROUND_HALF_EVEN).setScale(
-          conversionRateDoc.getToCurrency().getStandardPrecision().intValue(),
-          BigDecimal.ROUND_HALF_EVEN);
+      return amount.divide(conversionRateDoc.getRate(), 6, BigDecimal.ROUND_HALF_EVEN);
     }
   }
 

@@ -65,32 +65,32 @@ public class BaseTest extends TestCase {
   /**
    * Record ID of Client "F&B International Group"
    */
-  protected static final String TEST_CLIENT_ID = "FF8080812AFBCB14012AFBD3E373001F";
+  protected static final String TEST_CLIENT_ID = "23C59575B9CF467C9620760EB255B389";
 
   /**
    * Record ID of Organization "F&B España - Región Norte"
    */
-  protected static final String TEST_ORG_ID = "7A8E888A4B4C4E638CD5EB3A41A3289A";
+  protected static final String TEST_ORG_ID = "E443A31992CB4635AFCAEABE7183CE85";
 
   /**
    * Record ID of Organization "F&B US West Coast"
    */
-  protected static final String TEST_US_ORG_ID = "90A1F59849E84AFABD04814B3D15A691";
+  protected static final String TEST_US_ORG_ID = "BAE22373FEBE4CCCA24517E23F0C8A48";
 
   /**
    * Record ID of Warehouse "España Región Norte"
    */
-  protected static final String TEST_WAREHOUSE_ID = "71B43F2AAE3641CA849B131960BCEFF4";
+  protected static final String TEST_WAREHOUSE_ID = "B2D40D8A5D644DD89E329DC297309055";
 
   /**
    * Record ID of User "F&BAdmin"
    */
-  protected static final String TEST_USER_ID = "FF8080812AFBCB14012AFBD3E4F60033";
+  protected static final String TEST_USER_ID = "A530AAE22C864702B7E1C22D58E7B17B";
 
   /**
    * Record ID of User "F&BESRNUser" - Any user with less privileges than {@link #TEST_USER_ID}
    */
-  protected static final String TEST2_USER_ID = "4E0C3170914443718CCD9EE9E68FA698";
+  protected static final String TEST2_USER_ID = "75449AFBAE7F46029F26C85C4CCF714B";
 
   /**
    * Record IDs of available users different than {@link #TEST_USER_ID} Note: Initialized to null,
@@ -101,17 +101,17 @@ public class BaseTest extends TestCase {
   /**
    * Record ID of Role "F&B International Group Admin"
    */
-  protected static final String TEST_ROLE_ID = "FF8080812AFBCB14012AFBD3E4340031";
+  protected static final String TEST_ROLE_ID = "42D0EEB1C66F497A90DD526DC597E6F0";
 
   /**
    * Record ID of a Order in Draft status
    */
-  protected static final String TEST_ORDER_ID = "CDA9CA3269D04F7497BFA71067A086C9";
+  protected static final String TEST_ORDER_ID = "F8492493E92C4EE5B5251AC4574778B7";
 
   /**
    * Record ID of Product "Zumo de Fresa Bio 0,33L"
    */
-  protected static final String TEST_PRODUCT_ID = "8A64B71A2B0B2946012B0BC43922011F";
+  protected static final String TEST_PRODUCT_ID = "61047A6B06B3452B85260C7BCF08E78D";
 
   /**
    * Map representation of current Organization tree for Client {@link #TEST_CLIENT_ID}
@@ -121,13 +121,13 @@ public class BaseTest extends TestCase {
   static {
 
     // "F&B International Group"
-    TEST_ORG_TREE.put("3C816D72B14D4BBCB8571404B794AB84", new String[] { "" });
+    TEST_ORG_TREE.put("19404EAD144C49A0AF37D54377CF452D", new String[] { "" });
 
     // "F&B España, S.A."
-    TEST_ORG_TREE.put("4F68EB1C1B734E79B27DE9D2DF56089F", new String[] { "" });
+    TEST_ORG_TREE.put("B843C30461EA4501935CB1D125C9C25A", new String[] { "" });
 
     // "F&B US, Inc."
-    TEST_ORG_TREE.put("B9C7088AB859483A9B1FB342AC2BE17A", new String[] { "" });
+    TEST_ORG_TREE.put("B843C30461EA4501935CB1D125C9C25A", new String[] { "" });
 
   }
 
@@ -154,7 +154,7 @@ public class BaseTest extends TestCase {
   /**
    * Record ID of the geographical location "c\ de la Costa 54, San Sebastián 12784"
    */
-  protected static final String TEST_LOCATION_ID = "064277EF6EA544518777EC5430B92592";
+  protected static final String TEST_LOCATION_ID = "A21EF1AB822149BEB65D055CD91F261B";
 
   /**
    * Overridden to initialize the Dal layer, sets the current user to the the User:

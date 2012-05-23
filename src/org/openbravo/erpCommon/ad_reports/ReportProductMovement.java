@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2001-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2001-2012 Openbravo SLU 
  * All Rights Reserved.
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -61,9 +61,10 @@ public class ReportProductMovement extends HttpSecureAppServlet {
       String strProduction = vars.getGlobalVariable("inpProduction",
           "ReportProductMovement|production", "-1");
       String strInternalConsumption = vars.getGlobalVariable("inpInternalConsumption",
-              "ReportProductMovement|internalConsumption", "-1");
+          "ReportProductMovement|internalConsumption", "-1");
       printPageDataSheet(response, vars, strDateFrom, strDateTo, strcBpartnerId, strmProductId,
-          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId, strInternalConsumption);
+          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId,
+          strInternalConsumption);
     } else if (vars.commandIn("DIRECT")) {
       String strDateFrom = vars.getGlobalVariable("inpDateFrom", "ReportProductMovement|dateFrom",
           "");
@@ -82,10 +83,11 @@ public class ReportProductMovement extends HttpSecureAppServlet {
       String strProduction = vars.getGlobalVariable("inpProduction",
           "ReportProductMovement|production", "");
       String strInternalConsumption = vars.getGlobalVariable("inpInternalConsumption",
-              "ReportProductMovement|internalConsumption", "");
+          "ReportProductMovement|internalConsumption", "");
       setHistoryCommand(request, "DIRECT");
       printPageDataSheet(response, vars, strDateFrom, strDateTo, strcBpartnerId, strmProductId,
-          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId, strInternalConsumption);
+          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId,
+          strInternalConsumption);
     } else if (vars.commandIn("FIND")) {
       String strDateFrom = vars.getRequestGlobalVariable("inpDateFrom",
           "ReportProductMovement|dateFrom");
@@ -104,10 +106,11 @@ public class ReportProductMovement extends HttpSecureAppServlet {
       String strProduction = vars.getRequestGlobalVariable("inpProduction",
           "ReportProductMovement|production");
       String strInternalConsumption = vars.getRequestGlobalVariable("inpInternalConsumption",
-              "ReportProductMovement|internalConsumption");
+          "ReportProductMovement|internalConsumption");
       setHistoryCommand(request, "DIRECT");
       printPageDataSheet(response, vars, strDateFrom, strDateTo, strcBpartnerId, strmProductId,
-          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId, strInternalConsumption);
+          strInout, strInventory, strMovement, strProduction, strmAttributesetinstanceId,
+          strInternalConsumption);
     } else
       pageError(response);
   }
@@ -115,7 +118,8 @@ public class ReportProductMovement extends HttpSecureAppServlet {
   private void printPageDataSheet(HttpServletResponse response, VariablesSecureApp vars,
       String strDateFrom, String strDateTo, String strcBpartnerId, String strmProductId,
       String strInout, String strInventory, String strMovement, String strProduction,
-      String strmAttributesetinstanceId, String strInternalConsumption) throws IOException, ServletException {
+      String strmAttributesetinstanceId, String strInternalConsumption) throws IOException,
+      ServletException {
     if (log4j.isDebugEnabled())
       log4j.debug("Output: dataSheet");
     response.setContentType("text/html; charset=UTF-8");
@@ -189,19 +193,19 @@ public class ReportProductMovement extends HttpSecureAppServlet {
         data3 = ReportProductMovementData.set();
       }
       if (strInternalConsumption.equals("-1")) {
-          data4 = ReportProductMovementData.selectInternalConsumption(this,
-              Utility.getContext(this, vars, "#User_Client", "ReportProductMovement"),
-              Utility.getContext(this, vars, "#AccessibleOrgTree", "ReportProductMovement"),
-              strDateFrom, DateTimeData.nDaysAfter(this, strDateTo, "1"), strcBpartnerId,
-              strmProductId);
-          if (data4 == null || data4.length == 0) {
-            discard[4] = "selEliminar5";
-            data4 = ReportProductMovementData.set();
-          }
-        } else {
+        data4 = ReportProductMovementData.selectInternalConsumption(this,
+            Utility.getContext(this, vars, "#User_Client", "ReportProductMovement"),
+            Utility.getContext(this, vars, "#AccessibleOrgTree", "ReportProductMovement"),
+            strDateFrom, DateTimeData.nDaysAfter(this, strDateTo, "1"), strcBpartnerId,
+            strmProductId);
+        if (data4 == null || data4.length == 0) {
           discard[4] = "selEliminar5";
           data4 = ReportProductMovementData.set();
         }
+      } else {
+        discard[4] = "selEliminar5";
+        data4 = ReportProductMovementData.set();
+      }
     } else {
       discard[0] = "selEliminar1";
       discard[1] = "selEliminar2";

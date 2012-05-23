@@ -11,7 +11,7 @@
  * Portions created by Jorg Janke are Copyright (C) 1999-2001 Jorg Janke, parts
  * created by ComPiere are Copyright (C) ComPiere, Inc.;   All Rights Reserved.
  * Contributor(s): Openbravo SLU
- * Contributions are Copyright (C) 2001-2011 Openbravo S.L.U.
+ * Contributions are Copyright (C) 2001-2012 Openbravo S.L.U.
  ******************************************************************************
  */
 package org.openbravo.erpCommon.ad_forms;
@@ -798,6 +798,23 @@ public class FactLine {
             + ((m_docLine != null) ? m_docLine.m_A_Asset_ID : ""));
         log4jFactLine.debug("FactLine - m_C_WithHolding_ID "
             + ((m_docLine != null) ? m_docLine.m_C_WithHolding_ID : ""));
+
+        // Applies currency precision
+        Currency currency = OBDal.getInstance().get(Currency.class, m_C_Currency_ID);
+        org.openbravo.model.financialmgmt.accounting.coa.AcctSchema schema = OBDal.getInstance()
+            .get(org.openbravo.model.financialmgmt.accounting.coa.AcctSchema.class,
+                m_C_AcctSchema_ID);
+        m_AmtSourceCr = new BigDecimal(m_AmtSourceCr).setScale(
+            currency.getStandardPrecision().intValue(), BigDecimal.ROUND_HALF_EVEN).toString();
+        m_AmtSourceDr = new BigDecimal(m_AmtSourceDr).setScale(
+            currency.getStandardPrecision().intValue(), BigDecimal.ROUND_HALF_EVEN).toString();
+        m_AmtAcctCr = new BigDecimal(m_AmtAcctCr).setScale(
+            schema.getCurrency().getStandardPrecision().intValue(), BigDecimal.ROUND_HALF_EVEN)
+            .toString();
+        m_AmtAcctDr = new BigDecimal(m_AmtAcctDr).setScale(
+            schema.getCurrency().getStandardPrecision().intValue(), BigDecimal.ROUND_HALF_EVEN)
+            .toString();
+
         no = FactLineData.insertFactAct(con, conn, m_Fact_Acct_ID, AD_Client_ID, AD_Org_ID, vars
             .getUser(), m_C_AcctSchema_ID, Account_ID, cuenta[0].value, cuenta[0].description,
             DateDoc, DateAcct, C_Period_ID, m_AD_Table_ID, m_Record_ID, m_Line_ID,

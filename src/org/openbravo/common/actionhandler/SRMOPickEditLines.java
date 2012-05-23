@@ -19,6 +19,9 @@
 package org.openbravo.common.actionhandler;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,14 +29,27 @@ import org.apache.log4j.Logger;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.hibernate.criterion.Restrictions;
+import org.openbravo.base.exception.OBException;
 import org.openbravo.base.provider.OBProvider;
+import org.openbravo.base.secureApp.VariablesSecureApp;
 import org.openbravo.client.application.process.BaseProcessActionHandler;
+import org.openbravo.client.kernel.RequestContext;
 import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBCriteria;
 import org.openbravo.dal.service.OBDal;
+import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.model.common.enterprise.Organization;
 import org.openbravo.model.common.order.Order;
 import org.openbravo.model.common.order.OrderLine;
 import org.openbravo.model.common.order.ReturnReason;
+import org.openbravo.model.financialmgmt.tax.TaxRate;
 import org.openbravo.model.materialmgmt.transaction.ShipmentInOutLine;
+import org.openbravo.model.pricing.pricelist.PriceList;
+import org.openbravo.model.pricing.pricelist.PriceListVersion;
+import org.openbravo.model.pricing.pricelist.ProductPrice;
+import org.openbravo.service.db.CallStoredProcedure;
+import org.openbravo.service.db.DalConnectionProvider;
 
 /**
  * 
@@ -57,6 +73,22 @@ public class SRMOPickEditLines extends BaseProcessActionHandler {
       }
 
     } catch (Exception e) {
+      VariablesSecureApp vars = RequestContext.get().getVariablesSecureApp();
+
+      try {
+        jsonRequest = new JSONObject();
+
+        JSONObject errorMessage = new JSONObject();
+        errorMessage.put("severity", "error");
+        errorMessage.put("text",
+            Utility.messageBD(new DalConnectionProvider(), e.getMessage(), vars.getLanguage()));
+
+        jsonRequest.put("message", errorMessage);
+      } catch (Exception e2) {
+        log.error(e.getMessage(), e2);
+        // do nothing, give up
+      }
+
       log.error(e.getMessage(), e);
     } finally {
       OBContext.restorePreviousMode();
@@ -80,7 +112,7 @@ public class SRMOPickEditLines extends BaseProcessActionHandler {
     return true;
   }
 
-  private void createOrderLines(JSONObject jsonRequest) throws JSONException {
+  private void createOrderLines(JSONObject jsonRequest) throws JSONException, OBException {
     JSONArray selectedLines = jsonRequest.getJSONArray("_selection");
     // if no lines selected don't do anything.
     if (selectedLines.length() == 0) {
@@ -109,13 +141,47 @@ public class SRMOPickEditLines extends BaseProcessActionHandler {
       BigDecimal qtyReturned = new BigDecimal(selectedLine.getString("returned"));
       newOrderLine.setOrderedQuantity(qtyReturned.negate());
       // Price
-      BigDecimal price = new BigDecimal(selectedLine.getString("unitPrice"));
-      newOrderLine.setUnitPrice(price);
-      newOrderLine.setListPrice(shipmentLine.getSalesOrderLine().getListPrice());
-      newOrderLine.setPriceLimit(shipmentLine.getSalesOrderLine().getPriceLimit());
-      newOrderLine.setStandardPrice(shipmentLine.getSalesOrderLine().getStandardPrice());
+      HashMap<String, BigDecimal> prices = null;
 
-      newOrderLine.setTax(shipmentLine.getSalesOrderLine().getTax());
+      if (shipmentLine.getSalesOrderLine() == null) {
+        prices = getPrices(strOrderId, shipmentLine.getProduct().getId(), order.getOrderDate());
+      }
+
+      if (prices != null) {
+        newOrderLine.setUnitPrice(prices.get("unitPrice"));
+        newOrderLine.setListPrice(prices.get("listPrice"));
+        newOrderLine.setPriceLimit(prices.get("priceLimit"));
+        newOrderLine.setStandardPrice(prices.get("standardPrice"));
+
+        // tax
+        List<Object> parameters = new ArrayList<Object>();
+
+        parameters.add(shipmentLine.getProduct().getId());
+        parameters.add(order.getOrderDate());
+        parameters.add(order.getOrganization().getId());
+        parameters.add(order.getWarehouse().getId());
+        parameters.add(order.getPartnerAddress().getId());
+        parameters.add(order.getInvoiceAddress().getId());
+        if (order.getProject() != null) {
+          parameters.add(order.getProject().getId());
+        } else {
+          parameters.add(null);
+        }
+        parameters.add("Y");
+
+        String taxId = (String) CallStoredProcedure.getInstance()
+            .call("C_Gettax", parameters, null);
+        TaxRate tax = OBDal.getInstance().get(TaxRate.class, taxId);
+
+        newOrderLine.setTax(tax);
+      } else {
+        newOrderLine.setUnitPrice(new BigDecimal(selectedLine.getString("unitPrice")));
+        newOrderLine.setListPrice(shipmentLine.getSalesOrderLine().getListPrice());
+        newOrderLine.setPriceLimit(shipmentLine.getSalesOrderLine().getPriceLimit());
+        newOrderLine.setStandardPrice(shipmentLine.getSalesOrderLine().getStandardPrice());
+
+        newOrderLine.setTax(shipmentLine.getSalesOrderLine().getTax());
+      }
 
       if (selectedLine.getString("returnReason") != null
           && !selectedLine.getString("returnReason").equals("null")) {
@@ -133,5 +199,119 @@ public class SRMOPickEditLines extends BaseProcessActionHandler {
       OBDal.getInstance().save(order);
       OBDal.getInstance().flush();
     }
+  }
+
+  HashMap<String, BigDecimal> getPrices(String strOrderId, String strProductId, Date orderDate)
+      throws OBException {
+    HashMap<String, BigDecimal> prices = new HashMap<String, BigDecimal>();
+    try {
+      OBContext.setAdminMode(true);
+      Order o = OBDal.getInstance().get(Order.class, strOrderId);
+      PriceList pl = o.getBusinessPartner().getPurchasePricelist();
+      PriceListVersion earliestPlv = null;
+      boolean isDefultPriceList = false;
+      // There is no price list in the Busines Partner so default sales price list is taken.
+      if (pl == null) {
+        pl = getDefaultSalesPriceList(o.getClient().getId(), o.getOrganization().getId());
+        isDefultPriceList = true;
+      }
+
+      // Get a fit price list version.
+      if (pl != null) {
+        earliestPlv = getEarliestPriceListVersion(pl, orderDate);
+      } else {
+        // If pl was the default price list, there is no default price list.
+        if (isDefultPriceList) {
+          throw new OBException("NoDefaultPriceList");
+        } else {
+          // If pl was the Business Partner's price list, there was no fit price list for it so take
+          // the default price list.
+          pl = getDefaultSalesPriceList(o.getClient().getId(), o.getOrganization().getId());
+          earliestPlv = getEarliestPriceListVersion(pl, orderDate);
+          // There is no fit price list version.
+          if (earliestPlv == null) {
+            throw new OBException("NoDefaultPriceList");
+          }
+        }
+      }
+
+      if (earliestPlv != null) {
+        prices = getProductPricesFromPLV(strProductId, earliestPlv);
+        if (prices == null && isDefultPriceList) {
+          throw new OBException("NoProductInDefaultPriceList");
+        } else {
+          pl = getDefaultSalesPriceList(o.getClient().getId(), o.getOrganization().getId());
+          earliestPlv = getEarliestPriceListVersion(pl, orderDate);
+          if (earliestPlv == null) {
+            throw new OBException("NoDefaultPriceList");
+          } else {
+            prices = getProductPricesFromPLV(strProductId, earliestPlv);
+            if (prices == null) {
+              throw new OBException("NoProductInDefaultPriceList");
+            } else {
+              return prices;
+            }
+          }
+        }
+      }
+      return null;
+    } finally {
+      OBContext.restorePreviousMode();
+    }
+  }
+
+  PriceList getDefaultSalesPriceList(String clientId, String orgId) throws OBException {
+    List<PriceList> pll = null;
+    final OBCriteria<PriceList> obc = OBDal.getInstance().createCriteria(PriceList.class);
+
+    obc.add(Restrictions.eq("default", true));
+    obc.add(Restrictions.eq("salesPriceList", true));
+    ArrayList<Organization> orgs = new ArrayList<Organization>();
+    for (String orgauxId : OBContext.getOBContext().getOrganizationStructureProvider(clientId)
+        .getNaturalTree(orgId)) {
+      orgs.add(OBDal.getInstance().get(Organization.class, orgauxId));
+    }
+    obc.add(Restrictions.in("organization", orgs));
+    pll = obc.list();
+    if (pll.size() > 0) {
+      return obc.list().get(0);
+    }
+    return null;
+  }
+
+  PriceListVersion getEarliestPriceListVersion(PriceList pl, Date orderDate) {
+    PriceListVersion plv, earliestPlv = null;
+
+    for (int j = 0; j < pl.getPricingPriceListVersionList().size(); j++) {
+      plv = pl.getPricingPriceListVersionList().get(j);
+
+      if (plv != null && plv.getValidFromDate().before(orderDate)) {
+        if (earliestPlv == null) {
+          earliestPlv = plv;
+        }
+        if (plv.getValidFromDate().before(earliestPlv.getValidFromDate())) {
+          earliestPlv = plv;
+        }
+      }
+    }
+    return earliestPlv;
+  }
+
+  HashMap<String, BigDecimal> getProductPricesFromPLV(String strProductId,
+      PriceListVersion earliestPlv) {
+    List<ProductPrice> ppl = earliestPlv.getPricingProductPriceList();
+    HashMap<String, BigDecimal> prices = new HashMap<String, BigDecimal>();
+
+    for (int j = 0; j < ppl.size(); j++) {
+      if (ppl.get(j).getProduct().getId().equalsIgnoreCase(strProductId)) {
+        prices.put("unitPrice", ppl.get(j).getStandardPrice());
+        prices.put("standardPrice", ppl.get(j).getStandardPrice());
+        prices.put("listPrice", ppl.get(j).getListPrice());
+        prices.put("priceLimit", ppl.get(j).getPriceLimit());
+        return prices;
+      }
+    }
+
+    return null;
   }
 }

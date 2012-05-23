@@ -34,7 +34,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -137,7 +137,7 @@
           FROM MA_Maint_Scheduled
           WHERE MA_Maintenance_ID=Cur_Periodicity.MA_Maintenance_ID
             AND SCHEDULEDDATE=v_Date;
-          IF NOT(v_Count!=0 OR(Cur_Periodicity.ExcludeWeekend='Y' AND(TO_CHAR(v_Date, 'd')='6' OR TO_CHAR(v_Date, 'd')='7'))) THEN
+          IF NOT(v_Count!=0 OR(Cur_Periodicity.ExcludeWeekend='Y' AND(C_GET_ISOWEEK_DAY(v_Date)=6 OR C_GET_ISOWEEK_DAY(v_Date)=7))) THEN
             IF(v_Maint.MA_Machine_Type_ID IS NOT NULL AND v_Maint.Explode='Y') THEN
               FOR Cur_Machine IN
                 (SELECT MA_Machine_ID
@@ -260,9 +260,9 @@
         WHILE(v_Date<v_EndDate)
         LOOP
           v_DateInt:=v_Date;
-          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=6) THEN
             v_DateInt:=v_Date +2;
-          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=7) THEN
             v_DateInt:=v_Date +1;
           END IF;
           SELECT count(*)
@@ -332,9 +332,9 @@
         WHILE(v_Date<v_EndDate)
         LOOP
           v_DateInt:=v_Date;
-          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=6) THEN
             v_DateInt:=v_Date +2;
-          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=7) THEN
             v_DateInt:=v_Date +1;
           END IF;
           SELECT count(*)
@@ -403,9 +403,9 @@
         WHILE(v_Date<v_EndDate)
         LOOP
           v_DateInt:=v_Date;
-          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=6) THEN
             v_DateInt:=v_Date +2;
-          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=7) THEN
             v_DateInt:=v_Date +1;
           END IF;
           SELECT count(*)
@@ -474,9 +474,9 @@
         WHILE(v_Date<v_EndDate)
         LOOP
           v_DateInt:=v_Date;
-          IF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='6') THEN
+          IF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=6) THEN
             v_DateInt:=v_Date +2;
-          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND TO_CHAR(v_Date, 'd')='7') THEN
+          ELSIF(Cur_Periodicity.ExcludeWeekend='Y' AND C_GET_ISOWEEK_DAY(v_Date)=7) THEN
             v_DateInt:=v_Date +1;
           END IF;
           SELECT count(*)

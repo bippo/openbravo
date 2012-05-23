@@ -334,6 +334,9 @@ isc.OBTabBarButtonChild.addProperties({
   // when a tab is drawn the first time it steals the focus 
   // from the active view, prevent this
   focus: function () {
+    if (this.parentElement.tabSet.tabPicker) {
+      this.pane.setAsActiveView();
+    }
     if (this.pane.isActiveView && this.pane.isActiveView()) {
       this.Super('focus', arguments);
     }

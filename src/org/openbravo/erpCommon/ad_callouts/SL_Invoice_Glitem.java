@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2010 Openbravo SLU 
+ * All portions are Copyright (C) 2010-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -71,8 +71,6 @@ public class SL_Invoice_Glitem extends HttpSecureAppServlet {
 
       result.append("var calloutName='SL_Invoice_Glitem';\n\n");
       result.append("var respuesta = new Array(");
-      result.append("new Array(\"inppricelist\", \"0\"),");
-      result.append("new Array(\"inppriceactual\",  \"0\"),");
       SLInvoiceTaxData[] data = SLInvoiceTaxData.select(this, strCInvoiceID);
       if (data != null && data.length > 0) {
         String strCTaxID = Tax.get(this, null, data[0].dateinvoiced, strADOrgID, strWharehouse,

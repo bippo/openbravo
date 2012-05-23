@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+  <database name="FUNCTION C_GET_ISOWEEK_DAY">
+    <function name="C_GET_ISOWEEK_DAY" type="NUMERIC">
+      <parameter name="p_date" type="TIMESTAMP" mode="in">
+        <default/>
+      </parameter>
+      <body><![CDATA[/*************************************************************************
+ * The contents of this file are subject to the Openbravo  Public  License
+ * Version  1.1  (the  "License"),  being   the  Mozilla   Public  License
+ * Version 1.1  with a permitted attribution clause; you may not  use this
+ * file except in compliance with the License. You  may  obtain  a copy of
+ * the License at http://www.openbravo.com/legal/license.html
+ * Software distributed under the License  is  distributed  on  an "AS IS"
+ * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+ * License for the specific  language  governing  rights  and  limitations
+ * under the License.
+ * The Original Code is Openbravo ERP.
+ * The Initial Developer of the Original Code is Openbravo SLU
+ * All portions are Copyright (C) 2012 Openbravo SLU
+ * All Rights Reserved.
+*************************************************************************/
+BEGIN
+  --Returns the number of the weekday for given date. Monday=1 and Sunday=7.
+  
+  --The first day of the week depends on the database configuration for oracle
+  --It is used the Julian day to ensure that saturday and sunday are always
+  --the days 6 and 7 of the week in both oracle and postgresql databases.
+  RETURN (MOD(to_number(to_char(p_date, 'J')), 7) + 1);
+END C_GET_ISOWEEK_DAY
+]]></body>
+    </function>
+  </database>

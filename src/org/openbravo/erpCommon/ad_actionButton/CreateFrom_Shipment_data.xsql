@@ -28,7 +28,8 @@
     <Sql>
       <![CDATA[
         SELECT o.C_ORDER_ID, Ad_Column_Identifier(TO_CHAR('C_Order'), TO_CHAR(o.c_order_id), TO_CHAR(?)) AS NAME, 
-        l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME AS RELATION_NAME, 
+        l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,
+	Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, 
         l.C_OrderLine_ID,l.Line, l.ad_org_id, '' as C_InvoiceLine_ID, '' as M_InOutLine_ID, '' AS BREAKDOWN, '' AS STDPRECISION, 
         '' AS C_UOM_ID_Conversion, '' AS QUANTITYORDER, '' AS M_Product_UOM_ID, l.M_ATTRIBUTESETINSTANCE_ID AS M_ATTRIBUTESETINSTANCE_ID, 
         l.C_OrderLine_ID AS ID, '' AS C_Invoice_ID, l.DESCRIPTION AS DESCRIPTION,
@@ -58,6 +59,7 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
     <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="o.AD_Org_ID IN (" text="'1'"/>
@@ -94,7 +96,8 @@
     <Sql>
       <![CDATA[
         SELECT o.C_ORDER_ID, Ad_Column_Identifier(TO_CHAR('C_Order'), TO_CHAR(o.c_order_id), TO_CHAR(?)) AS NAME, 
-        l.QtyOrdered-COALESCE(l.qtydelivered,0) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME AS RELATION_NAME, 
+        l.QtyOrdered-COALESCE(l.qtydelivered,0) AS QTY, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,
+	Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, 
         l.C_OrderLine_ID,l.Line, l.C_OrderLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION
         FROM M_INOUT_CANDIDATE_V ic, C_ORDER o, C_UOM uom, C_ORDERLINE l, M_PRODUCT p 
         WHERE o.C_ORDER_ID = l.C_ORDER_ID
@@ -111,6 +114,7 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
     <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="ic.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="ic.AD_Org_ID IN (" text="'1'"/>
@@ -142,7 +146,7 @@
       <![CDATA[
       SELECT o.C_ORDER_ID, Ad_Column_Identifier(TO_CHAR('C_Order'), TO_CHAR(o.c_order_id), TO_CHAR(?)) AS NAME, 
         l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS QTY, l.C_UOM_ID,COALESCE(uomt.UOMSymbol, uom.UOMSymbol) AS UOMSymbol, l.M_Product_ID,
-        p.NAME AS RELATION_NAME, l.C_OrderLine_ID, l.Line, l.C_OrderLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION,
+        Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, l.C_OrderLine_ID, l.Line, l.C_OrderLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION,
         ((l.QtyOrdered-SUM(COALESCE(m.Qty,0)))/COALESCE(
         (SELECT MULTIPLYRATE FROM C_UOM_CONVERSION WHERE C_UOM_CONVERSION.C_UOM_ID =
         (SELECT C_UOM.C_UOM_ID FROM M_PRODUCT_UOM, C_UOM WHERE M_PRODUCT_UOM_ID = l.M_PRODUCT_UOM_ID AND M_PRODUCT_UOM.C_UOM_ID = C_UOM.C_UOM_ID)        
@@ -173,9 +177,10 @@
     </Sql>
     <Field name="rownum" value="count"/>
     <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="o.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="o.AD_Org_ID IN (" text="'1'"/>
-    <Parameter name="language"/>
     <Parameter name="poId"/>
   </SqlMethod>
   <SqlMethod name="selectFromPOTrlSOTrx" type="preparedStatement" return="multiple">
@@ -184,7 +189,7 @@
       <![CDATA[
         SELECT o.C_ORDER_ID, Ad_Column_Identifier(TO_CHAR('C_Order'), TO_CHAR(o.c_order_id), TO_CHAR(?)) AS NAME, 
         l.QtyOrdered-COALESCE(l.qtydelivered,0) AS QTY, l.C_UOM_ID, COALESCE(uomt.UOMSymbol, uom.UOMSymbol) AS UOMSymbol, 
-        l.M_Product_ID,p.NAME AS RELATION_NAME, l.C_OrderLine_ID, l.Line, l.C_OrderLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION
+        l.M_Product_ID,Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, l.C_OrderLine_ID, l.Line, l.C_OrderLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION
         FROM C_UOM uom left join C_UOM_TRL uomt on uom.C_UOM_ID = uomt.C_UOM_ID
                                                 and uomt.AD_Language = ?,
         M_INOUT_CANDIDATE_V ic, C_ORDER o,   C_ORDERLINE l, M_PRODUCT p 
@@ -203,16 +208,17 @@
     </Sql>
     <Field name="rownum" value="count"/>
     <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="ic.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="ic.AD_Org_ID IN (" text="'1'"/>
-    <Parameter name="language"/>
     <Parameter name="poId"/>
   </SqlMethod>
   <SqlMethod name="selectFromPOUpdate" type="preparedStatement" connection="true" return="multiple">
     <SqlMethodComment></SqlMethodComment>
     <Sql>
       <![CDATA[
-      SELECT l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS ID, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME, l.C_OrderLine_ID,
+      SELECT l.QtyOrdered-SUM(COALESCE(m.Qty,0)) AS ID, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,Ad_Column_Identifier(to_char('M_Product'), to_char(l.m_product_id), to_char(?)) AS NAME, l.C_OrderLine_ID,
       l.Line, '' as C_InvoiceLine_ID, '' as M_InOutLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
       MAX(mu.C_UOM_ID) AS C_UOM_ID_Conversion, MAX(uom1.STDPRECISION) AS STDPRECISION, 
       l.QUANTITYORDER*C_DIVIDE((l.QtyOrdered-SUM(COALESCE(m.Qty,0))),(l.QtyOrdered)) AS quantityOrder, l.M_Product_UOM_ID,
@@ -230,14 +236,15 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
     <Parameter name="cOrderlineId" optional="true" type="argument" after="AND l.M_Product_ID=p.M_Product_ID" text=" AND l.C_OrderLine_ID IN "/>
   </SqlMethod>
   <SqlMethod name="selectFromPOUpdateSOTrx" type="preparedStatement" connection="true" return="multiple">
     <SqlMethodComment></SqlMethodComment>
     <Sql>
       <![CDATA[
-      SELECT l.QtyOrdered - COALESCE(l.QTYDELIVERED,0) AS ID, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,p.NAME, l.C_OrderLine_ID,
-      l.Line, '' as C_InvoiceLine_ID, '' as M_InOutLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
+      SELECT l.QtyOrdered - COALESCE(l.QTYDELIVERED,0) AS ID, l.C_UOM_ID,uom.UOMSymbol, l.M_Product_ID,Ad_Column_Identifier(to_char('M_Product'), to_char(l.m_product_id), to_char(?)) AS NAME, 
+      l.C_OrderLine_ID, l.Line, '' as C_InvoiceLine_ID, '' as M_InOutLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
       MAX(mu.C_UOM_ID) AS C_UOM_ID_Conversion, MAX(uom1.STDPRECISION) AS STDPRECISION, 
       l.QUANTITYORDER*C_DIVIDE((l.QtyOrdered - COALESCE(l.QTYDELIVERED,0)),(l.QtyOrdered)) as quantityOrder, l.M_Product_UOM_ID,
       l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id, l.DESCRIPTION AS DESCRIPTION
@@ -253,6 +260,7 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
     <Parameter name="cOrderlineId" optional="true" type="argument" after="AND l.M_Product_ID=p.M_Product_ID" text=" AND l.C_OrderLine_ID IN "/>
   </SqlMethod>
   <SqlMethod name="selectFromInvoice" type="preparedStatement" return="multiple">
@@ -261,7 +269,8 @@
       <![CDATA[
         SELECT i.C_Invoice_ID, Ad_Column_Identifier(TO_CHAR('C_Invoice'), TO_CHAR(i.C_Invoice_ID), TO_CHAR(?)) AS NAME, 
         l.QtyInvoiced-SUM(COALESCE(mi.Qty,0)) AS QTY, l.C_UOM_ID,uom.UOMSymbol,
-        l.M_Product_ID,p.NAME AS RELATION_NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, l.C_InvoiceLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION,
+        l.M_Product_ID,Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, 
+	l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, l.C_InvoiceLine_ID AS ID, l.DESCRIPTION AS DESCRIPTION,
         (l.QtyInvoiced-SUM(COALESCE(mi.Qty,0))/COALESCE(
         (SELECT MULTIPLYRATE FROM C_UOM_CONVERSION WHERE C_UOM_CONVERSION.C_UOM_ID =
         (SELECT C_UOM.C_UOM_ID FROM M_PRODUCT_UOM, C_UOM WHERE M_PRODUCT_UOM_ID = l.M_PRODUCT_UOM_ID AND M_PRODUCT_UOM.C_UOM_ID = C_UOM.C_UOM_ID)        
@@ -287,6 +296,7 @@
     </Sql>
     <Field name="rownum" value="count"/>
     <Parameter name="language"/>
+    <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="i.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="i.AD_Org_ID IN (" text="'1'"/>
     <Parameter name="cInvoiceId"/>
@@ -297,7 +307,8 @@
       <![CDATA[
         SELECT i.C_Invoice_ID, Ad_Column_Identifier(TO_CHAR('C_Invoice'), TO_CHAR(i.C_Invoice_ID), TO_CHAR(?)) AS NAME, 
         l.QtyInvoiced-SUM(COALESCE(mi.MOVEMENTQTY,0)) AS QTY, l.C_UOM_ID,uom.UOMSymbol,
-        l.M_Product_ID,p.NAME AS RELATION_NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, l.C_InvoiceLine_ID AS ID, 
+        l.M_Product_ID,Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, 
+	l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, l.C_InvoiceLine_ID AS ID, 
         l.DESCRIPTION AS DESCRIPTION
         FROM C_INVOICELINE l left join M_INOUTLINE mi on l.M_INOUTLINE_ID = mi.M_INOUTLINE_ID,
         C_INVOICE i, C_UOM uom,  M_PRODUCT p
@@ -314,6 +325,7 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="language"/>
     <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="i.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="i.AD_Org_ID IN (" text="'1'"/>
@@ -373,7 +385,7 @@
       <![CDATA[
         SELECT i.C_Invoice_ID, Ad_Column_Identifier(TO_CHAR('C_Invoice'), TO_CHAR(i.C_Invoice_ID), TO_CHAR(?)) AS NAME, 
         l.QtyInvoiced-SUM(COALESCE(mi.Qty,0)) AS QTY, l.C_UOM_ID,COALESCE(uomt.UOMSymbol, uom.UOMSymbol) AS UOMSymbol,
-        l.M_Product_ID,p.NAME AS RELATION_NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, l.C_InvoiceLine_ID AS ID, 
+        l.M_Product_ID,Ad_Column_Identifier(TO_CHAR('M_Product'), TO_CHAR(l.m_product_id), TO_CHAR(?)) AS RELATION_NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, l.C_InvoiceLine_ID AS ID, 
         l.DESCRIPTION AS DESCRIPTION,
         (l.QtyInvoiced-SUM(COALESCE(mi.Qty,0))/COALESCE(
         (SELECT MULTIPLYRATE FROM C_UOM_CONVERSION WHERE C_UOM_CONVERSION.C_UOM_ID =
@@ -402,9 +414,10 @@
     </Sql>
     <Field name="rownum" value="count"/>
     <Parameter name="language"/>
+    <Parameter name="language"/>
+    <Parameter name="language"/>
     <Parameter name="adUserClient" type="replace" optional="true" after="i.AD_Client_ID IN (" text="'1'"/>
     <Parameter name="adOrgClient" type="replace" optional="true" after="i.AD_Org_ID IN (" text="'1'"/>
-    <Parameter name="language"/>
     <Parameter name="cInvoiceId"/>
   </SqlMethod>
   <SqlMethod name="selectFromInvoiceUpdate" type="preparedStatement" connection="true" return="multiple">
@@ -412,7 +425,7 @@
     <Sql>
       <![CDATA[
       SELECT l.QtyInvoiced-SUM(COALESCE(mi.Qty,0)) AS ID, l.C_UOM_ID,uom.UOMSymbol,
-      l.M_Product_ID,p.NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
+      l.M_Product_ID,Ad_Column_Identifier(to_char('M_Product'), to_char(l.m_product_id), to_char(?)) AS NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
       MAX(mu.C_UOM_ID) AS C_UOM_ID_Conversion, MAX(uom1.STDPRECISION) AS STDPRECISION, l.QUANTITYORDER, l.M_Product_UOM_ID,
       l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id, l.DESCRIPTION AS DESCRIPTION, l.C_INVOICE_ID
       FROM C_INVOICELINE l left join  M_Product_UOM mu on l.M_Product_UOM_ID = mu.M_Product_UOM_ID 
@@ -429,6 +442,7 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
     <Parameter name="cInvoicelineId" optional="true" type="argument" after="AND l.M_Product_ID=p.M_Product_ID " text=" AND l.C_InvoiceLine_ID IN "/>
   </SqlMethod>
   <SqlMethod name="selectFromInvoiceTrxUpdate" type="preparedStatement" connection="true" return="multiple">
@@ -436,7 +450,7 @@
     <Sql>
       <![CDATA[
       SELECT l.QtyInvoiced-SUM(COALESCE(mi.MOVEMENTQTY,0)) AS ID, l.C_UOM_ID,uom.UOMSymbol,
-      l.M_Product_ID,p.NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
+      l.M_Product_ID,Ad_Column_Identifier(to_char('M_Product'), to_char(l.m_product_id), to_char(?)) AS NAME, l.C_InvoiceLine_ID,l.Line, l.C_OrderLine_ID, COALESCE(uom1.BREAKDOWN, 'N') AS BREAKDOWN, 
       MAX(mu.C_UOM_ID) AS C_UOM_ID_Conversion, MAX(uom1.STDPRECISION) AS STDPRECISION, l.QUANTITYORDER, l.M_Product_UOM_ID,
       l.M_ATTRIBUTESETINSTANCE_ID, l.ad_org_id, l.DESCRIPTION AS DESCRIPTION
       FROM C_INVOICELINE l left join  M_Product_UOM mu on l.M_Product_UOM_ID = mu.M_Product_UOM_ID 
@@ -455,6 +469,7 @@
       ]]>
     </Sql>
     <Field name="rownum" value="count"/>
+    <Parameter name="adLanguage"/>
     <Parameter name="cInvoicelineId" optional="true" type="argument" after="AND l.M_Product_ID=p.M_Product_ID " text=" AND l.C_InvoiceLine_ID IN "/>
   </SqlMethod>
   <SqlMethod name="set" type="constant" return="multiple">

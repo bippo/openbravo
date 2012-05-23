@@ -129,6 +129,9 @@ public class EntityXMLConverter implements OBNotSingleton {
   private DataSet dataSet;
   private Map<Entity, DataSetTable> dataSetTablesByEntity;
 
+  // properties that are to be exported
+  private List<String> includedProperties = new ArrayList<String>();
+
   /**
    * Clear internal data structures, after this call this converter can be used for a new set of
    * objects which need to be exported to a xml representation.
@@ -336,6 +339,9 @@ public class EntityXMLConverter implements OBNotSingleton {
       if (excludeAuditInfo != null && excludeAuditInfo) {
         DataSetService.getInstance().removeAuditInfo(exportableProperties);
       }
+      if (!includedProperties.isEmpty()) {
+        filterProperties(exportableProperties);
+      }
     }
 
     // export each property
@@ -384,6 +390,7 @@ public class EntityXMLConverter implements OBNotSingleton {
       final Object value = obObject.get(p.getName());
 
       // will result in an empty tag if null
+
       if (value == null) {
         propertyAttrs.addAttribute("", "", "xsi:nil", "CDATA", "true");
         xmlHandler.startElement("", "", p.getName(), propertyAttrs);
@@ -466,7 +473,6 @@ public class EntityXMLConverter implements OBNotSingleton {
             addToExportList((BaseOBObject) o);
           }
         }
-
         xmlHandler.endElement("", "", p.getName());
       } else if (!p.isOneToMany()) {
 
@@ -485,6 +491,20 @@ public class EntityXMLConverter implements OBNotSingleton {
       }
     }
     xmlHandler.endElement("", "", entityName);
+  }
+
+  /**
+   * Filters the list of properties to export using the includedProperties list
+   * 
+   */
+  private void filterProperties(List<Property> properties) {
+    final List<Property> toRemove = new ArrayList<Property>();
+    for (final Property p : properties) {
+      if (!p.isChild() && !includedProperties.contains(p.getName())) {
+        toRemove.add(p);
+      }
+    }
+    properties.removeAll(toRemove);
   }
 
   private void addReferenceAttributes(AttributesImpl attrs, BaseOBObject referedObject) {
@@ -661,6 +681,15 @@ public class EntityXMLConverter implements OBNotSingleton {
 
   public void setOptionExportTransientInfo(boolean optionExportTransientInfo) {
     this.optionExportTransientInfo = optionExportTransientInfo;
+  }
+
+  /**
+   * 
+   * @param includedProperties
+   *          set to the Names of the properties to be exported
+   */
+  public void setIncludedProperties(List<String> includedProperties) {
+    this.includedProperties = includedProperties;
   }
 
   public Client getClient() {

@@ -50,7 +50,7 @@ isc.defineClass('OBHTMLWidget', isc.OBWidget).addProperties({
     if (this.parameters.htmlcode) {
       this.contentSource = this.evaluateContents(this.parameters.htmlcode);
     }
-    this.windowContents.contents = this.contentSource;
+    this.windowContents.setContents(this.contentSource);
   },
 
   setWidgetHeight: function () {

@@ -316,6 +316,16 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
       return;
     }
 
+    if (criterion.operator === 'isNull') {
+      this.setValue('#');
+      return;
+    }
+
+    if (criterion.operator === 'notNull') {
+      this.setValue('!#');
+      return;
+    }
+
     if (criterion.operator === 'equals') {
       this.setSingleDateValue(criterion.value);
       return;
@@ -331,6 +341,19 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
   },
 
   getCriterion: function () {
+    var value = this.blurValue();
+    if (value === '#') {
+      return {
+        fieldName: this.name,
+        operator: 'isNull'
+      };
+    }
+    if (value === '!#') {
+      return {
+        fieldName: this.name,
+        operator: 'notNull'
+      };
+    }
     if (this.singleDateValue) {
       return {
         fieldName: this.name,
@@ -343,6 +366,10 @@ isc.OBMiniDateRangeItem.addProperties(OB.DateItemProperties, {
   },
 
   canEditCriterion: function (criterion) {
+
+    if (criterion.fieldName === this.name && (criterion.operator === 'isNull' || criterion.operator === 'notNull')) {
+      return true;
+    }
     if (this.singleDateMode && criterion.fieldName === this.name) {
       return true;
     }

@@ -1294,8 +1294,8 @@ public class PrintController extends HttpSecureAppServlet {
    */
   private File prepareFile(AttachContent content, String documentId) throws ServletException {
     try {
-      final String attachPath = new OBPropertiesProvider().getOpenbravoProperties().getProperty(
-          "attach.path")
+      final String attachPath = OBPropertiesProvider.getInstance().getOpenbravoProperties()
+          .getProperty("attach.path")
           + "/tmp";
       final File f = new File(attachPath, content.getFileName());
       final InputStream inputStream = content.getFileItem().getInputStream();

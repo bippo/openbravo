@@ -58,6 +58,8 @@
   Cur_ReactivateInvoiceLine RECORD;
   Cur_LastContact RECORD;
   Cur_lineqty RECORD;
+  Cur_InvoiceTax RECORD;
+  Cur_TaxMAct RECORD;
 
   -- Record Info
   v_Client_ID VARCHAR2(32);
@@ -147,6 +149,10 @@
   withholdamount NUMBER(10,2);
   cWithHoldId varchar2(32);
   Cur_InvoiceNetLine RECORD;
+
+  v_LineMax NUMBER:=0;
+
+  v_Isquantityvariable CHAR(1);
     
 BEGIN
   IF (p_PInstance_ID IS NOT NULL) THEN
@@ -614,6 +620,27 @@ BEGIN --BODY
             END LOOP; -- Create Reversal Accounting Dimensions
 
         END LOOP; -- Create Reversal Invoice Lines
+
+        -- Check if there is any manually added tax
+        FOR Cur_InvoiceTax IN
+          (SELECT c_tax_id, ad_client_id, ad_org_id, isactive,
+            taxbaseamt, taxamt, recalculate
+          FROM c_invoicetax
+          WHERE c_invoice_id = v_Record_ID
+          MINUS
+          SELECT c_tax_id, ad_client_id, ad_org_id, isactive,
+            -taxbaseamt, -taxamt, recalculate
+          FROM c_invoicetax
+          WHERE c_invoice_id = v_RInvoice_ID)
+        LOOP
+          SELECT MAX(line) + 10 INTO v_LineMax FROM c_invoicetax WHERE c_invoice_id = v_RInvoice_ID;
+          INSERT INTO c_invoicetax(c_tax_id, c_invoice_id, ad_client_id, ad_org_id, isactive, created, createdby, updated, updatedby,
+            taxbaseamt, taxamt, line, c_invoicetax_id, recalculate)
+          VALUES(Cur_InvoiceTax.c_tax_id, v_RInvoice_ID, Cur_InvoiceTax.ad_client_id, Cur_InvoiceTax.ad_org_id, Cur_InvoiceTax.isactive,
+            now(), v_UpdatedBy, now(), v_UpdatedBy, -Cur_InvoiceTax.taxbaseamt, -Cur_InvoiceTax.taxamt, v_LineMax,
+            get_uuid(), Cur_InvoiceTax.recalculate);
+        END LOOP;
+        
         -- Close Invoice
         UPDATE C_INVOICE
         SET DocStatus='VO', -- it IS reversed
@@ -1191,13 +1218,13 @@ BEGIN --BODY
       Cur_MultiTax RECORD;
       xTaxBaseAmt NUMBER:=0;
       xTaxAmt NUMBER:=0;
-      v_TaxNoRecalculable NUMBER:=0;
       v_PreviousTaxAmt NUMBER:=0;
       HeaderNotAdded BOOLEAN:=TRUE;
       v_LineNo NUMBER:=0;
       v_ActualBaseAmt NUMBER;
       v_FirstLine BOOLEAN;
       v_C_InvoiceTax_ID VARCHAR2(32);
+      
     BEGIN
       v_ResultStr:='DeleteOldTaxes';
       DELETE FROM C_INVOICELINETAX
@@ -1205,6 +1232,16 @@ BEGIN --BODY
       DELETE FROM C_INVOICETAX
       WHERE C_Invoice_ID=v_Record_ID
         AND Recalculate = 'Y';
+      -- Update line if recalculate='N'
+      FOR Cur_TaxMAct IN
+        ( SELECT C_INVOICETAX_ID FROM C_INVOICETAX
+          WHERE C_Invoice_ID=v_Record_ID
+          AND Recalculate = 'N'
+        )
+      LOOP
+        v_LineNo:=v_LineNo+10;
+        UPDATE C_INVOICETAX SET line=v_LineNo WHERE C_INVOICETAX_ID=Cur_TaxMAct.C_INVOICETAX_ID;   
+      END LOOP;
       -- For all Tax Rates
       v_ResultStr:='InsertNewTaxes';
       FOR Cur_Tax IN
@@ -1232,17 +1269,11 @@ BEGIN --BODY
         C_INVOICELINETAX_INSERT(v_Org_ID, v_Record_ID, Cur_Tax.C_InvoiceLine_ID, v_UpdatedBy, Cur_Tax.C_Tax_ID, Cur_Tax.C_Tax_ID, Cur_Tax.LineNetAmt, Cur_Tax.TaxBaseAmt, Cur_Tax.StdPrecision);
       END LOOP; -- Insert New Taxes
       -- Update Header
-      SELECT COALESCE(SUM(TaxAmt),0) INTO v_TaxNoRecalculable
-      FROM C_INVOICETAX
-      WHERE C_Invoice_ID = v_Record_ID
-        AND Recalculate = 'N';
       IF (v_IsSOTrx = 'N') THEN
         SELECT c_getwithholding(v_record_id) INTO withholdamount FROM dual;
       ELSE
         withholdamount:=0;
       END IF;
-
-      v_GrandTotal:=C_Currency_Round(v_GrandTotal+v_TaxNoRecalculable, v_Currency_ID, NULL) ;
       SELECT COALESCE(SUM(TAXAMT), 0) INTO v_GrandTotal
       FROM C_INVOICETAX
       WHERE C_INVOICE_ID = v_Record_ID;
@@ -1403,12 +1434,13 @@ BEGIN --BODY
         LOOP
           IF (CurLines.C_OrderLine_ID IS NOT NULL) THEN
             --Check that qty pending to invoice is higher or equal to the qty being invoiced
-            SELECT o.documentno, ABS(ol.qtyordered) - ABS(ol.qtyinvoiced + CurLines.QtyInvoiced)
-              INTO v_ODocumentNo, v_NewPendingToInvoice
+            SELECT o.documentno, ABS(ol.qtyordered) - ABS(ol.qtyinvoiced + CurLines.QtyInvoiced), p.isquantityvariable
+              INTO v_ODocumentNo, v_NewPendingToInvoice, v_Isquantityvariable
             FROM c_order o, c_orderline ol
+            LEFT JOIN m_product p ON p.m_product_id = ol.m_product_id
             WHERE o.c_order_id = ol.c_order_id
               AND ol.c_orderline_id = CurLines.c_orderline_id;
-            IF (v_NewPendingToInvoice <0 ) THEN
+            IF (v_Isquantityvariable <> 'Y' AND v_NewPendingToInvoice <0) THEN
               v_Message := '@NotPossibleCompleteInvoice@' || ' ' || v_DocumentNo;
               v_Message := v_Message || ' ' || '@line@' || ' ' || CurLines.line || '. ';
               v_Message := v_Message || '@OrderDocumentno@' || ' ' || v_ODocumentNo;

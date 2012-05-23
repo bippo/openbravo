@@ -85,7 +85,7 @@ public class AllowedOrganizationsTest extends BaseTest {
 
     final Order o = OBDal.getInstance().get(Order.class, TEST_ORDER_ID);
     final Organization o5 = OBDal.getInstance().get(Organization.class,
-        TEST_ORG_TREE.keySet().iterator().next());
+        "B843C30461EA4501935CB1D125C9C25A");
     o.getBusinessPartner().setOrganization(o5);
 
     try {

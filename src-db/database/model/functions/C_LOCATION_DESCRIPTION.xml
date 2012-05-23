@@ -16,7 +16,7 @@
 * under the License.
 * The Original Code is Openbravo ERP.
 * The Initial Developer of the Original Code is Openbravo SLU
-* All portions are Copyright (C) 2001-2006 Openbravo SLU
+* All portions are Copyright (C) 2001-2012 Openbravo SLU
 * All Rights Reserved.
 * Contributor(s):  ______________________________________.
 ************************************************************************/
@@ -35,19 +35,24 @@ BEGIN
     END
     ) || (
     CASE
-      WHEN(L.POSTAL||L.CITY||R.NAME) IS NULL
-      THEN ''
-      ELSE CHR(10) ||L.POSTAL ||(
+      WHEN COALESCE(TO_CHAR(L.POSTAL), TO_CHAR(L.CITY), TO_CHAR(R.NAME)) IS NULL THEN ''
+      ELSE CHR(10) || COALESCE(TO_CHAR(L.POSTAL), '')  
+      || (
       CASE
-        WHEN(L.POSTAL) IS NULL
-        THEN ''
-        ELSE ' - '||TO_CHAR(L.CITY)
+        WHEN (L.POSTAL IS NULL) OR (L.CITY IS NULL AND R.NAME IS NULL) THEN ''
+        ELSE ' - '
       END
       ) || (
       CASE
-        WHEN(R.NAME) IS NULL
-        THEN ''
-        ELSE ' ('||TO_CHAR(R.NAME) || ')'
+        WHEN L.CITY IS NULL THEN ''
+        ELSE TO_CHAR(L.CITY)
+      END
+      ) || (
+      CASE
+        WHEN R.NAME IS NULL THEN ''
+        ELSE (CASE WHEN L.CITY IS NOT NULL THEN ' ('||TO_CHAR(R.NAME) || ')' 
+                   ELSE '('||TO_CHAR(R.NAME) || ')' 
+              END)
       END
       )
     END

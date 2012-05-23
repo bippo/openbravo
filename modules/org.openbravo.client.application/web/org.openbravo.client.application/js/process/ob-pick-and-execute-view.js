@@ -49,7 +49,7 @@ isc.OBPickAndExecuteView.addProperties({
   initWidget: function () {
 
     var view = this,
-        okButton, cancelButton, i, buttonLayout = [];
+        okButton, newButton, cancelButton, i, buttonLayout = [];
 
     function actionClick() {
       if (view.validate()) {
@@ -109,11 +109,14 @@ isc.OBPickAndExecuteView.addProperties({
       for (i in this.buttons) {
         if (this.buttons.hasOwnProperty(i)) {
 
-          buttonLayout.push(isc.OBFormButton.create({
+          newButton = isc.OBFormButton.create({
             title: this.buttons[i],
             _buttonValue: i,
             click: actionClick
-          }));
+          });
+          buttonLayout.push(newButton);
+          OB.TestRegistry.register('org.openbravo.client.application.process.pickandexecute.button.' + i, newButton);
+
 
           // pushing a spacer
           buttonLayout.push(isc.LayoutSpacer.create({
@@ -123,6 +126,7 @@ isc.OBPickAndExecuteView.addProperties({
       }
     } else {
       buttonLayout.push(okButton);
+      OB.TestRegistry.register('org.openbravo.client.application.process.pickandexecute.button.ok', okButton);
       buttonLayout.push(isc.LayoutSpacer.create({
         width: 32
       }));
@@ -130,6 +134,8 @@ isc.OBPickAndExecuteView.addProperties({
 
     buttonLayout.push(cancelButton);
     buttonLayout.push(isc.LayoutSpacer.create({}));
+    OB.TestRegistry.register('org.openbravo.client.application.process.pickandexecute.button.cancel', cancelButton);
+
 
     if (this.viewProperties.allowAdd) {
       this.addNewButton = isc.OBLinkButtonItem.create({
@@ -144,7 +150,7 @@ isc.OBPickAndExecuteView.addProperties({
         }
       });
     }
-    OB.TestRegistry.register('org.openbravo.client.application.navigationbarcomponents.pickandexecute.button.addnew', this.addNewButton);
+    OB.TestRegistry.register('org.openbravo.client.application.process.pickandexecute.button.addnew', this.addNewButton);
 
     this.items = [this.viewGrid, isc.HLayout.create({
       height: 1,

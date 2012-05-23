@@ -147,12 +147,20 @@ public class FIN_PaymentMonitorProcess extends DalBaseProcess {
       invoice.setDaysTillDue(getDaysTillDue(invoice));
       if (invoice.getOutstandingAmount().compareTo(BigDecimal.ZERO) == 0) {
         Date finalSettlementDate = getFinalSettlementDate(invoice);
-        invoice.setFinalSettlementDate(finalSettlementDate);
-        invoice.setDaysSalesOutstanding(FIN_Utility.getDaysBetween(invoice.getInvoiceDate(),
-            finalSettlementDate));
+        // If date is null invoice amount = 0 then nothing to set
+        if (finalSettlementDate != null) {
+          invoice.setFinalSettlementDate(finalSettlementDate);
+          invoice.setDaysSalesOutstanding(FIN_Utility.getDaysBetween(invoice.getInvoiceDate(),
+              finalSettlementDate));
+        }
+      }
+      BigDecimal grandTotalAmount = invoice.getGrandTotalAmount();
+      // This prevents division by ZERO
+      if (grandTotalAmount.compareTo(BigDecimal.ZERO) == 0) {
+        grandTotalAmount = BigDecimal.ONE;
       }
       invoice.setPercentageOverdue(amounts.get("overdueOriginal").multiply(new BigDecimal(100))
-          .divide(invoice.getGrandTotalAmount(), BigDecimal.ROUND_HALF_UP).longValue());
+          .divide(grandTotalAmount, BigDecimal.ROUND_HALF_UP).longValue());
       invoice.setLastCalculatedOnDate(new Date());
 
       OBDal.getInstance().save(invoice);

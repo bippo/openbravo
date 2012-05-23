@@ -1461,9 +1461,11 @@ public class CreateFrom extends HttpSecureAppServlet {
       for (int k = 0; k < ids.length; k++) {
         if (strType.equals("SHIPMENT")) {
           if (isSOTrx.equals("Y"))
-            data = CreateFromInvoiceData.selectFromShipmentUpdateSOTrx(conn, this, ids[k]);
+            data = CreateFromInvoiceData.selectFromShipmentUpdateSOTrx(conn, this,
+                vars.getLanguage(), ids[k]);
           else
-            data = CreateFromInvoiceData.selectFromShipmentUpdate(conn, this, ids[k]);
+            data = CreateFromInvoiceData.selectFromShipmentUpdate(conn, this, vars.getLanguage(),
+                ids[k]);
           dataAux = CreateFromInvoiceData
               .selectPriceList(conn, this, strDateInvoiced, strPriceList);
           if (dataAux == null || dataAux.length == 0) {
@@ -1476,9 +1478,11 @@ public class CreateFrom extends HttpSecureAppServlet {
         } else {
           strPO = vars.getStringParameter("inpPurchaseOrder");
           if (isSOTrx.equals("Y"))
-            data = CreateFromInvoiceData.selectFromPOUpdateSOTrx(conn, this, ids[k]);
+            data = CreateFromInvoiceData.selectFromPOUpdateSOTrx(conn, this, vars.getLanguage(),
+                ids[k]);
           else
-            data = CreateFromInvoiceData.selectFromPOUpdate(conn, this, strKey, ids[k]);
+            data = CreateFromInvoiceData.selectFromPOUpdate(conn, this, vars.getLanguage(), strKey,
+                ids[k]);
         }
         if (data != null) {
           for (int i = 0; i < data.length; i++) {
@@ -1607,13 +1611,16 @@ public class CreateFrom extends HttpSecureAppServlet {
         if (strType.equals("INVOICE")) {
           strInvoice = vars.getStringParameter("inpInvoice");
           if (!isSOTrx.equals("Y"))
-            data = CreateFromShipmentData.selectFromInvoiceUpdate(conn, this, ids[k]);
+            data = CreateFromShipmentData.selectFromInvoiceUpdate(conn, this, vars.getLanguage(),
+                ids[k]);
         } else {
           strPO = vars.getStringParameter("inpPurchaseOrder");
           if (isSOTrx.equals("Y"))
-            data = CreateFromShipmentData.selectFromPOUpdateSOTrx(conn, this, ids[k]);
+            data = CreateFromShipmentData.selectFromPOUpdateSOTrx(conn, this, vars.getLanguage(),
+                ids[k]);
           else
-            data = CreateFromShipmentData.selectFromPOUpdate(conn, this, ids[k]);
+            data = CreateFromShipmentData
+                .selectFromPOUpdate(conn, this, vars.getLanguage(), ids[k]);
         }
         if (data != null) {
           for (int i = 0; i < data.length; i++) {
@@ -1832,15 +1839,19 @@ public class CreateFrom extends HttpSecureAppServlet {
         if (strType.equals("INVOICE")) {
           strInvoice = vars.getStringParameter("inpInvoice");
           if (isSOTrx.equals("Y"))
-            data = CreateFromShipmentData.selectFromInvoiceTrxUpdate(conn, this, ids[k]);
+            data = CreateFromShipmentData.selectFromInvoiceTrxUpdate(conn, this,
+                vars.getLanguage(), ids[k]);
           else
-            data = CreateFromShipmentData.selectFromInvoiceUpdate(conn, this, ids[k]);
+            data = CreateFromShipmentData.selectFromInvoiceUpdate(conn, this, vars.getLanguage(),
+                ids[k]);
         } else {
           strPO = vars.getStringParameter("inpPurchaseOrder");
           if (isSOTrx.equals("Y"))
-            data = CreateFromShipmentData.selectFromPOUpdateSOTrx(conn, this, ids[k]);
+            data = CreateFromShipmentData.selectFromPOUpdateSOTrx(conn, this, vars.getLanguage(),
+                ids[k]);
           else
-            data = CreateFromShipmentData.selectFromPOUpdate(conn, this, ids[k]);
+            data = CreateFromShipmentData
+                .selectFromPOUpdate(conn, this, vars.getLanguage(), ids[k]);
         }
         if (data != null) {
           for (int i = 0; i < data.length; i++) {

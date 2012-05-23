@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2008-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2008-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -92,7 +92,10 @@ public class SL_RequisitionLine_Product extends HttpSecureAppServlet {
     OBContext.setAdminMode(true);
     try {
       PriceList pList = OBDal.getInstance().get(PriceList.class, strPriceListId);
-      strResult.append("new Array(\"inpcCurrencyId\", \"" + pList.getCurrency().getId() + "\"),\n");
+      if (pList != null) {
+        strResult.append("new Array(\"inpcCurrencyId\", \"" + pList.getCurrency().getId()
+            + "\"),\n");
+      }
     } finally {
       OBContext.restorePreviousMode();
     }

@@ -11,7 +11,7 @@
  * under the License. 
  * The Original Code is Openbravo ERP. 
  * The Initial Developer of the Original Code is Openbravo SLU 
- * All portions are Copyright (C) 2009-2010 Openbravo SLU 
+ * All portions are Copyright (C) 2009-2012 Openbravo SLU 
  * All Rights Reserved. 
  * Contributor(s):  ______________________________________.
  ************************************************************************
@@ -55,11 +55,12 @@ public abstract class DalBaseProcess implements Process {
       String roleId = processContext.getRole();
       String clientId = processContext.getClient();
       String orgId = processContext.getOrganization();
+      String lang = processContext.getLanguage();
 
       log.debug("Setting user context to user=" + userId + ",roleId=" + roleId + ",client="
-          + clientId + ",org=" + orgId);
+          + clientId + ",org=" + orgId + ",lang=" + lang);
 
-      OBContext.setOBContext(userId, roleId, clientId, orgId);
+      OBContext.setOBContext(userId, roleId, clientId, orgId, lang);
       doExecute(bundle);
       errorOccured = false;
     } finally {

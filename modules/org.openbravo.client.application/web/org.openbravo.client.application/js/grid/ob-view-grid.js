@@ -50,8 +50,9 @@ isc.OBViewGrid.addProperties({
   editLinkFieldProperties: {
     type: 'text',
     canSort: false,
+    canReorder: false,
     frozen: true,
-    canFreeze: true,
+    canFreeze: false,
     canEdit: false,
     canGroupBy: false,
     canHide: false,

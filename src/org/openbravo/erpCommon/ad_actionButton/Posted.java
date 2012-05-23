@@ -29,12 +29,15 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.openbravo.base.secureApp.HttpSecureAppServlet;
 import org.openbravo.base.secureApp.VariablesSecureApp;
+import org.openbravo.dal.core.OBContext;
+import org.openbravo.dal.service.OBDal;
 import org.openbravo.erpCommon.ad_forms.AcctServer;
 import org.openbravo.erpCommon.reference.ActionButtonData;
 import org.openbravo.erpCommon.reference.PInstanceProcessData;
 import org.openbravo.erpCommon.utility.OBError;
 import org.openbravo.erpCommon.utility.SequenceIdData;
 import org.openbravo.erpCommon.utility.Utility;
+import org.openbravo.model.ad.ui.Process;
 import org.openbravo.xmlEngine.XmlDocument;
 
 public class Posted extends HttpSecureAppServlet {
@@ -50,6 +53,7 @@ public class Posted extends HttpSecureAppServlet {
     if (log4j.isDebugEnabled())
       log4j.debug("Posted: doPost");
 
+    final String generalLedgerJournalReport_ID = "800000";
     VariablesSecureApp vars = new VariablesSecureApp(request);
 
     if (vars.commandIn("DEFAULT")) {
@@ -68,7 +72,6 @@ public class Posted extends HttpSecureAppServlet {
       printPage(response, vars, strKey, strWindowId, strTabId, strProcessId, strTableId,
           strForcedTableId, strPath, strTabName, strPosted);
     } else if (vars.commandIn("SAVE")) {
-
       String strKey = vars.getRequiredGlobalVariable("inpKey", "Posted|key");
       String strTableId = vars.getRequiredGlobalVariable("inpTableId", "Posted|tableId");
       String strTabId = vars.getRequestGlobalVariable("inpTabId", "Posted|tabId");
@@ -95,9 +98,18 @@ public class Posted extends HttpSecureAppServlet {
             vars.setMessage(strTabId, messageResult);
             printPageClosePopUp(response, vars);
           } else {
-            printPageClosePopUp(response, vars, (strDireccion
+            String title;
+            OBContext.setAdminMode();
+            Process genLedJour = OBDal.getInstance().get(Process.class,
+                generalLedgerJournalReport_ID);
+            if (genLedJour != null) {
+              title = genLedJour.getIdentifier();
+            } else {
+              title = "POST";
+            }
+            printPageClosePopUp(response, vars, strDireccion
                 + "/ad_reports/ReportGeneralLedgerJournal.html?Command=DIRECT&inpTable="
-                + strTableId + "&inpRecord=" + strKey + "&inpOrg=" + data[0].org));
+                + strTableId + "&inpRecord=" + strKey + "&inpOrg=" + data[0].org, title);
           }
         }
       } else {
@@ -114,9 +126,18 @@ public class Posted extends HttpSecureAppServlet {
                 Utility.translateError(this, vars, vars.getLanguage(), "NoFactAcct"));
             printPageClosePopUp(response, vars);
           } else {
-            printPageClosePopUp(response, vars, (strDireccion
+            String title;
+            OBContext.setAdminMode();
+            Process genLedJour = OBDal.getInstance().get(Process.class,
+                generalLedgerJournalReport_ID);
+            if (genLedJour != null) {
+              title = genLedJour.getIdentifier();
+            } else {
+              title = "POST";
+            }
+            printPageClosePopUp(response, vars, strDireccion
                 + "/ad_reports/ReportGeneralLedgerJournal.html?Command=DIRECT&inpTable="
-                + strTableId + "&inpRecord=" + strKey + "&inpOrg=" + data[0].org));
+                + strTableId + "&inpRecord=" + strKey + "&inpOrg=" + data[0].org, title);
           }
         } else {
           if (log4j.isDebugEnabled())

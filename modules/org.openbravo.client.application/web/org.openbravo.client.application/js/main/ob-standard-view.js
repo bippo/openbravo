@@ -1480,7 +1480,7 @@ isc.OBStandardView.addProperties({
     var msg, dialogTitle, view = this,
         deleteCount, callback;
 
-    if (!this.readOnly) {
+    if (!this.readOnly && this.isDeleteableTable) {
       // first save what we have edited
       if (!autoSaveDone) {
         var actionObject = {
@@ -1973,10 +1973,10 @@ isc.OBStandardView.addProperties({
     return result;
   },
 
-  setFieldFormProperties: function (fld) {
+  setFieldFormProperties: function (fld, isGridField) {
     var onChangeFunction;
 
-    if (fld.displayed === false) {
+    if (fld.displayed === false && !isGridField) {
       fld.visible = false;
       fld.alwaysTakeSpace = false;
     }
@@ -2101,8 +2101,8 @@ isc.OBStandardView.addProperties({
       fld.escapeHTML = (fld.escapeHTML === false ? false : true);
       fld.prompt = fld.title;
       fld.editorProperties = isc.addProperties({}, fld, isc.shallowClone(fld.editorProps));
-      this.setFieldFormProperties(fld.editorProperties);
-
+      //issue 20192: 2nd parameter is true because fld.editorProperties is a grid property.
+      this.setFieldFormProperties(fld.editorProperties, true);
       if (fld.disabled) {
         fld.editorProperties.disabled = true;
       }
